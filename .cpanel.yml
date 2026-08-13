@@ -3,3 +3,5 @@ deployment:
   tasks:
     - export DEPLOYPATH=/home/roasistc/marketing.roasist.com/
     - /bin/cp -fR * $DEPLOYPATH
+    - /bin/cp -f .htaccess $DEPLOYPATH/.htaccess 2>/dev/null || true
+    - /bin/cp -f deploy.php $DEPLOYPATH/deploy.php 2>/dev/null || true

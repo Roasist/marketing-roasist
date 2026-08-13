@@ -17,8 +17,8 @@ if (is_dir($repoDir)) {
     exec($cmd, $gitOutput, $gitStatus);
     $log['git_pull'] = $gitOutput;
 
-    // 2. Copy all files and assets to marketing.roasist.com
-    $cpCmd = "cp -rf $repoDir/* $targetDir/ 2>&1 && cp -rf $repoDir/.htaccess $targetDir/.htaccess 2>&1";
+    // 2. Copy all files, dotfiles (.htaccess) and assets to marketing.roasist.com
+    $cpCmd = "cp -rf $repoDir/* $targetDir/ 2>&1 && cp -f $repoDir/.htaccess $targetDir/.htaccess 2>&1 && cp -f $repoDir/deploy.php $targetDir/deploy.php 2>&1";
     exec($cpCmd, $cpOutput, $cpStatus);
     $log['copy_files'] = $cpOutput;
 
@@ -28,7 +28,7 @@ if (is_dir($repoDir)) {
         'details' => $log
     ], JSON_PRETTY_PRINT);
 } else {
-    // Fallback if deployed in current folder
+    // Fallback
     $cmd = "cd " . __DIR__ . " && git pull origin main 2>&1";
     exec($cmd, $out, $ret);
     echo json_encode([
