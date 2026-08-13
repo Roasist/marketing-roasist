@@ -1,32 +1,38 @@
 <?php
 /**
- * Auto-deployment Webhook Script for Veridyen Server
- * Subdomain: marketing.roasist.com
+ * Auto-Deployment Webhook Script for Veridyen
+ * Target Domain: marketing.roasist.com
  */
 
-// Secret key for security (optional)
-$secret = "roasist_secret_key_123";
+header('Content-Type: application/json');
 
-// Log file path
-$logFile = __DIR__ . '/deploy.log';
+$repoDir = '/home/roasistc/repositories/marketing-roasist';
+$targetDir = '/home/roasistc/marketing.roasist.com';
 
-function logMessage($msg) {
-    global $logFile;
-    file_put_contents($logFile, date('[Y-m-d H:i:s] ') . $msg . "\n", FILE_APPEND);
+$log = [];
+
+if (is_dir($repoDir)) {
+    // 1. Pull latest from GitHub in the repository directory
+    $cmd = "cd $repoDir && git fetch origin main 2>&1 && git reset --hard origin/main 2>&1";
+    exec($cmd, $gitOutput, $gitStatus);
+    $log['git_pull'] = $gitOutput;
+
+    // 2. Copy all files and assets to marketing.roasist.com
+    $cpCmd = "cp -rf $repoDir/* $targetDir/ 2>&1 && cp -rf $repoDir/.htaccess $targetDir/.htaccess 2>&1";
+    exec($cpCmd, $cpOutput, $cpStatus);
+    $log['copy_files'] = $cpOutput;
+
+    echo json_encode([
+        'status' => 'success',
+        'message' => 'Deployment executed successfully!',
+        'details' => $log
+    ], JSON_PRETTY_PRINT);
+} else {
+    // Fallback if deployed in current folder
+    $cmd = "cd " . __DIR__ . " && git pull origin main 2>&1";
+    exec($cmd, $out, $ret);
+    echo json_encode([
+        'status' => $ret === 0 ? 'success' : 'fallback_executed',
+        'output' => $out
+    ], JSON_PRETTY_PRINT);
 }
-
-logMessage("Webhook tetiklendi.");
-
-// Execute git pull & copy dist files
-$output = [];
-$returnVar = 0;
-
-exec("cd " . __DIR__ . " && git pull origin main 2>&1", $output, $returnVar);
-
-logMessage("Git Pull Sonucu (Code: $returnVar): " . implode("\n", $output));
-
-echo json_encode([
-    'status' => $returnVar === 0 ? 'success' : 'error',
-    'message' => 'Deploy executed',
-    'output' => $output
-]);
