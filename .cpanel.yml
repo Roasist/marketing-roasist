@@ -2,5 +2,5 @@
 deployment:
   tasks:
     - export DEPLOYPATH=/home/roasistc/marketing.roasist.com/
-    - /bin/cp -R * $DEPLOYPATH
     - /bin/cp -R dist/* $DEPLOYPATH
+    - /bin/cp public/deploy.php $DEPLOYPATH 2>/dev/null || true
