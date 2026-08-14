@@ -135,9 +135,17 @@ export class ApiService {
   }
 
   // --- Live Meta Ad Library Ingestion ---
-  public static async fetchMetaAds(pageId?: string, country = 'TR'): Promise<AdItem[]> {
-    const query = pageId ? `&page_id=${encodeURIComponent(pageId)}` : '';
-    const res = await this.request<{ status: string; ads: AdItem[]; message?: string }>(`/ads.php?action=fetch_meta_ads&country=${country}${query}`);
+  public static async fetchMetaAds(options: { pageId?: string; query?: string; country?: string; status?: string; mediaType?: string; limit?: number } | string = {}): Promise<AdItem[]> {
+    const opts = typeof options === 'string' ? { pageId: options } : options;
+    const params = new URLSearchParams({ action: 'fetch_meta_ads' });
+    if (opts.pageId && opts.pageId !== 'ALL') params.set('page_id', opts.pageId);
+    if (opts.query) params.set('q', opts.query);
+    if (opts.country) params.set('country', opts.country);
+    if (opts.status) params.set('status', opts.status);
+    if (opts.mediaType && opts.mediaType !== 'ALL') params.set('media_type', opts.mediaType);
+    if (opts.limit) params.set('limit', String(opts.limit));
+
+    const res = await this.request<{ status: string; ads: AdItem[]; message?: string }>(`/ads.php?${params.toString()}`);
     return res.ads || [];
   }
 

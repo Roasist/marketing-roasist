@@ -45,6 +45,7 @@ export interface AdItem {
 export interface FilterState {
   competitorId: string; // 'ALL' or specific pageId
   searchKeyword: string;
+  country?: string; // 'TR', 'US', 'DE', 'GB', 'AE', 'FR'
   status: 'ALL' | 'ACTIVE' | 'INACTIVE';
   format: 'ALL' | AdFormat;
   platform: 'ALL' | PlatformType;

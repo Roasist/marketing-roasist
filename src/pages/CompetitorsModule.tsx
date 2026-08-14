@@ -19,7 +19,8 @@ import {
   Bookmark, 
   Trash2, 
   Tag,
-  ExternalLink
+  ExternalLink,
+  Loader2
 } from 'lucide-react';
 
 interface CompetitorsModuleProps {
@@ -58,6 +59,8 @@ export const CompetitorsModule: React.FC<CompetitorsModuleProps> = ({
     sortBy: 'NEWEST',
   });
 
+  const [isLoadingAds, setIsLoadingAds] = useState(false);
+
   // Load database competitors and saved ads
   const loadDatabaseData = async () => {
     try {
@@ -71,17 +74,38 @@ export const CompetitorsModule: React.FC<CompetitorsModuleProps> = ({
     }
   };
 
+  const fetchLiveAds = async (targetId?: string) => {
+    setIsLoadingAds(true);
+    try {
+      const fetched = await ApiService.fetchMetaAds({
+        pageId: targetId && targetId !== 'ALL' ? targetId : undefined,
+        country: filters.country || 'TR',
+        status: filters.status !== 'ALL' ? filters.status : undefined,
+        mediaType: filters.format !== 'ALL' ? filters.format : undefined,
+      });
+      if (fetched && fetched.length > 0) {
+        setAds(fetched);
+      }
+    } catch {
+      // Non-blocking
+    } finally {
+      setIsLoadingAds(false);
+    }
+  };
+
   useEffect(() => {
     setCompetitors(initialCompetitors || []);
   }, [initialCompetitors]);
 
   useEffect(() => {
-    setAds(initialAds || []);
-  }, [initialAds]);
-
-  useEffect(() => {
     loadDatabaseData();
   }, []);
+
+  useEffect(() => {
+    if (selectedCompetitorId || filters.country) {
+      fetchLiveAds(selectedCompetitorId);
+    }
+  }, [selectedCompetitorId, filters.country, filters.status, filters.format]);
 
   const handleAddComp = async (urlOrId: string) => {
     try {
@@ -242,7 +266,17 @@ export const CompetitorsModule: React.FC<CompetitorsModuleProps> = ({
             totalResultsCount={filteredAds.length}
           />
 
-          {filteredAds.length === 0 ? (
+          {isLoadingAds ? (
+            <div className="card" style={{ padding: '3.5rem 2rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+              <Loader2 size={28} className="animate-spin" style={{ color: 'var(--brand-primary)', marginBottom: '1rem' }} />
+              <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                Meta Reklam Kütüphanesinden Canlı Veriler Alınıyor...
+              </div>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.35rem' }}>
+                Seçili markanın aktif kampanyaları ve kreatifleri taranıyor.
+              </p>
+            </div>
+          ) : filteredAds.length === 0 ? (
             <div className="card" style={{ padding: '3.5rem 2rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
               <div style={{
                 width: '48px',

@@ -96,6 +96,22 @@ export const AdFilters: React.FC<AdFiltersProps> = ({
           </button>
         </div>
 
+        {/* Country Selector */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+          <select
+            value={filters.country || 'TR'}
+            onChange={(e) => onFilterChange({ country: e.target.value })}
+            style={{ fontSize: '0.8rem', padding: '0.4rem 0.65rem' }}
+          >
+            <option value="TR">🇹🇷 Türkiye (TR)</option>
+            <option value="US">🇺🇸 ABD (US)</option>
+            <option value="DE">🇩🇪 Almanya (DE)</option>
+            <option value="GB">🇬🇧 İngiltere (GB)</option>
+            <option value="AE">🇦🇪 BAE / Dubai (AE)</option>
+            <option value="FR">🇫🇷 Fransa (FR)</option>
+          </select>
+        </div>
+
         {/* Format Selector */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
           <select
