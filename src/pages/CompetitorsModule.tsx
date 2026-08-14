@@ -107,7 +107,7 @@ export const CompetitorsModule: React.FC<CompetitorsModuleProps> = ({
     }
   }, [selectedCompetitorId, filters.country, filters.status, filters.format]);
 
-  const handleAddComp = async (urlOrId: string) => {
+  const handleAddComp = async (urlOrId: any) => {
     try {
       setIsLoadingAds(true);
       const newComp = await ApiService.addCompetitor(urlOrId);

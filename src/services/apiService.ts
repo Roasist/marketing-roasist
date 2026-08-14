@@ -109,6 +109,16 @@ export class ApiService {
     return res.competitor;
   }
 
+  public static async searchAdvertisers(query: string): Promise<any[]> {
+    if (!query || query.trim().length < 2) return [];
+    try {
+      const res = await this.request<{ status: string; advertisers: any[] }>(`/competitors.php?action=search_advertisers&q=${encodeURIComponent(query.trim())}`);
+      return res.advertisers || [];
+    } catch {
+      return [];
+    }
+  }
+
   public static async deleteCompetitor(id: string): Promise<void> {
     await this.request(`/competitors.php?id=${encodeURIComponent(id)}`, {
       method: 'DELETE',
