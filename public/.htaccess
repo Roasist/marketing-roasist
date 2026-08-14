@@ -2,6 +2,11 @@
   RewriteEngine On
   RewriteBase /
   RewriteRule ^index\.html$ - [L]
+
+  # Do NOT rewrite PHP scripts - let them execute directly
+  RewriteCond %{REQUEST_URI} \.php$ [NC]
+  RewriteRule ^ - [L]
+
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
   RewriteRule . /index.html [L]
