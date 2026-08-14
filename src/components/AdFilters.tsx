@@ -24,7 +24,7 @@ export const AdFilters: React.FC<AdFiltersProps> = ({
       }}>
 
         {/* Search Bar */}
-        <div style={{ position: 'relative', flex: '1 1 240px', minWidth: '200px' }}>
+        <div style={{ position: 'relative', flex: '1 1 220px', minWidth: '180px' }}>
           <Search size={15} color="var(--text-muted)" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }} />
           <input
             type="text"
@@ -36,6 +36,58 @@ export const AdFilters: React.FC<AdFiltersProps> = ({
               paddingLeft: '2.1rem',
             }}
           />
+        </div>
+
+        {/* Network / Channel Filter Toggle */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '2px', backgroundColor: 'var(--bg-surface-elevated)', padding: '2px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
+          <button
+            onClick={() => onFilterChange({ network: 'ALL' })}
+            style={{
+              padding: '0.35rem 0.65rem',
+              border: 'none',
+              borderRadius: 'var(--radius-xs)',
+              backgroundColor: filters.network === 'ALL' ? 'var(--bg-surface)' : 'transparent',
+              color: filters.network === 'ALL' ? 'var(--text-primary)' : 'var(--text-secondary)',
+              fontSize: '0.78rem',
+              fontWeight: filters.network === 'ALL' ? 600 : 400,
+              cursor: 'pointer',
+              boxShadow: filters.network === 'ALL' ? 'var(--shadow-sm)' : 'none',
+            }}
+          >
+            🔥 Tümü
+          </button>
+          <button
+            onClick={() => onFilterChange({ network: 'META' })}
+            style={{
+              padding: '0.35rem 0.65rem',
+              border: 'none',
+              borderRadius: 'var(--radius-xs)',
+              backgroundColor: filters.network === 'META' ? 'var(--bg-surface)' : 'transparent',
+              color: filters.network === 'META' ? 'var(--brand-primary)' : 'var(--text-secondary)',
+              fontSize: '0.78rem',
+              fontWeight: filters.network === 'META' ? 600 : 400,
+              cursor: 'pointer',
+              boxShadow: filters.network === 'META' ? 'var(--shadow-sm)' : 'none',
+            }}
+          >
+            🔵 Meta
+          </button>
+          <button
+            onClick={() => onFilterChange({ network: 'GOOGLE' })}
+            style={{
+              padding: '0.35rem 0.65rem',
+              border: 'none',
+              borderRadius: 'var(--radius-xs)',
+              backgroundColor: filters.network === 'GOOGLE' ? 'var(--bg-surface)' : 'transparent',
+              color: filters.network === 'GOOGLE' ? '#ea4335' : 'var(--text-secondary)',
+              fontSize: '0.78rem',
+              fontWeight: filters.network === 'GOOGLE' ? 600 : 400,
+              cursor: 'pointer',
+              boxShadow: filters.network === 'GOOGLE' ? 'var(--shadow-sm)' : 'none',
+            }}
+          >
+            🔴 Google & YT
+          </button>
         </div>
 
         {/* Status Filter Toggle */}
@@ -121,8 +173,10 @@ export const AdFilters: React.FC<AdFiltersProps> = ({
             style={{ fontSize: '0.8rem', padding: '0.4rem 0.65rem' }}
           >
             <option value="ALL">Tüm Formatlar</option>
-            <option value="VIDEO">Video Reklamlar</option>
-            <option value="IMAGE">Görsel Reklamlar</option>
+            <option value="VIDEO">Video & YouTube</option>
+            <option value="IMAGE">Görsel (Image)</option>
+            <option value="SEARCH">Google Arama (Search)</option>
+            <option value="DISPLAY">Google Banner (GDN)</option>
             <option value="CAROUSEL">Carousel Reklamlar</option>
           </select>
         </div>

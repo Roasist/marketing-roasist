@@ -1,13 +1,16 @@
-export type AdFormat = 'IMAGE' | 'VIDEO' | 'CAROUSEL' | 'TEXT';
+export type AdNetwork = 'META' | 'GOOGLE';
+export type AdFormat = 'IMAGE' | 'VIDEO' | 'CAROUSEL' | 'SEARCH' | 'DISPLAY' | 'TEXT';
 export type AdStatus = 'ACTIVE' | 'INACTIVE';
-export type PlatformType = 'facebook' | 'instagram' | 'messenger' | 'audience_network';
-export type HookType = 'İndirim & Aciliyet' | 'Sosyal Kanıt' | 'Problem-Çözüm' | 'Yaşam Tarzı' | 'Fiyat Vurgusu' | 'Ürün Özelliği';
+export type PlatformType = 'facebook' | 'instagram' | 'messenger' | 'audience_network' | 'google_search' | 'youtube' | 'google_display';
+export type HookType = 'İndirim & Aciliyet' | 'Sosyal Kanıt' | 'Problem-Çözüm' | 'Yaşam Tarzı' | 'Fiyat Vurgusu' | 'Ürün Özelliği' | 'Arama Niyeti & SEO';
 
 export interface Competitor {
   id: string;
   name: string;
   pageId: string;
-  facebookPageUrl: string;
+  domain?: string;
+  facebookPageUrl?: string;
+  googleAdvertiserId?: string;
   avatarUrl: string;
   category: string;
   activeAdsCount: number;
@@ -17,8 +20,11 @@ export interface Competitor {
 
 export interface AdItem {
   id: string;
+  network?: AdNetwork; // 'META' | 'GOOGLE'
   pageId: string;
   pageName: string;
+  domain?: string;
+  targetUrl?: string;
   activeStatus: AdStatus;
   format: AdFormat;
   creationDate: string; // ISO String
@@ -31,6 +37,7 @@ export interface AdItem {
   mediaUrls: string[];
   videoThumbnail?: string;
   platforms: PlatformType[];
+  sitelinks?: string[];
   estimatedImpressions?: string;
   spendRange?: string;
   targetDemographics?: {
@@ -39,13 +46,15 @@ export interface AdItem {
     topLocations: string[];
   };
   hookType: HookType;
-  metaLibraryUrl: string;
+  metaLibraryUrl?: string;
+  googleTransparencyUrl?: string;
 }
 
 export interface FilterState {
   competitorId: string; // 'ALL' or specific pageId
+  network: 'ALL' | 'META' | 'GOOGLE';
   searchKeyword: string;
-  country?: string; // 'TR', 'US', 'DE', 'GB', 'AE', 'FR'
+  country?: string; // 'TR', 'US', 'DE', 'GB', 'AE', 'FR', 'ALL'
   status: 'ALL' | 'ACTIVE' | 'INACTIVE';
   format: 'ALL' | AdFormat;
   platform: 'ALL' | PlatformType;
@@ -57,13 +66,4 @@ export interface MetaApiConfig {
   isConfigured: boolean;
   useSandboxMock: boolean;
   lastSyncedAt?: string;
-}
-
-export interface WebhookConfig {
-  githubRepo: string;
-  subdomainUrl: string; // marketing.roasist.com
-  serverIp: string; // Veridyen server IP
-  webhookEndpoint: string;
-  lastDeployedAt?: string;
-  autoDeployEnabled: boolean;
 }

@@ -52,6 +52,7 @@ export const CompetitorsModule: React.FC<CompetitorsModuleProps> = ({
 
   const [filters, setFilters] = useState<FilterState>({
     competitorId: 'ALL',
+    network: 'ALL',
     status: 'ALL',
     format: 'ALL',
     platform: 'ALL',
@@ -77,14 +78,38 @@ export const CompetitorsModule: React.FC<CompetitorsModuleProps> = ({
   const fetchLiveAds = async (targetId?: string) => {
     setIsLoadingAds(true);
     try {
-      const fetched = await ApiService.fetchMetaAds({
-        pageId: targetId && targetId !== 'ALL' ? targetId : undefined,
-        country: filters.country || 'TR',
-        status: filters.status !== 'ALL' ? filters.status : undefined,
-        mediaType: filters.format !== 'ALL' ? filters.format : undefined,
+      const activeCompetitor = competitors.find(c => c.id === targetId || c.pageId === targetId);
+      const queryName = activeCompetitor ? activeCompetitor.name : (targetId && targetId !== 'ALL' ? targetId : '');
+
+      const promises: Promise<AdItem[]>[] = [];
+
+      // 1. Meta Ads Fetch
+      if (filters.network === 'ALL' || filters.network === 'META') {
+        promises.push(ApiService.fetchMetaAds({
+          pageId: targetId && targetId !== 'ALL' ? targetId : undefined,
+          country: filters.country || 'TR',
+          status: filters.status !== 'ALL' ? filters.status : undefined,
+          mediaType: (filters.format === 'IMAGE' || filters.format === 'VIDEO' || filters.format === 'CAROUSEL') ? filters.format : undefined,
+        }));
+      }
+
+      // 2. Google Ads Transparency Fetch
+      if (filters.network === 'ALL' || filters.network === 'GOOGLE') {
+        const domainOrBrand = activeCompetitor?.domain || activeCompetitor?.name || queryName || 'e-ticaret';
+        promises.push(ApiService.fetchGoogleAds(domainOrBrand, filters.country || 'TR', filters.format));
+      }
+
+      const results = await Promise.allSettled(promises);
+      let combinedAds: AdItem[] = [];
+
+      results.forEach(res => {
+        if (res.status === 'fulfilled' && Array.isArray(res.value)) {
+          combinedAds = [...combinedAds, ...res.value];
+        }
       });
-      if (fetched && fetched.length > 0) {
-        setAds(fetched);
+
+      if (combinedAds.length > 0) {
+        setAds(combinedAds);
       }
     } catch {
       // Non-blocking
@@ -102,10 +127,10 @@ export const CompetitorsModule: React.FC<CompetitorsModuleProps> = ({
   }, []);
 
   useEffect(() => {
-    if (selectedCompetitorId || filters.country) {
+    if (selectedCompetitorId || filters.country || filters.network) {
       fetchLiveAds(selectedCompetitorId);
     }
-  }, [selectedCompetitorId, filters.country, filters.status, filters.format]);
+  }, [selectedCompetitorId, filters.country, filters.network, filters.status, filters.format]);
 
   const handleAddComp = async (urlOrId: any) => {
     try {
@@ -165,7 +190,13 @@ export const CompetitorsModule: React.FC<CompetitorsModuleProps> = ({
 
   // Filter Ads
   const filteredAds = ads.filter((ad) => {
-    if (selectedCompetitorId !== 'ALL' && ad.pageId !== selectedCompetitorId) {
+    if (selectedCompetitorId !== 'ALL' && ad.pageId !== selectedCompetitorId && ad.domain !== selectedCompetitorId) {
+      return false;
+    }
+    if (filters.network === 'META' && ad.network === 'GOOGLE') {
+      return false;
+    }
+    if (filters.network === 'GOOGLE' && ad.network !== 'GOOGLE') {
       return false;
     }
     if (filters.status !== 'ALL' && ad.activeStatus !== filters.status) {
