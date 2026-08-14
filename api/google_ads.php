@@ -1,7 +1,7 @@
 <?php
 /**
  * Roasist Marketing Suite - Live Google Ads Transparency Center Engine
- * Real-time connection to Google Ads Transparency Center RPC & Creative Ingestion
+ * Real-time connection to Google Ads Transparency Center RPC & 100% Real Creative Ingestion
  */
 
 header('Content-Type: application/json');
@@ -72,7 +72,7 @@ if ($action === 'search_advertisers') {
                         'network' => 'GOOGLE',
                         'type' => 'ADVERTISER',
                         'country' => $countryCode,
-                        'avatarUrl' => "https://www.google.com/s2/favicons?domain=" . urlencode($name) . "&sz=128",
+                        'avatarUrl' => "https://www.google.com/s2/favicons?domain=" . urlencode($domainName ?: $name) . "&sz=128",
                         'category' => 'Google Doğrulanmış Reklam Veren',
                         'googleTransparencyUrl' => "https://adstransparency.google.com/advertiser/$advId?region=" . ($region === 'ALL' ? 'anywhere' : $region)
                     ];
@@ -105,36 +105,158 @@ if ($action === 'search_advertisers') {
     exit;
 }
 
-// 2. ACTION: Fetch Google Ads for a Domain / Brand
+// 2. ACTION: Fetch 100% Real Live Google Ads from SearchService/SearchCreatives
 if ($action === 'fetch_google_ads') {
     $brandBase = ucwords(str_replace(['.', '-', '_'], ' ', explode('.', $domainName)[0]));
     $gTransparencyUrl = "https://adstransparency.google.com/?region=" . ($region === 'ALL' ? 'anywhere' : $region) . "&domain=" . urlencode($domainName);
 
-    // Provide the real Google verified campaign card linking directly to Google Ads Transparency Center
-    $googleAds = [
-        [
-            'id' => 'g_portal_' . md5($domainName),
+    $realAds = [];
+
+    // Query 1: Direct Domain Search in SearchCreatives
+    $creatUrl = "https://adstransparency.google.com/anji/_/rpc/SearchService/SearchCreatives?authuser=0";
+    $payloadCreat = [
+        "2" => 40,
+        "3" => [
+            "12" => ["1" => $domainName, "2" => true]
+        ],
+        "7" => ["1" => 1]
+    ];
+
+    $ch = curl_init($creatUrl);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, "f.req=" . urlencode(json_encode($payloadCreat)));
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'Content-Type: application/x-www-form-urlencoded',
+        'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+    ]);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 8);
+    $resp = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    $rawCreatives = [];
+    if ($httpCode === 200 && !empty($resp)) {
+        $j = json_decode($resp, true);
+        if (!empty($j['1']) && is_array($j['1'])) {
+            $rawCreatives = $j['1'];
+        }
+    }
+
+    // Query 2: If no direct domain results, try suggestions to get advertiser ID
+    if (empty($rawCreatives)) {
+        $sugUrl = "https://adstransparency.google.com/anji/_/rpc/SearchService/SearchSuggestions?authuser=0";
+        $payloadSug = ["1" => $domainName, "2" => 10, "3" => 10];
+
+        $chSug = curl_init($sugUrl);
+        curl_setopt($chSug, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($chSug, CURLOPT_POST, true);
+        curl_setopt($chSug, CURLOPT_POSTFIELDS, "f.req=" . urlencode(json_encode($payloadSug)));
+        curl_setopt($chSug, CURLOPT_HTTPHEADER, [
+            'Content-Type: application/x-www-form-urlencoded',
+            'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+        ]);
+        curl_setopt($chSug, CURLOPT_TIMEOUT, 6);
+        $respSug = curl_exec($chSug);
+        curl_close($chSug);
+
+        if (!empty($respSug)) {
+            $jSug = json_decode($respSug, true);
+            $advId = null;
+            if (!empty($jSug['1']) && is_array($jSug['1'])) {
+                foreach ($jSug['1'] as $sItem) {
+                    if (!empty($sItem['1']['2'])) {
+                        $advId = $sItem['1']['2'];
+                        break;
+                    }
+                }
+            }
+            if ($advId) {
+                $payloadAdv = [
+                    "2" => 40,
+                    "3" => [
+                        "12" => ["1" => "", "2" => true],
+                        "13" => ["1" => [$advId]]
+                    ],
+                    "7" => ["1" => 1]
+                ];
+                $chAdv = curl_init($creatUrl);
+                curl_setopt($chAdv, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($chAdv, CURLOPT_POST, true);
+                curl_setopt($chAdv, CURLOPT_POSTFIELDS, "f.req=" . urlencode(json_encode($payloadAdv)));
+                curl_setopt($chAdv, CURLOPT_HTTPHEADER, [
+                    'Content-Type: application/x-www-form-urlencoded',
+                    'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+                ]);
+                curl_setopt($chAdv, CURLOPT_TIMEOUT, 8);
+                $respAdv = curl_exec($chAdv);
+                curl_close($chAdv);
+                if (!empty($respAdv)) {
+                    $jAdv = json_decode($respAdv, true);
+                    if (!empty($jAdv['1']) && is_array($jAdv['1'])) {
+                        $rawCreatives = $jAdv['1'];
+                    }
+                }
+            }
+        }
+    }
+
+    // Transform Raw Google Creatives into AdItems
+    foreach ($rawCreatives as $index => $c) {
+        $advId = $c['1'] ?? '';
+        $creativeId = $c['2'] ?? ('CR_' . $index);
+        $officialName = $c['12'] ?? $brandBase;
+        $formatNum = $c['4'] ?? 1; // 1 = Search, 2 = Display/Image, 3 = Responsive/Video
+
+        $startTs = !empty($c['6']['1']) ? (int)$c['6']['1'] : time();
+        $lastSeenTs = !empty($c['7']['1']) ? (int)$c['7']['1'] : time();
+
+        $startDateStr = date('Y-m-d', $startTs);
+        $activeDays = max(1, round(($lastSeenTs - $startTs) / 86400));
+
+        $format = 'DISPLAY';
+        $platform = 'google_display';
+        if ($formatNum === 1) {
+            $format = 'SEARCH';
+            $platform = 'google_search';
+        } elseif ($formatNum === 3) {
+            $format = 'VIDEO';
+            $platform = 'youtube';
+        }
+
+        // Extract creative preview url if available
+        $previewUrl = $c['3']['1']['4'] ?? '';
+
+        $mediaUrls = [];
+        if (!empty($previewUrl)) {
+            $mediaUrls[] = $previewUrl;
+        }
+
+        $directAdUrl = "https://adstransparency.google.com/advertiser/$advId/creative/$creativeId?region=" . ($region === 'ALL' ? 'anywhere' : $region);
+
+        $realAds[] = [
+            'id' => $creativeId,
             'network' => 'GOOGLE',
             'pageId' => $domainName,
-            'pageName' => $domainName,
+            'pageName' => $officialName,
             'domain' => $domainName,
             'targetUrl' => "https://$domainName",
             'activeStatus' => 'ACTIVE',
-            'format' => 'SEARCH',
-            'creationDate' => date('Y-m-d'),
-            'startDate' => date('Y-m-d'),
-            'activeDaysCount' => 1,
-            'adHeadline' => "$domainName | Google Reklam Şeffaflığı Doğrulandı",
-            'adBodyText' => "Google Reklam Şeffaflığı Merkezi (Ads Transparency Center) üzerinde bu alan adına ait canlı reklamlar tespit edilmiştir. Tüm aktif arama, YouTube ve görüntülü kreatifleri resmi Google sayfasından incelemek için aşağıdaki 'Google Reklamlarını Aç' butonuna tıklayabilirsiniz.",
-            'adCta' => 'Google Reklamlarını Aç',
-            'mediaUrls' => [],
-            'platforms' => ['google_search', 'youtube', 'google_display'],
-            'sitelinks' => ['Google Reklam Şeffaflığı', 'Canlı Kampanyalar', 'YouTube Kreatifleri'],
-            'hookType' => 'Arama Niyeti & SEO',
-            'isWinner' => false,
-            'googleTransparencyUrl' => $gTransparencyUrl
-        ]
-    ];
+            'format' => $format,
+            'creationDate' => $startDateStr,
+            'startDate' => $startDateStr,
+            'activeDaysCount' => $activeDays,
+            'adHeadline' => "$officialName | Google Ads Kreatifi ($creativeId)",
+            'adBodyText' => "Google Reklam Şeffaflığı Merkezi tarafından tespit edilen $startDateStr tarihli aktif $format kampanyası.",
+            'adCta' => 'Google Kreatifini Aç',
+            'mediaUrls' => $mediaUrls,
+            'platforms' => [$platform],
+            'sitelinks' => ['Google Reklamı', 'Doğrulanmış Kampanya', $officialName],
+            'hookType' => $activeDays >= 30 ? 'Sosyal Kanıt' : 'Arama Niyeti & SEO',
+            'isWinner' => $activeDays >= 30,
+            'googleTransparencyUrl' => $directAdUrl
+        ];
+    }
 
     echo json_encode([
         'status' => 'success',
@@ -142,9 +264,9 @@ if ($action === 'fetch_google_ads') {
         'brand' => $brandBase,
         'domain' => $domainName,
         'region' => $region,
-        'count' => count($googleAds),
+        'count' => count($realAds),
         'googleTransparencyUrl' => $gTransparencyUrl,
-        'ads' => $googleAds
+        'ads' => $realAds
     ]);
     exit;
 }
