@@ -29,7 +29,7 @@ export const CompetitorBar: React.FC<CompetitorBarProps> = ({
   onRemoveCompetitor,
 }) => {
   const [inputVal, setInputVal] = useState('');
-  const [isAdding, setIsAdding] = useState(competitors.length === 0);
+  const [isAdding, setIsAdding] = useState(false);
   const [metaSuggestions, setMetaSuggestions] = useState<any[]>([]);
   const [googleSuggestions, setGoogleSuggestions] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -93,9 +93,7 @@ export const CompetitorBar: React.FC<CompetitorBarProps> = ({
     });
     setInputVal('');
     setShowDropdown(false);
-    if (competitors.length > 0) {
-      setIsAdding(false);
-    }
+    setIsAdding(false);
   };
 
   const handleSelectMetaAdvertiser = (adv: any) => {
@@ -112,9 +110,7 @@ export const CompetitorBar: React.FC<CompetitorBarProps> = ({
     }
     setInputVal('');
     setShowDropdown(false);
-    if (competitors.length > 0) {
-      setIsAdding(false);
-    }
+    setIsAdding(false);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -123,9 +119,7 @@ export const CompetitorBar: React.FC<CompetitorBarProps> = ({
     onAddCompetitor(inputVal.trim());
     setInputVal('');
     setShowDropdown(false);
-    if (competitors.length > 0) {
-      setIsAdding(false);
-    }
+    setIsAdding(false);
   };
 
   const hasSuggestions = googleSuggestions.length > 0 || metaSuggestions.length > 0;
@@ -178,10 +172,10 @@ export const CompetitorBar: React.FC<CompetitorBarProps> = ({
               setShowDropdown(false);
             }}
             className="btn-primary"
-            style={{ padding: '0.35rem 0.75rem', fontSize: '0.78rem' }}
+            style={{ padding: '0.35rem 0.75rem', fontSize: '0.78rem', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
           >
-            {isAdding && competitors.length > 0 ? <X size={14} /> : <Plus size={14} />}
-            {isAdding && competitors.length > 0 ? 'Kapat' : 'Yeni Rakip Ekle'}
+            {isAdding ? <X size={14} /> : <Plus size={14} />}
+            <span>{isAdding ? 'Vazgeç' : 'Yeni Rakip Ekle'}</span>
           </button>
         </div>
       </div>
@@ -447,8 +441,24 @@ export const CompetitorBar: React.FC<CompetitorBarProps> = ({
           backgroundColor: 'var(--bg-surface-elevated)',
           borderRadius: 'var(--radius-sm)',
           border: '1px dashed var(--border-default)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '0.65rem',
         }}>
-          Henüz takip edilen bir rakip eklenmedi. Yukarıdaki arama kutusuna rakip markanın web sitesini (örn: <strong>23projects.net</strong> veya <strong>trendyol.com</strong>) yazarak anında analiz edebilirsiniz.
+          <div>
+            Henüz bu çalışma alanında takip edilen bir rakip şirket bulunmuyor.
+          </div>
+          {!isAdding && (
+            <button
+              type="button"
+              onClick={() => setIsAdding(true)}
+              className="btn-primary"
+              style={{ padding: '0.35rem 0.85rem', fontSize: '0.78rem', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+            >
+              <Plus size={13} /> İlk Rakip Şirketi Ekle
+            </button>
+          )}
         </div>
       ) : (
         <div style={{
