@@ -13,8 +13,8 @@ import {
   RefreshCw, 
   Plus, 
   Trash2, 
-  ShieldCheck,
   UserPlus,
+  Edit2,
   X
 } from 'lucide-react';
 
@@ -28,12 +28,25 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onNavigate: _onNavigate 
   // Users state
   const [users, setUsers] = useState<User[]>([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+  
+  // Add User modal state
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
   const [newUserName, setNewUserName] = useState('');
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserPassword, setNewUserPassword] = useState('');
   const [newUserRole, setNewUserRole] = useState<UserRole>('MARKETER');
   const [userActionError, setUserActionError] = useState<string | null>(null);
+
+  // Edit User modal state
+  const [isEditUserModalOpen, setIsEditUserModalOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editRole, setEditRole] = useState<UserRole>('MARKETER');
+  const [editStatus, setEditStatus] = useState<'ACTIVE' | 'INACTIVE'>('ACTIVE');
+  const [editPassword, setEditPassword] = useState('');
+  const [editActionError, setEditActionError] = useState<string | null>(null);
+  const [isEditingSubmitting, setIsEditingSubmitting] = useState(false);
 
   // Settings state
   const [metaToken, setMetaToken] = useState('EAAG...RoasistLiveToken_2026');
@@ -114,6 +127,43 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onNavigate: _onNavigate 
     }
   };
 
+  const handleOpenEditUser = (user: User) => {
+    setEditingUser(user);
+    setEditName(user.name);
+    setEditEmail(user.email);
+    setEditRole(user.role);
+    setEditStatus(user.status || 'ACTIVE');
+    setEditPassword('');
+    setEditActionError(null);
+    setIsEditUserModalOpen(true);
+  };
+
+  const handleUpdateUserSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingUser) return;
+    setEditActionError(null);
+    setIsEditingSubmitting(true);
+
+    try {
+      await ApiService.updateUser({
+        id: editingUser.id,
+        name: editName,
+        email: editEmail,
+        role: editRole,
+        status: editStatus,
+        password: editPassword.trim() ? editPassword.trim() : undefined,
+      });
+      setIsEditUserModalOpen(false);
+      setEditingUser(null);
+      loadUsers();
+      loadLogs();
+    } catch (err: any) {
+      setEditActionError(err.message || 'Kullanıcı güncellenemedi.');
+    } finally {
+      setIsEditingSubmitting(false);
+    }
+  };
+
   const handleDeleteUser = async (id: number) => {
     if (!window.confirm('Bu kullanıcıyı silmek istediğinize emin misiniz?')) return;
     try {
@@ -131,6 +181,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onNavigate: _onNavigate 
       await ApiService.updateUser({
         id: user.id,
         name: user.name,
+        email: user.email,
         role: user.role,
         status: newStatus,
       });
@@ -144,11 +195,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onNavigate: _onNavigate 
   const getRoleBadge = (role: UserRole) => {
     switch (role) {
       case 'SUPER_ADMIN':
-        return <span className="badge" style={{ backgroundColor: 'rgba(239, 68, 68, 0.12)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.25)' }}>Süper Admin</span>;
+        return <span className="badge" style={{ backgroundColor: 'var(--danger-bg)', color: 'var(--danger)', border: '1px solid var(--danger-border)' }}>Süper Admin</span>;
       case 'ADMIN':
-        return <span className="badge" style={{ backgroundColor: 'rgba(245, 158, 11, 0.12)', color: '#fbbf24', border: '1px solid rgba(245, 158, 11, 0.25)' }}>Yönetici</span>;
+        return <span className="badge" style={{ backgroundColor: 'var(--warning-bg)', color: 'var(--warning)', border: '1px solid var(--warning-border)' }}>Yönetici</span>;
       case 'MARKETER':
-        return <span className="badge" style={{ backgroundColor: 'rgba(99, 102, 241, 0.12)', color: '#a5b4fc', border: '1px solid rgba(99, 102, 241, 0.25)' }}>Pazarlamacı</span>;
+        return <span className="badge" style={{ backgroundColor: 'var(--info-bg)', color: 'var(--info)', border: '1px solid var(--info-border)' }}>Pazarlamacı</span>;
       case 'VIEWER':
         return <span className="badge badge-neutral">İzleyici</span>;
     }
@@ -161,10 +212,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onNavigate: _onNavigate 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-            Kullanıcı & Sistem Yönetimi
+            Kullanıcı & Sistem Yönetim Konsolu
           </h1>
           <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
-            Ekip yetkilendirmesi, API bağlantıları ve sistem güvenlik kayıtları.
+            Ekip yetkilendirmesi, kullanıcı düzenleme, API bağlantıları ve denetim kayıtları.
           </p>
         </div>
 
@@ -179,7 +230,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onNavigate: _onNavigate 
       </div>
 
       {/* Admin Tabs */}
-      <div style={{ display: 'flex', gap: '0.35rem', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.5rem', overflowX: 'auto' }}>
+      <div style={{ display: 'flex', gap: '0.35rem', borderBottom: '1px solid var(--border-default)', paddingBottom: '0.5rem', overflowX: 'auto' }}>
         
         <button
           onClick={() => setActiveTab('users')}
@@ -253,7 +304,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onNavigate: _onNavigate 
                   <th>Rol</th>
                   <th>Durum</th>
                   <th>Son Giriş</th>
-                  <th style={{ textAlign: 'right' }}>İşlem</th>
+                  <th style={{ textAlign: 'right' }}>İşlemler</th>
                 </tr>
               </thead>
               <tbody>
@@ -313,21 +364,35 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onNavigate: _onNavigate 
                     </td>
 
                     <td style={{ textAlign: 'right' }}>
-                      {u.role !== 'SUPER_ADMIN' && (
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                        {/* Edit User Button */}
                         <button
-                          onClick={() => handleDeleteUser(u.id)}
-                          title="Sil"
+                          onClick={() => handleOpenEditUser(u)}
+                          title="Bilgileri Düzenle"
+                          className="btn-secondary"
                           style={{
-                            background: 'none',
-                            border: 'none',
-                            color: 'var(--text-muted)',
-                            padding: '4px',
-                            cursor: 'pointer',
+                            padding: '0.3rem 0.55rem',
+                            fontSize: '0.72rem',
                           }}
                         >
-                          <Trash2 size={13} />
+                          <Edit2 size={12} /> Düzenle
                         </button>
-                      )}
+
+                        {/* Delete User Button */}
+                        {u.role !== 'SUPER_ADMIN' && (
+                          <button
+                            onClick={() => handleDeleteUser(u.id)}
+                            title="Kullanıcıyı Sil"
+                            className="btn-ghost"
+                            style={{
+                              padding: '0.3rem 0.45rem',
+                              color: 'var(--danger)',
+                            }}
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        )}
+                      </div>
                     </td>
 
                   </tr>
@@ -379,73 +444,119 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onNavigate: _onNavigate 
       {/* Tab 3: Feature Flags */}
       {activeTab === 'flags' && (
         <div className="card" style={{ padding: '1.25rem' }}>
-          <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '1rem' }}>
-            Modül ve Özellik Toggles
+          <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.35rem' }}>
+            Modül ve Özellik Denetimi
           </div>
-          
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {[
-              { key: 'competitorIntel', name: 'Rakip Reklam İstihbaratı (/competitors)', desc: 'Meta reklam arşivi ve kanca analizi' },
-              { key: 'aiCopywriter', name: 'AI Reklam Metni Yazarı (/ai-copywriter)', desc: 'Yapay zekâ metin motoru' },
-              { key: 'roasOptimizer', name: 'ROAS Simülatörü (/roas-optimizer)', desc: 'Karlılık ve bütçe tahminleme' },
-              { key: 'auditLogging', name: 'Sistem ve Güvenlik Günlükleri', desc: 'Kullanıcı hareketlerini veritabanında saklar' },
-            ].map((f) => (
-              <div key={f.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem', background: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
-                <div>
-                  <div style={{ fontWeight: 500, fontSize: '0.85rem', color: 'var(--text-primary)' }}>{f.name}</div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{f.desc}</div>
-                </div>
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>
+            Tüm ekip için aktif veya pasif yapılacak sistem modüllerini buradan yönetebilirsiniz.
+          </p>
 
-                <button
-                  onClick={() => setFlags({ ...flags, [f.key]: !flags[f.key as keyof typeof flags] })}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex' }}
-                >
-                  {flags[f.key as keyof typeof flags] ? (
-                    <ToggleRight size={28} color="#10b981" />
-                  ) : (
-                    <ToggleLeft size={28} color="#64748b" />
-                  )}
-                </button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+            
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
+              <div>
+                <div style={{ fontWeight: 500, fontSize: '0.85rem', color: 'var(--text-primary)' }}>Rakip Reklam İstihbaratı Modülü</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Meta Ad Library veri akışı ve rakip analizi</div>
               </div>
-            ))}
+              <button
+                onClick={() => setFlags({ ...flags, competitorIntel: !flags.competitorIntel })}
+                style={{ background: 'none', border: 'none', cursor: 'pointer' }}
+              >
+                {flags.competitorIntel ? <ToggleRight size={26} color="var(--brand-primary)" /> : <ToggleLeft size={26} color="var(--text-muted)" />}
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
+              <div>
+                <div style={{ fontWeight: 500, fontSize: '0.85rem', color: 'var(--text-primary)' }}>AI Reklam Metni & Kanca Motoru</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Otomatik metin üretici ve açı simülatörü</div>
+              </div>
+              <button
+                onClick={() => setFlags({ ...flags, aiCopywriter: !flags.aiCopywriter })}
+                style={{ background: 'none', border: 'none', cursor: 'pointer' }}
+              >
+                {flags.aiCopywriter ? <ToggleRight size={26} color="var(--brand-primary)" /> : <ToggleLeft size={26} color="var(--text-muted)" />}
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
+              <div>
+                <div style={{ fontWeight: 500, fontSize: '0.85rem', color: 'var(--text-primary)' }}>ROAS & Karlılık Simülatörü</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Bütçe ve başabaş analiz hesaplayıcısı</div>
+              </div>
+              <button
+                onClick={() => setFlags({ ...flags, roasOptimizer: !flags.roasOptimizer })}
+                style={{ background: 'none', border: 'none', cursor: 'pointer' }}
+              >
+                {flags.roasOptimizer ? <ToggleRight size={26} color="var(--brand-primary)" /> : <ToggleLeft size={26} color="var(--text-muted)" />}
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
+              <div>
+                <div style={{ fontWeight: 500, fontSize: '0.85rem', color: 'var(--text-primary)' }}>Denetim & Güvenlik Loglama (Audit Logs)</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Tüm kullanıcı ve sistem hareketlerinin veritabanına kaydı</div>
+              </div>
+              <button
+                onClick={() => setFlags({ ...flags, auditLogging: !flags.auditLogging })}
+                style={{ background: 'none', border: 'none', cursor: 'pointer' }}
+              >
+                {flags.auditLogging ? <ToggleRight size={26} color="var(--brand-primary)" /> : <ToggleLeft size={26} color="var(--text-muted)" />}
+              </button>
+            </div>
+
           </div>
         </div>
       )}
 
       {/* Tab 4: Audit Logs */}
       {activeTab === 'logs' && (
-        <div className="card" style={{ padding: '1.25rem' }}>
-          <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.85rem' }}>
-            Sistem Güvenlik & Denetim Günlüğü
-          </div>
-          
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            {logs.length === 0 ? (
-              <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>Henüz log kaydı yok.</div>
-            ) : (
-              logs.map((log, idx) => (
-                <div key={idx} style={{ padding: '0.65rem 0.85rem', background: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.8rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                    <ShieldCheck size={14} color="#10b981" />
-                    <div>
-                      <strong style={{ color: 'var(--text-primary)' }}>{log.userName || 'Sistem'}:</strong> {log.action} - <span style={{ color: 'var(--text-secondary)' }}>{log.details}</span>
-                    </div>
-                  </div>
-
-                  <div style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}>
-                    {log.createdAt ? new Date(log.createdAt).toLocaleString('tr-TR') : 'Şimdi'}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
+        <div className="card" style={{ overflowX: 'auto' }}>
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Zaman</th>
+                <th>Kullanıcı</th>
+                <th>Eylem</th>
+                <th>Detay</th>
+              </tr>
+            </thead>
+            <tbody>
+              {logs.length === 0 ? (
+                <tr>
+                  <td colSpan={4} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                    Henüz kayıtlı bir denetim kaydı bulunamadı.
+                  </td>
+                </tr>
+              ) : (
+                logs.map((log: any, idx: number) => (
+                  <tr key={idx}>
+                    <td style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                      {log.created_at ? new Date(log.created_at).toLocaleString('tr-TR') : '—'}
+                    </td>
+                    <td style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
+                      {log.user_name || 'Sistem'}
+                    </td>
+                    <td>
+                      <span className="badge badge-neutral" style={{ fontSize: '0.7rem' }}>
+                        {log.action}
+                      </span>
+                    </td>
+                    <td style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
+                      {log.details}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
       )}
 
-      {/* Add User Modal */}
+      {/* Modal: Add User */}
       {isAddUserModalOpen && (
         <div className="modal-overlay" onClick={() => setIsAddUserModalOpen(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '440px', padding: '1.5rem' }}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '420px', padding: '1.5rem' }}>
             
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
               <div style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
@@ -457,7 +568,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onNavigate: _onNavigate 
             </div>
 
             {userActionError && (
-              <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', padding: '0.65rem', borderRadius: 'var(--radius-xs)', color: '#f87171', fontSize: '0.8rem', marginBottom: '1rem' }}>
+              <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', padding: '0.65rem', borderRadius: 'var(--radius-xs)', color: 'var(--danger)', fontSize: '0.8rem', marginBottom: '1rem' }}>
                 {userActionError}
               </div>
             )}
@@ -528,6 +639,116 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onNavigate: _onNavigate 
                   style={{ flex: 1, justifyContent: 'center' }}
                 >
                   <Plus size={14} /> Oluştur
+                </button>
+              </div>
+            </form>
+
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Edit User */}
+      {isEditUserModalOpen && editingUser && (
+        <div className="modal-overlay" onClick={() => setIsEditUserModalOpen(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '440px', padding: '1.5rem' }}>
+            
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+              <div style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                Kullanıcı Bilgilerini Düzenle
+              </div>
+              <button onClick={() => setIsEditUserModalOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            {editActionError && (
+              <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', padding: '0.65rem', borderRadius: 'var(--radius-xs)', color: 'var(--danger)', fontSize: '0.8rem', marginBottom: '1rem' }}>
+                {editActionError}
+              </div>
+            )}
+
+            <form onSubmit={handleUpdateUserSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '0.3rem' }}>Ad Soyad</label>
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  style={{ width: '100%' }}
+                  required
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '0.3rem' }}>E-posta Adresi</label>
+                <input
+                  type="email"
+                  value={editEmail}
+                  onChange={(e) => setEditEmail(e.target.value)}
+                  style={{ width: '100%' }}
+                  required
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '0.3rem' }}>Rol / Yetki Derecesi</label>
+                <select
+                  value={editRole}
+                  onChange={(e) => setEditRole(e.target.value as UserRole)}
+                  style={{ width: '100%', cursor: 'pointer' }}
+                >
+                  <option value="MARKETER">Pazarlamacı (Pazarlama Araçlarına Erişim)</option>
+                  <option value="ADMIN">Yönetici (Kullanıcı & Sistem Yönetimi)</option>
+                  <option value="SUPER_ADMIN">Süper Admin (Tam Yetki)</option>
+                  <option value="VIEWER">İzleyici (Salt Okunur)</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '0.3rem' }}>Hesap Durumu</label>
+                <select
+                  value={editStatus}
+                  onChange={(e) => setEditStatus(e.target.value as 'ACTIVE' | 'INACTIVE')}
+                  style={{ width: '100%', cursor: 'pointer' }}
+                >
+                  <option value="ACTIVE">Aktif (Giriş Yapabilir)</option>
+                  <option value="INACTIVE">Pasif / Askıda (Giriş Engellendi)</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '0.3rem' }}>
+                  Yeni Şifre Belirle <span style={{ color: 'var(--text-muted)' }}>(İsteğe bağlı)</span>
+                </label>
+                <input
+                  type="password"
+                  placeholder="Değiştirmek istemiyorsanız boş bırakın"
+                  value={editPassword}
+                  onChange={(e) => setEditPassword(e.target.value)}
+                  style={{ width: '100%' }}
+                />
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                  Yalnızca şifreyi sıfırlamak istiyorsanız yeni bir şifre girin.
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setIsEditUserModalOpen(false)}
+                  className="btn-secondary"
+                  style={{ flex: 1, justifyContent: 'center' }}
+                >
+                  İptal
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={isEditingSubmitting}
+                  className="btn-primary"
+                  style={{ flex: 1, justifyContent: 'center' }}
+                >
+                  <Save size={14} /> Kaydet
                 </button>
               </div>
             </form>

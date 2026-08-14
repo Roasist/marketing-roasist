@@ -79,7 +79,7 @@ export class ApiService {
     return res.user;
   }
 
-  public static async updateUser(data: { id: number; name: string; role: string; status: string; password?: string }): Promise<void> {
+  public static async updateUser(data: { id: number; name: string; email: string; role: string; status: string; password?: string }): Promise<void> {
     await this.request('/users.php', {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -98,10 +98,13 @@ export class ApiService {
     return res.competitors || [];
   }
 
-  public static async addCompetitor(urlOrId: string): Promise<Competitor> {
+  public static async addCompetitor(data: string | { name: string; pageId: string; pageUrl?: string; category?: string }): Promise<Competitor> {
+    const payload = typeof data === 'string'
+      ? { pageId: data, name: data }
+      : data;
     const res = await this.request<{ status: string; competitor: Competitor }>('/competitors.php', {
       method: 'POST',
-      body: JSON.stringify({ urlOrId }),
+      body: JSON.stringify(payload),
     });
     return res.competitor;
   }
@@ -112,36 +115,32 @@ export class ApiService {
     });
   }
 
-  // --- Saved Ads & Notes ---
+  // --- Saved Ads ---
   public static async getSavedAds(): Promise<SavedAdItem[]> {
-    const res = await this.request<{ status: string; savedAds: SavedAdItem[] }>('/ads.php');
-    return res.savedAds || [];
+    const res = await this.request<{ status: string; ads: SavedAdItem[] }>('/ads.php');
+    return res.ads || [];
   }
 
-  public static async saveAd(ad: AdItem, notes?: string, tags?: string): Promise<{ id: string }> {
-    return this.request<{ status: string; id: string }>('/ads.php', {
+  public static async saveAd(ad: AdItem, notes?: string, collectionName?: string): Promise<void> {
+    await this.request('/ads.php', {
       method: 'POST',
-      body: JSON.stringify({
-        ...ad,
-        notes: notes || '',
-        tags: tags || 'Favori',
-      }),
+      body: JSON.stringify({ ad, notes, collection_name: collectionName }),
     });
   }
 
-  public static async deleteSavedAd(id: string): Promise<void> {
-    await this.request(`/ads.php?id=${encodeURIComponent(id)}`, {
+  public static async deleteSavedAd(id: string | number): Promise<void> {
+    await this.request(`/ads.php?id=${encodeURIComponent(String(id))}`, {
       method: 'DELETE',
     });
   }
 
-  // --- Settings & Logs ---
-  public static async getSettings(): Promise<Record<string, string>> {
-    const res = await this.request<{ status: string; settings: Record<string, string> }>('/settings.php');
+  // --- App Settings & Audit Logs ---
+  public static async getSettings(): Promise<any> {
+    const res = await this.request<{ status: string; settings: any }>('/settings.php');
     return res.settings || {};
   }
 
-  public static async updateSettings(settings: Record<string, any>): Promise<void> {
+  public static async updateSettings(settings: any): Promise<void> {
     await this.request('/settings.php', {
       method: 'POST',
       body: JSON.stringify(settings),

@@ -1,7 +1,7 @@
 <?php
 /**
  * Roasist Marketing Suite - User Management API (Admin Only)
- * List, Create, Update Role/Status, Delete
+ * List, Create, Update (Name, Email, Role, Status, Password), Delete
  */
 
 header('Content-Type: application/json');
@@ -12,6 +12,16 @@ $pdo = Database::getConnection();
 
 $method = $_SERVER['REQUEST_METHOD'];
 $action = $_GET['action'] ?? '';
+
+// Support method override
+$input = json_decode(file_get_contents('php://input'), true) ?? [];
+if ($method === 'POST' && isset($input['_method'])) {
+    $method = strtoupper($input['_method']);
+} elseif ($method === 'POST' && $action === 'update') {
+    $method = 'PUT';
+} elseif ($method === 'POST' && $action === 'delete') {
+    $method = 'DELETE';
+}
 
 // GET: List all users
 if ($method === 'GET') {
@@ -24,8 +34,6 @@ if ($method === 'GET') {
     ]);
     exit;
 }
-
-$input = json_decode(file_get_contents('php://input'), true) ?? [];
 
 // POST: Create New User
 if ($method === 'POST') {
@@ -71,9 +79,9 @@ if ($method === 'POST') {
     exit;
 }
 
-// PUT: Update User (Role, Status, Password)
+// PUT: Update User (Name, Email, Role, Status, Password)
 if ($method === 'PUT') {
-    $id = (int)($input['id'] ?? 0);
+    $id = (int)($input['id'] ?? $_GET['id'] ?? 0);
     if ($id <= 0) {
         http_response_code(400);
         echo json_encode(['status' => 'error', 'message' => 'Geçersiz kullanıcı ID.']);
@@ -81,24 +89,40 @@ if ($method === 'PUT') {
     }
 
     $name = trim($input['name'] ?? '');
+    $email = trim($input['email'] ?? '');
     $role = $input['role'] ?? 'MARKETER';
     $status = $input['status'] ?? 'ACTIVE';
     $password = trim($input['password'] ?? '');
 
-    if (!empty($password)) {
-        $passwordHash = password_hash($password, PASSWORD_DEFAULT);
-        $stmt = $pdo->prepare("UPDATE users SET name = ?, role = ?, status = ?, password_hash = ? WHERE id = ?");
-        $stmt->execute([$name, $role, $status, $passwordHash, $id]);
-    } else {
-        $stmt = $pdo->prepare("UPDATE users SET name = ?, role = ?, status = ? WHERE id = ?");
-        $stmt->execute([$name, $role, $status, $id]);
+    if (empty($name) || empty($email)) {
+        http_response_code(400);
+        echo json_encode(['status' => 'error', 'message' => 'Ad ve e-posta alanları boş bırakılamaz.']);
+        exit;
     }
 
-    logAudit((int)$currentUser['id'], $currentUser['name'], 'Kullanıcı Güncellendi', "ID: $id güncellendi (Rol: $role, Durum: $status)");
+    // Check email uniqueness for other users
+    $checkStmt = $pdo->prepare("SELECT id FROM users WHERE email = ? AND id != ?");
+    $checkStmt->execute([$email, $id]);
+    if ($checkStmt->fetch()) {
+        http_response_code(400);
+        echo json_encode(['status' => 'error', 'message' => 'Bu e-posta adresi başka bir kullanıcı tarafından kullanılıyor.']);
+        exit;
+    }
+
+    if (!empty($password)) {
+        $passwordHash = password_hash($password, PASSWORD_DEFAULT);
+        $stmt = $pdo->prepare("UPDATE users SET name = ?, email = ?, role = ?, status = ?, password_hash = ? WHERE id = ?");
+        $stmt->execute([$name, $email, $role, $status, $passwordHash, $id]);
+        logAudit((int)$currentUser['id'], $currentUser['name'], 'Kullanıcı & Şifre Güncellendi', "ID: $id ($name, $email, Rol: $role, Durum: $status)");
+    } else {
+        $stmt = $pdo->prepare("UPDATE users SET name = ?, email = ?, role = ?, status = ? WHERE id = ?");
+        $stmt->execute([$name, $email, $role, $status, $id]);
+        logAudit((int)$currentUser['id'], $currentUser['name'], 'Kullanıcı Güncellendi', "ID: $id ($name, $email, Rol: $role, Durum: $status)");
+    }
 
     echo json_encode([
         'status' => 'success',
-        'message' => 'Kullanıcı bilgileri güncellendi!'
+        'message' => 'Kullanıcı bilgileri başarıyla güncellendi!'
     ]);
     exit;
 }
@@ -118,14 +142,19 @@ if ($method === 'DELETE') {
         exit;
     }
 
+    // Get user info for audit
+    $userStmt = $pdo->prepare("SELECT name, email FROM users WHERE id = ?");
+    $userStmt->execute([$id]);
+    $deletedUser = $userStmt->fetch();
+
     $stmt = $pdo->prepare("DELETE FROM users WHERE id = ?");
     $stmt->execute([$id]);
 
-    logAudit((int)$currentUser['id'], $currentUser['name'], 'Kullanıcı Silindi', "ID: $id silindi.");
+    logAudit((int)$currentUser['id'], $currentUser['name'], 'Kullanıcı Silindi', "Silinen kullanıcı: {$deletedUser['name']} ({$deletedUser['email']})");
 
     echo json_encode([
         'status' => 'success',
-        'message' => 'Kullanıcı başarıyla silindi.'
+        'message' => 'Kullanıcı başarıyla silindi!'
     ]);
     exit;
 }
