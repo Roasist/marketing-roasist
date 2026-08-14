@@ -1,7 +1,7 @@
 import React from 'react';
 import { MarketingRoute } from '../types/suite';
 import { Competitor, AdItem } from '../types/ad';
-import { Target, PenTool, Sliders, ArrowRight, Flame, Sparkles, Building2, BarChart2 } from 'lucide-react';
+import { Target, PenTool, Sliders, ArrowRight, Users, TrendingUp, Layers, CheckCircle2 } from 'lucide-react';
 
 interface DashboardOverviewProps {
   competitors: Competitor[];
@@ -15,160 +15,171 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
   onNavigate,
 }) => {
   const activeAds = ads.filter(a => a.activeStatus === 'ACTIVE');
+  const winnerAds = ads.filter(a => a.activeDaysCount >= 30);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       
-      {/* Welcome Banner */}
-      <div className="glass-panel" style={{
-        padding: '2rem',
-        background: 'linear-gradient(135deg, rgba(124, 58, 237, 0.18) 0%, rgba(6, 182, 212, 0.12) 100%)',
-        border: '1px solid var(--border-accent)',
-        position: 'relative',
-        overflow: 'hidden',
-      }}>
-        <div style={{ maxWidth: '750px', position: 'relative', zIndex: 2 }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', padding: '0.25rem 0.75rem', borderRadius: 'var(--radius-full)', background: 'rgba(124, 58, 237, 0.2)', border: '1px solid rgba(124, 58, 237, 0.4)', color: '#c084fc', fontSize: '0.75rem', fontWeight: 700, marginBottom: '0.85rem' }}>
-            <Sparkles size={14} /> Roasist AI Marketing Platform
-          </div>
-
-          <h2 style={{ fontSize: '1.8rem', fontWeight: 800, marginBottom: '0.5rem', lineHeight: 1.2 }}>
-            Hoş Geldiniz! Pazarlama Performansınızı Yapay Zekâ ile Yönetin
-          </h2>
-
-          <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '1.25rem' }}>
-            `marketing.roasist.com` platformu rakiplerinizin reklam kütüphanelerini takip etmenizi, en çok dönüşüm getiren "Winner" reklamları tespit etmenizi ve AI strateji raporları oluşturmanızı sağlar.
+      {/* Page Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+        <div>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+            Genel Bakış & Metrikler
+          </h1>
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+            Pazarlama ekosisteminiz, rakip analizleriniz ve aktif reklam istihbaratınız.
           </p>
-
-          <button
-            onClick={() => onNavigate('competitors')}
-            className="btn-primary"
-            style={{ padding: '0.75rem 1.5rem', fontSize: '0.95rem' }}
-          >
-            <Target size={18} /> Rakip Reklam İstihbaratına Git (`/competitors`) <ArrowRight size={16} />
-          </button>
         </div>
+
+        <button
+          onClick={() => onNavigate('competitors')}
+          className="btn-primary"
+          style={{ fontSize: '0.85rem' }}
+        >
+          <Target size={15} /> Rakipleri İncele <ArrowRight size={14} />
+        </button>
       </div>
 
-      {/* Summary Stat Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+      {/* KPI Stat Cards Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
         
-        <div className="glass-panel" style={{ padding: '1.25rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>TAKİP EDİLEN RAKİPLER</span>
-            <Building2 size={18} color="var(--accent-purple)" />
+        {/* Metric 1 */}
+        <div className="card" style={{ padding: '1.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: 'var(--text-secondary)', fontSize: '0.8rem', fontWeight: 500 }}>
+            <span>Takip Edilen Rakipler</span>
+            <Users size={16} color="var(--text-muted)" />
           </div>
-          <div style={{ fontSize: '1.8rem', fontWeight: 800 }}>{competitors.length} Marka</div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-            Trendyol, Hepsiburada, Nike vb.
+          <div style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '0.5rem' }}>
+            {competitors.length}
           </div>
-        </div>
-
-        <div className="glass-panel" style={{ padding: '1.25rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>CANLI TAKİP EDİLEN REKLAM</span>
-            <Flame size={18} color="#34d399" />
-          </div>
-          <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#34d399' }}>{activeAds.length} Aktif Reklam</div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-            Bütçe Alan Kampanyalar
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem', color: '#10b981', marginTop: '0.35rem' }}>
+            <CheckCircle2 size={13} />
+            <span>Tüm markalar senkronize</span>
           </div>
         </div>
 
-        <div className="glass-panel" style={{ padding: '1.25rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>ARŞİVDEKİ REKLAMLAR</span>
-            <BarChart2 size={18} color="var(--accent-cyan)" />
+        {/* Metric 2 */}
+        <div className="card" style={{ padding: '1.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: 'var(--text-secondary)', fontSize: '0.8rem', fontWeight: 500 }}>
+            <span>Aktif Bütçe Alan Reklamlar</span>
+            <TrendingUp size={16} color="var(--text-muted)" />
           </div>
-          <div style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--accent-cyan)' }}>{ads.length} Adet</div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-            Geçmiş & Güncel Reklam Arşivi
+          <div style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '0.5rem' }}>
+            {activeAds.length}
+          </div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.35rem' }}>
+            Meta Ad Library canlı yayınları
+          </div>
+        </div>
+
+        {/* Metric 3 */}
+        <div className="card" style={{ padding: '1.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: 'var(--text-secondary)', fontSize: '0.8rem', fontWeight: 500 }}>
+            <span>30+ Gün Çalışan "Winner" Reklamlar</span>
+            <Target size={16} color="var(--text-muted)" />
+          </div>
+          <div style={{ fontSize: '1.75rem', fontWeight: 700, color: '#f59e0b', marginTop: '0.5rem' }}>
+            {winnerAds.length}
+          </div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.35rem' }}>
+            Yüksek ROAS sağlayan kanıtlanmış kreatifler
+          </div>
+        </div>
+
+        {/* Metric 4 */}
+        <div className="card" style={{ padding: '1.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: 'var(--text-secondary)', fontSize: '0.8rem', fontWeight: 500 }}>
+            <span>Arşivlenen Reklam Verisi</span>
+            <Layers size={16} color="var(--text-muted)" />
+          </div>
+          <div style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '0.5rem' }}>
+            {ads.length}
+          </div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.35rem' }}>
+            Geçmiş kampanya veritabanı
           </div>
         </div>
 
       </div>
 
-      {/* Module Shortcuts Grid */}
+      {/* Modules Section */}
       <div>
-        <h3 style={{ fontSize: '1.2rem', fontWeight: 800, marginBottom: '1rem' }}>
-          Pazarlama Araçları & Modüller
-        </h3>
+        <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.85rem' }}>
+          Pazarlama İstihbarat Modülleri
+        </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.25rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1rem' }}>
           
-          {/* Competitor Ads Module Card */}
+          {/* Module 1: Competitors */}
           <div
             onClick={() => onNavigate('competitors')}
-            className="glass-panel"
+            className="card"
             style={{
-              padding: '1.5rem',
+              padding: '1.25rem',
               cursor: 'pointer',
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'space-between',
-              border: '1px solid var(--border-accent)',
-              transition: 'all 0.25s ease',
             }}
           >
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem' }}>
-                <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'rgba(124, 58, 237, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Target size={22} color="var(--accent-purple)" />
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                <div style={{ width: '36px', height: '36px', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--bg-surface-elevated)', border: '1px solid var(--border-default)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Target size={18} color="var(--text-primary)" />
                 </div>
-                <span className="badge badge-active">Aktif Modül</span>
+                <span className="badge badge-active">Aktif</span>
               </div>
-              <h4 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: '0.4rem' }}>
-                Rakip Reklam İstihbaratı (`/competitors`)
-              </h4>
+              <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.3rem' }}>
+                Rakip Reklam İstihbaratı
+              </div>
               <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                Meta Reklam Kütüphanesi üzerinden rakiplerinizin aktif ve geçmiş reklamlarını, kanca açılarını ve en uzun bütçe alan "Winner" kreatiflerini analiz edin.
+                Meta Ad Library üzerinden rakiplerinizin aktif reklamlarını, kanca açılarını, geçmiş kampanya akışlarını ve kaydedilen notlarınızı yönetin.
               </p>
             </div>
 
-            <div style={{ marginTop: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--accent-cyan)', fontWeight: 700, fontSize: '0.85rem' }}>
-              Modülü Başlat <ArrowRight size={14} />
+            <div style={{ marginTop: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text-primary)', fontWeight: 500, fontSize: '0.825rem' }}>
+              Modülü Aç <ArrowRight size={13} />
             </div>
           </div>
 
-          {/* AI Copywriter Card */}
+          {/* Module 2: AI Copywriter */}
           <div
             onClick={() => onNavigate('ai-copywriter')}
-            className="glass-panel"
+            className="card"
             style={{
-              padding: '1.5rem',
+              padding: '1.25rem',
               cursor: 'pointer',
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'space-between',
-              opacity: 0.9,
             }}
           >
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem' }}>
-                <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'rgba(6, 182, 212, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <PenTool size={22} color="var(--accent-cyan)" />
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                <div style={{ width: '36px', height: '36px', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--bg-surface-elevated)', border: '1px solid var(--border-default)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <PenTool size={18} color="var(--text-primary)" />
                 </div>
-                <span className="badge badge-carousel">Yakında</span>
+                <span className="badge badge-neutral">Beta</span>
               </div>
-              <h4 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: '0.4rem' }}>
-                AI Reklam Metni & Kanca Üretici (`/ai-copywriter`)
-              </h4>
+              <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.3rem' }}>
+                AI Reklam Metni & Kanca Motoru
+              </div>
               <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                Yapay zekâ desteğiyle sektörünüze uygun, yüksek CTR ve dönüşüm oranı getiren reklam metinleri ve açılış kancaları oluşturun.
+                Rakiplerin en çok dönüşüm getiren açılarını analiz ederek markanıza özel yüksek CTR'lı kancalar ve metin varyasyonları üretin.
               </p>
             </div>
 
-            <div style={{ marginTop: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-secondary)', fontWeight: 700, fontSize: '0.85rem' }}>
-              Önizlemeyi İncele <ArrowRight size={14} />
+            <div style={{ marginTop: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text-secondary)', fontWeight: 500, fontSize: '0.825rem' }}>
+              Önizlemeyi Başlat <ArrowRight size={13} />
             </div>
           </div>
 
-          {/* Admin Panel Card */}
+          {/* Module 3: Admin & Users */}
           <div
             onClick={() => onNavigate('admin')}
-            className="glass-panel"
+            className="card"
             style={{
-              padding: '1.5rem',
+              padding: '1.25rem',
               cursor: 'pointer',
               display: 'flex',
               flexDirection: 'column',
@@ -176,22 +187,22 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
             }}
           >
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem' }}>
-                <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'rgba(245, 158, 11, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Sliders size={22} color="#fbbf24" />
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                <div style={{ width: '36px', height: '36px', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--bg-surface-elevated)', border: '1px solid var(--border-default)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Sliders size={18} color="var(--text-primary)" />
                 </div>
-                <span className="badge badge-active">Admin</span>
+                <span className="badge badge-neutral">Yönetici</span>
               </div>
-              <h4 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: '0.4rem' }}>
-                Admin Yönetim Paneli (`/admin`)
-              </h4>
+              <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.3rem' }}>
+                Kullanıcı & Sistem Yönetimi
+              </div>
               <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                Meta API Token yönetimi, modül açma/kapama (Feature Flags), kullanım kotaları ve sistem güvenlik günlüklerini yönetin.
+                Ekip üyelerine erişim yetkisi verin, API anahtarlarını yapılandırın ve denetim loglarını inceleyin.
               </p>
             </div>
 
-            <div style={{ marginTop: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#fbbf24', fontWeight: 700, fontSize: '0.85rem' }}>
-              Admin Panele Git <ArrowRight size={14} />
+            <div style={{ marginTop: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text-secondary)', fontWeight: 500, fontSize: '0.825rem' }}>
+              Ayarları Yönet <ArrowRight size={13} />
             </div>
           </div>
 

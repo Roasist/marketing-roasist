@@ -146,38 +146,28 @@ export const CompetitorsModule: React.FC<CompetitorsModuleProps> = ({
   });
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
       
-      {/* Module Banner */}
-      <div className="glass-panel" style={{
-        padding: '1.5rem 1.75rem',
-        background: 'linear-gradient(135deg, rgba(124, 58, 237, 0.15) 0%, rgba(6, 182, 212, 0.1) 100%)',
-        border: '1px solid var(--border-accent)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: '1rem',
-      }}>
+      {/* Module Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--accent-purple)', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem' }}>
-            🎯 MODÜL: /competitors
-          </div>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: 800 }}>Rakip Meta Reklam Kütüphanesi & İstihbarat Paneli</h2>
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
-            Rakiplerinizin aktif reklamlarını, kanca açılarını, geçmiş kampanya akışlarını ve en çok bütçe alan "Winner" kreatiflerini analiz edin.
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+            Rakip Reklam İstihbaratı
+          </h1>
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+            Rakiplerin aktif kampanyaları, kreatif formatları ve kanıtlanmış kanca stratejileri.
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <button onClick={onExportCsv} className="btn-secondary" style={{ fontSize: '0.85rem' }}>
-            <Download size={16} /> CSV Aktar
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <button onClick={onExportCsv} className="btn-secondary" style={{ fontSize: '0.8rem' }}>
+            <Download size={14} /> CSV Dışa Aktar
           </button>
         </div>
       </div>
 
       {saveSuccessMsg && (
-        <div style={{ background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.4)', borderRadius: 'var(--radius-sm)', padding: '0.75rem 1rem', color: '#34d399', fontSize: '0.85rem' }}>
+        <div style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 'var(--radius-sm)', padding: '0.65rem 0.85rem', color: '#34d399', fontSize: '0.825rem' }}>
           ✓ {saveSuccessMsg}
         </div>
       )}
@@ -192,53 +182,53 @@ export const CompetitorsModule: React.FC<CompetitorsModuleProps> = ({
       />
 
       {/* Sub-Navigation Tabs */}
-      <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid var(--border-glass)', paddingBottom: '0.5rem', overflowX: 'auto' }}>
+      <div style={{ display: 'flex', gap: '0.35rem', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.5rem', overflowX: 'auto' }}>
         
         <button
           onClick={() => setActiveSubTab('feed')}
-          className={activeSubTab === 'feed' ? 'btn-primary' : 'btn-secondary'}
-          style={{ padding: '0.55rem 1.25rem' }}
+          className={activeSubTab === 'feed' ? 'btn-primary' : 'btn-ghost'}
+          style={{ padding: '0.45rem 0.85rem', fontSize: '0.825rem' }}
         >
-          <Flame size={16} /> Reklam Akışı ({filteredAds.length})
+          <Flame size={14} /> Reklam Akışı ({filteredAds.length})
         </button>
 
         <button
           onClick={() => setActiveSubTab('saved-ads')}
-          className={activeSubTab === 'saved-ads' ? 'btn-primary' : 'btn-secondary'}
-          style={{ padding: '0.55rem 1.25rem' }}
+          className={activeSubTab === 'saved-ads' ? 'btn-primary' : 'btn-ghost'}
+          style={{ padding: '0.45rem 0.85rem', fontSize: '0.825rem' }}
         >
-          <Bookmark size={16} /> Kaydedilenler & Notlarım ({savedAds.length})
+          <Bookmark size={14} /> Kaydedilenler ({savedAds.length})
         </button>
 
         <button
           onClick={() => setActiveSubTab('timeline')}
-          className={activeSubTab === 'timeline' ? 'btn-primary' : 'btn-secondary'}
-          style={{ padding: '0.55rem 1.25rem' }}
+          className={activeSubTab === 'timeline' ? 'btn-primary' : 'btn-ghost'}
+          style={{ padding: '0.45rem 0.85rem', fontSize: '0.825rem' }}
         >
-          <History size={16} /> Geçmiş Analizi & Zaman Çizelgesi
+          <History size={14} /> Zaman Çizelgesi
         </button>
 
         <button
           onClick={() => setActiveSubTab('analytics')}
-          className={activeSubTab === 'analytics' ? 'btn-primary' : 'btn-secondary'}
-          style={{ padding: '0.55rem 1.25rem' }}
+          className={activeSubTab === 'analytics' ? 'btn-primary' : 'btn-ghost'}
+          style={{ padding: '0.45rem 0.85rem', fontSize: '0.825rem' }}
         >
-          <BarChart3 size={16} /> Format & Metrikler
+          <BarChart3 size={14} /> Format & Dağılım
         </button>
 
         <button
           onClick={() => setActiveSubTab('ai-strategy')}
-          className={activeSubTab === 'ai-strategy' ? 'btn-primary' : 'btn-secondary'}
-          style={{ padding: '0.55rem 1.25rem' }}
+          className={activeSubTab === 'ai-strategy' ? 'btn-primary' : 'btn-ghost'}
+          style={{ padding: '0.45rem 0.85rem', fontSize: '0.825rem' }}
         >
-          <BrainCircuit size={16} /> AI Strateji Raporu
+          <BrainCircuit size={14} /> AI Strateji Analizi
         </button>
 
       </div>
 
       {/* Tab 1: Live Ad Feed */}
       {activeSubTab === 'feed' && (
-        <div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <AdFilters
             filters={filters}
             onFilterChange={(newF) => setFilters({ ...filters, ...newF })}
@@ -246,19 +236,19 @@ export const CompetitorsModule: React.FC<CompetitorsModuleProps> = ({
           />
 
           {filteredAds.length === 0 ? (
-            <div className="glass-panel" style={{ padding: '3rem', textAlign: 'center' }}>
-              <div style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
-                Seçilen kriterlere uygun reklam bulunamadı.
+            <div className="card" style={{ padding: '3rem', textAlign: 'center' }}>
+              <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                Kriterlere uygun reklam bulunamadı.
               </div>
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
-                Filtrelerinizi temizleyerek veya başka bir rakip seçerek tekrar deneyebilirsiniz.
+              <p style={{ fontSize: '0.825rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>
+                Filtreleri sıfırlayarak veya başka bir rakip seçerek tekrar deneyin.
               </p>
             </div>
           ) : (
             <div style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-              gap: '1.25rem',
+              gap: '1rem',
             }}>
               {filteredAds.map((ad) => (
                 <div key={ad.id} style={{ position: 'relative' }}>
@@ -268,27 +258,25 @@ export const CompetitorsModule: React.FC<CompetitorsModuleProps> = ({
                   />
                   <button
                     onClick={() => handleSaveAd(ad)}
-                    title="Reklamı Kütüphaneme Kaydet / Not Ekle"
+                    title="Not Ekle & Kaydet"
                     style={{
                       position: 'absolute',
-                      bottom: '58px',
-                      right: '12px',
-                      background: 'rgba(124, 58, 237, 0.85)',
-                      border: '1px solid rgba(255, 255, 255, 0.2)',
-                      borderRadius: '8px',
-                      color: 'white',
-                      padding: '5px 8px',
-                      fontSize: '0.75rem',
-                      fontWeight: 600,
+                      top: '10px',
+                      right: '10px',
+                      backgroundColor: 'var(--bg-surface-elevated)',
+                      border: '1px solid var(--border-default)',
+                      borderRadius: 'var(--radius-xs)',
+                      color: 'var(--text-secondary)',
+                      padding: '4px 7px',
+                      fontSize: '0.72rem',
                       cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
                       gap: '0.3rem',
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
                       zIndex: 5,
                     }}
                   >
-                    <Bookmark size={13} /> Kaydet
+                    <Bookmark size={11} /> Kaydet
                   </button>
                 </div>
               ))}
@@ -299,56 +287,60 @@ export const CompetitorsModule: React.FC<CompetitorsModuleProps> = ({
 
       {/* Tab 2: Saved Ads & Notes */}
       {activeSubTab === 'saved-ads' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <div>
-            <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>Kaydedilen Favori Reklamlar & Strateji Notları</h3>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-              Ekibinizin ilham almak veya benchmark yapmak için veritabanına kaydettiği özel kreatifler.
+            <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+              Kaydedilen Reklamlar & Strateji Notları
+            </div>
+            <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+              Ekibinizin benchmark ve ilham amacıyla veritabanına eklediği özel kreatifler.
             </p>
           </div>
 
           {savedAds.length === 0 ? (
-            <div className="glass-panel" style={{ padding: '3rem', textAlign: 'center' }}>
-              <Bookmark size={36} color="var(--accent-purple)" style={{ margin: '0 auto 1rem' }} />
-              <div style={{ fontSize: '1.1rem', fontWeight: 700 }}>Henüz kaydedilmiş reklam bulunmuyor</div>
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.4rem' }}>
-                "Reklam Akışı" sekmesinden beğendiğiniz veya kazanan reklamların altındaki <strong>"Kaydet"</strong> butonuna basarak notlarınızla birlikte buraya ekleyebilirsiniz.
+            <div className="card" style={{ padding: '3rem', textAlign: 'center' }}>
+              <Bookmark size={32} color="var(--text-muted)" style={{ margin: '0 auto 0.75rem' }} />
+              <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                Henüz kaydedilmiş reklam yok
+              </div>
+              <p style={{ fontSize: '0.825rem', color: 'var(--text-muted)', marginTop: '0.3rem' }}>
+                "Reklam Akışı" sekmesinden beğendiğiniz reklamların sağ üstündeki <strong>Kaydet</strong> butonunu kullanabilirsiniz.
               </p>
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.25rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1rem' }}>
               {savedAds.map((item) => (
-                <div key={item.id} className="glass-panel" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', border: item.isWinner ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid var(--border-glass)' }}>
+                <div key={item.id} className="card" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                   
-                  <div style={{ padding: '1rem', borderBottom: '1px solid var(--border-glass)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>{item.pageName}</div>
+                  <div style={{ padding: '0.75rem 1rem', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{item.pageName}</div>
                     <button
                       onClick={() => handleDeleteSavedAd(item.id)}
                       title="Kaydı Sil"
-                      style={{ background: 'rgba(244, 63, 94, 0.1)', border: 'none', borderRadius: '6px', color: '#fb7185', padding: '4px 6px', cursor: 'pointer' }}
+                      style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px' }}
                     >
-                      <Trash2 size={14} />
+                      <Trash2 size={13} />
                     </button>
                   </div>
 
-                  <div style={{ height: '200px', backgroundColor: '#000', overflow: 'hidden' }}>
+                  <div style={{ height: '180px', backgroundColor: '#000000', overflow: 'hidden' }}>
                     <img src={item.mediaUrls[0] || 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=600'} alt={item.headline} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   </div>
 
-                  <div style={{ padding: '1rem', flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                      <span className="badge badge-active" style={{ fontSize: '0.65rem' }}>
-                        <Tag size={11} /> {item.tags || 'Favori'}
+                  <div style={{ padding: '0.85rem 1rem', flex: 1, display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                      <span className="badge badge-neutral" style={{ fontSize: '0.68rem' }}>
+                        <Tag size={10} /> {item.tags || 'Favori'}
                       </span>
-                      {item.isWinner && <span className="badge badge-carousel" style={{ fontSize: '0.65rem' }}>🔥 Kazanan</span>}
+                      {item.isWinner && <span className="badge badge-carousel" style={{ fontSize: '0.68rem' }}>Winner</span>}
                     </div>
 
-                    <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>{item.headline}</div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>{item.bodyText.substring(0, 90)}...</div>
+                    <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-primary)' }}>{item.headline}</div>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>{item.bodyText.substring(0, 90)}...</div>
 
                     {item.notes && (
-                      <div style={{ marginTop: '0.5rem', padding: '0.6rem 0.8rem', background: 'rgba(124, 58, 237, 0.1)', border: '1px solid rgba(124, 58, 237, 0.3)', borderRadius: 'var(--radius-sm)', fontSize: '0.75rem', color: '#c084fc' }}>
-                        📝 <strong>Notum:</strong> {item.notes}
+                      <div style={{ marginTop: '0.35rem', padding: '0.5rem 0.65rem', background: 'var(--bg-surface-elevated)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-xs)', fontSize: '0.75rem', color: 'var(--text-primary)' }}>
+                        <strong>Not:</strong> {item.notes}
                       </div>
                     )}
                   </div>

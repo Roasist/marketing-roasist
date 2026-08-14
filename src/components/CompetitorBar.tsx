@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Competitor } from '../types/ad';
-import { Plus, Building2, ExternalLink, Trash2, CheckCircle2, Search } from 'lucide-react';
+import { Plus, ExternalLink, Trash2, Search, X } from 'lucide-react';
 
 interface CompetitorBarProps {
   competitors: Competitor[];
@@ -29,32 +29,33 @@ export const CompetitorBar: React.FC<CompetitorBarProps> = ({
   };
 
   return (
-    <div className="glass-panel" style={{ padding: '1.25rem', marginBottom: '1.5rem' }}>
+    <div className="card" style={{ padding: '1rem 1.25rem' }}>
+      
+      {/* Header Row */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        marginBottom: '1rem',
+        marginBottom: '0.85rem',
         flexWrap: 'wrap',
-        gap: '0.75rem',
+        gap: '0.5rem',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <Building2 size={20} color="var(--accent-purple)" />
-          <h2 style={{ fontSize: '1.1rem', fontWeight: 700 }}>
-            Takip Edilen Rakipler (Meta Sayfaları)
-          </h2>
-          <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-            ({competitors.length} Marka Ekli)
+          <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+            İzlenen Markalar & Rakipler
+          </span>
+          <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+            ({competitors.length} Marka)
           </span>
         </div>
 
-        {/* Action button to open add modal/form */}
         <button
           onClick={() => setIsAdding(!isAdding)}
-          className="btn-primary"
-          style={{ padding: '0.45rem 0.9rem', fontSize: '0.8rem' }}
+          className="btn-secondary"
+          style={{ padding: '0.35rem 0.75rem', fontSize: '0.78rem' }}
         >
-          <Plus size={16} /> {isAdding ? 'Kapat' : 'Yeni Rakip Meta Linki / ID Ekle'}
+          {isAdding ? <X size={14} /> : <Plus size={14} />}
+          {isAdding ? 'Vazgeç' : 'Yeni Rakip Ekle'}
         </button>
       </div>
 
@@ -63,95 +64,77 @@ export const CompetitorBar: React.FC<CompetitorBarProps> = ({
         <form 
           onSubmit={handleSubmit}
           style={{
-            background: 'rgba(255, 255, 255, 0.04)',
-            padding: '1rem',
+            background: 'var(--bg-surface-elevated)',
+            padding: '0.85rem',
             borderRadius: 'var(--radius-sm)',
-            border: '1px solid var(--border-accent)',
-            marginBottom: '1.25rem',
+            border: '1px solid var(--border-default)',
+            marginBottom: '1rem',
             display: 'flex',
-            gap: '0.75rem',
+            gap: '0.5rem',
             alignItems: 'center',
-            flexWrap: 'wrap',
           }}
         >
-          <div style={{ flex: 1, minWidth: '280px', position: 'relative' }}>
+          <div style={{ flex: 1, position: 'relative' }}>
             <Search 
-              size={18} 
+              size={15} 
               color="var(--text-muted)" 
-              style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} 
+              style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }} 
             />
             <input
               type="text"
-              placeholder="Örn: https://www.facebook.com/trendyol veya Sayfa ID: 10382959102"
+              placeholder="Meta Sayfa URL'si (örn: https://facebook.com/trendyol) veya Sayfa ID'si"
               value={inputVal}
               onChange={(e) => setInputVal(e.target.value)}
               style={{
                 width: '100%',
-                padding: '0.65rem 0.85rem 0.65rem 2.4rem',
-                background: 'var(--bg-primary)',
-                border: '1px solid var(--border-glass)',
-                borderRadius: 'var(--radius-sm)',
-                color: 'var(--text-primary)',
-                fontSize: '0.85rem',
-                outline: 'none',
+                paddingLeft: '2.1rem',
               }}
+              autoFocus
             />
           </div>
-          <button type="submit" className="btn-primary" style={{ padding: '0.65rem 1.25rem' }}>
-            <CheckCircle2 size={16} /> Ekle & Reklamları Çek
+          <button type="submit" className="btn-primary" style={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+            Ekle & Analiz Et
           </button>
         </form>
       )}
 
-      {/* Competitors List Cards */}
+      {/* Competitor Pills Grid */}
       <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-        gap: '0.85rem',
+        display: 'flex',
+        gap: '0.5rem',
+        overflowX: 'auto',
+        paddingBottom: '0.25rem',
       }}>
         
-        {/* ALL Competitors Selector Card */}
-        <div
+        {/* ALL Selector */}
+        <button
           onClick={() => onSelectCompetitor('ALL')}
           style={{
-            padding: '0.85rem',
+            padding: '0.45rem 0.85rem',
             borderRadius: 'var(--radius-sm)',
             border: selectedCompetitorId === 'ALL' 
-              ? '2px solid var(--accent-purple)' 
-              : '1px solid var(--border-glass)',
-            background: selectedCompetitorId === 'ALL' 
-              ? 'rgba(124, 58, 237, 0.12)' 
-              : 'rgba(255, 255, 255, 0.02)',
+              ? '1px solid var(--border-strong)' 
+              : '1px solid var(--border-subtle)',
+            backgroundColor: selectedCompetitorId === 'ALL' 
+              ? 'var(--bg-surface-hover)' 
+              : 'var(--bg-surface-elevated)',
+            color: selectedCompetitorId === 'ALL' ? '#ffffff' : 'var(--text-secondary)',
+            fontWeight: selectedCompetitorId === 'ALL' ? 600 : 400,
+            fontSize: '0.825rem',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
-            gap: '0.75rem',
-            transition: 'var(--transition-fast)',
+            gap: '0.5rem',
+            whiteSpace: 'nowrap',
+            flexShrink: 0,
+            transition: 'all var(--transition-fast)',
           }}
         >
-          <div style={{
-            width: '38px',
-            height: '38px',
-            borderRadius: '10px',
-            background: 'linear-gradient(135deg, #6366f1, #a855f7)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontWeight: 800,
-            fontSize: '0.9rem',
-            color: 'white',
-          }}>
-            TÜM
-          </div>
-          <div>
-            <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>Tüm Rakipler</div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-              Toplu Analiz Modu
-            </div>
-          </div>
-        </div>
+          <span>Tüm Rakipler</span>
+          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Toplu</span>
+        </button>
 
-        {/* Individual Competitor Cards */}
+        {/* Individual Competitor Buttons */}
         {competitors.map((comp) => {
           const isSelected = selectedCompetitorId === comp.pageId || selectedCompetitorId === comp.id;
           return (
@@ -159,80 +142,74 @@ export const CompetitorBar: React.FC<CompetitorBarProps> = ({
               key={comp.id}
               onClick={() => onSelectCompetitor(comp.pageId)}
               style={{
-                padding: '0.85rem',
+                padding: '0.35rem 0.65rem',
                 borderRadius: 'var(--radius-sm)',
                 border: isSelected 
-                  ? '2px solid var(--accent-purple)' 
-                  : '1px solid var(--border-glass)',
-                background: isSelected 
-                  ? 'rgba(124, 58, 237, 0.15)' 
-                  : 'rgba(255, 255, 255, 0.02)',
+                  ? '1px solid var(--border-strong)' 
+                  : '1px solid var(--border-subtle)',
+                backgroundColor: isSelected 
+                  ? 'var(--bg-surface-hover)' 
+                  : 'var(--bg-surface-elevated)',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'space-between',
-                transition: 'var(--transition-fast)',
-                position: 'relative',
+                gap: '0.5rem',
+                flexShrink: 0,
+                transition: 'all var(--transition-fast)',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', overflow: 'hidden' }}>
-                <img
-                  src={comp.avatarUrl}
-                  alt={comp.name}
-                  style={{
-                    width: '38px',
-                    height: '38px',
-                    borderRadius: '10px',
-                    objectFit: 'cover',
-                    border: '1px solid var(--border-glass)',
-                  }}
-                />
-                <div style={{ overflow: 'hidden' }}>
-                  <div style={{
-                    fontWeight: 700,
-                    fontSize: '0.85rem',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                  }}>
-                    {comp.name}
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.7rem' }}>
-                    <span className="badge badge-active" style={{ padding: '0.1rem 0.4rem' }}>
-                      {comp.activeAdsCount} Aktif Reklam
-                    </span>
-                  </div>
-                </div>
-              </div>
+              <img
+                src={comp.avatarUrl}
+                alt={comp.name}
+                style={{
+                  width: '20px',
+                  height: '20px',
+                  borderRadius: '4px',
+                  objectFit: 'cover',
+                }}
+              />
+              <span style={{
+                fontSize: '0.825rem',
+                fontWeight: isSelected ? 600 : 400,
+                color: isSelected ? '#ffffff' : 'var(--text-secondary)',
+                whiteSpace: 'nowrap',
+              }}>
+                {comp.name}
+              </span>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+              <span className="badge badge-neutral" style={{ fontSize: '0.68rem', padding: '0.1rem 0.35rem' }}>
+                {comp.activeAdsCount}
+              </span>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '2px', marginLeft: '0.2rem' }}>
                 <a
                   href={comp.facebookPageUrl}
                   target="_blank"
                   rel="noreferrer"
                   onClick={(e) => e.stopPropagation()}
-                  title="Meta Sayfasına Git"
-                  style={{ color: 'var(--text-muted)', display: 'flex', padding: '4px' }}
+                  title="Meta Sayfası"
+                  style={{ color: 'var(--text-muted)', display: 'flex', padding: '2px' }}
                 >
-                  <ExternalLink size={14} />
+                  <ExternalLink size={12} />
                 </a>
+
                 {competitors.length > 1 && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       onRemoveCompetitor(comp.id);
                     }}
-                    title="Rakibi Kaldır"
+                    title="Kaldır"
                     style={{
                       background: 'none',
                       border: 'none',
                       color: 'var(--text-muted)',
                       cursor: 'pointer',
                       display: 'flex',
-                      padding: '4px',
+                      padding: '2px',
                     }}
                   >
-                    <Trash2 size={14} />
+                    <Trash2 size={12} />
                   </button>
                 )}
               </div>
@@ -241,6 +218,7 @@ export const CompetitorBar: React.FC<CompetitorBarProps> = ({
         })}
 
       </div>
+
     </div>
   );
 };

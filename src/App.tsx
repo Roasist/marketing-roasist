@@ -64,7 +64,6 @@ function AppContent() {
   }, []);
 
   const navigateTo = (route: MarketingRoute) => {
-    // Role check: If navigating to admin, must have ADMIN role
     if (route === 'admin' && !hasRole(['SUPER_ADMIN', 'ADMIN'])) {
       alert('Bu alana erişim için Yönetici (Admin) yetkisi gereklidir.');
       return;
@@ -75,7 +74,6 @@ function AppContent() {
     window.history.pushState({}, '', targetPath);
   };
 
-  // Data Actions
   const handleAddCompetitor = (inputUrlOrId: string) => {
     MetaAdLibraryService.addCompetitorByUrlOrId(inputUrlOrId);
     setCompetitors(MetaAdLibraryService.getCompetitors());
@@ -95,24 +93,24 @@ function AppContent() {
   // Loading Screen
   if (isLoading) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-primary)', color: 'var(--accent-purple)' }}>
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg-app)', color: 'var(--text-secondary)' }}>
         <div style={{ textAlign: 'center' }}>
-          <Loader2 size={40} className="animate-spin" style={{ margin: '0 auto 1rem' }} />
-          <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Roasist AI Suite Yükleniyor...</div>
+          <Loader2 size={32} className="animate-spin" style={{ margin: '0 auto 0.75rem', color: '#ffffff' }} />
+          <div style={{ fontSize: '0.85rem' }}>Yükleniyor...</div>
         </div>
       </div>
     );
   }
 
-  // If not logged in, show sleek LoginPage
+  // If not logged in, show clean enterprise LoginPage
   if (!isAuthenticated) {
     return <LoginPage />;
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-primary)' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: 'var(--bg-app)' }}>
       
-      {/* Enterprise Left Sidebar */}
+      {/* Sidebar */}
       <Sidebar
         currentRoute={currentRoute}
         onNavigate={navigateTo}
@@ -123,14 +121,14 @@ function AppContent() {
       {/* Main Right Content Layout */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         
-        {/* Top Navigation Bar */}
+        {/* TopBar */}
         <TopBar
           currentRoute={currentRoute}
           onNavigate={navigateTo}
         />
 
         {/* Dynamic Route Content */}
-        <main style={{ maxWidth: '1400px', width: '100%', margin: '0 auto', padding: '1.75rem', flex: 1 }}>
+        <main style={{ maxWidth: '1400px', width: '100%', margin: '0 auto', padding: '1.5rem', flex: 1 }}>
           
           {currentRoute === 'dashboard' && (
             <DashboardOverview
@@ -167,16 +165,16 @@ function AppContent() {
 
         </main>
 
-        {/* Suite Footer */}
+        {/* Footer */}
         <footer style={{
-          borderTop: '1px solid var(--border-glass)',
-          padding: '1.25rem',
+          borderTop: '1px solid var(--border-subtle)',
+          padding: '1rem',
           textAlign: 'center',
-          fontSize: '0.8rem',
+          fontSize: '0.78rem',
           color: 'var(--text-muted)',
-          background: 'rgba(11, 15, 25, 0.9)',
+          backgroundColor: 'var(--bg-surface)',
         }}>
-          Roasist Enterprise Marketing Suite • Veritabanı: <span style={{ color: '#34d399' }}>Bağlı</span> • Domain: <span style={{ color: 'var(--accent-cyan)' }}>marketing.roasist.com</span>
+          Roasist Marketing Suite • marketing.roasist.com
         </footer>
 
       </div>

@@ -8,11 +8,8 @@ import {
   TrendingUp, 
   ChevronLeft, 
   ChevronRight, 
-  Sparkles, 
-  Building,
   Sliders,
-  LogOut,
-  ShieldCheck
+  LogOut
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -35,89 +32,80 @@ export const Sidebar: React.FC<SidebarProps> = ({
       id: 'dashboard' as MarketingRoute,
       name: 'Genel Bakış',
       icon: LayoutDashboard,
-      path: '/',
     },
     {
       id: 'competitors' as MarketingRoute,
       name: 'Rakip Reklam İstihbaratı',
       icon: Target,
-      path: '/competitors',
-      badge: 'Aktif Modül',
     },
     {
       id: 'ai-copywriter' as MarketingRoute,
-      name: 'AI Reklam Metni & Kanca',
+      name: 'AI Reklam Metni Yazarı',
       icon: PenTool,
-      path: '/ai-copywriter',
-      isBeta: true,
+      badge: 'Beta',
     },
     {
       id: 'roas-optimizer' as MarketingRoute,
-      name: 'ROAS & Bütçe Simülatörü',
+      name: 'ROAS & Bütçe Tahmin',
       icon: TrendingUp,
-      path: '/roas-optimizer',
-      isBeta: true,
+      badge: 'Beta',
     },
     ...(hasRole(['SUPER_ADMIN', 'ADMIN']) ? [
       {
         id: 'admin' as MarketingRoute,
-        name: 'Admin & Kullanıcı Yönetimi',
+        name: 'Kullanıcı & Sistem Paneli',
         icon: Sliders,
-        path: '/admin',
-        badge: 'Admin',
       }
     ] : []),
   ];
 
   return (
     <aside style={{
-      width: isCollapsed ? '78px' : '260px',
-      transition: 'width 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-      background: 'rgba(17, 24, 39, 0.95)',
-      backdropFilter: 'blur(20px)',
-      borderRight: '1px solid var(--border-glass)',
+      width: isCollapsed ? '64px' : '240px',
+      transition: 'width 0.18s cubic-bezier(0.4, 0, 0.2, 1)',
+      backgroundColor: 'var(--bg-surface)',
+      borderRight: '1px solid var(--border-subtle)',
       display: 'flex',
       flexDirection: 'column',
       minHeight: '100vh',
       position: 'sticky',
       top: 0,
       zIndex: 110,
+      flexShrink: 0,
     }}>
       
       {/* Brand Header */}
       <div style={{
-        padding: isCollapsed ? '1.25rem 0.75rem' : '1.25rem 1.5rem',
-        borderBottom: '1px solid var(--border-glass)',
+        height: '56px',
+        padding: isCollapsed ? '0' : '0 1rem',
+        borderBottom: '1px solid var(--border-subtle)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: isCollapsed ? 'center' : 'space-between',
       }}>
         <div 
           onClick={() => onNavigate('dashboard')}
-          style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', overflow: 'hidden' }}
+          style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', cursor: 'pointer', overflow: 'hidden' }}
         >
           <div style={{
-            width: '38px',
-            height: '38px',
-            borderRadius: '10px',
-            background: 'linear-gradient(135deg, #7c3aed, #06b6d4)',
+            width: '28px',
+            height: '28px',
+            borderRadius: '6px',
+            backgroundColor: '#ffffff',
+            color: '#090b10',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 0 15px rgba(124, 58, 237, 0.4)',
+            fontWeight: 800,
+            fontSize: '0.85rem',
             flexShrink: 0,
           }}>
-            <Sparkles size={22} color="white" />
+            R
           </div>
 
           {!isCollapsed && (
-            <div>
-              <h1 style={{ fontSize: '1.15rem', fontWeight: 800 }} className="gradient-text">
-                Roasist AI
-              </h1>
-              <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
-                Marketing Suite
-              </div>
+            <div style={{ fontWeight: 600, fontSize: '0.95rem', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+              Roasist <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>Suite</span>
             </div>
           )}
         </div>
@@ -126,48 +114,29 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <button
             onClick={onToggleCollapse}
             style={{
-              background: 'rgba(255, 255, 255, 0.05)',
+              background: 'transparent',
               border: 'none',
-              borderRadius: '8px',
-              color: 'var(--text-secondary)',
+              borderRadius: 'var(--radius-xs)',
+              color: 'var(--text-muted)',
               cursor: 'pointer',
-              padding: '6px',
+              padding: '4px',
               display: 'flex',
             }}
           >
-            <ChevronLeft size={18} />
+            <ChevronLeft size={16} />
           </button>
         )}
       </div>
 
-      {/* Workspace Switcher */}
-      {!isCollapsed && (
-        <div style={{ padding: '0.85rem 1.25rem', borderBottom: '1px solid var(--border-glass)' }}>
-          <div style={{
-            background: 'rgba(255, 255, 255, 0.03)',
-            border: '1px solid var(--border-glass)',
-            borderRadius: 'var(--radius-sm)',
-            padding: '0.5rem 0.75rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            fontSize: '0.8rem',
-          }}>
-            <Building size={16} color="var(--accent-purple)" />
-            <div style={{ overflow: 'hidden' }}>
-              <div style={{ fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                Roasist Main Workspace
-              </div>
-              <div style={{ fontSize: '0.68rem', color: 'var(--accent-emerald)' }}>
-                ● Veritabanı: Aktif (SQLite)
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Navigation Links */}
-      <nav style={{ padding: '1rem 0.75rem', display: 'flex', flexDirection: 'column', gap: '0.35rem', flex: 1 }}>
+      <nav style={{ padding: '0.75rem 0.5rem', display: 'flex', flexDirection: 'column', gap: '0.2rem', flex: 1 }}>
+        
+        {!isCollapsed && (
+          <div style={{ padding: '0.35rem 0.5rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            Platform Araçları
+          </div>
+        )}
+
         {menuItems.map((item) => {
           const IconComponent = item.icon;
           const isActive = currentRoute === item.id;
@@ -180,96 +149,87 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: isCollapsed ? 'center' : 'space-between',
-                padding: isCollapsed ? '0.75rem' : '0.65rem 0.85rem',
+                padding: isCollapsed ? '0.6rem 0' : '0.5rem 0.65rem',
                 borderRadius: 'var(--radius-sm)',
-                background: isActive ? 'linear-gradient(135deg, rgba(124, 58, 237, 0.25), rgba(6, 182, 212, 0.15))' : 'transparent',
-                border: isActive ? '1px solid rgba(124, 58, 237, 0.4)' : '1px solid transparent',
+                backgroundColor: isActive ? 'var(--bg-surface-elevated)' : 'transparent',
                 color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
-                fontWeight: isActive ? 700 : 500,
+                fontWeight: isActive ? 600 : 400,
                 fontSize: '0.85rem',
                 cursor: 'pointer',
-                transition: 'all 0.2s ease',
+                border: 'none',
+                transition: 'background var(--transition-fast), color var(--transition-fast)',
+                width: '100%',
               }}
               title={isCollapsed ? item.name : undefined}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
                 <IconComponent 
-                  size={19} 
-                  color={isActive ? 'var(--accent-purple)' : 'var(--text-muted)'} 
+                  size={17} 
+                  color={isActive ? '#ffffff' : 'var(--text-muted)'} 
                 />
                 {!isCollapsed && <span>{item.name}</span>}
               </div>
 
-              {!isCollapsed && (
-                <div>
-                  {item.badge && (
-                    <span className="badge badge-active" style={{ fontSize: '0.65rem', padding: '0.1rem 0.45rem' }}>
-                      {item.badge}
-                    </span>
-                  )}
-                  {item.isBeta && (
-                    <span className="badge badge-carousel" style={{ fontSize: '0.65rem', padding: '0.1rem 0.45rem' }}>
-                      Yakında
-                    </span>
-                  )}
-                </div>
+              {!isCollapsed && item.badge && (
+                <span className="badge badge-neutral" style={{ fontSize: '0.65rem', padding: '0.1rem 0.4rem' }}>
+                  {item.badge}
+                </span>
               )}
             </button>
           );
         })}
       </nav>
 
-      {/* Collapse Toggle for Compact mode */}
+      {/* Collapse button when mini */}
       {isCollapsed && (
-        <div style={{ padding: '0.75rem', textAlign: 'center', borderTop: '1px solid var(--border-glass)' }}>
+        <div style={{ padding: '0.5rem', textAlign: 'center', borderTop: '1px solid var(--border-subtle)' }}>
           <button
             onClick={onToggleCollapse}
             style={{
-              background: 'rgba(255, 255, 255, 0.05)',
+              background: 'transparent',
               border: 'none',
-              borderRadius: '8px',
-              color: 'var(--text-secondary)',
+              color: 'var(--text-muted)',
               cursor: 'pointer',
-              padding: '6px',
+              padding: '4px',
             }}
           >
-            <ChevronRight size={18} />
+            <ChevronRight size={16} />
           </button>
         </div>
       )}
 
-      {/* Footer Profile & Logout */}
+      {/* Footer Profile */}
       <div style={{
-        padding: isCollapsed ? '0.75rem' : '1rem 1.25rem',
-        borderTop: '1px solid var(--border-glass)',
+        padding: isCollapsed ? '0.75rem 0.25rem' : '0.75rem 0.85rem',
+        borderTop: '1px solid var(--border-subtle)',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'space-between',
-        fontSize: '0.8rem',
+        justifyContent: isCollapsed ? 'center' : 'space-between',
+        backgroundColor: 'var(--bg-surface-elevated)',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', overflow: 'hidden' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', overflow: 'hidden' }}>
           <div style={{
-            width: '34px',
-            height: '34px',
+            width: '26px',
+            height: '26px',
             borderRadius: '50%',
-            background: 'linear-gradient(135deg, #06b6d4, #3b82f6)',
+            backgroundColor: 'var(--brand-primary)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontWeight: 800,
-            color: 'white',
+            fontWeight: 600,
+            color: '#ffffff',
+            fontSize: '0.75rem',
             flexShrink: 0,
           }}>
-            {user?.name ? user.name.charAt(0).toUpperCase() : 'R'}
+            {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
           </div>
           
           {!isCollapsed && (
             <div style={{ overflow: 'hidden' }}>
-              <div style={{ fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <div style={{ fontWeight: 500, fontSize: '0.8rem', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {user?.name || 'Kullanıcı'}
               </div>
-              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                <ShieldCheck size={12} color="#34d399" />
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
                 {user?.role === 'SUPER_ADMIN' ? 'Süper Admin' : user?.role === 'ADMIN' ? 'Yönetici' : 'Pazarlamacı'}
               </div>
             </div>
@@ -279,17 +239,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {!isCollapsed && (
           <button
             onClick={logout}
-            title="Güvenli Çıkış Yap"
+            title="Güvenli Çıkış"
             style={{
-              background: 'rgba(244, 63, 94, 0.1)',
-              border: '1px solid rgba(244, 63, 94, 0.3)',
-              borderRadius: '8px',
-              color: '#fb7185',
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--text-muted)',
               cursor: 'pointer',
-              padding: '6px 8px',
+              padding: '4px',
               display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
             }}
           >
             <LogOut size={15} />

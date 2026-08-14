@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { AdItem } from '../types/ad';
-import { Flame, History, ExternalLink, Play, Calendar, Eye, Tag } from 'lucide-react';
+import { ExternalLink, Play, Calendar, Eye } from 'lucide-react';
 
 interface AdCardProps {
   ad: AdItem;
@@ -14,75 +14,64 @@ export const AdCard: React.FC<AdCardProps> = ({ ad, onInspect }) => {
   const isWinner = ad.activeDaysCount >= 30;
 
   return (
-    <div className="glass-panel" style={{
+    <div className="card" style={{
       display: 'flex',
       flexDirection: 'column',
       overflow: 'hidden',
       position: 'relative',
-      border: isWinner ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid var(--border-glass)',
-      transition: 'all 0.25s ease',
+      border: isWinner ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid var(--border-subtle)',
     }}>
       
-      {/* Winner Ribbon if running for 30+ days */}
-      {isWinner && (
-        <div style={{
-          position: 'absolute',
-          top: '12px',
-          right: '-32px',
-          transform: 'rotate(45deg)',
-          background: 'linear-gradient(135deg, #f59e0b, #d97706)',
-          color: 'black',
-          fontWeight: 800,
-          fontSize: '0.65rem',
-          padding: '4px 35px',
-          zIndex: 10,
-          boxShadow: '0 2px 10px rgba(0,0,0,0.3)',
-          letterSpacing: '0.05em',
-        }}>
-          KAZANAN REKLAM
-        </div>
-      )}
-
-      {/* Card Header */}
+      {/* Card Header (Meta Sponsored Post Style) */}
       <div style={{
-        padding: '1rem',
-        borderBottom: '1px solid var(--border-glass)',
+        padding: '0.85rem 1rem',
+        borderBottom: '1px solid var(--border-subtle)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        background: 'rgba(255, 255, 255, 0.02)',
+        backgroundColor: 'var(--bg-surface)',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem' }}>
           <div style={{
-            width: '34px',
-            height: '34px',
-            borderRadius: '8px',
-            background: 'linear-gradient(135deg, #6366f1, #a855f7)',
+            width: '32px',
+            height: '32px',
+            borderRadius: '50%',
+            backgroundColor: 'var(--bg-surface-elevated)',
+            border: '1px solid var(--border-default)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontWeight: 800,
-            fontSize: '0.8rem',
-            color: 'white',
+            fontWeight: 700,
+            fontSize: '0.75rem',
+            color: 'var(--text-primary)',
           }}>
             {ad.pageName.substring(0, 2).toUpperCase()}
           </div>
           <div>
-            <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>{ad.pageName}</div>
-            <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-              <Calendar size={12} /> {new Date(ad.startDate).toLocaleDateString('tr-TR')}
+            <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-primary)' }}>
+              {ad.pageName}
+            </div>
+            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+              <span>Sponsorlu</span>
+              <span>•</span>
+              <Calendar size={11} />
+              <span>{new Date(ad.startDate).toLocaleDateString('tr-TR')} ({ad.activeDaysCount} gün)</span>
             </div>
           </div>
         </div>
 
-        {/* Active vs Inactive Badge */}
-        {ad.activeStatus === 'ACTIVE' ? (
-          <span className="badge badge-active" style={{ fontSize: '0.7rem' }}>
-            <Flame size={12} /> Aktif ({ad.activeDaysCount} Gün)
+        {/* Status Pill */}
+        {isWinner ? (
+          <span className="badge badge-carousel" style={{ fontSize: '0.68rem' }}>
+            🔥 Winner ({ad.activeDaysCount}g)
+          </span>
+        ) : ad.activeStatus === 'ACTIVE' ? (
+          <span className="badge badge-active" style={{ fontSize: '0.68rem' }}>
+            Aktif
           </span>
         ) : (
-          <span className="badge badge-inactive" style={{ fontSize: '0.7rem' }}>
-            <History size={12} /> Geçmiş ({ad.activeDaysCount} Gün Sürdü)
+          <span className="badge badge-inactive" style={{ fontSize: '0.68rem' }}>
+            Pasif
           </span>
         )}
       </div>
@@ -92,7 +81,7 @@ export const AdCard: React.FC<AdCardProps> = ({ ad, onInspect }) => {
         position: 'relative',
         width: '100%',
         height: '240px',
-        backgroundColor: '#000',
+        backgroundColor: '#000000',
         overflow: 'hidden',
       }}>
         {ad.format === 'VIDEO' ? (
@@ -100,7 +89,7 @@ export const AdCard: React.FC<AdCardProps> = ({ ad, onInspect }) => {
             <img
               src={ad.videoThumbnail || ad.mediaUrls[0]}
               alt={ad.adHeadline}
-              style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.85 }}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
             />
             <div style={{
               position: 'absolute',
@@ -108,24 +97,24 @@ export const AdCard: React.FC<AdCardProps> = ({ ad, onInspect }) => {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              background: 'rgba(0,0,0,0.3)',
+              background: 'rgba(0,0,0,0.35)',
             }}>
               <div style={{
-                width: '50px',
-                height: '50px',
+                width: '42px',
+                height: '42px',
                 borderRadius: '50%',
-                background: 'rgba(124, 58, 237, 0.9)',
+                backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                color: '#000000',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                boxShadow: '0 0 20px rgba(124, 58, 237, 0.8)',
                 cursor: 'pointer',
               }}>
-                <Play size={22} color="white" style={{ marginLeft: '3px' }} />
+                <Play size={18} style={{ marginLeft: '2px' }} fill="#000000" />
               </div>
             </div>
-            <span className="badge badge-video" style={{ position: 'absolute', bottom: '10px', left: '10px' }}>
-              🎥 Video Reklam
+            <span className="badge badge-video" style={{ position: 'absolute', bottom: '8px', left: '8px' }}>
+              Video
             </span>
           </div>
         ) : ad.format === 'CAROUSEL' ? (
@@ -135,14 +124,14 @@ export const AdCard: React.FC<AdCardProps> = ({ ad, onInspect }) => {
               alt={ad.adHeadline}
               style={{ width: '100%', height: '100%', objectFit: 'cover' }}
             />
-            <span className="badge badge-carousel" style={{ position: 'absolute', bottom: '10px', left: '10px' }}>
-              🎠 Carousel ({ad.mediaUrls.length} Slayt)
+            <span className="badge badge-carousel" style={{ position: 'absolute', bottom: '8px', left: '8px' }}>
+              Carousel ({ad.mediaUrls.length})
             </span>
             {ad.mediaUrls.length > 1 && (
               <div style={{
                 position: 'absolute',
-                bottom: '10px',
-                right: '10px',
+                bottom: '8px',
+                right: '8px',
                 display: 'flex',
                 gap: '4px',
               }}>
@@ -151,10 +140,10 @@ export const AdCard: React.FC<AdCardProps> = ({ ad, onInspect }) => {
                     key={idx}
                     onClick={() => setActiveSlide(idx)}
                     style={{
-                      width: '8px',
-                      height: '8px',
+                      width: '6px',
+                      height: '6px',
                       borderRadius: '50%',
-                      background: activeSlide === idx ? 'var(--accent-amber)' : 'rgba(255,255,255,0.4)',
+                      backgroundColor: activeSlide === idx ? '#ffffff' : 'rgba(255,255,255,0.4)',
                       cursor: 'pointer',
                     }}
                   />
@@ -169,84 +158,83 @@ export const AdCard: React.FC<AdCardProps> = ({ ad, onInspect }) => {
               alt={ad.adHeadline}
               style={{ width: '100%', height: '100%', objectFit: 'cover' }}
             />
-            <span className="badge badge-image" style={{ position: 'absolute', bottom: '10px', left: '10px' }}>
-              🖼️ Görsel Reklam
+            <span className="badge badge-image" style={{ position: 'absolute', bottom: '8px', left: '8px' }}>
+              Görsel
             </span>
           </div>
         )}
       </div>
 
       {/* Ad Content & Body */}
-      <div style={{ padding: '1rem', flex: 1, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+      <div style={{ padding: '0.85rem 1rem', flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
         
-        {/* Hook Tag */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', color: 'var(--accent-purple)' }}>
-          <Tag size={13} />
-          <span style={{ fontWeight: 600 }}>Kanca Tipi:</span> {ad.hookType}
+        {/* Hook Label */}
+        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+          Kanca: <strong style={{ color: 'var(--text-secondary)' }}>{ad.hookType}</strong>
         </div>
 
         {/* Headline */}
-        <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.3 }}>
+        <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.3 }}>
           {ad.adHeadline}
-        </h3>
+        </div>
 
         {/* Ad Body Text */}
         <p style={{
-          fontSize: '0.825rem',
+          fontSize: '0.8rem',
           color: 'var(--text-secondary)',
-          lineHeight: 1.5,
-          whiteSpace: 'pre-line',
+          lineHeight: 1.45,
         }}>
-          {isExpanded ? ad.adBodyText : `${ad.adBodyText.substring(0, 110)}${ad.adBodyText.length > 110 ? '...' : ''}`}
+          {isExpanded ? ad.adBodyText : `${ad.adBodyText.substring(0, 100)}${ad.adBodyText.length > 100 ? '...' : ''}`}
         </p>
 
-        {ad.adBodyText.length > 110 && (
+        {ad.adBodyText.length > 100 && (
           <button
             onClick={() => setIsExpanded(!isExpanded)}
             style={{
               background: 'none',
               border: 'none',
-              color: 'var(--accent-cyan)',
-              fontSize: '0.75rem',
-              fontWeight: 600,
+              color: 'var(--text-primary)',
+              fontSize: '0.72rem',
+              fontWeight: 500,
               cursor: 'pointer',
               alignSelf: 'flex-start',
               padding: 0,
+              textDecoration: 'underline',
             }}
           >
-            {isExpanded ? 'Daha Az Göster' : 'Devamını Oku...'}
+            {isExpanded ? 'Daha Az Göster' : 'Devamını Gör'}
           </button>
         )}
 
         {/* CTA & Platform Badges */}
         <div style={{
           marginTop: 'auto',
-          paddingTop: '0.75rem',
-          borderTop: '1px solid var(--border-glass)',
+          paddingTop: '0.65rem',
+          borderTop: '1px solid var(--border-subtle)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
         }}>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-            CTA: <strong style={{ color: 'var(--text-primary)' }}>{ad.adCta}</strong>
+          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+            CTA: <strong style={{ color: 'var(--text-secondary)' }}>{ad.adCta}</strong>
           </div>
 
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', gap: '0.35rem' }}>
             <button
               onClick={() => onInspect(ad)}
               className="btn-secondary"
-              style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem' }}
+              style={{ padding: '0.3rem 0.55rem', fontSize: '0.72rem' }}
             >
-              <Eye size={13} /> İncele
+              <Eye size={12} /> Detay
             </button>
             <a
               href={ad.metaLibraryUrl}
               target="_blank"
               rel="noreferrer"
-              className="btn-primary"
-              style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem' }}
+              className="btn-ghost"
+              style={{ padding: '0.3rem 0.55rem', fontSize: '0.72rem' }}
             >
-              Meta'da Gör <ExternalLink size={12} />
+              <ExternalLink size={12} /> Meta
             </a>
           </div>
         </div>
