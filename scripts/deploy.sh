@@ -51,11 +51,11 @@ git commit -m "$COMMIT_MSG" || echo "Değişiklik bulunamadı veya commit edildi
 git push origin main
 
 echo "⚡ [4/5] Canlı sunucuda Deploy Webhook tetikleniyor..."
-DEPLOY_RES=$(curl -s "https://marketing.roasist.com/deploy_webhook.php?secret=RoasistDeploy2026AutoSyncSecureToken")
+DEPLOY_RES=$(curl -s "https://marketing.roasist.com/deploy_webhook.php?secret=roasist_marketing_deploy_secret_2026")
 echo "Deploy Yanıtı: $DEPLOY_RES"
 
 echo "🧹 [5/5] OPcache & LiteSpeed önbelleği temizleniyor..."
-CACHE_RES=$(curl -s "https://marketing.roasist.com/opcache_clear.php?secret=RoasistDeploy2026AutoSyncSecureToken")
+CACHE_RES=$(curl -s "https://marketing.roasist.com/opcache_clear.php?secret=roasist_marketing_deploy_secret_2026")
 echo "Cache Yanıtı: $CACHE_RES"
 
 echo "✨ [TAMAMLANDI] https://marketing.roasist.com canlıda güncellendi!"
