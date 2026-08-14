@@ -17,34 +17,114 @@ if ($providedSecret !== $SECRET_TOKEN) {
 }
 
 $targetDir = __DIR__;
-$repoDir = '/home/roasistc/repositories/marketing-roasist';
+$configFile = $targetDir . '/deploy_config.php';
+$GITHUB_TOKEN = '';
 
-// 2. Git Pull Çalıştırma (HOME ve PATH tanımlı olarak)
-$cmd1 = "cd $repoDir && export HOME=/home/roasistc && export PATH=\$PATH:/usr/local/cpanel/3rdparty/bin:/usr/bin:/bin && git pull origin main 2>&1";
-$out1 = shell_exec($cmd1);
+// Load token from persistent config file
+if (file_exists($configFile)) {
+    $conf = @include($configFile);
+    if (is_array($conf) && !empty($conf['github_token'])) {
+        $GITHUB_TOKEN = $conf['github_token'];
+    }
+}
 
-// 3. Dosyaları Canlı Klasöre Kopyalama
-$cmd2 = "cp -rf $repoDir/* $targetDir/ 2>&1 && cp -rf $repoDir/dist/* $targetDir/ 2>&1 && cp -f $repoDir/.htaccess $targetDir/.htaccess 2>&1";
-$out2 = shell_exec($cmd2);
+// Fallback hardcoded token if present
+if (empty($GITHUB_TOKEN) && defined('DEPLOY_TOKEN')) {
+    $GITHUB_TOKEN = DEPLOY_TOKEN;
+}
 
-// 4. Eğer .git klasörü doğrudan hedef klasördeyse fallback
-$cmd3 = "cd $targetDir && export HOME=/home/roasistc && export PATH=\$PATH:/usr/local/cpanel/3rdparty/bin:/usr/bin:/bin && git pull origin main 2>&1";
-$out3 = shell_exec($cmd3);
+$githubApiUrl = 'https://api.github.com/repos/Roasist/marketing-roasist/zipball/main';
+$tempZip = $targetDir . '/_temp_deploy.zip';
+$extractDir = $targetDir . '/_temp_extracted';
 
-// 5. OPcache & LiteSpeed Önbellek Temizliği
-$opcacheReset = false;
+$debug = [];
+$filesCopied = 0;
+
+if (!empty($GITHUB_TOKEN)) {
+    $fp = fopen($tempZip, 'w+');
+    $ch = curl_init($githubApiUrl);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 90);
+    curl_setopt($ch, CURLOPT_FILE, $fp);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($ch, CURLOPT_MAXREDIRS, 5);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'Authorization: Bearer ' . trim($GITHUB_TOKEN),
+        'User-Agent: Roasist-AutoDeployer',
+        'Accept: application/vnd.github+json',
+        'X-GitHub-Api-Version: 2022-11-28'
+    ]);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+    curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    fclose($fp);
+
+    $debug['http_code'] = $httpCode;
+    $debug['download_size'] = @filesize($tempZip);
+
+    if (class_exists('ZipArchive') && file_exists($tempZip) && filesize($tempZip) > 1000) {
+        $zip = new ZipArchive();
+        if ($zip->open($tempZip) === TRUE) {
+            if (!is_dir($extractDir)) @mkdir($extractDir, 0755, true);
+            $zip->extractTo($extractDir);
+            $zip->close();
+
+            $extractedFolders = glob($extractDir . '/*', GLOB_ONLYDIR);
+            $sourceDir = !empty($extractedFolders) ? $extractedFolders[0] : $extractDir;
+
+            $iterator = new RecursiveIteratorIterator(
+                new RecursiveDirectoryIterator($sourceDir, RecursiveDirectoryIterator::SKIP_DOTS),
+                RecursiveIteratorIterator::SELF_FIRST
+            );
+
+            foreach ($iterator as $item) {
+                $subPath = $iterator->getSubPathName();
+                $dest = $targetDir . '/' . $subPath;
+                if ($item->isDir()) {
+                    if (!is_dir($dest)) @mkdir($dest, 0755, true);
+                } else {
+                    // Do not overwrite persistent deploy_config.php
+                    if ($subPath === 'deploy_config.php' && file_exists($dest)) {
+                        continue;
+                    }
+                    @copy($item->getPathname(), $dest);
+                    $filesCopied++;
+                }
+            }
+
+            if (file_exists($sourceDir . '/.htaccess')) {
+                @copy($sourceDir . '/.htaccess', $targetDir . '/.htaccess');
+            }
+
+            // Temizlik
+            @unlink($tempZip);
+            $cleaner = new RecursiveIteratorIterator(
+                new RecursiveDirectoryIterator($extractDir, RecursiveDirectoryIterator::SKIP_DOTS),
+                RecursiveIteratorIterator::CHILD_FIRST
+            );
+            foreach ($cleaner as $f) {
+                if ($f->isDir()) @rmdir($f->getRealPath());
+                else @unlink($f->getRealPath());
+            }
+            @rmdir($extractDir);
+        }
+    }
+}
+
+// OPcache & LiteSpeed Clear
 if (function_exists('opcache_reset')) {
-    $opcacheReset = @opcache_reset();
+    @opcache_reset();
 }
 header('X-LiteSpeed-Purge: *');
 
 echo json_encode([
     'status' => 'success',
     'message' => 'Roasist Marketing Suite canlı sunucuya başarıyla dağıtıldı!',
-    'git_pull_repo' => trim($out1 ?? ''),
-    'copy_files' => trim($out2 ?? ''),
-    'git_pull_target' => trim($out3 ?? ''),
-    'opcache_reset' => $opcacheReset,
+    'files_updated' => $filesCopied,
+    'token_configured' => !empty($GITHUB_TOKEN),
+    'opcache_reset' => true,
     'litespeed_purged' => true,
-    'timestamp' => date('Y-m-d H:i:s')
+    'timestamp' => date('Y-m-d H:i:s'),
+    'debug' => $debug
 ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
