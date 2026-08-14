@@ -100,8 +100,8 @@ export class ApiService {
 
   public static async addCompetitor(data: string | { name: string; pageId: string; pageUrl?: string; category?: string }): Promise<Competitor> {
     const payload = typeof data === 'string'
-      ? { pageId: data, name: data }
-      : data;
+      ? { urlOrId: data, pageId: data, name: data }
+      : { urlOrId: data.pageUrl || data.pageId, ...data };
     const res = await this.request<{ status: string; competitor: Competitor }>('/competitors.php', {
       method: 'POST',
       body: JSON.stringify(payload),

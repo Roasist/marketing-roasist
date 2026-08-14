@@ -28,50 +28,101 @@ $input = json_decode(file_get_contents('php://input'), true) ?? [];
 
 // POST: Add Competitor
 if ($method === 'POST') {
-    $urlOrId = trim($input['urlOrId'] ?? '');
+    $urlOrId = trim($input['urlOrId'] ?? $input['pageId'] ?? $input['url'] ?? $input['name'] ?? '');
     if (empty($urlOrId)) {
         http_response_code(400);
-        echo json_encode(['status' => 'error', 'message' => 'Lütfen geçerli bir Meta sayfa linki veya ID girin.']);
+        echo json_encode(['status' => 'error', 'message' => 'Lütfen geçerli bir Meta sayfa linki veya marka adı girin.']);
         exit;
     }
 
     // Extract Page ID / Slug
     $cleanId = $urlOrId;
-    $name = 'Yeni Marka';
-    if (filter_var($urlOrId, FILTER_VALIDATE_URL)) {
-        $path = trim(parse_url($urlOrId, PHP_URL_PATH), '/');
+    $name = !empty($input['name']) && $input['name'] !== $urlOrId ? $input['name'] : 'Yeni Marka';
+    $category = $input['category'] ?? 'E-Ticaret';
+    $avatarUrl = 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=150';
+
+    // Handle Meta Ad Library URL: view_all_page_id=12345
+    if (strpos($urlOrId, 'view_all_page_id=') !== false) {
+        parse_str(parse_url($urlOrId, PHP_URL_QUERY) ?? '', $queryParams);
+        if (!empty($queryParams['view_all_page_id'])) {
+            $cleanId = $queryParams['view_all_page_id'];
+            $name = "Marka #$cleanId";
+        }
+    } elseif (filter_var($urlOrId, FILTER_VALIDATE_URL)) {
+        $path = trim(parse_url($urlOrId, PHP_URL_PATH) ?? '', '/');
         $segments = explode('/', $path);
         $cleanId = end($segments) ?: 'page_' . rand(1000, 9999);
-        $name = ucfirst(str_replace(['-', '_', '.'], ' ', $cleanId));
+        $name = ucwords(str_replace(['-', '_', '.'], ' ', $cleanId));
     } elseif (is_numeric($urlOrId)) {
         $cleanId = $urlOrId;
-        $name = "Meta Marka #$cleanId";
+        $name = "Marka #$cleanId";
+    } else {
+        $cleanId = strtolower(trim(preg_replace('/[^a-zA-Z0-9_.-]/', '', $urlOrId)));
+        $name = ucwords($urlOrId);
+    }
+
+    $fbUrl = filter_var($urlOrId, FILTER_VALIDATE_URL) && strpos($urlOrId, 'facebook.com') !== false
+        ? $urlOrId 
+        : "https://www.facebook.com/$cleanId";
+
+    // Attempt to enrich brand details if token is configured
+    $stmtToken = $pdo->prepare("SELECT setting_value FROM app_settings WHERE setting_key = 'metaToken'");
+    $stmtToken->execute();
+    $tRow = $stmtToken->fetch();
+    $token = $tRow ? trim($tRow['setting_value']) : '';
+
+    if (!empty($token)) {
+        try {
+            $ch = curl_init("https://graph.facebook.com/v19.0/" . urlencode($cleanId) . "?fields=id,name,picture,category&access_token=" . urlencode($token));
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 6);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+            $resp = curl_exec($ch);
+            $cCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+
+            if ($cCode === 200) {
+                $j = json_decode($resp, true);
+                if (!empty($j['name'])) {
+                    $name = $j['name'];
+                }
+                if (!empty($j['picture']['data']['url'])) {
+                    $avatarUrl = $j['picture']['data']['url'];
+                }
+                if (!empty($j['category'])) {
+                    $category = $j['category'];
+                }
+                if (!empty($j['id'])) {
+                    $cleanId = (string)$j['id'];
+                }
+            }
+        } catch (Exception $e) {
+            // Non-blocking fallback
+        }
     }
 
     $id = 'comp_' . time() . '_' . rand(100, 999);
-    $avatarUrl = 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=150';
-    $fbUrl = filter_var($urlOrId, FILTER_VALIDATE_URL) ? $urlOrId : "https://www.facebook.com/$cleanId";
-    $activeCount = rand(8, 35);
+    $activeCount = 0;
 
     try {
         $stmt = $pdo->prepare("
             INSERT INTO competitors (id, page_id, name, facebook_page_url, avatar_url, category, active_ads_count, created_by)
-            VALUES (?, ?, ?, ?, ?, 'E-Ticaret', ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ");
-        $stmt->execute([$id, $cleanId, $name, $fbUrl, $avatarUrl, $activeCount, $currentUser['id']]);
+        $stmt->execute([$id, $cleanId, $name, $fbUrl, $avatarUrl, $category, $activeCount, $currentUser['id']]);
 
-        logAudit((int)$currentUser['id'], $currentUser['name'], 'Rakip Eklendi', "Yeni rakip eklendi: $name ($cleanId)");
+        logAudit((int)$currentUser['id'], $currentUser['name'], 'Rakip Eklendi', "Yeni rakip eklendi: $name ($cleanId)", 'RAKİP');
 
         echo json_encode([
             'status' => 'success',
             'message' => 'Rakip başarıyla eklendi!',
             'competitor' => [
                 'id' => $id,
-                'pageId' => $cleanId,
+                'pageId' => (string)$cleanId,
                 'name' => $name,
                 'facebookPageUrl' => $fbUrl,
                 'avatarUrl' => $avatarUrl,
-                'category' => 'E-Ticaret',
+                'category' => $category,
                 'activeAdsCount' => $activeCount
             ]
         ]);
