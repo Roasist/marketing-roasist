@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { MarketingRoute, AdminTab } from './types/suite';
 import { Competitor, AdItem, MetaApiConfig } from './types/ad';
+import { Workspace, CreateWorkspacePayload } from './types/workspace';
 import { ApiService } from './services/apiService';
 import { ExportService } from './services/exportService';
 
@@ -9,6 +10,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LoginPage } from './pages/LoginPage';
 import { Sidebar } from './components/Sidebar';
 import { TopBar } from './components/TopBar';
+import { WorkspaceModal } from './components/WorkspaceModal';
 
 import { DashboardOverview } from './pages/DashboardOverview';
 import { CompetitorsModule } from './pages/CompetitorsModule';
@@ -23,19 +25,47 @@ function AppContent() {
   const [adminTab, setAdminTab] = useState<AdminTab>('users');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
+  // Workspaces State
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState<string>(() => {
+    return localStorage.getItem('roasist_active_workspace_id') || 'ws_default_roasist';
+  });
+  const [isWorkspaceModalOpen, setIsWorkspaceModalOpen] = useState(false);
+  const [editingWorkspace, setEditingWorkspace] = useState<Workspace | null>(null);
+
   // Data states
   const [competitors, setCompetitors] = useState<Competitor[]>([]);
   const [ads, setAds] = useState<AdItem[]>([]);
   const [metaConfig, setMetaConfig] = useState<MetaApiConfig>({ accessToken: '', isConfigured: false, useSandboxMock: false });
 
-  const loadRealData = async () => {
+  // Load Workspaces from backend
+  const loadWorkspacesData = async () => {
+    try {
+      const res = await ApiService.getWorkspaces(activeWorkspaceId);
+      if (res && res.workspaces && res.workspaces.length > 0) {
+        setWorkspaces(res.workspaces);
+        const validActive = res.workspaces.some((w: any) => w.id === activeWorkspaceId);
+        if (!validActive) {
+          const defaultWs = res.workspaces[0].id;
+          setActiveWorkspaceId(defaultWs);
+          localStorage.setItem('roasist_active_workspace_id', defaultWs);
+        }
+      }
+    } catch {
+      // Non-blocking fallback
+    }
+  };
+
+  const loadRealData = async (targetWsId?: string) => {
     // Clear old legacy mock data from browser localStorage
     localStorage.removeItem('adpulse_competitors');
     localStorage.removeItem('adpulse_ads');
     localStorage.removeItem('adpulse_meta_config');
 
+    const wsId = targetWsId || activeWorkspaceId;
+
     try {
-      const dbComps = await ApiService.getCompetitors();
+      const dbComps = await ApiService.getCompetitors(wsId);
       setCompetitors(dbComps || []);
       
       const settings = await ApiService.getSettings();
@@ -51,10 +81,11 @@ function AppContent() {
     }
   };
 
-  // Initialize URL & Data on mount
+  // Initialize URL & Workspaces on mount
   useEffect(() => {
     if (isAuthenticated) {
-      loadRealData();
+      loadWorkspacesData();
+      loadRealData(activeWorkspaceId);
     }
 
     // Initial Path Route Sync
@@ -84,6 +115,45 @@ function AppContent() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, [isAuthenticated]);
 
+  // When active workspace changes, reload competitors
+  const handleSelectWorkspace = (id: string) => {
+    setActiveWorkspaceId(id);
+    localStorage.setItem('roasist_active_workspace_id', id);
+    loadRealData(id);
+  };
+
+  // Workspace Modal Handlers
+  const handleOpenCreateModal = () => {
+    setEditingWorkspace(null);
+    setIsWorkspaceModalOpen(true);
+  };
+
+  const handleOpenEditModal = (ws: Workspace) => {
+    setEditingWorkspace(ws);
+    setIsWorkspaceModalOpen(true);
+  };
+
+  const handleSaveWorkspace = async (payload: CreateWorkspacePayload, editId?: string) => {
+    if (editId) {
+      await ApiService.updateWorkspace(editId, payload);
+    } else {
+      const newWs = await ApiService.createWorkspace(payload);
+      if (newWs && newWs.id) {
+        handleSelectWorkspace(newWs.id);
+      }
+    }
+    await loadWorkspacesData();
+  };
+
+  const handleDeleteWorkspace = async (id: string) => {
+    await ApiService.deleteWorkspace(id);
+    const updated = workspaces.filter(w => w.id !== id);
+    if (updated.length > 0) {
+      handleSelectWorkspace(updated[0].id);
+    }
+    await loadWorkspacesData();
+  };
+
   const navigateTo = (route: MarketingRoute) => {
     if (route === 'admin' && !hasRole(['SUPER_ADMIN', 'ADMIN'])) {
       alert('Bu alana erişim için Yönetici (Admin) yetkisi gereklidir.');
@@ -97,7 +167,7 @@ function AppContent() {
 
   const handleAddCompetitor = async (inputUrlOrId: string) => {
     try {
-      const newComp = await ApiService.addCompetitor(inputUrlOrId);
+      const newComp = await ApiService.addCompetitor(inputUrlOrId, activeWorkspaceId);
       setCompetitors(prev => [...prev, newComp]);
       
       // Fetch live ads for this newly added competitor
@@ -163,10 +233,15 @@ function AppContent() {
         overflowX: 'hidden',
       }}>
         
-        {/* Top Header Bar */}
+        {/* Top Header Bar with Workspace Switcher */}
         <TopBar
           currentRoute={currentRoute}
           onNavigate={navigateTo}
+          workspaces={workspaces}
+          activeWorkspaceId={activeWorkspaceId}
+          onSelectWorkspace={handleSelectWorkspace}
+          onOpenCreateWorkspaceModal={handleOpenCreateModal}
+          onOpenEditWorkspaceModal={handleOpenEditModal}
         />
 
         {/* Dynamic Page Content */}
@@ -190,6 +265,7 @@ function AppContent() {
               competitors={competitors}
               ads={ads}
               metaConfig={metaConfig}
+              workspaceId={activeWorkspaceId}
               onAddCompetitor={handleAddCompetitor}
               onRemoveCompetitor={handleRemoveCompetitor}
               onExportCsv={handleExportCsv}
@@ -213,6 +289,16 @@ function AppContent() {
           )}
         </main>
       </div>
+
+      {/* Workspace Management Modal */}
+      <WorkspaceModal
+        isOpen={isWorkspaceModalOpen}
+        onClose={() => setIsWorkspaceModalOpen(false)}
+        onSave={handleSaveWorkspace}
+        onDelete={handleDeleteWorkspace}
+        editWorkspace={editingWorkspace}
+        totalWorkspacesCount={workspaces.length}
+      />
 
     </div>
   );

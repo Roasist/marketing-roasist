@@ -92,16 +92,48 @@ export class ApiService {
     });
   }
 
+  // --- Workspaces (Çalışma Alanları) ---
+  public static async getWorkspaces(activeId?: string): Promise<{ activeWorkspaceId: string; workspaces: any[] }> {
+    const params = activeId ? `?active_id=${encodeURIComponent(activeId)}` : '';
+    const res = await this.request<{ status: string; activeWorkspaceId: string; workspaces: any[] }>(`/workspaces.php${params}`);
+    return {
+      activeWorkspaceId: res.activeWorkspaceId,
+      workspaces: res.workspaces || []
+    };
+  }
+
+  public static async createWorkspace(payload: { name: string; domain?: string; industry?: string; color?: string; currency?: string }): Promise<any> {
+    const res = await this.request<{ status: string; message: string; workspace: any }>('/workspaces.php', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    return res.workspace;
+  }
+
+  public static async updateWorkspace(id: string, payload: { name?: string; domain?: string; industry?: string; color?: string; currency?: string }): Promise<void> {
+    await this.request(`/workspaces.php?id=${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  public static async deleteWorkspace(id: string): Promise<void> {
+    await this.request(`/workspaces.php?id=${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
+  }
+
   // --- Competitors Management ---
-  public static async getCompetitors(): Promise<Competitor[]> {
-    const res = await this.request<{ status: string; competitors: Competitor[] }>('/competitors.php');
+  public static async getCompetitors(workspaceId?: string): Promise<Competitor[]> {
+    const param = workspaceId ? `?workspace_id=${encodeURIComponent(workspaceId)}` : '';
+    const res = await this.request<{ status: string; competitors: Competitor[] }>(`/competitors.php${param}`);
     return res.competitors || [];
   }
 
-  public static async addCompetitor(data: string | { name: string; pageId: string; pageUrl?: string; category?: string }): Promise<Competitor> {
+  public static async addCompetitor(data: string | { name: string; pageId: string; pageUrl?: string; category?: string; workspace_id?: string }, workspaceId?: string): Promise<Competitor> {
     const payload = typeof data === 'string'
-      ? { urlOrId: data, pageId: data, name: data }
-      : { urlOrId: data.pageUrl || data.pageId, ...data };
+      ? { urlOrId: data, pageId: data, name: data, workspace_id: workspaceId }
+      : { urlOrId: data.pageUrl || data.pageId, ...data, workspace_id: workspaceId || (data as any).workspace_id };
     const res = await this.request<{ status: string; competitor: Competitor }>('/competitors.php', {
       method: 'POST',
       body: JSON.stringify(payload),
@@ -126,15 +158,16 @@ export class ApiService {
   }
 
   // --- Saved Ads ---
-  public static async getSavedAds(): Promise<SavedAdItem[]> {
-    const res = await this.request<{ status: string; ads: SavedAdItem[] }>('/ads.php');
+  public static async getSavedAds(workspaceId?: string): Promise<SavedAdItem[]> {
+    const param = workspaceId ? `?workspace_id=${encodeURIComponent(workspaceId)}` : '';
+    const res = await this.request<{ status: string; ads: SavedAdItem[] }>(`/ads.php${param}`);
     return res.ads || [];
   }
 
-  public static async saveAd(ad: AdItem, notes?: string, collectionName?: string): Promise<void> {
+  public static async saveAd(ad: AdItem, notes?: string, collectionName?: string, workspaceId?: string): Promise<void> {
     await this.request('/ads.php', {
       method: 'POST',
-      body: JSON.stringify({ ad, notes, collection_name: collectionName }),
+      body: JSON.stringify({ ad, notes, collection_name: collectionName, workspace_id: workspaceId }),
     });
   }
 

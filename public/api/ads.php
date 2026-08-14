@@ -223,9 +223,18 @@ if ($action === 'fetch_meta_ads') {
     exit;
 }
 
-// GET: List saved ads
+// Helper to resolve active workspace ID
+$workspaceId = trim($_GET['workspace_id'] ?? $input['workspace_id'] ?? '');
+if (empty($workspaceId)) {
+    $stmtWs = $pdo->query("SELECT id FROM workspaces ORDER BY is_default DESC, created_at ASC LIMIT 1");
+    $wsRow = $stmtWs->fetch();
+    $workspaceId = $wsRow['id'] ?? 'ws_default_roasist';
+}
+
+// GET: List saved ads for current workspace
 if ($method === 'GET') {
-    $stmt = $pdo->query("SELECT id, ad_id as adId, competitor_id as competitorId, page_name as pageName, format, headline, body_text as bodyText, media_urls as mediaUrls, hook_type as hookType, notes, tags, is_winner as isWinner, created_at as createdAt FROM saved_ads ORDER BY created_at DESC");
+    $stmt = $pdo->prepare("SELECT id, ad_id as adId, competitor_id as competitorId, page_name as pageName, format, headline, body_text as bodyText, media_urls as mediaUrls, hook_type as hookType, notes, tags, is_winner as isWinner, workspace_id as workspaceId, created_at as createdAt FROM saved_ads WHERE workspace_id = ? OR workspace_id IS NULL ORDER BY created_at DESC");
+    $stmt->execute([$workspaceId]);
     $savedAds = $stmt->fetchAll();
 
     foreach ($savedAds as &$ad) {
@@ -235,6 +244,7 @@ if ($method === 'GET') {
 
     echo json_encode([
         'status' => 'success',
+        'workspaceId' => $workspaceId,
         'ads' => $savedAds,
         'savedAds' => $savedAds
     ]);
@@ -257,12 +267,13 @@ if ($method === 'POST') {
     $tags = trim($input['tags'] ?? $input['collection_name'] ?? $adData['tags'] ?? 'Favori');
     $isWinner = (!empty($adData['isWinner']) || ($adData['activeDaysCount'] ?? 0) >= 30) ? 1 : 0;
     $competitorId = trim($adData['pageId'] ?? $adData['competitorId'] ?? $input['competitorId'] ?? $input['pageId'] ?? '');
+    $targetWsId = !empty($input['workspace_id']) ? trim($input['workspace_id']) : (!empty($adData['workspace_id']) ? trim($adData['workspace_id']) : $workspaceId);
 
     $id = 'saved_' . time() . '_' . rand(100, 999);
 
     $stmt = $pdo->prepare("
-        INSERT INTO saved_ads (id, ad_id, competitor_id, page_name, format, headline, body_text, media_urls, hook_type, notes, tags, is_winner, created_by)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO saved_ads (id, ad_id, competitor_id, page_name, format, headline, body_text, media_urls, hook_type, notes, tags, is_winner, created_by, workspace_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ");
     $stmt->execute([
         $id,
@@ -277,7 +288,8 @@ if ($method === 'POST') {
         $notes,
         $tags,
         $isWinner,
-        $currentUser['id']
+        $currentUser['id'],
+        $targetWsId
     ]);
 
     logAudit((int)$currentUser['id'], $currentUser['name'], 'Reklam Kaydedildi', "$pageName markasına ait reklam kütüphaneye kaydedildi: $headline", 'REKLAM');
@@ -285,7 +297,8 @@ if ($method === 'POST') {
     echo json_encode([
         'status' => 'success',
         'message' => 'Reklam başarıyla kaydedildi!',
-        'id' => $id
+        'id' => $id,
+        'workspaceId' => $targetWsId
     ]);
     exit;
 }

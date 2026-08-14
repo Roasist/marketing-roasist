@@ -27,6 +27,7 @@ interface CompetitorsModuleProps {
   competitors: Competitor[];
   ads: AdItem[];
   metaConfig: MetaApiConfig;
+  workspaceId?: string;
   onAddCompetitor: (urlOrId: string) => void;
   onRemoveCompetitor: (id: string) => void;
   onExportCsv: () => void;
@@ -36,6 +37,7 @@ export const CompetitorsModule: React.FC<CompetitorsModuleProps> = ({
   competitors: initialCompetitors,
   ads: initialAds,
   metaConfig: _metaConfig,
+  workspaceId,
   onAddCompetitor: _onAddCompetitor,
   onRemoveCompetitor,
   onExportCsv,
@@ -62,12 +64,12 @@ export const CompetitorsModule: React.FC<CompetitorsModuleProps> = ({
 
   const [isLoadingAds, setIsLoadingAds] = useState(false);
 
-  // Load database competitors and saved ads
+  // Load database competitors and saved ads for active workspace
   const loadDatabaseData = async () => {
     try {
-      const dbComps = await ApiService.getCompetitors();
+      const dbComps = await ApiService.getCompetitors(workspaceId);
       setCompetitors(dbComps || []);
-      const dbSaved = await ApiService.getSavedAds();
+      const dbSaved = await ApiService.getSavedAds(workspaceId);
       setSavedAds(dbSaved || []);
     } catch {
       setCompetitors([]);
@@ -124,7 +126,7 @@ export const CompetitorsModule: React.FC<CompetitorsModuleProps> = ({
 
   useEffect(() => {
     loadDatabaseData();
-  }, []);
+  }, [workspaceId]);
 
   useEffect(() => {
     if (selectedCompetitorId || filters.country || filters.network) {
@@ -135,7 +137,7 @@ export const CompetitorsModule: React.FC<CompetitorsModuleProps> = ({
   const handleAddComp = async (urlOrId: any) => {
     try {
       setIsLoadingAds(true);
-      const newComp = await ApiService.addCompetitor(urlOrId);
+      const newComp = await ApiService.addCompetitor(urlOrId, workspaceId);
       if (newComp) {
         setCompetitors(prev => {
           if (prev.some(c => c.id === newComp.id || c.pageId === newComp.pageId)) return prev;
@@ -170,7 +172,7 @@ export const CompetitorsModule: React.FC<CompetitorsModuleProps> = ({
   const handleSaveAd = async (ad: AdItem) => {
     const userNote = window.prompt('Bu reklam için özel bir strateji notu eklemek ister misiniz? (İsteğe bağlı):', '');
     try {
-      await ApiService.saveAd(ad, userNote || '', 'Strateji Reklamı');
+      await ApiService.saveAd(ad, userNote || '', 'Strateji Reklamı', workspaceId);
       setSaveSuccessMsg('Reklam "Kaydedilenler & Notlarım" bölümüne eklendi!');
       setTimeout(() => setSaveSuccessMsg(null), 3000);
       loadDatabaseData();

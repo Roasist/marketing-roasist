@@ -108,7 +108,42 @@ class Database {
             )
         ");
 
-        // Column migration for audit_logs if old table exists
+        // 6. Workspaces (Çalışma Alanları) Table
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS workspaces (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                slug TEXT NOT NULL UNIQUE,
+                domain TEXT,
+                industry TEXT DEFAULT 'Genel',
+                color TEXT DEFAULT '#2563eb',
+                logo_url TEXT,
+                currency TEXT DEFAULT 'TRY',
+                created_by INTEGER,
+                is_default INTEGER DEFAULT 0,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        ");
+
+        // 7. Workspace Members Table
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS workspace_members (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                workspace_id TEXT NOT NULL,
+                user_id INTEGER NOT NULL,
+                role TEXT DEFAULT 'OWNER',
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(workspace_id, user_id)
+            )
+        ");
+
+        // Migrations: workspace_id columns
+        try {
+            $pdo->exec("ALTER TABLE competitors ADD COLUMN workspace_id TEXT");
+        } catch (Exception $e) {}
+        try {
+            $pdo->exec("ALTER TABLE saved_ads ADD COLUMN workspace_id TEXT");
+        } catch (Exception $e) {}
         try {
             $pdo->exec("ALTER TABLE audit_logs ADD COLUMN user_email TEXT");
         } catch (Exception $e) {}
@@ -133,6 +168,22 @@ class Database {
                 VALUES (?, ?, ?, 'SUPER_ADMIN', 'ACTIVE')
             ");
             $insertStmt->execute(['Roasist Kurucu', 'admin@roasist.com', $defaultPasswordHash]);
+        }
+
+        // Seed Default Workspace if not exists
+        $stmtWs = $pdo->query("SELECT COUNT(*) as count FROM workspaces");
+        $wsRow = $stmtWs->fetch();
+        if ((int)($wsRow['count'] ?? 0) === 0) {
+            $defaultWsId = 'ws_default_roasist';
+            $insertWs = $pdo->prepare("
+                INSERT INTO workspaces (id, name, slug, domain, industry, color, logo_url, currency, created_by, is_default)
+                VALUES (?, 'Ana Marka / Çalışma Alanı', 'ana-marka', 'livanelihotels.com', 'Turizm & Otelcilik', '#2563eb', 'https://www.google.com/s2/favicons?domain=livanelihotels.com&sz=128', 'TRY', 1, 1)
+            ");
+            $insertWs->execute([$defaultWsId]);
+
+            // Assign existing competitors and saved_ads to this default workspace
+            $pdo->exec("UPDATE competitors SET workspace_id = '$defaultWsId' WHERE workspace_id IS NULL OR workspace_id = ''");
+            $pdo->exec("UPDATE saved_ads SET workspace_id = '$defaultWsId' WHERE workspace_id IS NULL OR workspace_id = ''");
         }
     }
 }

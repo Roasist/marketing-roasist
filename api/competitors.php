@@ -119,13 +119,23 @@ if ($action === 'search_advertisers') {
     exit;
 }
 
-// GET: List all competitors
+// Helper to resolve active workspace ID
+$workspaceId = trim($_GET['workspace_id'] ?? $input['workspace_id'] ?? '');
+if (empty($workspaceId)) {
+    $stmtWs = $pdo->query("SELECT id FROM workspaces ORDER BY is_default DESC, created_at ASC LIMIT 1");
+    $wsRow = $stmtWs->fetch();
+    $workspaceId = $wsRow['id'] ?? 'ws_default_roasist';
+}
+
+// GET: List competitors for current workspace
 if ($method === 'GET') {
-    $stmt = $pdo->query("SELECT id, page_id as pageId, name, facebook_page_url as facebookPageUrl, avatar_url as avatarUrl, category, active_ads_count as activeAdsCount, created_at as createdAt FROM competitors ORDER BY created_at ASC");
+    $stmt = $pdo->prepare("SELECT id, page_id as pageId, name, facebook_page_url as facebookPageUrl, avatar_url as avatarUrl, category, active_ads_count as activeAdsCount, workspace_id as workspaceId, created_at as createdAt FROM competitors WHERE workspace_id = ? OR workspace_id IS NULL ORDER BY created_at ASC");
+    $stmt->execute([$workspaceId]);
     $competitors = $stmt->fetchAll();
 
     echo json_encode([
         'status' => 'success',
+        'workspaceId' => $workspaceId,
         'competitors' => $competitors
     ]);
     exit;
@@ -148,6 +158,7 @@ if ($method === 'POST') {
     $category = $input['category'] ?? 'E-Ticaret & Pazarlama';
     $avatarUrl = !empty($input['avatarUrl']) ? $input['avatarUrl'] : 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=150';
     $fbUrl = $input['facebookPageUrl'] ?? ("https://www.facebook.com/" . ltrim($cleanId, '@'));
+    $targetWsId = !empty($input['workspace_id']) ? trim($input['workspace_id']) : $workspaceId;
 
     // Handle Meta Ad Library URL: view_all_page_id=12345
     if (strpos($rawInput, 'view_all_page_id=') !== false) {
@@ -196,15 +207,15 @@ if ($method === 'POST') {
     $id = 'comp_' . time() . '_' . rand(100, 999);
     $activeCount = 0;
 
-    // Check if already exists in db
-    $chkStmt = $pdo->prepare("SELECT id, page_id as pageId, name, facebook_page_url as facebookPageUrl, avatar_url as avatarUrl, category, active_ads_count as activeAdsCount FROM competitors WHERE page_id = ? OR name = ?");
-    $chkStmt->execute([$cleanId, $name]);
+    // Check if already exists in this workspace
+    $chkStmt = $pdo->prepare("SELECT id, page_id as pageId, name, facebook_page_url as facebookPageUrl, avatar_url as avatarUrl, category, active_ads_count as activeAdsCount, workspace_id as workspaceId FROM competitors WHERE (page_id = ? OR name = ?) AND workspace_id = ?");
+    $chkStmt->execute([$cleanId, $name, $targetWsId]);
     $existing = $chkStmt->fetch();
 
     if ($existing) {
         echo json_encode([
             'status' => 'success',
-            'message' => 'Rakip listenizde seçildi.',
+            'message' => 'Rakip seçili çalışma alanınızda mevcut.',
             'competitor' => $existing
         ]);
         exit;
@@ -212,10 +223,10 @@ if ($method === 'POST') {
 
     try {
         $stmt = $pdo->prepare("
-            INSERT INTO competitors (id, page_id, name, facebook_page_url, avatar_url, category, active_ads_count, created_by)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO competitors (id, page_id, name, facebook_page_url, avatar_url, category, active_ads_count, created_by, workspace_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
-        $stmt->execute([$id, $cleanId, $name, $fbUrl, $avatarUrl, $category, $activeCount, $currentUser['id']]);
+        $stmt->execute([$id, $cleanId, $name, $fbUrl, $avatarUrl, $category, $activeCount, $currentUser['id'], $targetWsId]);
 
         logAudit((int)$currentUser['id'], $currentUser['name'], 'Rakip Eklendi', "Yeni rakip eklendi: $name ($cleanId)", 'RAKİP');
 
@@ -229,12 +240,13 @@ if ($method === 'POST') {
                 'facebookPageUrl' => $fbUrl,
                 'avatarUrl' => $avatarUrl,
                 'category' => $category,
-                'activeAdsCount' => $activeCount
+                'activeAdsCount' => $activeCount,
+                'workspaceId' => $targetWsId
             ]
         ]);
     } catch (PDOException $e) {
         http_response_code(400);
-        echo json_encode(['status' => 'error', 'message' => 'Bu rakip eklenirken bir veritabanı hatası oluştu.']);
+        echo json_encode(['status' => 'error', 'message' => 'Bu rakip eklenirken bir veritabanı hatası oluştu: ' . $e->getMessage()]);
     }
     exit;
 }
