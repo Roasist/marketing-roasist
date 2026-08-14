@@ -160,7 +160,7 @@ export class ApiService {
   }
 
   // --- Google Ads Transparency Center Ingestion ---
-  public static async fetchGoogleAds(query: string, region = 'TR', format = 'ALL'): Promise<AdItem[]> {
+  public static async fetchGoogleAds(query: string, region = 'ALL', format = 'ALL'): Promise<AdItem[]> {
     if (!query) return [];
     try {
       const res = await this.request<{ status: string; ads: AdItem[] }>(`/google_ads.php?action=fetch_google_ads&domain=${encodeURIComponent(query)}&region=${encodeURIComponent(region)}&format=${encodeURIComponent(format)}`);
@@ -170,7 +170,7 @@ export class ApiService {
     }
   }
 
-  public static async searchGoogleAdvertisers(query: string, region = 'TR'): Promise<any[]> {
+  public static async searchGoogleAdvertisers(query: string, region = 'ALL'): Promise<any[]> {
     if (!query || query.trim().length < 2) return [];
     try {
       const res = await this.request<{ status: string; advertisers: any[] }>(`/google_ads.php?action=search_advertisers&q=${encodeURIComponent(query.trim())}&region=${encodeURIComponent(region)}`);

@@ -87,7 +87,7 @@ export const CompetitorsModule: React.FC<CompetitorsModuleProps> = ({
       if (filters.network === 'ALL' || filters.network === 'META') {
         promises.push(ApiService.fetchMetaAds({
           pageId: targetId && targetId !== 'ALL' ? targetId : undefined,
-          country: filters.country || 'TR',
+          country: filters.country || 'ALL',
           status: filters.status !== 'ALL' ? filters.status : undefined,
           mediaType: (filters.format === 'IMAGE' || filters.format === 'VIDEO' || filters.format === 'CAROUSEL') ? filters.format : undefined,
         }));
@@ -97,7 +97,7 @@ export const CompetitorsModule: React.FC<CompetitorsModuleProps> = ({
       if (filters.network === 'ALL' || filters.network === 'GOOGLE') {
         const domainOrBrand = activeCompetitor?.domain || activeCompetitor?.name || queryName || (targetId !== 'ALL' ? targetId : '');
         if (domainOrBrand) {
-          promises.push(ApiService.fetchGoogleAds(domainOrBrand, filters.country || 'TR', filters.format));
+          promises.push(ApiService.fetchGoogleAds(domainOrBrand, filters.country || 'ALL', filters.format));
         }
       }
 

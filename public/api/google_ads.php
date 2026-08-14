@@ -12,7 +12,7 @@ $pdo = Database::getConnection();
 
 $action = $_GET['action'] ?? 'search_advertisers';
 $rawQuery = trim($_GET['q'] ?? $_GET['domain'] ?? $_GET['advertiser_id'] ?? '');
-$region = strtoupper(trim($_GET['region'] ?? $_GET['country'] ?? 'TR'));
+$region = strtoupper(trim($_GET['region'] ?? $_GET['country'] ?? 'ALL'));
 $formatFilter = strtoupper(trim($_GET['format'] ?? 'ALL'));
 
 // Clean domain / query
