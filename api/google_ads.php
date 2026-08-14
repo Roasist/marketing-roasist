@@ -1,7 +1,7 @@
 <?php
 /**
  * Roasist Marketing Suite - Live Google Ads Transparency Center Engine
- * 100% Dynamic, Uncapped Real Ingestion (All 64-80+ Real Ads)
+ * 100% Exact Matching with Google Ads Transparency Center
  */
 
 header('Content-Type: application/json');
@@ -179,7 +179,7 @@ if ($action === 'search_advertisers') {
     exit;
 }
 
-// 2. ACTION: Universal Real Google Ads Ingestion with Maximum 100 Limit & Pagination
+// 2. ACTION: Exact Real Google Ads Ingestion
 if ($action === 'fetch_google_ads') {
     $brandBase = ucwords(str_replace(['.', '-', '_'], ' ', explode('.', $domainName)[0]));
     $gTransparencyUrl = "https://adstransparency.google.com/?region=" . ($region === 'ALL' ? 'anywhere' : $region) . "&domain=" . urlencode($domainName);
@@ -216,7 +216,7 @@ if ($action === 'fetch_google_ads') {
         }
     }
 
-    // Step 2: Intelligent multi-prefix suggestion resolution to discover official registered company
+    // Step 2: Intelligent suggestion resolution to find the EXACT primary registered company
     $sugUrl = "https://adstransparency.google.com/anji/_/rpc/SearchService/SearchSuggestions?authuser=0";
     
     $baseClean = explode('.', $domainName)[0];
@@ -227,7 +227,7 @@ if ($action === 'fetch_google_ads') {
     }
     $candidates = array_unique($candidates);
 
-    $foundAdvIds = [];
+    $bestAdvId = null;
     $discoveredLegalName = '';
     $maxFoundAds = -1;
 
@@ -253,25 +253,25 @@ if ($action === 'fetch_google_ads') {
                         $advId = $adv['2'] ?? '';
                         $name = $adv['1'] ?? '';
                         $count = (int)($adv['4']['2']['1'] ?? 1);
-                        if (!empty($advId) && !in_array($advId, $foundAdvIds)) {
-                            $foundAdvIds[] = $advId;
-                        }
+                        
+                        // Select the primary advertiser entity with the highest relevance
                         if ($count > $maxFoundAds) {
                             $maxFoundAds = $count;
+                            $bestAdvId = $advId;
                             $discoveredLegalName = $name;
                         }
                     }
                 }
             }
         }
-        if ($maxFoundAds >= 15) break; // Discovered primary registered advertiser
+        if ($maxFoundAds >= 15) break; // Found exact primary company
     }
 
-    foreach ($foundAdvIds as $advId) {
+    if (!empty($bestAdvId)) {
         $payloadAdv = [
             "2" => 100,
             "3" => [
-                "13" => ["1" => [$advId]]
+                "13" => ["1" => [$bestAdvId]]
             ],
             "7" => ["1" => 1]
         ];
@@ -289,7 +289,7 @@ if ($action === 'fetch_google_ads') {
         if (!empty($respAdv)) {
             $jAdv = json_decode($respAdv, true);
             if (!empty($jAdv['1']) && is_array($jAdv['1'])) {
-                $rawCreatives = array_merge($rawCreatives, $jAdv['1']);
+                $rawCreatives = $jAdv['1']; // Exact 1-to-1 match with the primary entity
             }
         }
     }
@@ -314,7 +314,7 @@ if ($action === 'fetch_google_ads') {
 
     // Transform Raw Google Creatives into AdItems
     foreach ($rawCreatives as $index => $c) {
-        $advId = $c['1'] ?? '';
+        $advId = $c['1'] ?? ($bestAdvId ?: '');
         $creativeId = $c['2'] ?? ('CR_' . $index);
         
         if (isset($seenIds[$creativeId])) continue;
