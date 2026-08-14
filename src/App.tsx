@@ -119,6 +119,8 @@ function AppContent() {
   const handleSelectWorkspace = (id: string) => {
     setActiveWorkspaceId(id);
     localStorage.setItem('roasist_active_workspace_id', id);
+    setCompetitors([]);
+    setAds([]);
     loadRealData(id);
   };
 

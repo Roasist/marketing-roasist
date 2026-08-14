@@ -66,21 +66,44 @@ export const CompetitorsModule: React.FC<CompetitorsModuleProps> = ({
 
   // Load database competitors and saved ads for active workspace
   const loadDatabaseData = async () => {
+    setIsLoadingAds(true);
+    setAds([]); // Immediately flush old workspace ads from UI
+    setSelectedCompetitorId('ALL');
+
     try {
       const dbComps = await ApiService.getCompetitors(workspaceId);
-      setCompetitors(dbComps || []);
+      const currentComps = dbComps || [];
+      setCompetitors(currentComps);
+
       const dbSaved = await ApiService.getSavedAds(workspaceId);
       setSavedAds(dbSaved || []);
+
+      if (currentComps.length > 0) {
+        await fetchLiveAds('ALL', currentComps);
+      } else {
+        setAds([]);
+      }
     } catch {
       setCompetitors([]);
       setSavedAds([]);
+      setAds([]);
+    } finally {
+      setIsLoadingAds(false);
     }
   };
 
-  const fetchLiveAds = async (targetId?: string) => {
+  const fetchLiveAds = async (targetId?: string, customComps?: Competitor[]) => {
     setIsLoadingAds(true);
+    const compsToUse = customComps || competitors;
+
+    if (compsToUse.length === 0 && (!targetId || targetId === 'ALL')) {
+      setAds([]);
+      setIsLoadingAds(false);
+      return;
+    }
+
     try {
-      const activeCompetitor = competitors.find(c => c.id === targetId || c.pageId === targetId || c.domain === targetId);
+      const activeCompetitor = compsToUse.find(c => c.id === targetId || c.pageId === targetId || c.domain === targetId);
       const queryName = activeCompetitor ? (activeCompetitor.domain || activeCompetitor.name) : (targetId && targetId !== 'ALL' ? targetId : '');
 
       const promises: Promise<AdItem[]>[] = [];
@@ -129,7 +152,7 @@ export const CompetitorsModule: React.FC<CompetitorsModuleProps> = ({
   }, [workspaceId]);
 
   useEffect(() => {
-    if (selectedCompetitorId || filters.country || filters.network) {
+    if (selectedCompetitorId && selectedCompetitorId !== 'ALL') {
       fetchLiveAds(selectedCompetitorId);
     }
   }, [selectedCompetitorId, filters.country, filters.network, filters.status, filters.format]);
