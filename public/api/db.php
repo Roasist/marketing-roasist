@@ -1,8 +1,10 @@
 <?php
 /**
  * Roasist Marketing Suite - Database Layer & Schema Migrator
- * Supports SQLite (Default Zero-Config) and MySQL/MariaDB
  */
+
+ini_set('display_errors', '1');
+error_reporting(E_ALL);
 
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
@@ -21,10 +23,9 @@ class Database {
             return self::$pdo;
         }
 
-        $dataDir = __DIR__ . '/../data';
+        $dataDir = __DIR__ . '/data';
         if (!is_dir($dataDir)) {
-            @mkdir($dataDir, 0755, true);
-            // Protect data folder with .htaccess
+            @mkdir($dataDir, 0777, true);
             @file_put_contents($dataDir . '/.htaccess', "Deny from all\n");
         }
 
@@ -36,12 +37,12 @@ class Database {
             self::$pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
             self::runMigrations(self::$pdo);
             return self::$pdo;
-        } catch (PDOException $e) {
+        } catch (Throwable $e) {
             http_response_code(500);
             echo json_encode([
                 'status' => 'error',
-                'message' => 'Veritabanı bağlantı hatası: ' . $e->getMessage()
-            ]);
+                'message' => 'Veritabanı hatası: ' . $e->getMessage()
+            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
             exit;
         }
     }
@@ -120,7 +121,8 @@ class Database {
 
         // Seed Default Super Admin if not exists
         $stmt = $pdo->query("SELECT COUNT(*) as count FROM users");
-        $count = (int)$stmt->fetch()['count'];
+        $row = $stmt->fetch();
+        $count = (int)($row['count'] ?? 0);
         if ($count === 0) {
             $defaultPasswordHash = password_hash('RoasistAdmin2026!', PASSWORD_DEFAULT);
             $insertStmt = $pdo->prepare("
@@ -150,7 +152,14 @@ class Database {
 
 function getAuthUser(): ?array {
     $headers = getallheaders();
-    $authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? '';
+    $authHeader = '';
+    foreach ($headers as $k => $v) {
+        if (strtolower($k) === 'authorization') {
+            $authHeader = $v;
+            break;
+        }
+    }
+
     if (!preg_match('/Bearer\s(\S+)/', $authHeader, $matches)) {
         return null;
     }
@@ -162,7 +171,7 @@ function getAuthUser(): ?array {
     }
 
     if ($data['exp'] < time()) {
-        return null; // Expired
+        return null;
     }
 
     $pdo = Database::getConnection();
@@ -194,7 +203,7 @@ function logAudit(int $userId, string $userName, string $action, string $details
         $ip = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
         $stmt = $pdo->prepare("INSERT INTO audit_logs (user_id, user_name, action, details, ip_address) VALUES (?, ?, ?, ?, ?)");
         $stmt->execute([$userId, $userName, $action, $details, $ip]);
-    } catch (Exception $e) {
+    } catch (Throwable $e) {
         // Ignore log errors
     }
 }

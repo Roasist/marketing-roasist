@@ -4,17 +4,21 @@
  * Login, Token Verify, Logout, Profile
  */
 
+ini_set('display_errors', '1');
+error_reporting(E_ALL);
+
 header('Content-Type: application/json');
 require_once __DIR__ . '/db.php';
 
 $pdo = Database::getConnection();
 $action = $_GET['action'] ?? 'login';
 
-$input = json_decode(file_get_contents('php://input'), true) ?? [];
+$rawInput = file_get_contents('php://input');
+$input = json_decode($rawInput, true) ?? [];
 
 if ($action === 'login') {
-    $email = trim($input['email'] ?? '');
-    $password = trim($input['password'] ?? '');
+    $email = trim($input['email'] ?? $_POST['email'] ?? '');
+    $password = trim($input['password'] ?? $_POST['password'] ?? '');
 
     if (empty($email) || empty($password)) {
         http_response_code(400);
@@ -44,7 +48,7 @@ if ($action === 'login') {
 
     // Generate Session Token (Base64 Encoded with Expiry 7 days)
     $payload = [
-        'user_id' => $user['id'],
+        'user_id' => (int)$user['id'],
         'email' => $user['email'],
         'role' => $user['role'],
         'exp' => time() + (86400 * 7)
