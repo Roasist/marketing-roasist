@@ -124,21 +124,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
           onClick={() => onNavigate('dashboard')}
           style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', cursor: 'pointer', overflow: 'hidden' }}
         >
-          <div style={{
-            width: '28px',
-            height: '28px',
-            borderRadius: '6px',
-            backgroundColor: 'var(--text-primary)',
-            color: 'var(--bg-surface)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontWeight: 800,
-            fontSize: '0.85rem',
-            flexShrink: 0,
-          }}>
-            R
-          </div>
+          <img
+            src="/favicon.svg"
+            alt="Roasist Logo"
+            style={{
+              width: '26px',
+              height: '26px',
+              objectFit: 'contain',
+              flexShrink: 0,
+            }}
+          />
 
           {!isCollapsed && (
             <div style={{ fontWeight: 600, fontSize: '0.95rem', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>

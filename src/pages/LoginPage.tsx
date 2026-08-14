@@ -84,27 +84,20 @@ export const LoginPage: React.FC = () => {
       }}>
         
         {/* Brand Header */}
-        <div style={{ textAlign: 'center' }}>
-          <div style={{
-            width: '42px',
-            height: '42px',
-            borderRadius: '10px',
-            backgroundColor: 'var(--text-primary)',
-            color: 'var(--bg-app)',
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontWeight: 800,
-            fontSize: '1.2rem',
-            letterSpacing: '-0.03em',
-            marginBottom: '1.25rem',
-            boxShadow: 'var(--shadow-sm)',
-          }}>
-            R
-          </div>
+        <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <img 
+            src="/roasist-logo.svg" 
+            alt="Roasist Logo" 
+            style={{ 
+              height: '38px', 
+              maxWidth: '180px', 
+              objectFit: 'contain',
+              marginBottom: '1.25rem' 
+            }} 
+          />
 
-          <h1 style={{ fontSize: '1.45rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.35rem' }}>
-            Roasist Marketing Suite
+          <h1 style={{ fontSize: '1.35rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.35rem' }}>
+            Marketing Intelligence OS
           </h1>
           <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
             Kurumsal pazarlama hesabınıza giriş yapın
