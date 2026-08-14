@@ -127,7 +127,7 @@ if ($method === 'PUT') {
     exit;
 }
 
-// DELETE: Delete User
+// DELETE: Delete User (Super Admin can delete any other user including other Super Admins)
 if ($method === 'DELETE') {
     $id = (int)($_GET['id'] ?? $input['id'] ?? 0);
     if ($id <= 0) {
@@ -142,15 +142,28 @@ if ($method === 'DELETE') {
         exit;
     }
 
-    // Get user info for audit
-    $userStmt = $pdo->prepare("SELECT name, email FROM users WHERE id = ?");
+    // Get target user info
+    $userStmt = $pdo->prepare("SELECT id, name, email, role FROM users WHERE id = ?");
     $userStmt->execute([$id]);
-    $deletedUser = $userStmt->fetch();
+    $targetUser = $userStmt->fetch();
+
+    if (!$targetUser) {
+        http_response_code(404);
+        echo json_encode(['status' => 'error', 'message' => 'Kullanıcı bulunamadı.']);
+        exit;
+    }
+
+    // Only SUPER_ADMIN can delete another SUPER_ADMIN
+    if ($currentUser['role'] !== 'SUPER_ADMIN' && $targetUser['role'] === 'SUPER_ADMIN') {
+        http_response_code(403);
+        echo json_encode(['status' => 'error', 'message' => 'Süper Admin hesabını yalnızca bir Süper Admin silebilir.']);
+        exit;
+    }
 
     $stmt = $pdo->prepare("DELETE FROM users WHERE id = ?");
     $stmt->execute([$id]);
 
-    logAudit((int)$currentUser['id'], $currentUser['name'], 'Kullanıcı Silindi', "Silinen kullanıcı: {$deletedUser['name']} ({$deletedUser['email']})");
+    logAudit((int)$currentUser['id'], $currentUser['name'], 'Kullanıcı Silindi', "Silinen kullanıcı: {$targetUser['name']} ({$targetUser['email']}, Rol: {$targetUser['role']})");
 
     echo json_encode([
         'status' => 'success',

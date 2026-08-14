@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { MarketingRoute } from '../types/suite';
 import { User, UserRole } from '../types/auth';
+import { useAuth } from '../contexts/AuthContext';
 import { ApiService } from '../services/apiService';
 import { 
   Key, 
@@ -23,6 +24,7 @@ interface AdminPanelProps {
 }
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({ onNavigate: _onNavigate }) => {
+  const { user: loggedInUser } = useAuth();
   const [activeTab, setActiveTab] = useState<'users' | 'keys' | 'flags' | 'logs'>('users');
   
   // Users state
@@ -379,7 +381,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onNavigate: _onNavigate 
                         </button>
 
                         {/* Delete User Button */}
-                        {u.role !== 'SUPER_ADMIN' && (
+                        {((loggedInUser?.role === 'SUPER_ADMIN' && u.id !== loggedInUser?.id) ||
+                          (loggedInUser?.role === 'ADMIN' && u.id !== loggedInUser?.id && u.role !== 'SUPER_ADMIN')) && (
                           <button
                             onClick={() => handleDeleteUser(u.id)}
                             title="Kullanıcıyı Sil"
