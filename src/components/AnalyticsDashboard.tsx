@@ -1,6 +1,6 @@
 import React from 'react';
 import { AdItem, Competitor } from '../types/ad';
-import { BarChart3, PieChart, Trophy, Flame, Film, Image as ImageIcon, Layers } from 'lucide-react';
+import { BarChart3, Trophy, Flame, Film, Image as ImageIcon, Layers } from 'lucide-react';
 
 interface AnalyticsDashboardProps {
   ads: AdItem[];
@@ -24,7 +24,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ ads, com
   const winnerAds = [...ads].sort((a, b) => b.activeDaysCount - a.activeDaysCount).slice(0, 5);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
       
       {/* Header Stat Summary Cards */}
       <div style={{
@@ -33,186 +33,164 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ ads, com
         gap: '1rem',
       }}>
         
-        <div className="glass-panel" style={{ padding: '1.25rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>TOPLAM REKLAM VERİSİ</span>
-            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(124, 58, 237, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <BarChart3 size={18} color="var(--accent-purple)" />
-            </div>
+        <div className="card" style={{ padding: '1.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem', color: 'var(--text-secondary)', fontSize: '0.8rem', fontWeight: 500 }}>
+            <span>Toplam Reklam Verisi</span>
+            <BarChart3 size={16} color="var(--text-muted)" />
           </div>
-          <div style={{ fontSize: '1.8rem', fontWeight: 800 }}>{ads.length} Adet</div>
+          <div style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-primary)' }}>{ads.length}</div>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-            {competitors.length} Markadan Çekilen Reklamlar
+            {competitors.length} Markadan Çekilen Arşiv
           </div>
         </div>
 
-        <div className="glass-panel" style={{ padding: '1.25rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>HALEN AKTİF REKLAMLAR</span>
-            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(16, 185, 129, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Flame size={18} color="#34d399" />
-            </div>
+        <div className="card" style={{ padding: '1.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem', color: 'var(--text-secondary)', fontSize: '0.8rem', fontWeight: 500 }}>
+            <span>Canlı Yayındaki Reklamlar</span>
+            <Flame size={16} color="var(--text-muted)" />
           </div>
-          <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#34d399' }}>{activeAds.length} Adet</div>
+          <div style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--success)' }}>{activeAds.length}</div>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-            Canlı Bütçe Alan Kampanyalar
+            Aktif Bütçe Harcayanlar
           </div>
         </div>
 
-        <div className="glass-panel" style={{ padding: '1.25rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>EN UZUN YAYIN SÜRESİ</span>
-            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(245, 158, 11, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Trophy size={18} color="#fbbf24" />
-            </div>
+        <div className="card" style={{ padding: '1.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem', color: 'var(--text-secondary)', fontSize: '0.8rem', fontWeight: 500 }}>
+            <span>Video Reklam Hakimiyeti</span>
+            <Film size={16} color="var(--text-muted)" />
           </div>
-          <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#fbbf24' }}>
-            {winnerAds[0]?.activeDaysCount || 0} Gün 🔥
-          </div>
+          <div style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-primary)' }}>%{videoPct}</div>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-            En Başarılı "Winner Ad" Kampanyası
+            {videoCount} Adet Video Kreatifi
           </div>
         </div>
 
-        <div className="glass-panel" style={{ padding: '1.25rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>DOMİNANT FORMAT</span>
-            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(6, 182, 212, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Film size={18} color="var(--accent-cyan)" />
-            </div>
+        <div className="card" style={{ padding: '1.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem', color: 'var(--text-secondary)', fontSize: '0.8rem', fontWeight: 500 }}>
+            <span>30+ Gün Kazanan Reklam</span>
+            <Trophy size={16} color="var(--text-muted)" />
           </div>
-          <div style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--accent-cyan)' }}>
-            %{Math.max(videoPct, imagePct, carouselPct)}
+          <div style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--warning)' }}>
+            {ads.filter(a => a.activeDaysCount >= 30).length}
           </div>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-            {videoPct >= imagePct && videoPct >= carouselPct ? 'Video Formatlı Reklamlar' : 'Görsel Reklamlar'}
+            Ölçeklenmiş Kampanyalar
           </div>
         </div>
 
       </div>
 
-      {/* Format Breakdown & Winner Ads Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '1.5rem' }}>
+      {/* Grid: Format Distribution & Winner Leaderboard */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1rem' }}>
         
-        {/* Format Distribution Chart Card */}
-        <div className="glass-panel" style={{ padding: '1.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
-            <PieChart size={20} color="var(--accent-purple)" />
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Reklam Formatı Oranları (Geçmiş & Güncel)</h3>
+        {/* Format Distribution Panel */}
+        <div className="card" style={{ padding: '1.25rem' }}>
+          <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.35rem' }}>
+            Kreatif Format Dağılımı
           </div>
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>
+            Rakiplerin en çok tercih ettiği kreatif format türleri
+          </p>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             
-            {/* Video Progress Bar */}
+            {/* Video Bar */}
             <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.4rem' }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}>
-                  <Film size={14} color="#fb7185" /> Video Reklamlar
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '0.35rem' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-primary)', fontWeight: 500 }}>
+                  <Film size={14} /> Video Reklamlar
                 </span>
-                <span style={{ fontWeight: 700 }}>{videoCount} Adet (%{videoPct})</span>
+                <strong style={{ color: 'var(--text-primary)' }}>{videoCount} Adet (%{videoPct})</strong>
               </div>
-              <div style={{ width: '100%', height: '10px', background: 'rgba(255,255,255,0.06)', borderRadius: '5px', overflow: 'hidden' }}>
-                <div style={{ width: `${videoPct}%`, height: '100%', background: 'linear-gradient(90deg, #f43f5e, #fb7185)', borderRadius: '5px' }} />
+              <div style={{ width: '100%', height: '6px', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-full)', overflow: 'hidden' }}>
+                <div style={{ width: `${videoPct}%`, height: '100%', backgroundColor: 'var(--brand-primary)' }} />
               </div>
             </div>
 
-            {/* Image Progress Bar */}
+            {/* Image Bar */}
             <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.4rem' }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}>
-                  <ImageIcon size={14} color="#38bdf8" /> Statik Görsel Reklamlar
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '0.35rem' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-primary)', fontWeight: 500 }}>
+                  <ImageIcon size={14} /> Tek Görsel Reklamlar
                 </span>
-                <span style={{ fontWeight: 700 }}>{imageCount} Adet (%{imagePct})</span>
+                <strong style={{ color: 'var(--text-primary)' }}>{imageCount} Adet (%{imagePct})</strong>
               </div>
-              <div style={{ width: '100%', height: '10px', background: 'rgba(255,255,255,0.06)', borderRadius: '5px', overflow: 'hidden' }}>
-                <div style={{ width: `${imagePct}%`, height: '100%', background: 'linear-gradient(90deg, #06b6d4, #38bdf8)', borderRadius: '5px' }} />
+              <div style={{ width: '100%', height: '6px', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-full)', overflow: 'hidden' }}>
+                <div style={{ width: `${imagePct}%`, height: '100%', backgroundColor: 'var(--info)' }} />
               </div>
             </div>
 
-            {/* Carousel Progress Bar */}
+            {/* Carousel Bar */}
             <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.4rem' }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}>
-                  <Layers size={14} color="#fbbf24" /> Atlıkarınca / Carousel
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '0.35rem' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-primary)', fontWeight: 500 }}>
+                  <Layers size={14} /> Carousel (Kaydırmalı)
                 </span>
-                <span style={{ fontWeight: 700 }}>{carouselCount} Adet (%{carouselPct})</span>
+                <strong style={{ color: 'var(--text-primary)' }}>{carouselCount} Adet (%{carouselPct})</strong>
               </div>
-              <div style={{ width: '100%', height: '10px', background: 'rgba(255,255,255,0.06)', borderRadius: '5px', overflow: 'hidden' }}>
-                <div style={{ width: `${carouselPct}%`, height: '100%', background: 'linear-gradient(90deg, #f59e0b, #fbbf24)', borderRadius: '5px' }} />
+              <div style={{ width: '100%', height: '6px', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-full)', overflow: 'hidden' }}>
+                <div style={{ width: `${carouselPct}%`, height: '100%', backgroundColor: 'var(--warning)' }} />
               </div>
             </div>
 
-          </div>
-
-          <div style={{
-            marginTop: '1.5rem',
-            padding: '0.85rem',
-            background: 'rgba(255, 255, 255, 0.02)',
-            borderRadius: 'var(--radius-sm)',
-            fontSize: '0.75rem',
-            color: 'var(--text-secondary)',
-            lineHeight: 1.5,
-          }}>
-            💡 <strong>Analiz Notu:</strong> Rakipleriniz bütçelerinin ağırlıklı kısmını 
-            <strong> {videoPct > imagePct ? 'Video' : 'Statik Görsel'}</strong> kreatiflerine yatırmaktadır.
           </div>
         </div>
 
-        {/* Winner Ads Leaderboard Card */}
-        <div className="glass-panel" style={{ padding: '1.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
-            <Trophy size={20} color="#fbbf24" />
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>En Uzun Süre Yayında Kalanlar (Winner Ads)</h3>
+        {/* Winner Leaderboard Panel */}
+        <div className="card" style={{ padding: '1.25rem' }}>
+          <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.35rem' }}>
+            En Uzun Süre Yayında Kalan 5 "Winner" Reklam
           </div>
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+            Pazarlamada en çok bütçe ayrılan ve ölçeklenen kampanyalar
+          </p>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
             {winnerAds.map((ad, idx) => (
-              <div
-                key={ad.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '0.75rem',
-                  borderRadius: 'var(--radius-sm)',
-                  background: 'rgba(255, 255, 255, 0.03)',
-                  border: '1px solid var(--border-glass)',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', overflow: 'hidden' }}>
+              <div key={ad.id} style={{
+                padding: '0.65rem 0.85rem',
+                backgroundColor: 'var(--bg-surface-elevated)',
+                borderRadius: 'var(--radius-sm)',
+                border: '1px solid var(--border-default)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                fontSize: '0.8rem',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
                   <div style={{
-                    width: '24px',
-                    height: '24px',
+                    width: '20px',
+                    height: '20px',
                     borderRadius: '50%',
-                    background: idx === 0 ? '#f59e0b' : idx === 1 ? '#94a3b8' : '#b45309',
-                    color: 'black',
-                    fontWeight: 800,
-                    fontSize: '0.75rem',
+                    backgroundColor: idx === 0 ? '#f59e0b' : 'var(--border-strong)',
+                    color: idx === 0 ? '#000000' : 'var(--text-primary)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
+                    fontWeight: 700,
+                    fontSize: '0.7rem',
                   }}>
                     {idx + 1}
                   </div>
-                  <div style={{ overflow: 'hidden' }}>
-                    <div style={{ fontWeight: 700, fontSize: '0.85rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {ad.adHeadline}
-                    </div>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
-                      {ad.pageName} • {ad.hookType}
-                    </div>
+                  <div>
+                    <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{ad.pageName}</div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{ad.hookType}</div>
                   </div>
                 </div>
 
-                <span className="badge badge-active" style={{ fontSize: '0.7rem', padding: '0.2rem 0.5rem' }}>
-                  🔥 {ad.activeDaysCount} Gün
-                </span>
+                <div style={{ textAlign: 'right' }}>
+                  <span className="badge badge-carousel" style={{ fontSize: '0.7rem' }}>
+                    {ad.activeDaysCount} Gün
+                  </span>
+                </div>
               </div>
             ))}
           </div>
         </div>
 
       </div>
+
     </div>
   );
 };

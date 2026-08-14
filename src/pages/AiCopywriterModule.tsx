@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { PenTool, Sparkles, Copy, CheckCircle2 } from 'lucide-react';
+import { Copy, CheckCircle2, Sparkles } from 'lucide-react';
 
 export const AiCopywriterModule: React.FC = () => {
   const [productName, setProductName] = useState('');
@@ -15,7 +15,7 @@ export const AiCopywriterModule: React.FC = () => {
     },
     {
       hook: '🎯 ROAS Değerinizi 3 Katına Çıkaracak Reklam Kancaları Burada',
-      body: 'Trendyol, Hepsiburada ve global markaların en uzun süre yayında tuttuğu reklamları tek paneller görün. Bütçenizi boşa harcamayın.',
+      body: 'Trendyol, Hepsiburada ve global markaların en uzun süre yayında tuttuğu reklamları tek panelde görün. Bütçenizi boşa harcamayın.',
       cta: 'Demoyu İncele',
       angle: 'Sosyal Kanıt & Fiyat',
     },
@@ -28,71 +28,103 @@ export const AiCopywriterModule: React.FC = () => {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-      <div className="glass-panel" style={{ padding: '1.75rem', background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.15), rgba(124, 58, 237, 0.1))' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--accent-cyan)', marginBottom: '0.4rem' }}>
-          <PenTool size={22} />
-          <span style={{ fontWeight: 800, fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            MODÜL: /ai-copywriter
-          </span>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+      
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+        <div>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+            AI Reklam Metni & Kanca Motoru
+          </h1>
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+            Ürününüzü ve hedef kitlenizi girin; yapay zekâ yüksek dönüşüm getiren reklam kancaları hazırlasın.
+          </p>
         </div>
-        <h2 style={{ fontSize: '1.6rem', fontWeight: 800 }}>AI Reklam Metni & Kanca Üretici</h2>
-        <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-          Ürününüzü ve hedef kitlenizi girin; yapay zekâ yüksek dönüşüm sağlayan reklam metinleri ve kancaları hazırlasın.
-        </p>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem' }}>
-        {/* Form */}
-        <div className="glass-panel" style={{ padding: '1.5rem' }}>
-          <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '1rem' }}>Ürün & Hedef Kitle Bilgisi</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.25rem' }}>
+        
+        {/* Input Form */}
+        <div className="card" style={{ padding: '1.25rem' }}>
+          <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '1rem' }}>
+            Kampanya Bilgileri
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.4rem', color: 'var(--text-secondary)' }}>Ürün / Hizmet Adı</label>
+              <label style={{ display: 'block', fontSize: '0.78rem', marginBottom: '0.35rem', color: 'var(--text-secondary)' }}>
+                Ürün / Hizmet Adı
+              </label>
               <input
                 type="text"
-                placeholder="Örn: Deri Erkek Ayakkabı, SaaS Yazılımı"
+                placeholder="Örn: Deri Erkek Ayakkabı, B2B SaaS"
                 value={productName}
                 onChange={(e) => setProductName(e.target.value)}
-                style={{ width: '100%', padding: '0.65rem 0.85rem', background: 'var(--bg-primary)', border: '1px solid var(--border-glass)', borderRadius: 'var(--radius-sm)', color: 'white', outline: 'none' }}
+                style={{ width: '100%' }}
               />
             </div>
+
             <div>
-              <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.4rem', color: 'var(--text-secondary)' }}>Hedef Kitle & Özellikler</label>
+              <label style={{ display: 'block', fontSize: '0.78rem', marginBottom: '0.35rem', color: 'var(--text-secondary)' }}>
+                Hedef Kitle & Sektör
+              </label>
               <input
                 type="text"
-                placeholder="Örn: 25-45 yaş dijital pazarlamacılar"
+                placeholder="Örn: 25-45 yaş profesyoneller, E-ticaret yöneticileri"
                 value={targetAudience}
                 onChange={(e) => setTargetAudience(e.target.value)}
-                style={{ width: '100%', padding: '0.65rem 0.85rem', background: 'var(--bg-primary)', border: '1px solid var(--border-glass)', borderRadius: 'var(--radius-sm)', color: 'white', outline: 'none' }}
+                style={{ width: '100%' }}
               />
             </div>
-            <button className="btn-primary" style={{ padding: '0.75rem' }}>
-              <Sparkles size={16} /> AI Reklam Metinlerini Oluştur
+
+            <button
+              type="button"
+              className="btn-primary"
+              style={{ marginTop: '0.5rem', justifyContent: 'center' }}
+            >
+              <Sparkles size={14} /> Metinleri Üret
             </button>
           </div>
         </div>
 
-        {/* Results */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Üretilen Reklam Kancaları (Örnek)</h3>
-          {sampleOutputs.map((item, idx) => (
-            <div key={idx} className="glass-panel" style={{ padding: '1.25rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                <span className="badge badge-active">{item.angle}</span>
-                <button
-                  onClick={() => handleCopy(`${item.hook}\n\n${item.body}`, idx)}
-                  style={{ background: 'none', border: 'none', color: 'var(--accent-cyan)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.75rem' }}
-                >
-                  {copiedIdx === idx ? <CheckCircle2 size={14} color="#34d399" /> : <Copy size={14} />} Kopyala
-                </button>
+        {/* Generated Output */}
+        <div className="card" style={{ padding: '1.25rem' }}>
+          <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '1rem' }}>
+            Üretilen Reklam Kancaları & Metinler
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+            {sampleOutputs.map((item, idx) => (
+              <div key={idx} style={{
+                padding: '0.85rem',
+                backgroundColor: 'var(--bg-surface-elevated)',
+                borderRadius: 'var(--radius-sm)',
+                border: '1px solid var(--border-default)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.4rem',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span className="badge badge-neutral" style={{ fontSize: '0.68rem' }}>{item.angle}</span>
+                  <button
+                    onClick={() => handleCopy(`${item.hook}\n\n${item.body}`, idx)}
+                    className="btn-ghost"
+                    style={{ padding: '2px 6px', fontSize: '0.72rem' }}
+                  >
+                    {copiedIdx === idx ? <CheckCircle2 size={12} color="var(--success)" /> : <Copy size={12} />}
+                    {copiedIdx === idx ? 'Kopyalandı' : 'Kopyala'}
+                  </button>
+                </div>
+
+                <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-primary)' }}>{item.hook}</div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>{item.body}</div>
               </div>
-              <h4 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '0.4rem' }}>{item.hook}</h4>
-              <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>{item.body}</p>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
+
       </div>
+
     </div>
   );
 };

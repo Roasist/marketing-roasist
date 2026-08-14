@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Lock, Mail, ArrowRight, AlertCircle, Loader2 } from 'lucide-react';
+import { useTheme } from '../contexts/ThemeContext';
+import { Lock, Mail, ArrowRight, AlertCircle, Loader2, Sun, Moon } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
   const { login } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -46,6 +48,38 @@ export const LoginPage: React.FC = () => {
       position: 'relative',
     }}>
       
+      {/* Top Right Theme Toggle */}
+      <div style={{ position: 'absolute', top: '1.5rem', right: '1.5rem' }}>
+        <button
+          onClick={toggleTheme}
+          title={theme === 'dark' ? 'Açık Moda Geç' : 'Karanlık Moda Geç'}
+          className="btn-ghost"
+          style={{
+            padding: '0.4rem 0.65rem',
+            border: '1px solid var(--border-default)',
+            backgroundColor: 'var(--bg-surface)',
+            borderRadius: 'var(--radius-sm)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.4rem',
+            fontSize: '0.8rem',
+            color: 'var(--text-secondary)',
+          }}
+        >
+          {theme === 'dark' ? (
+            <>
+              <Sun size={15} color="#f59e0b" />
+              <span>Açık Mod</span>
+            </>
+          ) : (
+            <>
+              <Moon size={15} color="var(--text-secondary)" />
+              <span>Karanlık Mod</span>
+            </>
+          )}
+        </button>
+      </div>
+
       {/* Container */}
       <div style={{
         maxWidth: '400px',
@@ -61,8 +95,8 @@ export const LoginPage: React.FC = () => {
             width: '42px',
             height: '42px',
             borderRadius: '10px',
-            backgroundColor: '#ffffff',
-            color: '#090b10',
+            backgroundColor: 'var(--text-primary)',
+            color: 'var(--bg-app)',
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -70,7 +104,7 @@ export const LoginPage: React.FC = () => {
             fontSize: '1.2rem',
             letterSpacing: '-0.03em',
             marginBottom: '1.25rem',
-            boxShadow: '0 2px 8px rgba(255, 255, 255, 0.1)',
+            boxShadow: 'var(--shadow-sm)',
           }}>
             R
           </div>
@@ -84,12 +118,8 @@ export const LoginPage: React.FC = () => {
         </div>
 
         {/* Card */}
-        <div style={{
-          backgroundColor: 'var(--bg-surface)',
-          border: '1px solid var(--border-default)',
-          borderRadius: 'var(--radius-lg)',
+        <div className="card" style={{
           padding: '2rem',
-          boxShadow: 'var(--shadow-lg)',
         }}>
           
           {/* Error Alert */}
@@ -102,7 +132,7 @@ export const LoginPage: React.FC = () => {
               display: 'flex',
               alignItems: 'center',
               gap: '0.5rem',
-              color: '#f87171',
+              color: 'var(--danger)',
               fontSize: '0.85rem',
               marginBottom: '1.25rem',
             }}>
@@ -183,7 +213,7 @@ export const LoginPage: React.FC = () => {
           <div style={{
             marginTop: '1.5rem',
             paddingTop: '1.25rem',
-            borderTop: '1px solid var(--border-subtle)',
+            borderTop: '1px solid var(--border-default)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',

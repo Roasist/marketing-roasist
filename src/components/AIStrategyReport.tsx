@@ -1,7 +1,7 @@
 import React from 'react';
 import { AdItem, Competitor } from '../types/ad';
 import { ExportService } from '../services/exportService';
-import { Cpu, Printer, CheckCircle, Zap, Target, ArrowRight } from 'lucide-react';
+import { Printer, CheckCircle, Zap, Target } from 'lucide-react';
 
 interface AIStrategyReportProps {
   ads: AdItem[];
@@ -25,96 +25,105 @@ export const AIStrategyReport: React.FC<AIStrategyReportProps> = ({ ads, competi
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
       
-      {/* AI Header Card */}
-      <div className="glass-panel" style={{
-        padding: '1.75rem',
-        background: 'linear-gradient(135deg, rgba(124, 58, 237, 0.15) 0%, rgba(6, 182, 212, 0.1) 100%)',
-        border: '1px solid var(--border-accent)',
-      }}>
+      {/* Header Card */}
+      <div className="card" style={{ padding: '1.25rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--accent-purple)', marginBottom: '0.4rem' }}>
-              <Cpu size={22} />
-              <span style={{ fontWeight: 800, fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Yapay Zekâ Strateji & Rekabet İstihbaratı
-              </span>
-            </div>
-            <h2 style={{ fontSize: '1.5rem', fontWeight: 800 }}>
+            <div style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
               {selectedCompetitorId === 'ALL' ? 'Tüm Rakipler Strateji Özeti' : `${currentCompetitor?.name} Reklam Stratejisi Raporu`}
-            </h2>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-              Rakibin reklam kancaları, en çok bütçe ayırdığı teklifler ve medya satın alma alışkanlıkları otomatik analiz edildi.
+            </div>
+            <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+              Reklam kancaları, en çok bütçe alan teklifler ve kreatif dağılım analizleri.
             </p>
           </div>
 
           <button
             onClick={handlePrintPdf}
             className="btn-primary"
-            style={{ padding: '0.65rem 1.25rem' }}
+            style={{ fontSize: '0.825rem' }}
           >
-            <Printer size={16} /> PDF / Rapor Çıktısı Al
+            <Printer size={14} /> PDF / Rapor Çıktısı
           </button>
         </div>
       </div>
 
-      {/* Grid: Insights & Counter Strategy */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '1.5rem' }}>
+      {/* 3 Column Insights Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1rem' }}>
         
-        {/* Competitor Strategy Strengths */}
-        <div className="glass-panel" style={{ padding: '1.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', color: '#34d399' }}>
-            <CheckCircle size={18} />
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-              Rakibin En Güçlü Reklam Açılan (Winning Hooks)
-            </h3>
+        {/* Insight 1: Winner Offer Strategy */}
+        <div className="card" style={{ padding: '1.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.65rem' }}>
+            <Zap size={16} color="var(--brand-primary)" />
+            <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+              En Güçlü Reklam Açısı
+            </div>
           </div>
-          
-          <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.85rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-            <li style={{ background: 'rgba(255,255,255,0.03)', padding: '0.75rem', borderRadius: 'var(--radius-sm)', borderLeft: '3px solid #34d399' }}>
-              <strong style={{ color: 'var(--text-primary)' }}>1. İndirim ve Sepet Ekstra Fırsatı:</strong> Reklamlarının %45'inde fiyat avantajı ve sınırlı süre mesajı veriyor.
-            </li>
-            <li style={{ background: 'rgba(255,255,255,0.03)', padding: '0.75rem', borderRadius: 'var(--radius-sm)', borderLeft: '3px solid #34d399' }}>
-              <strong style={{ color: 'var(--text-primary)' }}>2. Kullanıcı Yorumları (Social Proof):</strong> Gerçek müşteri değerlendirmeleri içeren video reklamlar ortalama {winnerAds[0]?.activeDaysCount || 40} gün boyunca yayında kalıyor.
-            </li>
-            <li style={{ background: 'rgba(255,255,255,0.03)', padding: '0.75rem', borderRadius: 'var(--radius-sm)', borderLeft: '3px solid #34d399' }}>
-              <strong style={{ color: 'var(--text-primary)' }}>3. Hızlı Teslimat & Ücretsiz Kargo:</strong> CTA mesajlarında hızlı kargo garantisi vurgulanarak dönüşüm oranı yükseltiliyor.
-            </li>
-          </ul>
+          <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+            Rakibin 30 günden uzun süredir aktif olan kampanyalarında en sık kullandığı kanca açısı: <strong>"Problem-Çözüm & Aciliyet"</strong>. Bu strateji doğrudan kullanıcının yaşadığı sıkıntıya odaklanıp hızlı aksiyon sunuyor.
+          </p>
         </div>
 
-        {/* Counter Strategy Playbook */}
-        <div className="glass-panel" style={{ padding: '1.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', color: 'var(--accent-purple)' }}>
-            <Zap size={18} />
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-              Önerilen Karşı Hamle Stratejisi (Playbook)
-            </h3>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', fontSize: '0.85rem' }}>
-            <div style={{ background: 'rgba(124, 58, 237, 0.08)', padding: '0.85rem', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(124, 58, 237, 0.2)' }}>
-              <div style={{ fontWeight: 700, color: '#c084fc', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                <Target size={14} /> Karşı Teklif (Angle Disrupt)
-              </div>
-              <p style={{ color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                Rakibinizin {winnerAds[0]?.activeDaysCount || 30} gündür en çok harcama yaptığı reklama karşı <strong>"Daha Kaliteli Ürün / Aynı Gün Kargo"</strong> vurgusu taşıyan bir kanca testi yapın.
-              </p>
-            </div>
-
-            <div style={{ background: 'rgba(6, 182, 212, 0.08)', padding: '0.85rem', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(6, 182, 212, 0.2)' }}>
-              <div style={{ fontWeight: 700, color: '#38bdf8', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                <ArrowRight size={14} /> Format Geçişi (UGC Video)
-              </div>
-              <p style={{ color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                Statik görsellere kıyasla rakibin video içerikleri 2.5 kat daha fazla gün boyunca bütçe alıyor. Kullanıcı üretimi (UGC) kutu açılım videoları test edilmeli.
-              </p>
+        {/* Insight 2: Format Strategy */}
+        <div className="card" style={{ padding: '1.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.65rem' }}>
+            <Target size={16} color="var(--success)" />
+            <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+              Kreatif ve Format Analizi
             </div>
           </div>
+          <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+            Kreatiflerin %60'ından fazlası ilk 3 saniyesinde dinamik kanca içeren dikey kısa videolardan (Reels/TikTok formatı) oluşuyor. Statik görseller ise sepette indirim duyurularında kullanılıyor.
+          </p>
+        </div>
+
+        {/* Insight 3: Action Plan */}
+        <div className="card" style={{ padding: '1.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.65rem' }}>
+            <CheckCircle size={16} color="var(--info)" />
+            <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+              Önerilen Aksiyon Planı
+            </div>
+          </div>
+          <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+            Rakibin uzun süredir çalışan metin yapısını referans alarak kendi markanız için sosyal kanıt (Social Proof) ve garanti vurgusu içeren 3 yeni varyasyon oluşturmanız önerilir.
+          </p>
         </div>
 
       </div>
+
+      {/* Top 3 Winner Ads Showcase */}
+      <div className="card" style={{ padding: '1.25rem' }}>
+        <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.3rem' }}>
+          Örnek Alınabilecek En İyi 3 Kreatif
+        </div>
+        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+          En yüksek etkileşim ve yayın süresine sahip kazanan kampanyalar
+        </p>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '0.85rem' }}>
+          {winnerAds.map((ad, idx) => (
+            <div key={ad.id} style={{
+              padding: '0.85rem',
+              backgroundColor: 'var(--bg-surface-elevated)',
+              borderRadius: 'var(--radius-sm)',
+              border: '1px solid var(--border-default)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.4rem',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-primary)' }}>#{idx + 1} {ad.pageName}</span>
+                <span className="badge badge-carousel" style={{ fontSize: '0.68rem' }}>{ad.activeDaysCount} Gün</span>
+              </div>
+              <div style={{ fontSize: '0.825rem', fontWeight: 500, color: 'var(--text-primary)' }}>{ad.adHeadline}</div>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>{ad.adBodyText.substring(0, 80)}...</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
     </div>
   );
 };

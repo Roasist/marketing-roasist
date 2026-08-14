@@ -4,6 +4,7 @@ import { Competitor, AdItem, MetaApiConfig } from './types/ad';
 import { MetaAdLibraryService } from './services/metaAdLibraryApi';
 import { ExportService } from './services/exportService';
 
+import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LoginPage } from './pages/LoginPage';
 import { Sidebar } from './components/Sidebar';
@@ -95,7 +96,7 @@ function AppContent() {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg-app)', color: 'var(--text-secondary)' }}>
         <div style={{ textAlign: 'center' }}>
-          <Loader2 size={32} className="animate-spin" style={{ margin: '0 auto 0.75rem', color: '#ffffff' }} />
+          <Loader2 size={32} className="animate-spin" style={{ margin: '0 auto 0.75rem', color: 'var(--text-primary)' }} />
           <div style={{ fontSize: '0.85rem' }}>Yükleniyor...</div>
         </div>
       </div>
@@ -185,9 +186,11 @@ function AppContent() {
 
 export function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 

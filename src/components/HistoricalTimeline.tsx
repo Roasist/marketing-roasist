@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { AdItem, Competitor } from '../types/ad';
-import { History, Filter, ChevronRight, Film, Image as ImageIcon, Layers } from 'lucide-react';
+import { Filter, ChevronRight, Film, Image as ImageIcon, Layers } from 'lucide-react';
 
 interface HistoricalTimelineProps {
   ads: AdItem[];
@@ -27,45 +27,34 @@ export const HistoricalTimeline: React.FC<HistoricalTimelineProps> = ({ ads, com
   const monthKeys = Object.keys(groupedByMonth);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
       
-      {/* Header Banner */}
-      <div className="glass-panel" style={{ padding: '1.5rem' }}>
+      {/* Header Panel */}
+      <div className="card" style={{ padding: '1.25rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--accent-purple)', marginBottom: '0.25rem' }}>
-              <History size={20} />
-              <span style={{ fontSize: '0.85rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Zaman Çizelgesi & Arşiv
-              </span>
+            <div style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+              Geçmiş Reklam Zaman Çizelgesi & Arşiv
             </div>
-            <h2 style={{ fontSize: '1.4rem', fontWeight: 800 }}>Geçmişten Günümüze Reklam Stratejisi</h2>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-              Rakiplerin geçmiş aylarda yayınladığı kampanyaları, format değişimlerini ve sezonluk stratejilerini inceleyin.
+            <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+              Rakiplerin geçmiş aylarda yayınladığı kampanyalar ve sezonluk stratejileri.
             </p>
           </div>
 
           {/* Competitor Selector Dropdown */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Filter size={16} color="var(--text-muted)" />
+            <Filter size={15} color="var(--text-muted)" />
             <select
               value={selectedPageId}
               onChange={(e) => setSelectedPageId(e.target.value)}
               style={{
-                background: 'var(--bg-primary)',
-                border: '1px solid var(--border-accent)',
-                borderRadius: 'var(--radius-sm)',
-                color: 'var(--text-primary)',
-                padding: '0.55rem 1rem',
-                fontSize: '0.85rem',
-                outline: 'none',
-                cursor: 'pointer',
-                fontWeight: 600,
+                padding: '0.45rem 0.85rem',
+                fontSize: '0.825rem',
               }}
             >
-              <option value="ALL">🌐 Tüm Rakiplerin Zaman Çizelgesi</option>
+              <option value="ALL">Tüm Markalar</option>
               {competitors.map(c => (
-                <option key={c.id} value={c.pageId}>🏢 {c.name}</option>
+                <option key={c.id} value={c.pageId}>{c.name}</option>
               ))}
             </select>
           </div>
@@ -73,119 +62,76 @@ export const HistoricalTimeline: React.FC<HistoricalTimelineProps> = ({ ads, com
       </div>
 
       {/* Timeline Stream */}
-      <div style={{ position: 'relative', paddingLeft: '1.5rem', borderLeft: '2px dashed var(--border-accent)' }}>
-        
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
         {monthKeys.length === 0 ? (
-          <div className="glass-panel" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-            Bu rakip için arşivlenmiş geçmiş reklam bulunamadı.
+          <div className="card" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+            Bu filtreye uygun geçmiş reklam kaydı bulunamadı.
           </div>
         ) : (
-          monthKeys.map((monthName) => {
-            const monthAds = groupedByMonth[monthName];
-            const activeCount = monthAds.filter(a => a.activeStatus === 'ACTIVE').length;
-            const pastCount = monthAds.filter(a => a.activeStatus === 'INACTIVE').length;
-
+          monthKeys.map((month) => {
+            const monthAds = groupedByMonth[month];
             return (
-              <div key={monthName} style={{ marginBottom: '2.5rem', position: 'relative' }}>
+              <div key={month} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                 
-                {/* Timeline Dot */}
-                <div style={{
-                  position: 'absolute',
-                  left: '-1.95rem',
-                  top: '0px',
-                  width: '16px',
-                  height: '16px',
-                  borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #7c3aed, #06b6d4)',
-                  border: '3px solid var(--bg-primary)',
-                  boxShadow: '0 0 10px rgba(124, 58, 237, 0.6)',
-                }} />
-
-                {/* Month Title Card */}
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '1rem',
-                  marginBottom: '1rem',
-                  flexWrap: 'wrap',
-                }}>
-                  <h3 style={{ fontSize: '1.15rem', fontWeight: 800 }} className="gradient-text-purple">
-                    📅 {monthName}
-                  </h3>
-
-                  <div style={{ display: 'flex', gap: '0.5rem', fontSize: '0.75rem' }}>
-                    <span className="badge badge-active">{activeCount} Aktif Reklam</span>
-                    <span className="badge badge-inactive">{pastCount} Geçmiş Reklam</span>
+                {/* Month Title */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                    {month}
                   </div>
+                  <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--border-default)' }} />
+                  <span className="badge badge-neutral" style={{ fontSize: '0.7rem' }}>
+                    {monthAds.length} Reklam
+                  </span>
                 </div>
 
-                {/* Month Ads Cards Grid */}
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-                  gap: '1rem',
-                }}>
+                {/* Ads in this month */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '0.85rem' }}>
                   {monthAds.map((ad) => (
                     <div
                       key={ad.id}
                       onClick={() => onSelectAd(ad)}
-                      className="glass-panel"
+                      className="card"
                       style={{
-                        padding: '1rem',
+                        padding: '0.85rem',
                         cursor: 'pointer',
                         display: 'flex',
-                        gap: '0.85rem',
+                        gap: '0.75rem',
                         alignItems: 'center',
-                        transition: 'transform 0.2s ease',
                       }}
                     >
-                      <img
-                        src={ad.mediaUrls[0]}
-                        alt={ad.adHeadline}
-                        style={{
-                          width: '64px',
-                          height: '64px',
-                          borderRadius: '10px',
-                          objectFit: 'cover',
-                          border: '1px solid var(--border-glass)',
-                        }}
-                      />
+                      <div style={{
+                        width: '56px',
+                        height: '56px',
+                        borderRadius: 'var(--radius-sm)',
+                        backgroundColor: '#000000',
+                        overflow: 'hidden',
+                        flexShrink: 0,
+                        border: '1px solid var(--border-default)',
+                      }}>
+                        <img
+                          src={ad.videoThumbnail || ad.mediaUrls[0]}
+                          alt={ad.adHeadline}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        />
+                      </div>
 
-                      <div style={{ flex: 1, overflow: 'hidden' }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginBottom: '2px' }}>
-                          <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)' }}>
-                            {ad.pageName}
-                          </span>
-                          {ad.activeStatus === 'ACTIVE' ? (
-                            <span style={{ color: '#34d399', fontSize: '0.65rem' }}>• Aktif</span>
-                          ) : (
-                            <span style={{ color: '#9ca3af', fontSize: '0.65rem' }}>• Geçmiş</span>
-                          )}
-                        </div>
-
-                        <div style={{
-                          fontWeight: 700,
-                          fontSize: '0.85rem',
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          marginBottom: '4px',
-                        }}>
-                          {ad.adHeadline}
-                        </div>
-
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-                            {ad.format === 'VIDEO' && <Film size={11} />}
-                            {ad.format === 'IMAGE' && <ImageIcon size={11} />}
-                            {ad.format === 'CAROUSEL' && <Layers size={11} />}
+                          <span style={{ fontWeight: 600, fontSize: '0.825rem', color: 'var(--text-primary)' }}>{ad.pageName}</span>
+                          <span className="badge badge-neutral" style={{ fontSize: '0.65rem', padding: '0.05rem 0.35rem' }}>
+                            {ad.format === 'VIDEO' ? <Film size={9} /> : ad.format === 'CAROUSEL' ? <Layers size={9} /> : <ImageIcon size={9} />}
                             {ad.format}
                           </span>
-                          <span>• {ad.activeDaysCount} Gün Yayında</span>
+                        </div>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {ad.adHeadline}
+                        </div>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                          {ad.activeDaysCount} gün yayında kaldı
                         </div>
                       </div>
 
-                      <ChevronRight size={16} color="var(--text-muted)" />
+                      <ChevronRight size={15} color="var(--text-muted)" />
                     </div>
                   ))}
                 </div>
@@ -194,8 +140,8 @@ export const HistoricalTimeline: React.FC<HistoricalTimelineProps> = ({ ads, com
             );
           })
         )}
-
       </div>
+
     </div>
   );
 };

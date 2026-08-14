@@ -1,7 +1,8 @@
 import React from 'react';
 import { MarketingRoute } from '../types/suite';
 import { useAuth } from '../contexts/AuthContext';
-import { ChevronRight, Sliders, LogOut } from 'lucide-react';
+import { useTheme } from '../contexts/ThemeContext';
+import { ChevronRight, Sliders, LogOut, Sun, Moon } from 'lucide-react';
 
 interface TopBarProps {
   currentRoute: MarketingRoute;
@@ -10,6 +11,7 @@ interface TopBarProps {
 
 export const TopBar: React.FC<TopBarProps> = ({ currentRoute, onNavigate }) => {
   const { user, logout, hasRole } = useAuth();
+  const { theme, toggleTheme } = useTheme();
 
   const getRouteTitle = () => {
     switch (currentRoute) {
@@ -31,7 +33,7 @@ export const TopBar: React.FC<TopBarProps> = ({ currentRoute, onNavigate }) => {
   return (
     <header style={{
       height: '56px',
-      borderBottom: '1px solid var(--border-subtle)',
+      borderBottom: '1px solid var(--border-default)',
       backgroundColor: 'var(--bg-surface)',
       display: 'flex',
       alignItems: 'center',
@@ -56,8 +58,8 @@ export const TopBar: React.FC<TopBarProps> = ({ currentRoute, onNavigate }) => {
         </span>
       </div>
 
-      {/* Right: Actions & User */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+      {/* Right: Actions, Theme Switcher & User */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
         
         {/* Environment Status Badge */}
         <div style={{
@@ -71,9 +73,39 @@ export const TopBar: React.FC<TopBarProps> = ({ currentRoute, onNavigate }) => {
           border: '1px solid var(--border-default)',
           color: 'var(--text-secondary)',
         }}>
-          <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10b981' }} />
+          <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--success)' }} />
           <span>marketing.roasist.com</span>
         </div>
+
+        {/* Theme Toggle Button (Light / Dark) */}
+        <button
+          onClick={toggleTheme}
+          title={theme === 'dark' ? 'Açık Moda Geç' : 'Karanlık Moda Geç'}
+          className="btn-ghost"
+          style={{
+            padding: '0.35rem 0.55rem',
+            border: '1px solid var(--border-default)',
+            backgroundColor: 'var(--bg-surface-elevated)',
+            borderRadius: 'var(--radius-sm)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.35rem',
+            fontSize: '0.75rem',
+            color: 'var(--text-secondary)',
+          }}
+        >
+          {theme === 'dark' ? (
+            <>
+              <Sun size={14} color="#f59e0b" />
+              <span>Açık Mod</span>
+            </>
+          ) : (
+            <>
+              <Moon size={14} color="var(--text-secondary)" />
+              <span>Karanlık Mod</span>
+            </>
+          )}
+        </button>
 
         {/* Admin Quick Button */}
         {hasRole(['SUPER_ADMIN', 'ADMIN']) && currentRoute !== 'admin' && (

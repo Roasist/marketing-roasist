@@ -1,6 +1,6 @@
 import React from 'react';
 import { FilterState } from '../types/ad';
-import { Search, Flame, History, Film, Image as ImageIcon, Layers, ArrowUpDown, Filter } from 'lucide-react';
+import { Search, Flame, History, ArrowUpDown } from 'lucide-react';
 
 interface AdFiltersProps {
   filters: FilterState;
@@ -14,49 +14,44 @@ export const AdFilters: React.FC<AdFiltersProps> = ({
   totalResultsCount,
 }) => {
   return (
-    <div className="glass-panel" style={{ padding: '1rem 1.25rem', marginBottom: '1.5rem' }}>
+    <div className="card" style={{ padding: '0.85rem 1rem', marginBottom: '1.25rem' }}>
       <div style={{
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
         flexWrap: 'wrap',
-        gap: '1rem',
+        gap: '0.75rem',
       }}>
 
         {/* Search Bar */}
-        <div style={{ position: 'relative', flex: '1 1 240px', minWidth: '220px' }}>
-          <Search size={16} color="var(--text-muted)" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+        <div style={{ position: 'relative', flex: '1 1 240px', minWidth: '200px' }}>
+          <Search size={15} color="var(--text-muted)" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }} />
           <input
             type="text"
-            placeholder="Reklam metni veya başlıkta ara..."
+            placeholder="Reklam metni veya kancada ara..."
             value={filters.searchKeyword}
             onChange={(e) => onFilterChange({ searchKeyword: e.target.value })}
             style={{
               width: '100%',
-              padding: '0.55rem 0.85rem 0.55rem 2.3rem',
-              background: 'rgba(255, 255, 255, 0.03)',
-              border: '1px solid var(--border-glass)',
-              borderRadius: 'var(--radius-sm)',
-              color: 'var(--text-primary)',
-              fontSize: '0.85rem',
-              outline: 'none',
+              paddingLeft: '2.1rem',
             }}
           />
         </div>
 
         {/* Status Filter Toggle */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', background: 'rgba(0, 0, 0, 0.3)', padding: '3px', borderRadius: 'var(--radius-sm)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '2px', backgroundColor: 'var(--bg-surface-elevated)', padding: '2px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
           <button
             onClick={() => onFilterChange({ status: 'ALL' })}
             style={{
-              padding: '0.4rem 0.75rem',
+              padding: '0.35rem 0.65rem',
               border: 'none',
-              borderRadius: 'var(--radius-sm)',
-              background: filters.status === 'ALL' ? 'var(--accent-purple)' : 'transparent',
-              color: filters.status === 'ALL' ? 'white' : 'var(--text-secondary)',
-              fontSize: '0.8rem',
-              fontWeight: 600,
+              borderRadius: 'var(--radius-xs)',
+              backgroundColor: filters.status === 'ALL' ? 'var(--bg-surface)' : 'transparent',
+              color: filters.status === 'ALL' ? 'var(--text-primary)' : 'var(--text-secondary)',
+              fontSize: '0.78rem',
+              fontWeight: filters.status === 'ALL' ? 600 : 400,
               cursor: 'pointer',
+              boxShadow: filters.status === 'ALL' ? 'var(--shadow-sm)' : 'none',
             }}
           >
             Tümü
@@ -64,86 +59,73 @@ export const AdFilters: React.FC<AdFiltersProps> = ({
           <button
             onClick={() => onFilterChange({ status: 'ACTIVE' })}
             style={{
-              padding: '0.4rem 0.75rem',
+              padding: '0.35rem 0.65rem',
               border: 'none',
-              borderRadius: 'var(--radius-sm)',
-              background: filters.status === 'ACTIVE' ? 'var(--accent-emerald)' : 'transparent',
-              color: filters.status === 'ACTIVE' ? 'white' : 'var(--text-secondary)',
-              fontSize: '0.8rem',
-              fontWeight: 600,
+              borderRadius: 'var(--radius-xs)',
+              backgroundColor: filters.status === 'ACTIVE' ? 'var(--bg-surface)' : 'transparent',
+              color: filters.status === 'ACTIVE' ? 'var(--success)' : 'var(--text-secondary)',
+              fontSize: '0.78rem',
+              fontWeight: filters.status === 'ACTIVE' ? 600 : 400,
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               gap: '0.3rem',
+              boxShadow: filters.status === 'ACTIVE' ? 'var(--shadow-sm)' : 'none',
             }}
           >
-            <Flame size={14} /> Aktif Reklamlar
+            <Flame size={12} /> Aktif
           </button>
           <button
             onClick={() => onFilterChange({ status: 'INACTIVE' })}
             style={{
-              padding: '0.4rem 0.75rem',
+              padding: '0.35rem 0.65rem',
               border: 'none',
-              borderRadius: 'var(--radius-sm)',
-              background: filters.status === 'INACTIVE' ? 'var(--accent-indigo)' : 'transparent',
-              color: filters.status === 'INACTIVE' ? 'white' : 'var(--text-secondary)',
-              fontSize: '0.8rem',
-              fontWeight: 600,
+              borderRadius: 'var(--radius-xs)',
+              backgroundColor: filters.status === 'INACTIVE' ? 'var(--bg-surface)' : 'transparent',
+              color: filters.status === 'INACTIVE' ? 'var(--text-primary)' : 'var(--text-secondary)',
+              fontSize: '0.78rem',
+              fontWeight: filters.status === 'INACTIVE' ? 600 : 400,
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               gap: '0.3rem',
+              boxShadow: filters.status === 'INACTIVE' ? 'var(--shadow-sm)' : 'none',
             }}
           >
-            <History size={14} /> Geçmiş Reklamlar
+            <History size={12} /> Geçmiş
           </button>
         </div>
 
-        {/* Format Selectors */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-          <Filter size={15} color="var(--text-muted)" />
-          <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginRight: '4px' }}>Format:</span>
-          
-          {(['ALL', 'IMAGE', 'VIDEO', 'CAROUSEL'] as const).map((fmt) => (
-            <button
-              key={fmt}
-              onClick={() => onFilterChange({ format: fmt })}
-              className={filters.format === fmt ? 'btn-primary' : 'btn-secondary'}
-              style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem' }}
-            >
-              {fmt === 'ALL' && 'Tümü'}
-              {fmt === 'IMAGE' && <><ImageIcon size={13} /> Görsel</>}
-              {fmt === 'VIDEO' && <><Film size={13} /> Video</>}
-              {fmt === 'CAROUSEL' && <><Layers size={13} /> Carousel</>}
-            </button>
-          ))}
-        </div>
-
-        {/* Sorting Dropdown */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <ArrowUpDown size={15} color="var(--text-muted)" />
+        {/* Format Selector */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
           <select
-            value={filters.sortBy}
-            onChange={(e) => onFilterChange({ sortBy: e.target.value as any })}
-            style={{
-              background: 'var(--bg-primary)',
-              border: '1px solid var(--border-glass)',
-              borderRadius: 'var(--radius-sm)',
-              color: 'var(--text-primary)',
-              padding: '0.45rem 0.75rem',
-              fontSize: '0.8rem',
-              outline: 'none',
-              cursor: 'pointer',
-            }}
+            value={filters.format}
+            onChange={(e) => onFilterChange({ format: e.target.value as any })}
+            style={{ fontSize: '0.8rem', padding: '0.4rem 0.65rem' }}
           >
-            <option value="NEWEST">📅 En Yeni Eklenenler</option>
-            <option value="LONGEST_RUNNING">🔥 En Uzun Süre Yayında Kalanlar (Kazananlar)</option>
+            <option value="ALL">Tüm Formatlar</option>
+            <option value="VIDEO">Video Reklamlar</option>
+            <option value="IMAGE">Görsel Reklamlar</option>
+            <option value="CAROUSEL">Carousel Reklamlar</option>
           </select>
         </div>
 
-        {/* Results Counter */}
-        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
-          {totalResultsCount} Reklam Bulundu
+        {/* Sort Selector */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+          <ArrowUpDown size={14} color="var(--text-muted)" />
+          <select
+            value={filters.sortBy}
+            onChange={(e) => onFilterChange({ sortBy: e.target.value as any })}
+            style={{ fontSize: '0.8rem', padding: '0.4rem 0.65rem' }}
+          >
+            <option value="NEWEST">En Yeniler İlk</option>
+            <option value="LONGEST_RUNNING">En Uzun Yayında Olanlar (Winner)</option>
+          </select>
+        </div>
+
+        {/* Count Pill */}
+        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginLeft: 'auto' }}>
+          <strong>{totalResultsCount}</strong> reklam listeleniyor
         </div>
 
       </div>
