@@ -11,6 +11,7 @@ import { HistoricalTimeline } from '../components/HistoricalTimeline';
 import { AnalyticsDashboard } from '../components/AnalyticsDashboard';
 import { AIStrategyReport } from '../components/AIStrategyReport';
 import { 
+  Flame, 
   History, 
   BarChart3, 
   BrainCircuit, 
@@ -19,9 +20,7 @@ import {
   Trash2, 
   Tag,
   ExternalLink,
-  Loader2,
-  Layers,
-  Search
+  Loader2
 } from 'lucide-react';
 
 interface CompetitorsModuleProps {
@@ -44,9 +43,7 @@ export const CompetitorsModule: React.FC<CompetitorsModuleProps> = ({
   const [competitors, setCompetitors] = useState<Competitor[]>(initialCompetitors);
   const [ads, setAds] = useState<AdItem[]>(initialAds);
   const [selectedCompetitorId, setSelectedCompetitorId] = useState<string>('ALL');
-  
-  // Dedicated clean sub-tabs for Meta vs Google
-  const [activeSubTab, setActiveSubTab] = useState<'meta-feed' | 'google-feed' | 'timeline' | 'analytics' | 'ai-strategy' | 'saved-ads'>('google-feed');
+  const [activeSubTab, setActiveSubTab] = useState<'feed' | 'timeline' | 'analytics' | 'ai-strategy' | 'saved-ads'>('feed');
   const [selectedAdForModal, setSelectedAdForModal] = useState<AdItem | null>(null);
 
   // Saved Ads state
@@ -87,17 +84,21 @@ export const CompetitorsModule: React.FC<CompetitorsModuleProps> = ({
       const promises: Promise<AdItem[]>[] = [];
 
       // 1. Meta Ads Fetch
-      promises.push(ApiService.fetchMetaAds({
-        pageId: targetId && targetId !== 'ALL' ? targetId : undefined,
-        country: filters.country || 'TR',
-        status: filters.status !== 'ALL' ? filters.status : undefined,
-        mediaType: (filters.format === 'IMAGE' || filters.format === 'VIDEO' || filters.format === 'CAROUSEL') ? filters.format : undefined,
-      }));
+      if (filters.network === 'ALL' || filters.network === 'META') {
+        promises.push(ApiService.fetchMetaAds({
+          pageId: targetId && targetId !== 'ALL' ? targetId : undefined,
+          country: filters.country || 'TR',
+          status: filters.status !== 'ALL' ? filters.status : undefined,
+          mediaType: (filters.format === 'IMAGE' || filters.format === 'VIDEO' || filters.format === 'CAROUSEL') ? filters.format : undefined,
+        }));
+      }
 
       // 2. Google Ads Transparency Fetch
-      const domainOrBrand = activeCompetitor?.domain || activeCompetitor?.name || queryName || (targetId !== 'ALL' ? targetId : '');
-      if (domainOrBrand) {
-        promises.push(ApiService.fetchGoogleAds(domainOrBrand, filters.country || 'TR', filters.format));
+      if (filters.network === 'ALL' || filters.network === 'GOOGLE') {
+        const domainOrBrand = activeCompetitor?.domain || activeCompetitor?.name || queryName || (targetId !== 'ALL' ? targetId : '');
+        if (domainOrBrand) {
+          promises.push(ApiService.fetchGoogleAds(domainOrBrand, filters.country || 'TR', filters.format));
+        }
       }
 
       const results = await Promise.allSettled(promises);
@@ -126,10 +127,10 @@ export const CompetitorsModule: React.FC<CompetitorsModuleProps> = ({
   }, []);
 
   useEffect(() => {
-    if (selectedCompetitorId || filters.country) {
+    if (selectedCompetitorId || filters.country || filters.network) {
       fetchLiveAds(selectedCompetitorId);
     }
-  }, [selectedCompetitorId, filters.country, filters.status, filters.format]);
+  }, [selectedCompetitorId, filters.country, filters.network, filters.status, filters.format]);
 
   const handleAddComp = async (urlOrId: any) => {
     try {
@@ -142,13 +143,7 @@ export const CompetitorsModule: React.FC<CompetitorsModuleProps> = ({
         });
         const targetPageId = newComp.pageId || newComp.id;
         setSelectedCompetitorId(targetPageId);
-        
-        // If it's a domain/google competitor, auto-switch to Google tab
-        if ((newComp as any).network === 'GOOGLE' || (newComp.domain && newComp.domain.includes('.'))) {
-          setActiveSubTab('google-feed');
-        } else {
-          setActiveSubTab('meta-feed');
-        }
+        setFilters(prev => ({ ...prev, network: 'ALL' }));
         await fetchLiveAds(targetPageId);
       }
     } catch (err: any) {
@@ -194,8 +189,8 @@ export const CompetitorsModule: React.FC<CompetitorsModuleProps> = ({
     }
   };
 
-  // Base platform filter
-  const baseAds = ads.filter(ad => {
+  // Smart Multi-Level Filter & Sorting Engine
+  const filteredAds = ads.filter((ad) => {
     if (selectedCompetitorId !== 'ALL') {
       const s = selectedCompetitorId.toLowerCase();
       const matchId = ad.pageId?.toLowerCase() === s;
@@ -203,14 +198,12 @@ export const CompetitorsModule: React.FC<CompetitorsModuleProps> = ({
       const matchName = ad.pageName?.toLowerCase() === s;
       if (!matchId && !matchDomain && !matchName) return false;
     }
-    return true;
-  });
-
-  const metaAds = baseAds.filter(ad => ad.network !== 'GOOGLE');
-  const googleAds = baseAds.filter(ad => ad.network === 'GOOGLE');
-
-  // Filtered by sub-tab and current filter criteria
-  const currentTabAds = (activeSubTab === 'meta-feed' ? metaAds : googleAds).filter((ad) => {
+    if (filters.network === 'META' && ad.network === 'GOOGLE') {
+      return false;
+    }
+    if (filters.network === 'GOOGLE' && ad.network !== 'GOOGLE') {
+      return false;
+    }
     if (filters.status !== 'ALL' && ad.activeStatus !== filters.status) {
       return false;
     }
@@ -227,13 +220,28 @@ export const CompetitorsModule: React.FC<CompetitorsModuleProps> = ({
     }
     return true;
   }).sort((a, b) => {
+    // 1. Priority: Active ads first
+    const aActive = a.activeStatus === 'ACTIVE' ? 1 : 0;
+    const bActive = b.activeStatus === 'ACTIVE' ? 1 : 0;
+    if (aActive !== bActive) {
+      return bActive - aActive; // Active comes first
+    }
+
+    // 2. If Longest Running sort is selected
     if (filters.sortBy === 'LONGEST_RUNNING') {
       return b.activeDaysCount - a.activeDaysCount;
     }
+
+    // 3. Priority: Sort by most recent lastSeenDate (or fallback to startDate)
+    const aLastDate = new Date(a.lastSeenDate || a.startDate).getTime();
+    const bLastDate = new Date(b.lastSeenDate || b.startDate).getTime();
+    if (aLastDate !== bLastDate) {
+      return bLastDate - aLastDate; // Most recent last seen first
+    }
+
+    // 4. Priority: Start date newest first
     return new Date(b.startDate).getTime() - new Date(a.startDate).getTime();
   });
-
-  const activeCompetitor = competitors.find(c => c.id === selectedCompetitorId || c.pageId === selectedCompetitorId || c.domain === selectedCompetitorId);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -245,7 +253,7 @@ export const CompetitorsModule: React.FC<CompetitorsModuleProps> = ({
             Rakip Reklam İstihbaratı
           </h1>
           <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
-            Google Ads Şeffaflık Merkezi ve Meta Reklam Kütüphanesi üzerinden canlı rakip analizi.
+            Rakiplerin aktif kampanyaları, kreatif formatları ve kanıtlanmış kanca stratejileri.
           </p>
         </div>
 
@@ -271,155 +279,107 @@ export const CompetitorsModule: React.FC<CompetitorsModuleProps> = ({
         onRemoveCompetitor={handleRemoveComp}
       />
 
-      {/* Clean Dedicated Platform Sub-Navigation Tabs */}
-      <div style={{ display: 'flex', gap: '0.4rem', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.5rem', overflowX: 'auto' }}>
+      {/* Sub-Navigation Tabs */}
+      <div style={{ display: 'flex', gap: '0.35rem', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.5rem', overflowX: 'auto' }}>
         
-        {/* Google Ads Tab */}
         <button
-          onClick={() => {
-            setActiveSubTab('google-feed');
-            setFilters(prev => ({ ...prev, network: 'GOOGLE' }));
-          }}
-          className={activeSubTab === 'google-feed' ? 'btn-primary' : 'btn-ghost'}
-          style={{
-            padding: '0.5rem 1rem',
-            fontSize: '0.85rem',
-            fontWeight: activeSubTab === 'google-feed' ? 600 : 500,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.45rem',
-          }}
+          onClick={() => setActiveSubTab('feed')}
+          className={activeSubTab === 'feed' ? 'btn-primary' : 'btn-ghost'}
+          style={{ padding: '0.45rem 0.85rem', fontSize: '0.825rem' }}
         >
-          <span style={{ fontSize: '1rem' }}>🔴</span>
-          <span>Google Ads ({googleAds.length})</span>
+          <Flame size={14} /> Reklam Akışı ({filteredAds.length})
         </button>
 
-        {/* Meta Ads Tab */}
-        <button
-          onClick={() => {
-            setActiveSubTab('meta-feed');
-            setFilters(prev => ({ ...prev, network: 'META' }));
-          }}
-          className={activeSubTab === 'meta-feed' ? 'btn-primary' : 'btn-ghost'}
-          style={{
-            padding: '0.5rem 1rem',
-            fontSize: '0.85rem',
-            fontWeight: activeSubTab === 'meta-feed' ? 600 : 500,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.45rem',
-          }}
-        >
-          <span style={{ fontSize: '1rem' }}>📘</span>
-          <span>Meta Reklamları ({metaAds.length})</span>
-        </button>
-
-        {/* Saved Ads Tab */}
         <button
           onClick={() => setActiveSubTab('saved-ads')}
           className={activeSubTab === 'saved-ads' ? 'btn-primary' : 'btn-ghost'}
-          style={{ padding: '0.5rem 0.9rem', fontSize: '0.85rem' }}
+          style={{ padding: '0.45rem 0.85rem', fontSize: '0.825rem' }}
         >
           <Bookmark size={14} /> Kaydedilenler ({savedAds.length})
         </button>
 
-        {/* Timeline Tab */}
         <button
           onClick={() => setActiveSubTab('timeline')}
           className={activeSubTab === 'timeline' ? 'btn-primary' : 'btn-ghost'}
-          style={{ padding: '0.5rem 0.9rem', fontSize: '0.85rem' }}
+          style={{ padding: '0.45rem 0.85rem', fontSize: '0.825rem' }}
         >
           <History size={14} /> Zaman Çizelgesi
         </button>
 
-        {/* Analytics Tab */}
         <button
           onClick={() => setActiveSubTab('analytics')}
           className={activeSubTab === 'analytics' ? 'btn-primary' : 'btn-ghost'}
-          style={{ padding: '0.5rem 0.9rem', fontSize: '0.85rem' }}
+          style={{ padding: '0.45rem 0.85rem', fontSize: '0.825rem' }}
         >
           <BarChart3 size={14} /> Format & Dağılım
         </button>
 
-        {/* AI Strategy Report Tab */}
         <button
           onClick={() => setActiveSubTab('ai-strategy')}
           className={activeSubTab === 'ai-strategy' ? 'btn-primary' : 'btn-ghost'}
-          style={{ padding: '0.5rem 0.9rem', fontSize: '0.85rem' }}
+          style={{ padding: '0.45rem 0.85rem', fontSize: '0.825rem' }}
         >
           <BrainCircuit size={14} /> AI Strateji Analizi
         </button>
 
       </div>
 
-      {/* Google Ads Feed Tab */}
-      {activeSubTab === 'google-feed' && (
+      {/* Tab 1: Unified Live Ad Feed */}
+      {activeSubTab === 'feed' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          
-          {/* Google Transparency Banner Header */}
-          <div style={{
-            backgroundColor: 'var(--bg-surface)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: 'var(--radius-md)',
-            padding: '0.85rem 1.25rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '0.75rem',
-          }}>
-            <div>
-              <div style={{ fontSize: '0.925rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <span>🔴 Google Ads Şeffaflık Merkezi İstihbaratı</span>
-                <span style={{ fontSize: '0.75rem', backgroundColor: 'var(--bg-surface-elevated)', padding: '2px 8px', borderRadius: '12px', border: '1px solid var(--border-default)', color: 'var(--text-secondary)' }}>
-                  {googleAds.length} Resmi Kreatif
-                </span>
-              </div>
-              <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-                Son gösterim tarihi 2 günü geçen kampanyalar otomatik olarak arşiv olarak işaretlenir.
-              </p>
-            </div>
-
-            {activeCompetitor && (
-              <a
-                href={activeCompetitor.googleAdvertiserId 
-                  ? `https://adstransparency.google.com/advertiser/${activeCompetitor.googleAdvertiserId}?region=TR`
-                  : `https://adstransparency.google.com/?region=TR&domain=${encodeURIComponent(activeCompetitor.domain || activeCompetitor.name)}`}
-                target="_blank"
-                rel="noreferrer"
-                className="btn-secondary"
-                style={{ fontSize: '0.78rem', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
-              >
-                <ExternalLink size={13} /> {activeCompetitor.name} - Google Kütüphanesini Aç
-              </a>
-            )}
-          </div>
-
           <AdFilters
             filters={filters}
             onFilterChange={(newF) => setFilters({ ...filters, ...newF })}
-            totalResultsCount={currentTabAds.length}
+            totalResultsCount={filteredAds.length}
           />
 
           {isLoadingAds ? (
             <div className="card" style={{ padding: '3.5rem 2rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
               <Loader2 size={28} className="animate-spin" style={{ color: 'var(--brand-primary)', marginBottom: '1rem' }} />
               <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                Google Ads Şeffaflık Merkezinden Canlı Veriler Alınıyor...
+                Canlı Reklam İstihbaratı Verileri Alınıyor...
               </div>
               <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.35rem' }}>
-                Seçili markanın tüm aktif ve geçmiş Google kampanyaları taranıyor.
+                Seçili markanın tüm aktif ve geçmiş kampanyaları taranıyor.
               </p>
             </div>
-          ) : currentTabAds.length === 0 ? (
+          ) : filteredAds.length === 0 ? (
             <div className="card" style={{ padding: '3.5rem 2rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-              <Search size={32} color="var(--text-muted)" style={{ marginBottom: '0.75rem' }} />
-              <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                Kriterlere Uygun Google Reklamı Bulunamadı
+              <div style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '12px',
+                backgroundColor: 'var(--bg-surface-elevated)',
+                border: '1px solid var(--border-default)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--brand-primary)',
+                marginBottom: '1rem',
+              }}>
+                <Flame size={24} />
               </div>
-              <p style={{ fontSize: '0.825rem', color: 'var(--text-muted)', marginTop: '0.35rem', maxWidth: '400px' }}>
-                Filtreleri sıfırlayarak veya yukarıdan takip edilen markayı değiştirerek Google kampanyalarını listeleyebilirsiniz.
+
+              <div style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.35rem' }}>
+                {competitors.length === 0 ? 'Takip Edilen Rakip Bulunmuyor' : 'Filtre Kriterlerine Uygun Reklam Bulunamadı'}
+              </div>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', maxWidth: '460px', lineHeight: 1.5, marginBottom: '1.25rem' }}>
+                {competitors.length === 0 
+                  ? 'Takip etmek istediğiniz web sitesi domainini (örn: 23projects.net) veya Meta sayfa linkini yukarıdaki alana girerek istihbarat havuzunuzu oluşturabilirsiniz.'
+                  : 'Seçili filtreleri sıfırlayarak veya yukarıdan başka bir rakip seçerek aktif reklamları görüntüleyebilirsiniz.'}
               </p>
+
+              {competitors.length === 0 && (
+                <a
+                  href="https://adstransparency.google.com/?region=TR"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="btn-secondary"
+                  style={{ textDecoration: 'none', fontSize: '0.825rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
+                >
+                  <ExternalLink size={14} /> Google Reklam Şeffaflığı Merkezini Aç (TR)
+                </a>
+              )}
             </div>
           ) : (
             <div style={{
@@ -427,7 +387,7 @@ export const CompetitorsModule: React.FC<CompetitorsModuleProps> = ({
               gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
               gap: '1rem',
             }}>
-              {currentTabAds.map((ad) => (
+              {filteredAds.map((ad) => (
                 <div key={ad.id} style={{ position: 'relative' }}>
                   <AdCard
                     ad={ad}
@@ -440,7 +400,7 @@ export const CompetitorsModule: React.FC<CompetitorsModuleProps> = ({
                       position: 'absolute',
                       top: '12px',
                       right: '12px',
-                      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                      backgroundColor: 'rgba(255, 255, 255, 0.92)',
                       border: '1px solid #cbd5e1',
                       borderRadius: '6px',
                       padding: '4px 8px',
@@ -464,116 +424,7 @@ export const CompetitorsModule: React.FC<CompetitorsModuleProps> = ({
         </div>
       )}
 
-      {/* Meta Ads Feed Tab */}
-      {activeSubTab === 'meta-feed' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          
-          {/* Meta Banner Header */}
-          <div style={{
-            backgroundColor: 'var(--bg-surface)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: 'var(--radius-md)',
-            padding: '0.85rem 1.25rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '0.75rem',
-          }}>
-            <div>
-              <div style={{ fontSize: '0.925rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <span>📘 Meta (Facebook & Instagram) Reklam Kütüphanesi</span>
-                <span style={{ fontSize: '0.75rem', backgroundColor: 'var(--bg-surface-elevated)', padding: '2px 8px', borderRadius: '12px', border: '1px solid var(--border-default)', color: 'var(--text-secondary)' }}>
-                  {metaAds.length} Canlı Kreatif
-                </span>
-              </div>
-              <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-                Rakiplerin Facebook, Instagram ve Messenger üzerindeki orijinal medya ve metinleri.
-              </p>
-            </div>
-
-            {activeCompetitor && (
-              <a
-                href={activeCompetitor.facebookPageUrl || `https://www.facebook.com/ads/library/?active_status=all&ad_type=all&country=TR&view_all_page_id=${activeCompetitor.pageId}`}
-                target="_blank"
-                rel="noreferrer"
-                className="btn-secondary"
-                style={{ fontSize: '0.78rem', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
-              >
-                <ExternalLink size={13} /> {activeCompetitor.name} - Meta Kütüphanesini Aç
-              </a>
-            )}
-          </div>
-
-          <AdFilters
-            filters={filters}
-            onFilterChange={(newF) => setFilters({ ...filters, ...newF })}
-            totalResultsCount={currentTabAds.length}
-          />
-
-          {isLoadingAds ? (
-            <div className="card" style={{ padding: '3.5rem 2rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-              <Loader2 size={28} className="animate-spin" style={{ color: 'var(--brand-primary)', marginBottom: '1rem' }} />
-              <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                Meta Reklam Kütüphanesinden Canlı Veriler Alınıyor...
-              </div>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.35rem' }}>
-                Seçili markanın aktif kampanyaları ve kreatifleri taranıyor.
-              </p>
-            </div>
-          ) : currentTabAds.length === 0 ? (
-            <div className="card" style={{ padding: '3.5rem 2rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-              <Layers size={32} color="var(--text-muted)" style={{ marginBottom: '0.75rem' }} />
-              <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                Kriterlere Uygun Meta Reklamı Bulunamadı
-              </div>
-              <p style={{ fontSize: '0.825rem', color: 'var(--text-muted)', marginTop: '0.35rem', maxWidth: '400px' }}>
-                Seçili filtreleri sıfırlayarak veya yukarıdan başka bir rakip seçerek Meta reklamlarını görüntüleyebilirsiniz.
-              </p>
-            </div>
-          ) : (
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-              gap: '1rem',
-            }}>
-              {currentTabAds.map((ad) => (
-                <div key={ad.id} style={{ position: 'relative' }}>
-                  <AdCard
-                    ad={ad}
-                    onInspect={(selected) => setSelectedAdForModal(selected)}
-                  />
-                  <button
-                    onClick={() => handleSaveAd(ad)}
-                    title="Reklamı Kaydet"
-                    style={{
-                      position: 'absolute',
-                      top: '12px',
-                      right: '12px',
-                      backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                      border: '1px solid var(--border-default)',
-                      borderRadius: 'var(--radius-xs)',
-                      padding: '4px 8px',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      fontSize: '0.72rem',
-                      fontWeight: 500,
-                      color: 'var(--text-primary)',
-                      zIndex: 5,
-                    }}
-                  >
-                    <Bookmark size={12} /> Kaydet
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Tab 3: Saved Ads & Notes */}
+      {/* Tab 2: Saved Ads & Notes */}
       {activeSubTab === 'saved-ads' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <div>
@@ -592,7 +443,7 @@ export const CompetitorsModule: React.FC<CompetitorsModuleProps> = ({
                 Henüz kaydedilmiş reklam yok
               </div>
               <p style={{ fontSize: '0.825rem', color: 'var(--text-muted)', marginTop: '0.3rem' }}>
-                Reklam sekmelerinden beğendiğiniz reklamların sağ üstündeki <strong>Kaydet</strong> butonunu kullanabilirsiniz.
+                "Reklam Akışı" sekmesinden beğendiğiniz reklamların sağ üstündeki <strong>Kaydet</strong> butonunu kullanabilirsiniz.
               </p>
             </div>
           ) : (
@@ -640,7 +491,7 @@ export const CompetitorsModule: React.FC<CompetitorsModuleProps> = ({
         </div>
       )}
 
-      {/* Tab 4: Historical Timeline */}
+      {/* Tab 3: Historical Timeline */}
       {activeSubTab === 'timeline' && (
         <HistoricalTimeline
           ads={ads}
@@ -649,7 +500,7 @@ export const CompetitorsModule: React.FC<CompetitorsModuleProps> = ({
         />
       )}
 
-      {/* Tab 5: Analytics Dashboard */}
+      {/* Tab 4: Analytics Dashboard */}
       {activeSubTab === 'analytics' && (
         <AnalyticsDashboard
           ads={ads}
@@ -657,7 +508,7 @@ export const CompetitorsModule: React.FC<CompetitorsModuleProps> = ({
         />
       )}
 
-      {/* Tab 6: AI Strategy Report */}
+      {/* Tab 5: AI Strategy Report */}
       {activeSubTab === 'ai-strategy' && (
         <AIStrategyReport
           competitors={competitors}
