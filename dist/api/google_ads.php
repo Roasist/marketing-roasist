@@ -1,7 +1,7 @@
 <?php
 /**
  * Roasist Marketing Suite - Live Google Ads Transparency Center Engine
- * Real-time connection to Google Ads Transparency Center RPC & 100% Real Creative Ingestion
+ * Real-time connection to Google Ads Transparency Center RPC & Universal Creative Ingestion
  */
 
 header('Content-Type: application/json');
@@ -11,18 +11,19 @@ $currentUser = requireAuth();
 $pdo = Database::getConnection();
 
 $action = $_GET['action'] ?? 'search_advertisers';
-$query = trim($_GET['q'] ?? $_GET['domain'] ?? $_GET['advertiser_id'] ?? '');
+$rawQuery = trim($_GET['q'] ?? $_GET['domain'] ?? $_GET['advertiser_id'] ?? '');
 $region = strtoupper(trim($_GET['region'] ?? $_GET['country'] ?? 'TR'));
 $formatFilter = strtoupper(trim($_GET['format'] ?? 'ALL'));
 
 // Clean domain / query
-$cleanDomain = preg_replace('#^https?://#', '', rtrim($query, '/'));
-$domainName = explode('/', $cleanDomain)[0];
+$cleanInput = preg_replace('#^https?://#', '', rtrim($rawQuery, '/'));
+$cleanInput = preg_replace('#^www\.#', '', $cleanInput);
+$domainName = explode('/', $cleanInput)[0];
 
-if (empty($query) || strlen($query) < 2) {
+if (empty($domainName) || strlen($domainName) < 2) {
     echo json_encode([
         'status' => 'success',
-        'query' => $query,
+        'query' => $rawQuery,
         'advertisers' => [],
         'ads' => []
     ]);
@@ -36,8 +37,8 @@ if ($action === 'search_advertisers') {
     // Call Google Transparency Center SearchSuggestions RPC
     $transparencyUrl = "https://adstransparency.google.com/anji/_/rpc/SearchService/SearchSuggestions?authuser=0";
     $payload = "f.req=" . urlencode(json_encode([
-        "1" => $query,
-        "2" => 10,
+        "1" => $domainName,
+        "2" => 12,
         "3" => 10
     ]));
 
@@ -61,7 +62,7 @@ if ($action === 'search_advertisers') {
                 // Case 1: Verified Advertiser Object (item['1'])
                 if (!empty($item['1'])) {
                     $adv = $item['1'];
-                    $name = $adv['1'] ?? $query;
+                    $name = $adv['1'] ?? $domainName;
                     $advId = $adv['2'] ?? ('AR_' . md5($name));
                     $countryCode = $adv['3'] ?? 'TR';
                     $results[] = [
@@ -97,23 +98,48 @@ if ($action === 'search_advertisers') {
         }
     }
 
+    // Always include direct domain search if user typed a domain
+    if (strpos($domainName, '.') !== false) {
+        $alreadyInList = false;
+        foreach ($results as $r) {
+            if (strtolower($r['name']) === strtolower($domainName) || strtolower($r['domain']) === strtolower($domainName)) {
+                $alreadyInList = true;
+                break;
+            }
+        }
+        if (!$alreadyInList) {
+            array_unshift($results, [
+                'id' => 'g_' . md5($domainName),
+                'advertiserId' => '',
+                'name' => $domainName,
+                'domain' => $domainName,
+                'network' => 'GOOGLE',
+                'type' => 'DOMAIN',
+                'country' => 'Global',
+                'avatarUrl' => "https://www.google.com/s2/favicons?domain=" . urlencode($domainName) . "&sz=128",
+                'category' => 'Web Sitesi / Domain',
+                'googleTransparencyUrl' => "https://adstransparency.google.com/?region=" . ($region === 'ALL' ? 'anywhere' : $region) . "&domain=" . urlencode($domainName)
+            ]);
+        }
+    }
+
     echo json_encode([
         'status' => 'success',
-        'query' => $query,
+        'query' => $rawQuery,
         'advertisers' => $results
     ]);
     exit;
 }
 
-// 2. ACTION: Fetch 100% Real Live Google Ads from SearchService/SearchCreatives
+// 2. ACTION: Universal Real Google Ads Fetch (Works for ANY Domain & Advertiser)
 if ($action === 'fetch_google_ads') {
     $brandBase = ucwords(str_replace(['.', '-', '_'], ' ', explode('.', $domainName)[0]));
     $gTransparencyUrl = "https://adstransparency.google.com/?region=" . ($region === 'ALL' ? 'anywhere' : $region) . "&domain=" . urlencode($domainName);
 
-    $realAds = [];
-
-    // Query 1: Direct Domain Search in SearchCreatives
+    $rawCreatives = [];
     $creatUrl = "https://adstransparency.google.com/anji/_/rpc/SearchService/SearchCreatives?authuser=0";
+
+    // Step 1: Query by Domain in SearchCreatives
     $payloadCreat = [
         "2" => 40,
         "3" => [
@@ -135,7 +161,6 @@ if ($action === 'fetch_google_ads') {
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
 
-    $rawCreatives = [];
     if ($httpCode === 200 && !empty($resp)) {
         $j = json_decode($resp, true);
         if (!empty($j['1']) && is_array($j['1'])) {
@@ -143,7 +168,7 @@ if ($action === 'fetch_google_ads') {
         }
     }
 
-    // Query 2: If no direct domain results, try suggestions to get advertiser ID
+    // Step 2: If 0 results by domain, resolve Advertiser ID via SearchSuggestions
     if (empty($rawCreatives)) {
         $sugUrl = "https://adstransparency.google.com/anji/_/rpc/SearchService/SearchSuggestions?authuser=0";
         $payloadSug = ["1" => $domainName, "2" => 10, "3" => 10];
@@ -162,16 +187,16 @@ if ($action === 'fetch_google_ads') {
 
         if (!empty($respSug)) {
             $jSug = json_decode($respSug, true);
-            $advId = null;
+            $foundAdvIds = [];
             if (!empty($jSug['1']) && is_array($jSug['1'])) {
                 foreach ($jSug['1'] as $sItem) {
                     if (!empty($sItem['1']['2'])) {
-                        $advId = $sItem['1']['2'];
-                        break;
+                        $foundAdvIds[] = $sItem['1']['2'];
                     }
                 }
             }
-            if ($advId) {
+
+            foreach ($foundAdvIds as $advId) {
                 $payloadAdv = [
                     "2" => 40,
                     "3" => [
@@ -194,17 +219,81 @@ if ($action === 'fetch_google_ads') {
                 if (!empty($respAdv)) {
                     $jAdv = json_decode($respAdv, true);
                     if (!empty($jAdv['1']) && is_array($jAdv['1'])) {
-                        $rawCreatives = $jAdv['1'];
+                        $rawCreatives = array_merge($rawCreatives, $jAdv['1']);
+                        break;
                     }
                 }
             }
         }
     }
 
+    // Step 3: If still 0 results and domain has extension, try searching base brand name
+    if (empty($rawCreatives) && strpos($domainName, '.') !== false) {
+        $baseQuery = explode('.', $domainName)[0];
+        $sugUrl = "https://adstransparency.google.com/anji/_/rpc/SearchService/SearchSuggestions?authuser=0";
+        $payloadSug = ["1" => $baseQuery, "2" => 6, "3" => 10];
+
+        $chSug = curl_init($sugUrl);
+        curl_setopt($chSug, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($chSug, CURLOPT_POST, true);
+        curl_setopt($chSug, CURLOPT_POSTFIELDS, "f.req=" . urlencode(json_encode($payloadSug)));
+        curl_setopt($chSug, CURLOPT_HTTPHEADER, [
+            'Content-Type: application/x-www-form-urlencoded',
+            'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+        ]);
+        curl_setopt($chSug, CURLOPT_TIMEOUT, 6);
+        $respSug = curl_exec($chSug);
+        curl_close($chSug);
+
+        if (!empty($respSug)) {
+            $jSug = json_decode($respSug, true);
+            if (!empty($jSug['1']) && is_array($jSug['1'])) {
+                foreach ($jSug['1'] as $sItem) {
+                    if (!empty($sItem['1']['2'])) {
+                        $advId = $sItem['1']['2'];
+                        $payloadAdv = [
+                            "2" => 40,
+                            "3" => [
+                                "12" => ["1" => "", "2" => true],
+                                "13" => ["1" => [$advId]]
+                            ],
+                            "7" => ["1" => 1]
+                        ];
+                        $chAdv = curl_init($creatUrl);
+                        curl_setopt($chAdv, CURLOPT_RETURNTRANSFER, true);
+                        curl_setopt($chAdv, CURLOPT_POST, true);
+                        curl_setopt($chAdv, CURLOPT_POSTFIELDS, "f.req=" . urlencode(json_encode($payloadAdv)));
+                        curl_setopt($chAdv, CURLOPT_HTTPHEADER, [
+                            'Content-Type: application/x-www-form-urlencoded',
+                            'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+                        ]);
+                        curl_setopt($chAdv, CURLOPT_TIMEOUT, 8);
+                        $respAdv = curl_exec($chAdv);
+                        curl_close($chAdv);
+                        if (!empty($respAdv)) {
+                            $jAdv = json_decode($respAdv, true);
+                            if (!empty($jAdv['1']) && is_array($jAdv['1'])) {
+                                $rawCreatives = array_merge($rawCreatives, $jAdv['1']);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    $realAds = [];
+    $seenIds = [];
+
     // Transform Raw Google Creatives into AdItems
     foreach ($rawCreatives as $index => $c) {
         $advId = $c['1'] ?? '';
         $creativeId = $c['2'] ?? ('CR_' . $index);
+        
+        if (isset($seenIds[$creativeId])) continue;
+        $seenIds[$creativeId] = true;
+
         $officialName = $c['12'] ?? $brandBase;
         $formatNum = $c['4'] ?? 1; // 1 = Search, 2 = Display/Image, 3 = Responsive/Video
 
