@@ -1,7 +1,7 @@
 <?php
 /**
  * Roasist Marketing Suite - Live Google Ads Transparency Center Engine
- * 100% Authentic Campaign Intelligence with Direct Domain Resolution & 2-Day Active Rule
+ * 100% Authentic Campaign Intelligence with Direct Domain Resolution & Primary Legal Entity Matching
  */
 
 header('Content-Type: application/json');
@@ -128,7 +128,7 @@ if ($action === 'search_advertisers') {
     exit;
 }
 
-// 2. ACTION: Fetch Google Ads via Direct SearchCreatives RPC
+// 2. ACTION: Fetch Google Ads with Exact Primary Verified Entity Resolution
 if ($action === 'fetch_google_ads') {
     $brandBase = ucwords(str_replace(['.', '-', '_'], ' ', explode('.', $domainName)[0]));
     $gTransparencyUrl = "https://adstransparency.google.com/?region=" . ($region === 'ALL' ? 'anywhere' : $region) . "&domain=" . urlencode($domainName);
@@ -137,9 +137,37 @@ if ($action === 'fetch_google_ads') {
     $creatUrl = "https://adstransparency.google.com/anji/_/rpc/SearchService/SearchCreatives?authuser=0";
 
     $isDomainQuery = strpos($domainName, '.') !== false;
+    $isDirectAdvId = strpos($rawQuery, 'AR') === 0;
 
-    // STEP 1: If domain name provided, query SearchCreatives by domain directly
-    if ($isDomainQuery) {
+    // Direct Advertiser ID query if provided
+    if ($isDirectAdvId) {
+        $payloadAdv = [
+            "2" => 100,
+            "3" => [
+                "13" => ["1" => [$rawQuery]]
+            ],
+            "7" => ["1" => 1]
+        ];
+        $chAdv = curl_init($creatUrl);
+        curl_setopt($chAdv, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($chAdv, CURLOPT_POST, true);
+        curl_setopt($chAdv, CURLOPT_POSTFIELDS, "f.req=" . urlencode(json_encode($payloadAdv)));
+        curl_setopt($chAdv, CURLOPT_HTTPHEADER, [
+            'Content-Type: application/x-www-form-urlencoded',
+            'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+        ]);
+        curl_setopt($chAdv, CURLOPT_TIMEOUT, 10);
+        $respAdv = curl_exec($chAdv);
+        curl_close($chAdv);
+
+        if (!empty($respAdv)) {
+            $jAdv = json_decode($respAdv, true);
+            if (!empty($jAdv['1']) && is_array($jAdv['1'])) {
+                $rawCreatives = $jAdv['1'];
+            }
+        }
+    } elseif ($isDomainQuery) {
+        // Query domain creatives
         $payloadDomain = [
             "2" => 100,
             "3" => [
@@ -164,67 +192,26 @@ if ($action === 'fetch_google_ads') {
         if ($httpCode === 200 && !empty($resp)) {
             $j = json_decode($resp, true);
             if (!empty($j['1']) && is_array($j['1'])) {
-                $rawCreatives = $j['1'];
-            }
-        }
-    }
+                $allDomainCreatives = $j['1'];
 
-    // STEP 2: If domain query returned no ads or input is an advertiser ID/keyword
-    if (empty($rawCreatives)) {
-        $targetAdvId = $rawQuery;
-        
-        // If not starting with AR, try finding advertiser ID
-        if (strpos($targetAdvId, 'AR') !== 0) {
-            $sugUrl = "https://adstransparency.google.com/anji/_/rpc/SearchService/SearchSuggestions?authuser=0";
-            $chSug = curl_init($sugUrl);
-            curl_setopt($chSug, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($chSug, CURLOPT_POST, true);
-            curl_setopt($chSug, CURLOPT_POSTFIELDS, "f.req=" . urlencode(json_encode(["1" => $domainName, "2" => 5, "3" => 5])));
-            curl_setopt($chSug, CURLOPT_HTTPHEADER, [
-                'Content-Type: application/x-www-form-urlencoded',
-                'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
-            ]);
-            curl_setopt($chSug, CURLOPT_TIMEOUT, 6);
-            $respSug = curl_exec($chSug);
-            curl_close($chSug);
-
-            if (!empty($respSug)) {
-                $jSug = json_decode($respSug, true);
-                if (!empty($jSug['1']) && is_array($jSug['1'])) {
-                    foreach ($jSug['1'] as $sItem) {
-                        if (!empty($sItem['1']['2'])) {
-                            $targetAdvId = $sItem['1']['2'];
-                            break;
-                        }
-                    }
+                // Count legal entities to isolate primary verified owner vs third-party affiliates
+                $entityCounts = [];
+                foreach ($allDomainCreatives as $c) {
+                    $entityName = !empty($c['12']) ? trim($c['12']) : $brandBase;
+                    $entityCounts[$entityName] = ($entityCounts[$entityName] ?? 0) + 1;
                 }
-            }
-        }
 
-        if (strpos($targetAdvId, 'AR') === 0) {
-            $payloadAdv = [
-                "2" => 100,
-                "3" => [
-                    "13" => ["1" => [$targetAdvId]]
-                ],
-                "7" => ["1" => 1]
-            ];
-            $chAdv = curl_init($creatUrl);
-            curl_setopt($chAdv, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($chAdv, CURLOPT_POST, true);
-            curl_setopt($chAdv, CURLOPT_POSTFIELDS, "f.req=" . urlencode(json_encode($payloadAdv)));
-            curl_setopt($chAdv, CURLOPT_HTTPHEADER, [
-                'Content-Type: application/x-www-form-urlencoded',
-                'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
-            ]);
-            curl_setopt($chAdv, CURLOPT_TIMEOUT, 10);
-            $respAdv = curl_exec($chAdv);
-            curl_close($chAdv);
-
-            if (!empty($respAdv)) {
-                $jAdv = json_decode($respAdv, true);
-                if (!empty($jAdv['1']) && is_array($jAdv['1'])) {
-                    $rawCreatives = $jAdv['1'];
+                // If multiple entities, pick the dominant verified primary entity
+                if (count($entityCounts) > 1) {
+                    arsort($entityCounts);
+                    $primaryEntity = array_key_first($entityCounts);
+                    
+                    // Filter to primary verified legal entity only (e.g. "summer home" vs third-party "Turkey House")
+                    $rawCreatives = array_filter($allDomainCreatives, function($c) use ($primaryEntity) {
+                        return (!empty($c['12']) && trim($c['12']) === $primaryEntity);
+                    });
+                } else {
+                    $rawCreatives = $allDomainCreatives;
                 }
             }
         }
@@ -232,6 +219,7 @@ if ($action === 'fetch_google_ads') {
 
     $realAds = [];
     $seenIds = [];
+    $officialAdvertiserName = $brandBase;
 
     // Transform Raw Google Creatives into Campaign Intelligence Items
     foreach ($rawCreatives as $index => $c) {
@@ -241,7 +229,10 @@ if ($action === 'fetch_google_ads') {
         if (isset($seenIds[$creativeId])) continue;
         $seenIds[$creativeId] = true;
 
-        $officialName = !empty($c['12']) ? $c['12'] : $brandBase;
+        if (!empty($c['12'])) {
+            $officialAdvertiserName = trim($c['12']);
+        }
+        $officialName = !empty($c['12']) ? trim($c['12']) : $brandBase;
         $formatNum = $c['4'] ?? 1; // 1 = Search, 2 = Display/Image, 3 = Responsive/Video
 
         $startTs = !empty($c['6']['1']) ? (int)$c['6']['1'] : time();
@@ -277,7 +268,7 @@ if ($action === 'fetch_google_ads') {
             'network' => 'GOOGLE',
             'pageId' => $domainName,
             'pageName' => $officialName,
-            'brandLogo' => $brandBase,
+            'brandLogo' => $officialAdvertiserName,
             'domain' => $domainName,
             'targetUrl' => "https://$domainName",
             'visibleUrl' => "www.$domainName",
@@ -302,7 +293,7 @@ if ($action === 'fetch_google_ads') {
     echo json_encode([
         'status' => 'success',
         'network' => 'GOOGLE',
-        'brand' => $brandBase,
+        'brand' => $officialAdvertiserName,
         'domain' => $domainName,
         'region' => $region,
         'count' => count($realAds),
