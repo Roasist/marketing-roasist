@@ -2,7 +2,7 @@ import React from 'react';
 import { MarketingRoute } from '../types/suite';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { ChevronRight, Sliders, LogOut, Sun, Moon } from 'lucide-react';
+import { ChevronRight, Sliders, LogOut, Sun, Moon, ArrowLeft } from 'lucide-react';
 
 interface TopBarProps {
   currentRoute: MarketingRoute;
@@ -12,6 +12,7 @@ interface TopBarProps {
 export const TopBar: React.FC<TopBarProps> = ({ currentRoute, onNavigate }) => {
   const { user, logout, hasRole } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const isAdminRoute = currentRoute === 'admin';
 
   const getRouteTitle = () => {
     switch (currentRoute) {
@@ -24,7 +25,7 @@ export const TopBar: React.FC<TopBarProps> = ({ currentRoute, onNavigate }) => {
       case 'roas-optimizer':
         return 'ROAS & Bütçe Tahmin';
       case 'admin':
-        return 'Kullanıcı & Sistem Paneli';
+        return 'Admin Konsolu & Sistem Yönetimi';
       default:
         return 'Marketing Suite';
     }
@@ -44,14 +45,24 @@ export const TopBar: React.FC<TopBarProps> = ({ currentRoute, onNavigate }) => {
       zIndex: 100,
     }}>
       
-      {/* Left: Breadcrumbs */}
+      {/* Left: Breadcrumbs / Mode */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.85rem' }}>
-        <span 
-          onClick={() => onNavigate('dashboard')}
-          style={{ color: 'var(--text-muted)', cursor: 'pointer', fontWeight: 400 }}
-        >
-          Roasist OS
-        </span>
+        {isAdminRoute ? (
+          <button
+            onClick={() => onNavigate('dashboard')}
+            className="btn-ghost"
+            style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}
+          >
+            <ArrowLeft size={13} /> Pazarlama Paneli
+          </button>
+        ) : (
+          <span 
+            onClick={() => onNavigate('dashboard')}
+            style={{ color: 'var(--text-muted)', cursor: 'pointer', fontWeight: 400 }}
+          >
+            Roasist Suite
+          </span>
+        )}
         <ChevronRight size={13} color="var(--text-muted)" />
         <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
           {getRouteTitle()}
@@ -97,24 +108,24 @@ export const TopBar: React.FC<TopBarProps> = ({ currentRoute, onNavigate }) => {
           {theme === 'dark' ? (
             <>
               <Sun size={14} color="#f59e0b" />
-              <span>Açık Mod</span>
+              <span>Açık</span>
             </>
           ) : (
             <>
               <Moon size={14} color="var(--text-secondary)" />
-              <span>Karanlık Mod</span>
+              <span>Karanlık</span>
             </>
           )}
         </button>
 
-        {/* Admin Quick Button */}
-        {hasRole(['SUPER_ADMIN', 'ADMIN']) && currentRoute !== 'admin' && (
+        {/* Admin Switcher Button for Authorized Users */}
+        {hasRole(['SUPER_ADMIN', 'ADMIN']) && !isAdminRoute && (
           <button
             onClick={() => onNavigate('admin')}
             className="btn-secondary"
             style={{ padding: '0.35rem 0.65rem', fontSize: '0.78rem' }}
           >
-            <Sliders size={13} /> Admin
+            <Sliders size={13} /> Admin Paneli
           </button>
         )}
 

@@ -8,8 +8,12 @@ import {
   TrendingUp, 
   ChevronLeft, 
   ChevronRight, 
-  Sliders,
-  LogOut
+  Sliders, 
+  LogOut,
+  ArrowLeft,
+  Users,
+  Key,
+  Activity
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -26,8 +30,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onToggleCollapse,
 }) => {
   const { user, logout, hasRole } = useAuth();
+  const isAdminRoute = currentRoute === 'admin';
 
-  const menuItems = [
+  // Marketing Workspace Menu Items
+  const marketingMenuItems = [
     {
       id: 'dashboard' as MarketingRoute,
       name: 'Genel Bakış',
@@ -35,28 +41,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
     },
     {
       id: 'competitors' as MarketingRoute,
-      name: 'Rakip Reklam İstihbaratı',
+      name: 'Rakip İstihbaratı',
       icon: Target,
     },
     {
       id: 'ai-copywriter' as MarketingRoute,
-      name: 'AI Reklam Metni Yazarı',
+      name: 'AI Metin Yazarı',
       icon: PenTool,
       badge: 'Beta',
     },
     {
       id: 'roas-optimizer' as MarketingRoute,
-      name: 'ROAS & Bütçe Tahmin',
+      name: 'ROAS Simülatörü',
       icon: TrendingUp,
       badge: 'Beta',
     },
-    ...(hasRole(['SUPER_ADMIN', 'ADMIN']) ? [
-      {
-        id: 'admin' as MarketingRoute,
-        name: 'Kullanıcı & Sistem Paneli',
-        icon: Sliders,
-      }
-    ] : []),
   ];
 
   return (
@@ -64,7 +63,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       width: isCollapsed ? '64px' : '240px',
       transition: 'width 0.18s cubic-bezier(0.4, 0, 0.2, 1)',
       backgroundColor: 'var(--bg-surface)',
-      borderRight: '1px solid var(--border-subtle)',
+      borderRight: '1px solid var(--border-default)',
       display: 'flex',
       flexDirection: 'column',
       minHeight: '100vh',
@@ -78,7 +77,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <div style={{
         height: '56px',
         padding: isCollapsed ? '0' : '0 1rem',
-        borderBottom: '1px solid var(--border-subtle)',
+        borderBottom: '1px solid var(--border-default)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: isCollapsed ? 'center' : 'space-between',
@@ -91,8 +90,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
             width: '28px',
             height: '28px',
             borderRadius: '6px',
-            backgroundColor: '#ffffff',
-            color: '#090b10',
+            backgroundColor: 'var(--text-primary)',
+            color: 'var(--bg-surface)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -105,7 +104,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
           {!isCollapsed && (
             <div style={{ fontWeight: 600, fontSize: '0.95rem', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
-              Roasist <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>Suite</span>
+              {isAdminRoute ? (
+                <>Roasist <span style={{ color: 'var(--brand-primary)', fontWeight: 600 }}>Admin</span></>
+              ) : (
+                <>Roasist <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>Suite</span></>
+              )}
             </div>
           )}
         </div>
@@ -128,61 +131,189 @@ export const Sidebar: React.FC<SidebarProps> = ({
         )}
       </div>
 
-      {/* Navigation Links */}
-      <nav style={{ padding: '0.75rem 0.5rem', display: 'flex', flexDirection: 'column', gap: '0.2rem', flex: 1 }}>
+      {/* Navigation Area */}
+      <nav style={{ padding: '0.75rem 0.5rem', display: 'flex', flexDirection: 'column', gap: '0.25rem', flex: 1 }}>
         
-        {!isCollapsed && (
-          <div style={{ padding: '0.35rem 0.5rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-            Platform Araçları
-          </div>
-        )}
+        {/* CASE 1: In Dedicated Admin Console */}
+        {isAdminRoute ? (
+          <>
+            {!isCollapsed && (
+              <button
+                onClick={() => onNavigate('dashboard')}
+                className="btn-ghost"
+                style={{
+                  padding: '0.5rem 0.65rem',
+                  marginBottom: '0.5rem',
+                  fontSize: '0.8rem',
+                  color: 'var(--brand-primary)',
+                  fontWeight: 600,
+                  width: '100%',
+                  justifyContent: 'flex-start',
+                  border: '1px solid var(--border-default)',
+                  backgroundColor: 'var(--bg-surface-elevated)',
+                }}
+              >
+                <ArrowLeft size={14} /> Pazarlama Paneline Dön
+              </button>
+            )}
 
-        {menuItems.map((item) => {
-          const IconComponent = item.icon;
-          const isActive = currentRoute === item.id;
+            {!isCollapsed && (
+              <div style={{ padding: '0.35rem 0.5rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                Yönetim Konsolu
+              </div>
+            )}
 
-          return (
             <button
-              key={item.id}
-              onClick={() => onNavigate(item.id)}
+              onClick={() => onNavigate('admin')}
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: isCollapsed ? 'center' : 'space-between',
+                justifyContent: isCollapsed ? 'center' : 'flex-start',
+                gap: '0.65rem',
                 padding: isCollapsed ? '0.6rem 0' : '0.5rem 0.65rem',
                 borderRadius: 'var(--radius-sm)',
-                backgroundColor: isActive ? 'var(--bg-surface-elevated)' : 'transparent',
-                color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
-                fontWeight: isActive ? 600 : 400,
+                backgroundColor: 'var(--bg-surface-elevated)',
+                color: 'var(--text-primary)',
+                fontWeight: 600,
                 fontSize: '0.85rem',
                 cursor: 'pointer',
                 border: 'none',
-                transition: 'background var(--transition-fast), color var(--transition-fast)',
                 width: '100%',
               }}
-              title={isCollapsed ? item.name : undefined}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                <IconComponent 
-                  size={17} 
-                  color={isActive ? '#ffffff' : 'var(--text-muted)'} 
-                />
-                {!isCollapsed && <span>{item.name}</span>}
-              </div>
-
-              {!isCollapsed && item.badge && (
-                <span className="badge badge-neutral" style={{ fontSize: '0.65rem', padding: '0.1rem 0.4rem' }}>
-                  {item.badge}
-                </span>
-              )}
+              <Users size={16} color="var(--brand-primary)" />
+              {!isCollapsed && <span>Kullanıcı Yönetimi</span>}
             </button>
-          );
-        })}
+
+            <button
+              onClick={() => onNavigate('admin')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: isCollapsed ? 'center' : 'flex-start',
+                gap: '0.65rem',
+                padding: isCollapsed ? '0.6rem 0' : '0.5rem 0.65rem',
+                borderRadius: 'var(--radius-sm)',
+                backgroundColor: 'transparent',
+                color: 'var(--text-secondary)',
+                fontSize: '0.85rem',
+                cursor: 'pointer',
+                border: 'none',
+                width: '100%',
+              }}
+            >
+              <Key size={16} color="var(--text-muted)" />
+              {!isCollapsed && <span>API Anahtarları</span>}
+            </button>
+
+            <button
+              onClick={() => onNavigate('admin')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: isCollapsed ? 'center' : 'flex-start',
+                gap: '0.65rem',
+                padding: isCollapsed ? '0.6rem 0' : '0.5rem 0.65rem',
+                borderRadius: 'var(--radius-sm)',
+                backgroundColor: 'transparent',
+                color: 'var(--text-secondary)',
+                fontSize: '0.85rem',
+                cursor: 'pointer',
+                border: 'none',
+                width: '100%',
+              }}
+            >
+              <Activity size={16} color="var(--text-muted)" />
+              {!isCollapsed && <span>Denetim Logları</span>}
+            </button>
+          </>
+        ) : (
+          /* CASE 2: In Marketing Suite Tools */
+          <>
+            {!isCollapsed && (
+              <div style={{ padding: '0.35rem 0.5rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                Pazarlama Araçları
+              </div>
+            )}
+
+            {marketingMenuItems.map((item) => {
+              const IconComponent = item.icon;
+              const isActive = currentRoute === item.id;
+
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => onNavigate(item.id)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: isCollapsed ? 'center' : 'space-between',
+                    padding: isCollapsed ? '0.6rem 0' : '0.5rem 0.65rem',
+                    borderRadius: 'var(--radius-sm)',
+                    backgroundColor: isActive ? 'var(--bg-surface-elevated)' : 'transparent',
+                    color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+                    fontWeight: isActive ? 600 : 400,
+                    fontSize: '0.85rem',
+                    cursor: 'pointer',
+                    border: 'none',
+                    transition: 'background var(--transition-fast), color var(--transition-fast)',
+                    width: '100%',
+                    position: 'relative',
+                  }}
+                  title={isCollapsed ? item.name : undefined}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                    <IconComponent 
+                      size={17} 
+                      color={isActive ? 'var(--text-primary)' : 'var(--text-muted)'} 
+                    />
+                    {!isCollapsed && <span>{item.name}</span>}
+                  </div>
+
+                  {!isCollapsed && item.badge && (
+                    <span className="badge badge-neutral" style={{ fontSize: '0.65rem', padding: '0.1rem 0.35rem' }}>
+                      {item.badge}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+
+            {/* Admin Console Switcher for Authorized Users */}
+            {hasRole(['SUPER_ADMIN', 'ADMIN']) && (
+              <div style={{ marginTop: 'auto', paddingTop: '0.75rem', borderTop: '1px solid var(--border-default)' }}>
+                <button
+                  onClick={() => onNavigate('admin')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: isCollapsed ? 'center' : 'flex-start',
+                    gap: '0.65rem',
+                    padding: isCollapsed ? '0.6rem 0' : '0.5rem 0.65rem',
+                    borderRadius: 'var(--radius-sm)',
+                    backgroundColor: 'var(--bg-surface-elevated)',
+                    border: '1px solid var(--border-default)',
+                    color: 'var(--text-primary)',
+                    fontWeight: 500,
+                    fontSize: '0.825rem',
+                    cursor: 'pointer',
+                    width: '100%',
+                  }}
+                  title="Admin Yönetim Paneli"
+                >
+                  <Sliders size={15} color="var(--brand-primary)" />
+                  {!isCollapsed && <span>Admin Konsolu</span>}
+                </button>
+              </div>
+            )}
+          </>
+        )}
+
       </nav>
 
       {/* Collapse button when mini */}
       {isCollapsed && (
-        <div style={{ padding: '0.5rem', textAlign: 'center', borderTop: '1px solid var(--border-subtle)' }}>
+        <div style={{ padding: '0.5rem', textAlign: 'center', borderTop: '1px solid var(--border-default)' }}>
           <button
             onClick={onToggleCollapse}
             style={{
@@ -201,7 +332,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Footer Profile */}
       <div style={{
         padding: isCollapsed ? '0.75rem 0.25rem' : '0.75rem 0.85rem',
-        borderTop: '1px solid var(--border-subtle)',
+        borderTop: '1px solid var(--border-default)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: isCollapsed ? 'center' : 'space-between',
