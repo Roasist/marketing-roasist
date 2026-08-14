@@ -16,6 +16,9 @@ import {
   Trash2, 
   UserPlus,
   Edit2,
+  Clock,
+  Globe,
+  CheckCircle2,
   X
 } from 'lucide-react';
 
@@ -84,6 +87,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
   // Logs state
   const [logs, setLogs] = useState<any[]>([]);
+  const [isLoadingLogs, setIsLoadingLogs] = useState(false);
 
   const loadUsers = async () => {
     setIsLoadingUsers(true);
@@ -98,11 +102,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   };
 
   const loadLogs = async () => {
+    setIsLoadingLogs(true);
     try {
       const fetched = await ApiService.getAuditLogs();
       setLogs(fetched);
     } catch {
       // Fallback
+    } finally {
+      setIsLoadingLogs(false);
     }
   };
 
@@ -212,16 +219,51 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     }
   };
 
-  const getRoleBadge = (role: UserRole) => {
+  const getRoleBadge = (role: UserRole | string) => {
     switch (role) {
       case 'SUPER_ADMIN':
-        return <span className="badge" style={{ backgroundColor: 'var(--danger-bg)', color: 'var(--danger)', border: '1px solid var(--danger-border)' }}>Süper Admin</span>;
+        return <span className="badge" style={{ backgroundColor: 'var(--danger-bg)', color: 'var(--danger)', border: '1px solid var(--danger-border)', fontSize: '0.68rem' }}>Süper Admin</span>;
       case 'ADMIN':
-        return <span className="badge" style={{ backgroundColor: 'var(--warning-bg)', color: 'var(--warning)', border: '1px solid var(--warning-border)' }}>Yönetici</span>;
+        return <span className="badge" style={{ backgroundColor: 'var(--warning-bg)', color: 'var(--warning)', border: '1px solid var(--warning-border)', fontSize: '0.68rem' }}>Yönetici</span>;
       case 'MARKETER':
-        return <span className="badge" style={{ backgroundColor: 'var(--info-bg)', color: 'var(--info)', border: '1px solid var(--info-border)' }}>Pazarlamacı</span>;
-      case 'VIEWER':
-        return <span className="badge badge-neutral">İzleyici</span>;
+        return <span className="badge" style={{ backgroundColor: 'var(--info-bg)', color: 'var(--info)', border: '1px solid var(--info-border)', fontSize: '0.68rem' }}>Pazarlamacı</span>;
+      default:
+        return <span className="badge badge-neutral" style={{ fontSize: '0.68rem' }}>{role || 'İzleyici'}</span>;
+    }
+  };
+
+  const getCategoryBadge = (category: string) => {
+    switch (category) {
+      case 'GÜVENLİK':
+        return <span className="badge" style={{ backgroundColor: 'var(--danger-bg)', color: 'var(--danger)', border: '1px solid var(--danger-border)' }}>GÜVENLİK</span>;
+      case 'KULLANICI':
+        return <span className="badge" style={{ backgroundColor: 'var(--info-bg)', color: 'var(--info)', border: '1px solid var(--info-border)' }}>KULLANICI</span>;
+      case 'OTURUM':
+        return <span className="badge badge-neutral">OTURUM</span>;
+      case 'AYARLAR':
+        return <span className="badge" style={{ backgroundColor: 'var(--warning-bg)', color: 'var(--warning)', border: '1px solid var(--warning-border)' }}>AYARLAR</span>;
+      case 'RAKİP':
+        return <span className="badge badge-carousel">RAKİP</span>;
+      default:
+        return <span className="badge badge-neutral">{category || 'SİSTEM'}</span>;
+    }
+  };
+
+  const formatLogDateTime = (raw: string | undefined) => {
+    if (!raw) return '—';
+    try {
+      const parsed = new Date(raw.includes('T') ? raw : raw.replace(' ', 'T'));
+      if (isNaN(parsed.getTime())) return raw;
+      return parsed.toLocaleString('tr-TR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      });
+    } catch {
+      return raw || '—';
     }
   };
 
@@ -235,7 +277,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             Kullanıcı & Sistem Yönetim Konsolu
           </h1>
           <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
-            Ekip yetkilendirmesi, kullanıcı düzenleme, API bağlantıları ve denetim kayıtları.
+            Ekip yetkilendirmesi, kullanıcı düzenleme, API bağlantıları ve detaylı denetim kayıtları.
           </p>
         </div>
 
@@ -281,7 +323,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           className={activeTab === 'logs' ? 'btn-primary' : 'btn-ghost'}
           style={{ padding: '0.45rem 0.85rem', fontSize: '0.825rem' }}
         >
-          <Activity size={14} /> Denetim Günlüğü
+          <Activity size={14} /> Denetim Günlüğü ({logs.length})
         </button>
 
       </div>
@@ -532,45 +574,139 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
       {/* Tab 4: Audit Logs */}
       {activeTab === 'logs' && (
-        <div className="card" style={{ overflowX: 'auto' }}>
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Zaman</th>
-                <th>Kullanıcı</th>
-                <th>Eylem</th>
-                <th>Detay</th>
-              </tr>
-            </thead>
-            <tbody>
-              {logs.length === 0 ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+            <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+              Sistem ve Güvenlik Denetim Günlüğü
+            </div>
+
+            <button
+              onClick={loadLogs}
+              className="btn-secondary"
+              style={{ padding: '0.4rem 0.75rem', fontSize: '0.78rem' }}
+            >
+              <RefreshCw size={13} className={isLoadingLogs ? 'animate-spin' : ''} /> Günlüğü Yenile
+            </button>
+          </div>
+
+          <div className="card" style={{ overflowX: 'auto' }}>
+            <table className="data-table">
+              <thead>
                 <tr>
-                  <td colSpan={4} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
-                    Henüz kayıtlı bir denetim kaydı bulunamadı.
-                  </td>
+                  <th style={{ minWidth: '150px' }}>Zaman & Tarih</th>
+                  <th style={{ minWidth: '180px' }}>İşlemi Yapan</th>
+                  <th style={{ minWidth: '160px' }}>Kategori & Eylem</th>
+                  <th>İşlem Detayı</th>
+                  <th style={{ minWidth: '130px' }}>IP Adresi</th>
+                  <th style={{ minWidth: '90px', textAlign: 'right' }}>Durum</th>
                 </tr>
-              ) : (
-                logs.map((log: any, idx: number) => (
-                  <tr key={idx}>
-                    <td style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                      {log.created_at ? new Date(log.created_at).toLocaleString('tr-TR') : '—'}
-                    </td>
-                    <td style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
-                      {log.user_name || 'Sistem'}
-                    </td>
-                    <td>
-                      <span className="badge badge-neutral" style={{ fontSize: '0.7rem' }}>
-                        {log.action}
-                      </span>
-                    </td>
-                    <td style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
-                      {log.details}
+              </thead>
+              <tbody>
+                {logs.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} style={{ textAlign: 'center', padding: '2.5rem', color: 'var(--text-muted)' }}>
+                      Henüz kayıtlı bir denetim kaydı bulunamadı.
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  logs.map((log: any, idx: number) => {
+                    const userName = log.user_name || log.userName || 'Sistem';
+                    const userEmail = log.user_email || log.userEmail || '';
+                    const userRole = log.user_role || log.userRole || '';
+                    const category = log.category || 'SİSTEM';
+                    const action = log.action || 'İşlem';
+                    const details = log.details || '—';
+                    const ip = log.ip_address || log.ipAddress || '127.0.0.1';
+                    const createdAt = log.created_at || log.createdAt;
+
+                    return (
+                      <tr key={log.id || idx}>
+                        
+                        {/* 1. Time */}
+                        <td style={{ fontSize: '0.78rem', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                            <Clock size={12} color="var(--text-muted)" />
+                            <span>{formatLogDateTime(createdAt)}</span>
+                          </div>
+                        </td>
+
+                        {/* 2. User */}
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem' }}>
+                            <div style={{
+                              width: '26px',
+                              height: '26px',
+                              borderRadius: '50%',
+                              backgroundColor: 'var(--bg-surface-elevated)',
+                              border: '1px solid var(--border-default)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontWeight: 600,
+                              color: 'var(--text-primary)',
+                              fontSize: '0.72rem',
+                              flexShrink: 0,
+                            }}>
+                              {userName.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <div style={{ fontWeight: 600, fontSize: '0.825rem', color: 'var(--text-primary)' }}>
+                                {userName}
+                              </div>
+                              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                                <span>{userEmail || 'Sistem Süreci'}</span>
+                                {userRole && (
+                                  <>
+                                    <span>•</span>
+                                    <span>{getRoleBadge(userRole)}</span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* 3. Category & Action */}
+                        <td>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', alignItems: 'flex-start' }}>
+                            {getCategoryBadge(category)}
+                            <span style={{ fontSize: '0.78rem', fontWeight: 500, color: 'var(--text-primary)' }}>
+                              {action}
+                            </span>
+                          </div>
+                        </td>
+
+                        {/* 4. Details */}
+                        <td style={{ color: 'var(--text-secondary)', fontSize: '0.825rem', lineHeight: 1.45 }}>
+                          {details}
+                        </td>
+
+                        {/* 5. IP Address */}
+                        <td style={{ fontSize: '0.78rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                            <Globe size={12} color="var(--text-muted)" />
+                            <code style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', backgroundColor: 'var(--bg-surface-elevated)', padding: '0.1rem 0.35rem', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-default)' }}>
+                              {ip}
+                            </code>
+                          </div>
+                        </td>
+
+                        {/* 6. Status */}
+                        <td style={{ textAlign: 'right' }}>
+                          <span className="badge badge-active" style={{ fontSize: '0.68rem' }}>
+                            <CheckCircle2 size={11} /> Başarılı
+                          </span>
+                        </td>
+
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+
         </div>
       )}
 

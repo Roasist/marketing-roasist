@@ -63,7 +63,13 @@ if ($method === 'POST') {
     $stmt->execute([$name, $email, $passwordHash, $role, $status]);
     $newId = $pdo->lastInsertId();
 
-    logAudit((int)$currentUser['id'], $currentUser['name'], 'Kullanıcı Oluşturuldu', "Yeni kullanıcı: $name ($email, Rol: $role)");
+    logAudit(
+        (int)$currentUser['id'], 
+        $currentUser['name'], 
+        'Kullanıcı Oluşturuldu', 
+        "Yeni kullanıcı eklendi: $name ($email, Rol: $role)", 
+        'KULLANICI'
+    );
 
     echo json_encode([
         'status' => 'success',
@@ -113,11 +119,23 @@ if ($method === 'PUT') {
         $passwordHash = password_hash($password, PASSWORD_DEFAULT);
         $stmt = $pdo->prepare("UPDATE users SET name = ?, email = ?, role = ?, status = ?, password_hash = ? WHERE id = ?");
         $stmt->execute([$name, $email, $role, $status, $passwordHash, $id]);
-        logAudit((int)$currentUser['id'], $currentUser['name'], 'Kullanıcı & Şifre Güncellendi', "ID: $id ($name, $email, Rol: $role, Durum: $status)");
+        logAudit(
+            (int)$currentUser['id'], 
+            $currentUser['name'], 
+            'Kullanıcı & Şifre Güncellendi', 
+            "Kullanıcı ve şifre güncellendi: $name ($email, Rol: $role, Durum: $status)", 
+            'KULLANICI'
+        );
     } else {
         $stmt = $pdo->prepare("UPDATE users SET name = ?, email = ?, role = ?, status = ? WHERE id = ?");
         $stmt->execute([$name, $email, $role, $status, $id]);
-        logAudit((int)$currentUser['id'], $currentUser['name'], 'Kullanıcı Güncellendi', "ID: $id ($name, $email, Rol: $role, Durum: $status)");
+        logAudit(
+            (int)$currentUser['id'], 
+            $currentUser['name'], 
+            'Kullanıcı Güncellendi', 
+            "Kullanıcı bilgileri güncellendi: $name ($email, Rol: $role, Durum: $status)", 
+            'KULLANICI'
+        );
     }
 
     echo json_encode([
@@ -163,7 +181,13 @@ if ($method === 'DELETE') {
     $stmt = $pdo->prepare("DELETE FROM users WHERE id = ?");
     $stmt->execute([$id]);
 
-    logAudit((int)$currentUser['id'], $currentUser['name'], 'Kullanıcı Silindi', "Silinen kullanıcı: {$targetUser['name']} ({$targetUser['email']}, Rol: {$targetUser['role']})");
+    logAudit(
+        (int)$currentUser['id'], 
+        $currentUser['name'], 
+        'Kullanıcı Silindi', 
+        "Silinen kullanıcı: {$targetUser['name']} ({$targetUser['email']}, Rol: {$targetUser['role']})", 
+        'GÜVENLİK'
+    );
 
     echo json_encode([
         'status' => 'success',

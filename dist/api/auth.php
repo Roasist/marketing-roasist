@@ -55,7 +55,7 @@ if ($action === 'login') {
     ];
     $token = base64_encode(json_encode($payload));
 
-    logAudit((int)$user['id'], $user['name'], 'Kullanıcı Girişi', 'Başarılı giriş yapıldı.');
+    logAudit((int)$user['id'], $user['name'], 'Kullanıcı Girişi', "{$user['name']} ({$user['email']}) sisteme başarılı giriş yaptı.", 'OTURUM');
 
     echo json_encode([
         'status' => 'success',
@@ -95,7 +95,7 @@ if ($action === 'verify') {
 if ($action === 'logout') {
     $user = getAuthUser();
     if ($user) {
-        logAudit((int)$user['id'], $user['name'], 'Çıkış Yapıldı', 'Kullanıcı oturumu kapattı.');
+        logAudit((int)$user['id'], $user['name'], 'Çıkış Yapıldı', "{$user['name']} ({$user['email']}) oturumu güvenli kapattı.", 'OTURUM');
     }
     echo json_encode(['status' => 'success', 'message' => 'Oturum sonlandırıldı.']);
     exit;

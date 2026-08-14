@@ -1,54 +1,38 @@
 <?php
 /**
- * Roasist Marketing Suite - Database Layer & Schema Migrator
- * Compatible with all PHP versions (PHP 7.0 - 8.3+)
+ * Roasist Marketing Suite - Database Connection & Helper Utilities
+ * Uses persistent SQLite database on cPanel
  */
-
-ini_set('display_errors', '0');
-error_reporting(E_ALL);
-
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
-
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
-    exit;
-}
 
 class Database {
     private static $pdo = null;
 
     public static function getConnection() {
-        if (self::$pdo !== null) {
-            return self::$pdo;
-        }
+        if (self::$pdo === null) {
+            $dataDir = __DIR__ . '/data';
+            if (!is_dir($dataDir)) {
+                @mkdir($dataDir, 0755, true);
+            }
 
-        $dataDir = __DIR__ . '/data';
-        if (!is_dir($dataDir)) {
-            @mkdir($dataDir, 0777, true);
-            @file_put_contents($dataDir . '/.htaccess', "Deny from all\n");
-        }
+            $dbPath = $dataDir . '/roasist_marketing.db';
+            $isNewDb = !file_exists($dbPath);
 
-        $dbFile = $dataDir . '/roasist_marketing.db';
-
-        try {
-            self::$pdo = new PDO("sqlite:" . $dbFile);
+            self::$pdo = new PDO("sqlite:" . $dbPath);
             self::$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
             self::$pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
-            self::runMigrations(self::$pdo);
-            return self::$pdo;
-        } catch (Exception $e) {
-            http_response_code(500);
-            echo json_encode([
-                'status' => 'error',
-                'message' => 'Veritabanı hatası: ' . $e->getMessage()
-            ]);
-            exit;
+
+            // Enable WAL mode for high performance
+            self::$pdo->exec("PRAGMA journal_mode = WAL;");
+            self::$pdo->exec("PRAGMA synchronous = NORMAL;");
+
+            // Auto-run schema migrations
+            self::initSchema(self::$pdo, $isNewDb);
         }
+
+        return self::$pdo;
     }
 
-    private static function runMigrations($pdo) {
+    private static function initSchema($pdo, $isNew) {
         // 1. Users Table
         $pdo->exec("
             CREATE TABLE IF NOT EXISTS users (
@@ -113,12 +97,30 @@ class Database {
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER,
                 user_name TEXT,
+                user_email TEXT,
+                user_role TEXT,
                 action TEXT NOT NULL,
+                category TEXT DEFAULT 'SİSTEM',
                 details TEXT,
                 ip_address TEXT,
+                status TEXT DEFAULT 'SUCCESS',
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         ");
+
+        // Column migration for audit_logs if old table exists
+        try {
+            $pdo->exec("ALTER TABLE audit_logs ADD COLUMN user_email TEXT");
+        } catch (Exception $e) {}
+        try {
+            $pdo->exec("ALTER TABLE audit_logs ADD COLUMN user_role TEXT");
+        } catch (Exception $e) {}
+        try {
+            $pdo->exec("ALTER TABLE audit_logs ADD COLUMN category TEXT DEFAULT 'SİSTEM'");
+        } catch (Exception $e) {}
+        try {
+            $pdo->exec("ALTER TABLE audit_logs ADD COLUMN status TEXT DEFAULT 'SUCCESS'");
+        } catch (Exception $e) {}
 
         // Seed Default Super Admin if not exists
         $stmt = $pdo->query("SELECT COUNT(*) as count FROM users");
@@ -202,13 +204,37 @@ function requireAuth($minRole = null) {
     return $user;
 }
 
-function logAudit($userId, $userName, $action, $details) {
+function logAudit($userId, $userName, $action, $details, $category = 'KULLANICI', $status = 'SUCCESS') {
     try {
         $pdo = Database::getConnection();
-        $ip = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
-        $stmt = $pdo->prepare("INSERT INTO audit_logs (user_id, user_name, action, details, ip_address) VALUES (?, ?, ?, ?, ?)");
-        $stmt->execute([$userId, $userName, $action, $details, $ip]);
+        $ip = $_SERVER['HTTP_CF_CONNECTING_IP'] ?? $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+        if (strpos($ip, ',') !== false) {
+            $ip = trim(explode(',', $ip)[0]);
+        }
+
+        $userEmail = '';
+        $userRole = '';
+        if ($userId > 0) {
+            $stmt = $pdo->prepare("SELECT email, role FROM users WHERE id = ?");
+            $stmt->execute([$userId]);
+            $u = $stmt->fetch();
+            if ($u) {
+                $userEmail = $u['email'];
+                $userRole = $u['role'];
+            }
+        }
+
+        $now = date('Y-m-d H:i:s');
+        $stmt = $pdo->prepare("
+            INSERT INTO audit_logs (user_id, user_name, user_email, user_role, action, category, details, ip_address, status, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ");
+        $stmt->execute([$userId, $userName, $userEmail, $userRole, $action, $category, $details, $ip, $status, $now]);
     } catch (Exception $e) {
-        // Ignore log errors
+        // Fallback
+        try {
+            $stmt = $pdo->prepare("INSERT INTO audit_logs (user_id, user_name, action, details, ip_address, created_at) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)");
+            $stmt->execute([$userId, $userName, $action, $details, $ip]);
+        } catch (Exception $e2) {}
     }
 }

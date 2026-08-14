@@ -14,8 +14,47 @@ $action = $_GET['action'] ?? 'settings';
 
 if ($action === 'logs') {
     requireAuth('ADMIN');
-    $stmt = $pdo->query("SELECT id, user_id, user_name as userName, action, details, ip_address as ipAddress, created_at as createdAt FROM audit_logs ORDER BY id DESC LIMIT 50");
-    $logs = $stmt->fetchAll();
+    
+    // Ensure all columns exist before select
+    $stmt = $pdo->query("
+        SELECT * FROM audit_logs 
+        ORDER BY id DESC 
+        LIMIT 100
+    ");
+    $rawLogs = $stmt->fetchAll();
+    
+    $logs = [];
+    foreach ($rawLogs as $l) {
+        $name = !empty($l['user_name']) ? $l['user_name'] : 'Sistem';
+        $email = $l['user_email'] ?? '';
+        $role = $l['user_role'] ?? '';
+        $category = !empty($l['category']) ? $l['category'] : 'SİSTEM';
+        $ip = !empty($l['ip_address']) ? $l['ip_address'] : '127.0.0.1';
+        $status = !empty($l['status']) ? $l['status'] : 'SUCCESS';
+        $createdAt = !empty($l['created_at']) ? $l['created_at'] : date('Y-m-d H:i:s');
+
+        $logs[] = [
+            'id' => (int)$l['id'],
+            'user_id' => $l['user_id'] ? (int)$l['user_id'] : null,
+            'user_name' => $name,
+            'user_email' => $email,
+            'user_role' => $role,
+            'action' => $l['action'],
+            'category' => $category,
+            'details' => $l['details'],
+            'ip_address' => $ip,
+            'status' => $status,
+            'created_at' => $createdAt,
+
+            // Also provide camelCase aliases for universal client compatibility
+            'userName' => $name,
+            'userEmail' => $email,
+            'userRole' => $role,
+            'ipAddress' => $ip,
+            'createdAt' => $createdAt,
+        ];
+    }
+
     echo json_encode(['status' => 'success', 'logs' => $logs]);
     exit;
 }
@@ -41,7 +80,7 @@ if ($method === 'POST') {
         $stmt->execute([$key, is_array($val) ? json_encode($val) : (string)$val]);
     }
 
-    logAudit((int)$currentUser['id'], $currentUser['name'], 'Sistem Ayarları Güncellendi', 'API ve genel ayarlar güncellendi.');
+    logAudit((int)$currentUser['id'], $currentUser['name'], 'Sistem Ayarları Güncellendi', 'API ve genel ayarlar güncellendi.', 'AYARLAR');
 
     echo json_encode(['status' => 'success', 'message' => 'Ayarlar başarıyla kaydedildi!']);
     exit;
