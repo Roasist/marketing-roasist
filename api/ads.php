@@ -235,6 +235,7 @@ if ($method === 'GET') {
 
     echo json_encode([
         'status' => 'success',
+        'ads' => $savedAds,
         'savedAds' => $savedAds
     ]);
     exit;
@@ -244,16 +245,18 @@ $input = json_decode(file_get_contents('php://input'), true) ?? [];
 
 // POST: Save/Bookmark an ad
 if ($method === 'POST') {
-    $adId = trim($input['adId'] ?? $input['id'] ?? '');
-    $pageName = trim($input['pageName'] ?? 'Marka');
-    $headline = trim($input['adHeadline'] ?? $input['headline'] ?? '');
-    $bodyText = trim($input['adBodyText'] ?? $input['bodyText'] ?? '');
-    $format = $input['format'] ?? 'IMAGE';
-    $mediaUrls = json_encode($input['mediaUrls'] ?? []);
-    $hookType = $input['hookType'] ?? 'Sosyal Kanıt';
-    $notes = trim($input['notes'] ?? '');
-    $tags = trim($input['tags'] ?? 'Favori');
-    $isWinner = !empty($input['isWinner']) || ($input['activeDaysCount'] ?? 0) >= 30 ? 1 : 0;
+    $adData = $input['ad'] ?? $input;
+    $adId = trim($adData['id'] ?? $adData['adId'] ?? $input['adId'] ?? $input['id'] ?? '');
+    $pageName = trim($adData['pageName'] ?? $adData['domain'] ?? $input['pageName'] ?? 'Marka');
+    $headline = trim($adData['adHeadline'] ?? $adData['headline'] ?? $input['adHeadline'] ?? $input['headline'] ?? ($pageName . ' Kampanyası'));
+    $bodyText = trim($adData['adBodyText'] ?? $adData['bodyText'] ?? $input['adBodyText'] ?? $input['bodyText'] ?? '');
+    $format = $adData['format'] ?? $input['format'] ?? 'IMAGE';
+    $mediaUrls = json_encode($adData['mediaUrls'] ?? $input['mediaUrls'] ?? []);
+    $hookType = $adData['hookType'] ?? $input['hookType'] ?? 'Sosyal Kanıt';
+    $notes = trim($input['notes'] ?? $adData['notes'] ?? '');
+    $tags = trim($input['tags'] ?? $input['collection_name'] ?? $adData['tags'] ?? 'Favori');
+    $isWinner = (!empty($adData['isWinner']) || ($adData['activeDaysCount'] ?? 0) >= 30) ? 1 : 0;
+    $competitorId = trim($adData['pageId'] ?? $adData['competitorId'] ?? $input['competitorId'] ?? $input['pageId'] ?? '');
 
     $id = 'saved_' . time() . '_' . rand(100, 999);
 
@@ -264,7 +267,7 @@ if ($method === 'POST') {
     $stmt->execute([
         $id,
         $adId,
-        $input['competitorId'] ?? $input['pageId'] ?? '',
+        $competitorId,
         $pageName,
         $format,
         $headline,

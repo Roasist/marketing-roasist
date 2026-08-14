@@ -388,36 +388,12 @@ export const CompetitorsModule: React.FC<CompetitorsModuleProps> = ({
               gap: '1rem',
             }}>
               {filteredAds.map((ad) => (
-                <div key={ad.id} style={{ position: 'relative' }}>
-                  <AdCard
-                    ad={ad}
-                    onInspect={(selected) => setSelectedAdForModal(selected)}
-                  />
-                  <button
-                    onClick={() => handleSaveAd(ad)}
-                    title="Reklamı Kaydet"
-                    style={{
-                      position: 'absolute',
-                      top: '12px',
-                      right: '12px',
-                      backgroundColor: 'rgba(255, 255, 255, 0.92)',
-                      border: '1px solid #cbd5e1',
-                      borderRadius: '6px',
-                      padding: '4px 8px',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      fontSize: '0.72rem',
-                      fontWeight: 500,
-                      color: '#475569',
-                      boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-                      zIndex: 5,
-                    }}
-                  >
-                    <Bookmark size={12} /> Kaydet
-                  </button>
-                </div>
+                <AdCard
+                  key={ad.id}
+                  ad={ad}
+                  onInspect={(selected) => setSelectedAdForModal(selected)}
+                  onSave={(selected) => handleSaveAd(selected)}
+                />
               ))}
             </div>
           )}

@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { AdItem } from '../types/ad';
-import { ExternalLink, Play, Calendar, Eye, Search, Image as ImageIcon, Video, Clock } from 'lucide-react';
+import { ExternalLink, Play, Calendar, Eye, Search, Image as ImageIcon, Video, Clock, Bookmark } from 'lucide-react';
 
 interface AdCardProps {
   ad: AdItem;
   onInspect: (ad: AdItem) => void;
+  onSave?: (ad: AdItem) => void;
 }
 
-export const AdCard: React.FC<AdCardProps> = ({ ad, onInspect }) => {
+export const AdCard: React.FC<AdCardProps> = ({ ad, onInspect, onSave }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [activeSlide, setActiveSlide] = useState(0);
 
@@ -32,7 +33,6 @@ export const AdCard: React.FC<AdCardProps> = ({ ad, onInspect }) => {
         flexDirection: 'column',
         boxShadow: isWinner ? '0 4px 12px rgba(245, 158, 11, 0.08)' : '0 1px 3px rgba(0,0,0,0.05)',
         fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-        position: 'relative',
       }}>
         {/* Top Accent Strip */}
         <div style={{
@@ -44,9 +44,19 @@ export const AdCard: React.FC<AdCardProps> = ({ ad, onInspect }) => {
               : 'linear-gradient(90deg, #94a3b8, #cbd5e1)',
         }} />
 
-        {/* Card Header: Brand & Format Badge */}
-        <div style={{ padding: '0.85rem 1rem', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#fcfdfe' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+        {/* Card Header: Brand & Status Badges */}
+        <div style={{
+          padding: '0.85rem 1rem',
+          borderBottom: '1px solid #f1f5f9',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '0.5rem',
+          backgroundColor: '#fcfdfe',
+        }}>
+          {/* Brand Info */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', minWidth: 0 }}>
             <div style={{
               width: '32px',
               height: '32px',
@@ -57,6 +67,7 @@ export const AdCard: React.FC<AdCardProps> = ({ ad, onInspect }) => {
               justifyContent: 'center',
               border: '1px solid #dbeafe',
               overflow: 'hidden',
+              flexShrink: 0,
             }}>
               <img
                 src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(ad.domain || 'google.com')}&sz=64`}
@@ -68,17 +79,18 @@ export const AdCard: React.FC<AdCardProps> = ({ ad, onInspect }) => {
               />
             </div>
 
-            <div>
-              <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#1e293b' }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {brandName}
               </div>
-              <div style={{ fontSize: '0.72rem', color: '#64748b' }}>
+              <div style={{ fontSize: '0.7rem', color: '#64748b' }}>
                 Google Reklamvereni
               </div>
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+          {/* Badges Row */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexShrink: 0 }}>
             {isWinner && (
               <span style={{
                 fontSize: '0.68rem',
@@ -92,7 +104,7 @@ export const AdCard: React.FC<AdCardProps> = ({ ad, onInspect }) => {
                 gap: '3px',
                 border: '1px solid #fde68a',
               }}>
-                🔥 Winner ({ad.activeDaysCount} Gün)
+                🔥 Winner ({ad.activeDaysCount}G)
               </span>
             )}
             <span style={{
@@ -104,7 +116,7 @@ export const AdCard: React.FC<AdCardProps> = ({ ad, onInspect }) => {
               fontWeight: 600,
               border: isActive ? '1px solid #a7f3d0' : '1px solid #e2e8f0',
             }}>
-              {isActive ? '🟢 Aktif Yayında' : '⚪ Pasif / Arşiv'}
+              {isActive ? '🟢 Aktif' : '⚪ Pasif'}
             </span>
           </div>
         </div>
@@ -131,11 +143,12 @@ export const AdCard: React.FC<AdCardProps> = ({ ad, onInspect }) => {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              flexShrink: 0,
             }}>
               {isSearch ? <Search size={14} /> : isImage ? <ImageIcon size={14} /> : <Video size={14} />}
             </div>
 
-            <div>
+            <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#0f172a' }}>
                 {isSearch ? 'Google Arama (Search Reklamı)' : isImage ? 'Google Görüntülü (GDN Banner)' : 'YouTube / Responsive Video'}
               </div>
@@ -203,45 +216,69 @@ export const AdCard: React.FC<AdCardProps> = ({ ad, onInspect }) => {
 
         </div>
 
-        {/* Card Footer with 1-Click Google Transparency Launcher */}
+        {/* Card Footer with Save & 1-Click Google Transparency Launcher */}
         <div style={{
           backgroundColor: '#f8fafc',
           borderTop: '1px solid #e2e8f0',
-          padding: '0.75rem 1rem',
+          padding: '0.65rem 1rem',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           gap: '0.5rem',
         }}>
-          <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#334155', maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={ad.pageName}>
+          <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#334155', maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={ad.pageName}>
             {ad.pageName}
           </div>
 
-          <a
-            href={directGoogleUrl}
-            target="_blank"
-            rel="noreferrer"
-            style={{
-              backgroundColor: '#2563eb',
-              color: '#ffffff',
-              border: 'none',
-              borderRadius: '6px',
-              padding: '0.45rem 0.85rem',
-              fontSize: '0.75rem',
-              textDecoration: 'none',
-              fontWeight: 600,
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '4px',
-              boxShadow: '0 1px 2px rgba(37, 99, 235, 0.2)',
-              transition: 'background-color 0.15s ease',
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1d4ed8'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#2563eb'}
-          >
-            <span>Google'da Aç</span>
-            <ExternalLink size={12} />
-          </a>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            {onSave && (
+              <button
+                onClick={() => onSave(ad)}
+                style={{
+                  backgroundColor: '#ffffff',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '6px',
+                  padding: '0.4rem 0.65rem',
+                  fontSize: '0.72rem',
+                  color: '#475569',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '3px',
+                  fontWeight: 500,
+                }}
+                title="Strateji notlarıma kaydet"
+              >
+                <Bookmark size={12} /> Kaydet
+              </button>
+            )}
+
+            <a
+              href={directGoogleUrl}
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                backgroundColor: '#2563eb',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '6px',
+                padding: '0.4rem 0.75rem',
+                fontSize: '0.72rem',
+                textDecoration: 'none',
+                fontWeight: 600,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '3px',
+                boxShadow: '0 1px 2px rgba(37, 99, 235, 0.2)',
+                transition: 'background-color 0.15s ease',
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1d4ed8'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#2563eb'}
+            >
+              <span>Google'da Aç</span>
+              <ExternalLink size={11} />
+            </a>
+          </div>
         </div>
       </div>
     );
@@ -266,9 +303,11 @@ export const AdCard: React.FC<AdCardProps> = ({ ad, onInspect }) => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: '0.5rem',
         backgroundColor: 'var(--bg-surface)',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', minWidth: 0 }}>
           <div style={{
             width: '32px',
             height: '32px',
@@ -287,7 +326,7 @@ export const AdCard: React.FC<AdCardProps> = ({ ad, onInspect }) => {
           </div>
           
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-primary)' }}>
+            <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {ad.pageName}
             </div>
             <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
@@ -299,11 +338,16 @@ export const AdCard: React.FC<AdCardProps> = ({ ad, onInspect }) => {
           </div>
         </div>
 
-        {isWinner && (
-          <span className="badge badge-carousel" style={{ fontSize: '0.68rem', padding: '2px 6px' }}>
-            🔥 Winner
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexShrink: 0 }}>
+          {isWinner && (
+            <span className="badge badge-carousel" style={{ fontSize: '0.68rem', padding: '2px 6px' }}>
+              🔥 Winner
+            </span>
+          )}
+          <span className="badge badge-neutral" style={{ fontSize: '0.68rem', padding: '2px 6px' }}>
+            {ad.activeStatus === 'ACTIVE' ? '🟢 Aktif' : '⚪ Pasif'}
           </span>
-        )}
+        </div>
       </div>
 
       {/* Meta Media Display */}
@@ -438,12 +482,24 @@ export const AdCard: React.FC<AdCardProps> = ({ ad, onInspect }) => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: '0.5rem',
       }}>
         <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
           CTA: <strong style={{ color: 'var(--text-secondary)' }}>{ad.adCta || 'İncele'}</strong>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.35rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+          {onSave && (
+            <button
+              onClick={() => onSave(ad)}
+              className="btn-ghost"
+              style={{ padding: '0.3rem 0.55rem', fontSize: '0.72rem', border: '1px solid var(--border-default)' }}
+              title="Strateji notlarıma kaydet"
+            >
+              <Bookmark size={11} /> Kaydet
+            </button>
+          )}
           <button
             onClick={() => onInspect(ad)}
             className="btn-secondary"
