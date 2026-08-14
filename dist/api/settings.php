@@ -59,7 +59,45 @@ if ($action === 'logs') {
     exit;
 }
 
-// Get or update settings
+// Test Meta API Token
+if ($action === 'test_meta') {
+    requireAuth('ADMIN');
+    $stmt = $pdo->prepare("SELECT setting_value FROM app_settings WHERE setting_key = 'metaToken'");
+    $stmt->execute();
+    $row = $stmt->fetch();
+    $token = $row ? trim($row['setting_value']) : '';
+
+    if (empty($token)) {
+        echo json_encode(['status' => 'error', 'message' => 'Token bulunamadı. Lütfen önce tokenı alana yapıştırıp kaydedin.']);
+        exit;
+    }
+
+    $ch = curl_init('https://graph.facebook.com/v19.0/me?access_token=' . urlencode($token));
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+    $res = curl_exec($ch);
+    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    $json = json_decode($res, true);
+    if ($code === 200 && isset($json['id'])) {
+        echo json_encode([
+            'status' => 'success',
+            'message' => '✓ Meta API Bağlantısı Başarılı! (Geliştirici Hesabı: ' . ($json['name'] ?? $json['id']) . ')',
+            'user' => $json
+        ]);
+    } else {
+        $msg = $json['error']['message'] ?? 'Geçersiz veya süresi dolmuş token.';
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'Meta Doğrulama Hatası: ' . $msg
+        ]);
+    }
+    exit;
+}
+
+// Get settings
 if ($method === 'GET') {
     $stmt = $pdo->query("SELECT setting_key, setting_value FROM app_settings");
     $raw = $stmt->fetchAll();
@@ -71,6 +109,7 @@ if ($method === 'GET') {
     exit;
 }
 
+// Update settings
 if ($method === 'POST') {
     requireAuth('ADMIN');
     $input = json_decode(file_get_contents('php://input'), true) ?? [];

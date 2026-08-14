@@ -19,7 +19,11 @@ import {
   Clock,
   Globe,
   CheckCircle2,
-  X
+  X,
+  Eye,
+  EyeOff,
+  AlertCircle,
+  Sparkles
 } from 'lucide-react';
 
 interface AdminPanelProps {
@@ -72,9 +76,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [isEditingSubmitting, setIsEditingSubmitting] = useState(false);
 
   // Settings state
-  const [metaToken, setMetaToken] = useState('');
-  const [geminiApiKey, setGeminiApiKey] = useState('');
+  const [metaToken, setMetaToken] = useState(() => localStorage.getItem('roasist_meta_token') || '');
+  const [geminiApiKey, setGeminiApiKey] = useState(() => localStorage.getItem('roasist_gemini_api_key') || '');
+  const [showMetaToken, setShowMetaToken] = useState(false);
+  const [showGeminiKey, setShowGeminiKey] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  const [isTestingMeta, setIsTestingMeta] = useState(false);
+  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
   // Feature Flags
   const [flags, setFlags] = useState({
@@ -117,8 +125,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     try {
       const res = await ApiService.getSettings();
       if (res && res.settings) {
-        if (res.settings.metaToken) setMetaToken(res.settings.metaToken);
-        if (res.settings.geminiApiKey) setGeminiApiKey(res.settings.geminiApiKey);
+        if (res.settings.metaToken) {
+          setMetaToken(res.settings.metaToken);
+          localStorage.setItem('roasist_meta_token', res.settings.metaToken);
+        }
+        if (res.settings.geminiApiKey) {
+          setGeminiApiKey(res.settings.geminiApiKey);
+          localStorage.setItem('roasist_gemini_api_key', res.settings.geminiApiKey);
+        }
         if (res.settings.flags) {
           try {
             setFlags(JSON.parse(res.settings.flags));
@@ -138,16 +152,41 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
   const handleSaveSettings = async () => {
     try {
+      localStorage.setItem('roasist_meta_token', metaToken);
+      localStorage.setItem('roasist_gemini_api_key', geminiApiKey);
       await ApiService.updateSettings({
         metaToken,
         geminiApiKey,
         flags: JSON.stringify(flags),
       });
       setIsSaved(true);
-      setTimeout(() => setIsSaved(false), 2000);
+      setTimeout(() => setIsSaved(false), 2500);
       loadLogs();
     } catch (err: any) {
       alert('Ayarlar kaydedilirken hata: ' + err.message);
+    }
+  };
+
+  const handleTestMetaConnection = async () => {
+    setIsTestingMeta(true);
+    setTestResult(null);
+    try {
+      localStorage.setItem('roasist_meta_token', metaToken);
+      await ApiService.updateSettings({
+        metaToken,
+        geminiApiKey,
+        flags: JSON.stringify(flags),
+      });
+      const res = await ApiService.testMetaToken();
+      if (res.status === 'success') {
+        setTestResult({ success: true, message: res.message });
+      } else {
+        setTestResult({ success: false, message: res.message });
+      }
+    } catch (err: any) {
+      setTestResult({ success: false, message: err.message || 'Bağlantı testi başarısız oldu.' });
+    } finally {
+      setIsTestingMeta(false);
     }
   };
 
@@ -487,36 +526,163 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
       {/* Tab 2: API Keys */}
       {activeTab === 'keys' && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           
-          <div className="card" style={{ padding: '1.25rem' }}>
-            <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.35rem' }}>
-              Meta Ad Library Graph API
+          {/* Header Info */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+            <div>
+              <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                API Anahtarları & Dış Entegrasyonlar
+              </div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                Meta Ad Library ve AI motoru bağlantı ayarlarını yapılandırın.
+              </div>
             </div>
-            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.85rem' }}>
-              Meta reklam kütüphanesinden otomatik canlı veri çekmek için Access Token.
-            </p>
-            <input
-              type="password"
-              value={metaToken}
-              onChange={(e) => setMetaToken(e.target.value)}
-              style={{ width: '100%' }}
-            />
+
+            <button
+              onClick={handleSaveSettings}
+              className="btn-primary"
+              style={{ fontSize: '0.8rem' }}
+            >
+              {isSaved ? <Check size={14} /> : <Save size={14} />}
+              {isSaved ? 'Değişiklikler Kaydedildi!' : 'Değişiklikleri Kaydet'}
+            </button>
           </div>
 
-          <div className="card" style={{ padding: '1.25rem' }}>
-            <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.35rem' }}>
-              AI Metin Motoru Anahtarı
+          {testResult && (
+            <div style={{
+              background: testResult.success ? 'var(--success-bg)' : 'var(--danger-bg)',
+              border: `1px solid ${testResult.success ? 'var(--success-border)' : 'var(--danger-border)'}`,
+              color: testResult.success ? '#34d399' : 'var(--danger)',
+              padding: '0.75rem 1rem',
+              borderRadius: 'var(--radius-sm)',
+              fontSize: '0.825rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+            }}>
+              {testResult.success ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
+              <span>{testResult.message}</span>
             </div>
-            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.85rem' }}>
-              SWOT analizleri ve AI metin yazarı motoru için API anahtarı.
-            </p>
-            <input
-              type="password"
-              value={geminiApiKey}
-              onChange={(e) => setGeminiApiKey(e.target.value)}
-              style={{ width: '100%' }}
-            />
+          )}
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '1rem' }}>
+            
+            {/* Meta Ad Library Card */}
+            <div className="card" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                  Meta Ad Library Graph API
+                </div>
+                {metaToken.trim().length > 15 ? (
+                  <span className="badge badge-active" style={{ fontSize: '0.7rem' }}>
+                    <CheckCircle2 size={11} /> Token Kayıtlı
+                  </span>
+                ) : (
+                  <span className="badge badge-inactive" style={{ fontSize: '0.7rem' }}>
+                    Token Bekleniyor
+                  </span>
+                )}
+              </div>
+
+              <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                Meta Reklam Kütüphanesinden Türkiye ve globaldeki rakiplerin aktif kampanyalarını otomatik çekmek için <strong>Access Token</strong>.
+              </p>
+
+              <div style={{ position: 'relative', width: '100%' }}>
+                <input
+                  type={showMetaToken ? 'text' : 'password'}
+                  placeholder="EAA... ile başlayan Meta Access Token'ınızı buraya yapıştırın"
+                  value={metaToken}
+                  onChange={(e) => setMetaToken(e.target.value)}
+                  style={{ width: '100%', paddingRight: '2.5rem', fontFamily: showMetaToken ? 'var(--font-mono)' : 'inherit', fontSize: '0.8rem' }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowMetaToken(!showMetaToken)}
+                  style={{
+                    position: 'absolute',
+                    right: '10px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                  }}
+                  title={showMetaToken ? 'Gizle' : 'Göster'}
+                >
+                  {showMetaToken ? <EyeOff size={15} /> : <Eye size={15} />}
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
+                <button
+                  type="button"
+                  onClick={handleTestMetaConnection}
+                  disabled={isTestingMeta || !metaToken.trim()}
+                  className="btn-secondary"
+                  style={{ fontSize: '0.75rem', padding: '0.4rem 0.75rem' }}
+                >
+                  <Sparkles size={13} className={isTestingMeta ? 'animate-spin' : ''} />
+                  {isTestingMeta ? 'Doğrulanıyor...' : 'Bağlantıyı Doğrula & Test Et'}
+                </button>
+              </div>
+            </div>
+
+            {/* AI Engine Card */}
+            <div className="card" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                  AI Metin & Strateji Motoru
+                </div>
+                {geminiApiKey.trim().length > 10 ? (
+                  <span className="badge badge-active" style={{ fontSize: '0.7rem' }}>
+                    <CheckCircle2 size={11} /> Anahtar Aktif
+                  </span>
+                ) : (
+                  <span className="badge badge-neutral" style={{ fontSize: '0.7rem' }}>
+                    Sistem Varsayılanı
+                  </span>
+                )}
+              </div>
+
+              <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                Rakip reklam metinleri analizi, SWOT stratejisi ve yeni reklam açısı üretimi için AI API Anahtarı.
+              </p>
+
+              <div style={{ position: 'relative', width: '100%' }}>
+                <input
+                  type={showGeminiKey ? 'text' : 'password'}
+                  placeholder="AIzaSy... ile başlayan API Anahtarı (İsteğe bağlı)"
+                  value={geminiApiKey}
+                  onChange={(e) => setGeminiApiKey(e.target.value)}
+                  style={{ width: '100%', paddingRight: '2.5rem', fontFamily: showGeminiKey ? 'var(--font-mono)' : 'inherit', fontSize: '0.8rem' }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowGeminiKey(!showGeminiKey)}
+                  style={{
+                    position: 'absolute',
+                    right: '10px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                  }}
+                  title={showGeminiKey ? 'Gizle' : 'Göster'}
+                >
+                  {showGeminiKey ? <EyeOff size={15} /> : <Eye size={15} />}
+                </button>
+              </div>
+            </div>
+
           </div>
 
         </div>

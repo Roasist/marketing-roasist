@@ -154,6 +154,10 @@ export class ApiService {
     });
   }
 
+  public static async testMetaToken(): Promise<{ status: string; message: string }> {
+    return await this.request<{ status: string; message: string }>('/settings.php?action=test_meta');
+  }
+
   public static async getAuditLogs(): Promise<any[]> {
     const res = await this.request<{ status: string; logs: any[] }>('/settings.php?action=logs');
     return res.logs || [];
