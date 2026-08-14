@@ -170,7 +170,7 @@ export const CompetitorsModule: React.FC<CompetitorsModuleProps> = ({
   const handleSaveAd = async (ad: AdItem) => {
     const userNote = window.prompt('Bu reklam için özel bir strateji notu eklemek ister misiniz? (İsteğe bağlı):', '');
     try {
-      await ApiService.saveAd(ad, userNote || '', ad.activeDaysCount >= 30 ? 'Winner Reklam' : 'Favori');
+      await ApiService.saveAd(ad, userNote || '', 'Strateji Reklamı');
       setSaveSuccessMsg('Reklam "Kaydedilenler & Notlarım" bölümüne eklendi!');
       setTimeout(() => setSaveSuccessMsg(null), 3000);
       loadDatabaseData();
@@ -445,9 +445,8 @@ export const CompetitorsModule: React.FC<CompetitorsModuleProps> = ({
                   <div style={{ padding: '0.85rem 1rem', flex: 1, display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                       <span className="badge badge-neutral" style={{ fontSize: '0.68rem' }}>
-                        <Tag size={10} /> {item.tags || 'Favori'}
+                        <Tag size={10} /> {item.tags || 'Kaydedilen'}
                       </span>
-                      {item.isWinner && <span className="badge badge-carousel" style={{ fontSize: '0.68rem' }}>Winner</span>}
                     </div>
 
                     <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-primary)' }}>{item.headline}</div>

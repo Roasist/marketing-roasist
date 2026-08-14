@@ -234,7 +234,7 @@ export const AdFilters: React.FC<AdFiltersProps> = ({
             style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem', background: 'transparent', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-xs)' }}
           >
             <option value="NEWEST">⚡ Akıllı Sıralama (Aktifler & En Günceller Önce)</option>
-            <option value="LONGEST_RUNNING">🔥 En Uzun Süre Yayında Kalanlar (Winner)</option>
+            <option value="LONGEST_RUNNING">⏱️ En Uzun Süre Yayında Kalanlar</option>
           </select>
         </div>
 

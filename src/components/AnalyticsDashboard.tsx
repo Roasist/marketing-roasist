@@ -137,13 +137,13 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ ads, com
           </div>
         </div>
 
-        {/* Winner Leaderboard Panel */}
+        {/* Longest Running Leaderboard Panel */}
         <div className="card" style={{ padding: '1.25rem' }}>
           <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.35rem' }}>
-            En Uzun Süre Yayında Kalan 5 "Winner" Reklam
+            En Uzun Süre Yayında Kalan 5 Kampanya
           </div>
           <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
-            Pazarlamada en çok bütçe ayrılan ve ölçeklenen kampanyalar
+            Rakiplerin en uzun süredir kesintisiz yayında tuttuğu kreatifler
           </p>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>

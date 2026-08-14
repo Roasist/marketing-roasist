@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { AdItem } from '../types/ad';
-import { ExternalLink, Play, Calendar, Eye, Search, Image as ImageIcon, Video, Clock, Bookmark } from 'lucide-react';
+import { ExternalLink, Play, Calendar, Eye, Search, Image as ImageIcon, Video, Clock, Bookmark, Sparkles } from 'lucide-react';
 
 interface AdCardProps {
   ad: AdItem;
@@ -12,8 +12,8 @@ export const AdCard: React.FC<AdCardProps> = ({ ad, onInspect, onSave }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [activeSlide, setActiveSlide] = useState(0);
 
-  const isWinner = ad.activeDaysCount >= 30;
   const isGoogle = ad.network === 'GOOGLE' || (ad.format as string) === 'SEARCH' || (ad.format as string) === 'SEARCH_IMAGE' || ad.platforms?.includes('google_search') || ad.platforms?.includes('youtube') || ad.platforms?.includes('google_display');
+  const isNew = ad.activeDaysCount <= 7;
 
   // Authentic Google Ads Intelligence Card Layout
   if (isGoogle) {
@@ -26,22 +26,20 @@ export const AdCard: React.FC<AdCardProps> = ({ ad, onInspect, onSave }) => {
     return (
       <div style={{
         backgroundColor: '#ffffff',
-        border: isWinner ? '1.5px solid #f59e0b' : '1px solid #e2e8f0',
+        border: '1px solid #e2e8f0',
         borderRadius: '10px',
         overflow: 'hidden',
         display: 'flex',
         flexDirection: 'column',
-        boxShadow: isWinner ? '0 4px 12px rgba(245, 158, 11, 0.08)' : '0 1px 3px rgba(0,0,0,0.05)',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
         fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       }}>
         {/* Top Accent Strip */}
         <div style={{
-          height: '4px',
-          background: isWinner 
-            ? 'linear-gradient(90deg, #f59e0b, #ef4444)' 
-            : isActive 
-              ? 'linear-gradient(90deg, #10b981, #059669)'
-              : 'linear-gradient(90deg, #94a3b8, #cbd5e1)',
+          height: '3px',
+          background: isActive 
+            ? 'linear-gradient(90deg, #10b981, #059669)'
+            : 'linear-gradient(90deg, #94a3b8, #cbd5e1)',
         }} />
 
         {/* Card Header: Brand & Status Badges */}
@@ -91,20 +89,20 @@ export const AdCard: React.FC<AdCardProps> = ({ ad, onInspect, onSave }) => {
 
           {/* Badges Row */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexShrink: 0 }}>
-            {isWinner && (
+            {isNew && (
               <span style={{
                 fontSize: '0.68rem',
-                backgroundColor: '#fef3c7',
-                color: '#92400e',
+                backgroundColor: '#eff6ff',
+                color: '#1d4ed8',
                 padding: '2px 7px',
                 borderRadius: '6px',
-                fontWeight: 700,
+                fontWeight: 600,
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '3px',
-                border: '1px solid #fde68a',
+                border: '1px solid #bfdbfe',
               }}>
-                🔥 Winner ({ad.activeDaysCount}G)
+                <Sparkles size={11} /> Yeni
               </span>
             )}
             <span style={{
@@ -198,9 +196,9 @@ export const AdCard: React.FC<AdCardProps> = ({ ad, onInspect, onSave }) => {
             }}>
               <span style={{ color: '#64748b' }}>Yayın Süresi:</span>
               <span style={{
-                color: isWinner ? '#b45309' : isActive ? '#047857' : '#475569',
-                fontWeight: 700,
-                backgroundColor: isWinner ? '#fef3c7' : isActive ? '#ecfdf5' : '#f1f5f9',
+                color: isActive ? '#047857' : '#475569',
+                fontWeight: 600,
+                backgroundColor: isActive ? '#ecfdf5' : '#f1f5f9',
                 padding: '1px 6px',
                 borderRadius: '4px',
               }}>
@@ -209,7 +207,7 @@ export const AdCard: React.FC<AdCardProps> = ({ ad, onInspect, onSave }) => {
             </div>
           </div>
 
-          {/* Privacy Note */}
+          {/* Transparency Center Note */}
           <div style={{ fontSize: '0.7rem', color: '#94a3b8', lineHeight: 1.4, textAlign: 'center' }}>
             🔒 Orijinal görsel ve metin Google Şeffaflık Merkezi üzerinden doğrulanır.
           </div>
@@ -292,7 +290,7 @@ export const AdCard: React.FC<AdCardProps> = ({ ad, onInspect, onSave }) => {
       overflow: 'hidden',
       position: 'relative',
       borderRadius: 'var(--radius-md)',
-      border: isWinner ? '1px solid rgba(245, 158, 11, 0.45)' : '1px solid var(--border-subtle)',
+      border: '1px solid var(--border-subtle)',
       backgroundColor: 'var(--bg-surface)',
       boxShadow: 'var(--shadow-sm)',
     }}>
@@ -339,9 +337,9 @@ export const AdCard: React.FC<AdCardProps> = ({ ad, onInspect, onSave }) => {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexShrink: 0 }}>
-          {isWinner && (
-            <span className="badge badge-carousel" style={{ fontSize: '0.68rem', padding: '2px 6px' }}>
-              🔥 Winner
+          {isNew && (
+            <span className="badge badge-image" style={{ fontSize: '0.68rem', padding: '2px 6px' }}>
+              <Sparkles size={10} /> Yeni
             </span>
           )}
           <span className="badge badge-neutral" style={{ fontSize: '0.68rem', padding: '2px 6px' }}>

@@ -75,14 +75,14 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
         {/* Metric 3 */}
         <div className="card" style={{ padding: '1.25rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: 'var(--text-secondary)', fontSize: '0.8rem', fontWeight: 500 }}>
-            <span>30+ Gün Çalışan "Winner" Reklamlar</span>
+            <span>Uzun Dönemli Kampanyalar (30+ Gün)</span>
             <Target size={16} color="var(--text-muted)" />
           </div>
           <div style={{ fontSize: '1.75rem', fontWeight: 700, color: '#f59e0b', marginTop: '0.5rem' }}>
             {winnerAds.length}
           </div>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.35rem' }}>
-            Yüksek ROAS sağlayan kanıtlanmış kreatifler
+            Kesintisiz yayında kalan kampanyalar
           </div>
         </div>
 
