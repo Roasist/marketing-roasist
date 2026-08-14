@@ -1,7 +1,7 @@
 <?php
 /**
  * Roasist Marketing Suite - Live Google Ads Transparency Center Engine
- * 100% Authentic Campaign Intelligence with 2-Day Active Rule
+ * 100% Authentic Campaign Intelligence with Direct Domain Resolution & 2-Day Active Rule
  */
 
 header('Content-Type: application/json');
@@ -30,7 +30,7 @@ if (empty($domainName) || strlen($domainName) < 2) {
     exit;
 }
 
-// 1. ACTION: Search Google Advertisers & Domains
+// 1. ACTION: Search Google Advertisers & Domains for Autocomplete
 if ($action === 'search_advertisers') {
     $results = [];
     
@@ -128,7 +128,7 @@ if ($action === 'search_advertisers') {
     exit;
 }
 
-// 2. ACTION: Exact Real Google Ads Ingestion (No Fake/Synthetic Text, 2-Day Active Rule)
+// 2. ACTION: Fetch Google Ads via Direct SearchCreatives RPC
 if ($action === 'fetch_google_ads') {
     $brandBase = ucwords(str_replace(['.', '-', '_'], ' ', explode('.', $domainName)[0]));
     $gTransparencyUrl = "https://adstransparency.google.com/?region=" . ($region === 'ALL' ? 'anywhere' : $region) . "&domain=" . urlencode($domainName);
@@ -136,108 +136,96 @@ if ($action === 'fetch_google_ads') {
     $rawCreatives = [];
     $creatUrl = "https://adstransparency.google.com/anji/_/rpc/SearchService/SearchCreatives?authuser=0";
 
-    // Step 1: Query by Domain in SearchCreatives (Limit 100)
-    $payloadCreat = [
-        "2" => 100,
-        "3" => [
-            "12" => ["1" => $domainName, "2" => true]
-        ],
-        "7" => ["1" => 1]
-    ];
+    $isDomainQuery = strpos($domainName, '.') !== false;
 
-    $ch = curl_init($creatUrl);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, "f.req=" . urlencode(json_encode($payloadCreat)));
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'Content-Type: application/x-www-form-urlencoded',
-        'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
-    ]);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-    $resp = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
+    // STEP 1: If domain name provided, query SearchCreatives by domain directly
+    if ($isDomainQuery) {
+        $payloadDomain = [
+            "2" => 100,
+            "3" => [
+                "12" => ["1" => $domainName, "2" => true]
+            ],
+            "7" => ["1" => 1]
+        ];
 
-    if ($httpCode === 200 && !empty($resp)) {
-        $j = json_decode($resp, true);
-        if (!empty($j['1']) && is_array($j['1'])) {
-            $rawCreatives = $j['1'];
-        }
-    }
-
-    // Step 2: Intelligent suggestion resolution to find the EXACT primary registered company
-    $sugUrl = "https://adstransparency.google.com/anji/_/rpc/SearchService/SearchSuggestions?authuser=0";
-    
-    $baseClean = explode('.', $domainName)[0];
-    $candidates = [$domainName, $baseClean, ucfirst($baseClean)];
-    for ($len = strlen($baseClean); $len >= 4; $len--) {
-        $candidates[] = substr($baseClean, 0, $len);
-        $candidates[] = ucfirst(substr($baseClean, 0, $len));
-    }
-    $candidates = array_unique($candidates);
-
-    $bestAdvId = null;
-    $discoveredLegalName = '';
-    $maxFoundAds = -1;
-
-    foreach ($candidates as $c) {
-        $chSug = curl_init($sugUrl);
-        curl_setopt($chSug, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($chSug, CURLOPT_POST, true);
-        curl_setopt($chSug, CURLOPT_POSTFIELDS, "f.req=" . urlencode(json_encode(["1" => $c, "2" => 10, "3" => 10])));
-        curl_setopt($chSug, CURLOPT_HTTPHEADER, [
+        $ch = curl_init($creatUrl);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, "f.req=" . urlencode(json_encode($payloadDomain)));
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
             'Content-Type: application/x-www-form-urlencoded',
             'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
         ]);
-        curl_setopt($chSug, CURLOPT_TIMEOUT, 6);
-        $respSug = curl_exec($chSug);
-        curl_close($chSug);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+        $resp = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
 
-        if (!empty($respSug)) {
-            $jSug = json_decode($respSug, true);
-            if (!empty($jSug['1']) && is_array($jSug['1'])) {
-                foreach ($jSug['1'] as $sItem) {
-                    if (!empty($sItem['1'])) {
-                        $adv = $sItem['1'];
-                        $advId = $adv['2'] ?? '';
-                        $name = $adv['1'] ?? '';
-                        $count = (int)($adv['4']['2']['1'] ?? 1);
-                        
-                        if ($count > $maxFoundAds) {
-                            $maxFoundAds = $count;
-                            $bestAdvId = $advId;
-                            $discoveredLegalName = $name;
+        if ($httpCode === 200 && !empty($resp)) {
+            $j = json_decode($resp, true);
+            if (!empty($j['1']) && is_array($j['1'])) {
+                $rawCreatives = $j['1'];
+            }
+        }
+    }
+
+    // STEP 2: If domain query returned no ads or input is an advertiser ID/keyword
+    if (empty($rawCreatives)) {
+        $targetAdvId = $rawQuery;
+        
+        // If not starting with AR, try finding advertiser ID
+        if (strpos($targetAdvId, 'AR') !== 0) {
+            $sugUrl = "https://adstransparency.google.com/anji/_/rpc/SearchService/SearchSuggestions?authuser=0";
+            $chSug = curl_init($sugUrl);
+            curl_setopt($chSug, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($chSug, CURLOPT_POST, true);
+            curl_setopt($chSug, CURLOPT_POSTFIELDS, "f.req=" . urlencode(json_encode(["1" => $domainName, "2" => 5, "3" => 5])));
+            curl_setopt($chSug, CURLOPT_HTTPHEADER, [
+                'Content-Type: application/x-www-form-urlencoded',
+                'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+            ]);
+            curl_setopt($chSug, CURLOPT_TIMEOUT, 6);
+            $respSug = curl_exec($chSug);
+            curl_close($chSug);
+
+            if (!empty($respSug)) {
+                $jSug = json_decode($respSug, true);
+                if (!empty($jSug['1']) && is_array($jSug['1'])) {
+                    foreach ($jSug['1'] as $sItem) {
+                        if (!empty($sItem['1']['2'])) {
+                            $targetAdvId = $sItem['1']['2'];
+                            break;
                         }
                     }
                 }
             }
         }
-        if ($maxFoundAds >= 15) break; // Found exact primary company
-    }
 
-    if (!empty($bestAdvId)) {
-        $payloadAdv = [
-            "2" => 100,
-            "3" => [
-                "13" => ["1" => [$bestAdvId]]
-            ],
-            "7" => ["1" => 1]
-        ];
-        $chAdv = curl_init($creatUrl);
-        curl_setopt($chAdv, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($chAdv, CURLOPT_POST, true);
-        curl_setopt($chAdv, CURLOPT_POSTFIELDS, "f.req=" . urlencode(json_encode($payloadAdv)));
-        curl_setopt($chAdv, CURLOPT_HTTPHEADER, [
-            'Content-Type: application/x-www-form-urlencoded',
-            'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
-        ]);
-        curl_setopt($chAdv, CURLOPT_TIMEOUT, 10);
-        $respAdv = curl_exec($chAdv);
-        curl_close($chAdv);
-        if (!empty($respAdv)) {
-            $jAdv = json_decode($respAdv, true);
-            if (!empty($jAdv['1']) && is_array($jAdv['1'])) {
-                $rawCreatives = $jAdv['1']; // Exact 1-to-1 match with the primary entity
+        if (strpos($targetAdvId, 'AR') === 0) {
+            $payloadAdv = [
+                "2" => 100,
+                "3" => [
+                    "13" => ["1" => [$targetAdvId]]
+                ],
+                "7" => ["1" => 1]
+            ];
+            $chAdv = curl_init($creatUrl);
+            curl_setopt($chAdv, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($chAdv, CURLOPT_POST, true);
+            curl_setopt($chAdv, CURLOPT_POSTFIELDS, "f.req=" . urlencode(json_encode($payloadAdv)));
+            curl_setopt($chAdv, CURLOPT_HTTPHEADER, [
+                'Content-Type: application/x-www-form-urlencoded',
+                'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+            ]);
+            curl_setopt($chAdv, CURLOPT_TIMEOUT, 10);
+            $respAdv = curl_exec($chAdv);
+            curl_close($chAdv);
+
+            if (!empty($respAdv)) {
+                $jAdv = json_decode($respAdv, true);
+                if (!empty($jAdv['1']) && is_array($jAdv['1'])) {
+                    $rawCreatives = $jAdv['1'];
+                }
             }
         }
     }
@@ -245,15 +233,15 @@ if ($action === 'fetch_google_ads') {
     $realAds = [];
     $seenIds = [];
 
-    // Transform Raw Google Creatives into Honest Campaign Intelligence Items
+    // Transform Raw Google Creatives into Campaign Intelligence Items
     foreach ($rawCreatives as $index => $c) {
-        $advId = $c['1'] ?? ($bestAdvId ?: '');
+        $advId = $c['1'] ?? '';
         $creativeId = $c['2'] ?? ('CR_' . $index);
         
         if (isset($seenIds[$creativeId])) continue;
         $seenIds[$creativeId] = true;
 
-        $officialName = !empty($c['12']) ? $c['12'] : (!empty($discoveredLegalName) ? $discoveredLegalName : $brandBase);
+        $officialName = !empty($c['12']) ? $c['12'] : $brandBase;
         $formatNum = $c['4'] ?? 1; // 1 = Search, 2 = Display/Image, 3 = Responsive/Video
 
         $startTs = !empty($c['6']['1']) ? (int)$c['6']['1'] : time();
@@ -262,7 +250,7 @@ if ($action === 'fetch_google_ads') {
         $startDateStr = date('Y-m-d', $startTs);
         $lastSeenDateStr = date('Y-m-d', $lastSeenTs);
         
-        // Exact duration in days (Between First Shown and Last Shown)
+        // Duration in days between first shown and last seen
         $activeDays = max(1, round(($lastSeenTs - $startTs) / 86400));
         
         // 2-Day Active Rule: Active ONLY IF seen within the last 2 days (48 hours)
@@ -306,8 +294,7 @@ if ($action === 'fetch_google_ads') {
             'mediaUrls' => [],
             'platforms' => [$platform],
             'sitelinks' => [],
-            'hookType' => $activeDays >= 30 ? 'Sosyal Kanıt' : 'Arama Niyeti & SEO',
-            'isWinner' => $activeDays >= 30,
+            'hookType' => 'Arama Niyeti & SEO',
             'googleTransparencyUrl' => $directAdUrl
         ];
     }
