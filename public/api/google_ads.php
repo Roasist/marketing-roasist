@@ -1,7 +1,7 @@
 <?php
 /**
  * Roasist Marketing Suite - Live Google Ads Transparency Center Engine
- * 100% Exact Matching with Google Ads Transparency Center
+ * 100% Authentic Campaign Intelligence (No Synthetic Text)
  */
 
 header('Content-Type: application/json');
@@ -28,57 +28,6 @@ if (empty($domainName) || strlen($domainName) < 2) {
         'ads' => []
     ]);
     exit;
-}
-
-// Function to decode protobuf overlay/assets from Google Ads preview URL
-function parseGoogleProtobufUrl($url) {
-    if (empty($url)) return [];
-    $parts = parse_url($url);
-    if (empty($parts['query'])) return [];
-    parse_str($parts['query'], $qs);
-
-    $raw = '';
-    if (!empty($qs['overlay'])) {
-        $raw = ltrim($qs['overlay'], '=');
-    } elseif (!empty($qs['assets'])) {
-        $raw = ltrim($qs['assets'], '=');
-    }
-    if (empty($raw)) return [];
-
-    $padded = $raw . str_repeat('=', (4 - strlen($raw) % 4) % 4);
-    $b64 = strtr($padded, '-_', '+/');
-    $decomp = @gzdecode(base64_decode($b64));
-    if (!$decomp) return [];
-
-    $res = [];
-    if (($pos = strpos($decomp, 'headline')) !== false) {
-        $slice = substr($decomp, $pos + 8);
-        if (preg_match('/[A-Za-z0-9\x{0080}-\x{FFFF}][A-Za-z0-9\x{0080}-\x{FFFF}\s\-\–\:\,\.\!\{\}\&]{4,120}/u', $slice, $m)) {
-            $h = trim($m[0]);
-            if (strlen($h) >= 4) {
-                $res['headline'] = $h;
-            }
-        }
-    }
-    if (($pos = strpos($decomp, 'description')) !== false) {
-        $slice = substr($decomp, $pos + 11);
-        if (preg_match('/[A-Za-z0-9\x{0080}-\x{FFFF}][A-Za-z0-9\x{0080}-\x{FFFF}\s\-\–\:\,\.\!\{\}\&]{8,250}/u', $slice, $m)) {
-            $d = trim($m[0]);
-            if (strlen($d) >= 8) {
-                $res['description'] = $d;
-            }
-        }
-    }
-    if (($pos = strpos($decomp, 'visurl')) !== false) {
-        $slice = substr($decomp, $pos + 6);
-        if (preg_match('/[a-zA-Z0-9\.\-\_\/]{4,60}/u', $slice, $m)) {
-            $v = trim($m[0]);
-            if (strlen($v) >= 4) {
-                $res['visurl'] = $v;
-            }
-        }
-    }
-    return $res;
 }
 
 // 1. ACTION: Search Google Advertisers & Domains
@@ -179,7 +128,7 @@ if ($action === 'search_advertisers') {
     exit;
 }
 
-// 2. ACTION: Exact Real Google Ads Ingestion
+// 2. ACTION: Exact Real Google Ads Ingestion (No Fake/Synthetic Text)
 if ($action === 'fetch_google_ads') {
     $brandBase = ucwords(str_replace(['.', '-', '_'], ' ', explode('.', $domainName)[0]));
     $gTransparencyUrl = "https://adstransparency.google.com/?region=" . ($region === 'ALL' ? 'anywhere' : $region) . "&domain=" . urlencode($domainName);
@@ -254,7 +203,6 @@ if ($action === 'fetch_google_ads') {
                         $name = $adv['1'] ?? '';
                         $count = (int)($adv['4']['2']['1'] ?? 1);
                         
-                        // Select the primary advertiser entity with the highest relevance
                         if ($count > $maxFoundAds) {
                             $maxFoundAds = $count;
                             $bestAdvId = $advId;
@@ -297,22 +245,7 @@ if ($action === 'fetch_google_ads') {
     $realAds = [];
     $seenIds = [];
 
-    // Dynamic brand-specific copy patterns customized for THIS specific domain
-    $dynamicHeadlines = [
-        "{$brandBase}® Resmi Web Sitesi | Özel Kampanyalar & Fırsatlar",
-        "{$brandBase} ile Online Keşfedin | En Çok Tercih Edilen Seçenekler",
-        "{$brandBase} Resmi Mağazası | Güvenli Rezervasyon & Hızlı Hizmet",
-        "En Popüler {$brandBase} Çözümleri | Şimdi İnceleyin ve Karşılaştırın",
-        "{$brandBase}® Özel Fırsatlar | Hemen Bilgi Alın"
-    ];
-
-    $dynamicBodies = [
-        "$domainName üzerinden binlerce seçeneği avantajlı koşullarla keşfedin. Güvenli hizmet, hızlı iletişim ve müşteri memnuniyeti garantisi.",
-        "{$brandBase} resmi platformunda en güncel fırsatlar sizi bekliyor. Hemen web sitemizi ziyaret edin, detaylı bilgi alın.",
-        "Aradığınız tüm {$brandBase} çözümleri tek bir adreste. Şimdi online inceleyin, özel avantajlardan anında yararlanın."
-    ];
-
-    // Transform Raw Google Creatives into AdItems
+    // Transform Raw Google Creatives into Honest Campaign Intelligence Items
     foreach ($rawCreatives as $index => $c) {
         $advId = $c['1'] ?? ($bestAdvId ?: '');
         $creativeId = $c['2'] ?? ('CR_' . $index);
@@ -327,30 +260,26 @@ if ($action === 'fetch_google_ads') {
         $lastSeenTs = !empty($c['7']['1']) ? (int)$c['7']['1'] : time();
 
         $startDateStr = date('Y-m-d', $startTs);
+        $lastSeenDateStr = date('Y-m-d', $lastSeenTs);
+        
+        // Exact duration in days (Between First Shown and Last Shown)
         $activeDays = max(1, round(($lastSeenTs - $startTs) / 86400));
+        
+        // Status determination: Active if seen in recent days
+        $isActive = (time() - $lastSeenTs) <= (30 * 86400);
+        $status = $isActive ? 'ACTIVE' : 'INACTIVE';
 
         $format = 'SEARCH';
         $platform = 'google_search';
+        $formatLabel = 'Google Arama (Search)';
         if ($formatNum === 2) {
             $format = 'IMAGE';
             $platform = 'google_display';
+            $formatLabel = 'Google Görüntülü (GDN Banner)';
         } elseif ($formatNum === 3) {
             $format = 'DISPLAY';
-            $platform = 'google_display';
-        }
-
-        // Extract creative preview url if available
-        $previewUrl = $c['3']['1']['4'] ?? '';
-        $parsedProto = parseGoogleProtobufUrl($previewUrl);
-
-        // Headline & Description resolution
-        $headline = (!empty($parsedProto['headline']) && strlen($parsedProto['headline']) >= 4) ? $parsedProto['headline'] : $dynamicHeadlines[$index % count($dynamicHeadlines)];
-        $bodyText = (!empty($parsedProto['description']) && strlen($parsedProto['description']) >= 8) ? $parsedProto['description'] : $dynamicBodies[$index % count($dynamicBodies)];
-        $visUrl = (!empty($parsedProto['visurl']) && strlen($parsedProto['visurl']) >= 4) ? $parsedProto['visurl'] : "www.$domainName/";
-
-        $images = [];
-        if (!empty($previewUrl) && ($format === 'IMAGE' || $format === 'DISPLAY')) {
-            $images[] = $previewUrl;
+            $platform = 'youtube';
+            $formatLabel = 'YouTube / Responsive Video';
         }
 
         $directAdUrl = "https://adstransparency.google.com/advertiser/$advId/creative/$creativeId?region=" . ($region === 'ALL' ? 'anywhere' : $region);
@@ -363,18 +292,20 @@ if ($action === 'fetch_google_ads') {
             'brandLogo' => $brandBase,
             'domain' => $domainName,
             'targetUrl' => "https://$domainName",
-            'visibleUrl' => $visUrl,
-            'activeStatus' => 'ACTIVE',
+            'visibleUrl' => "www.$domainName",
+            'activeStatus' => $status,
             'format' => $format,
             'creationDate' => $startDateStr,
             'startDate' => $startDateStr,
+            'lastSeenDate' => $lastSeenDateStr,
+            'endDate' => $isActive ? null : $lastSeenDateStr,
             'activeDaysCount' => $activeDays,
-            'adHeadline' => $headline,
-            'adBodyText' => $bodyText,
-            'adCta' => 'Web Sitesine Git',
-            'mediaUrls' => $images,
+            'adHeadline' => $formatLabel,
+            'adBodyText' => "Google Şeffaflık Merkezi tarafından tescillenen resmi kreatif.",
+            'adCta' => 'Google\'da İncele',
+            'mediaUrls' => [],
             'platforms' => [$platform],
-            'sitelinks' => ['Website', 'Hakkımızda', 'İletişim'],
+            'sitelinks' => [],
             'hookType' => $activeDays >= 30 ? 'Sosyal Kanıt' : 'Arama Niyeti & SEO',
             'isWinner' => $activeDays >= 30,
             'googleTransparencyUrl' => $directAdUrl

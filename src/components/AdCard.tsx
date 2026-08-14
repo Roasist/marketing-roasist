@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { AdItem } from '../types/ad';
-import { ExternalLink, Play, Calendar, Eye, MoreVertical } from 'lucide-react';
+import { ExternalLink, Play, Calendar, Eye, Search, Image as ImageIcon, Video, Clock } from 'lucide-react';
 
 interface AdCardProps {
   ad: AdItem;
@@ -14,178 +14,235 @@ export const AdCard: React.FC<AdCardProps> = ({ ad, onInspect }) => {
   const isWinner = ad.activeDaysCount >= 30;
   const isGoogle = ad.network === 'GOOGLE' || (ad.format as string) === 'SEARCH' || (ad.format as string) === 'SEARCH_IMAGE' || ad.platforms?.includes('google_search') || ad.platforms?.includes('youtube') || ad.platforms?.includes('google_display');
 
-  // Google Ads Transparency Card Layout
+  // Authentic Google Ads Intelligence Card Layout (Option 2: No Fake Text)
   if (isGoogle) {
-    const brandTitle = (ad as any).brandLogo || ad.pageName;
-    const visUrl = (ad as any).visibleUrl || (ad.domain ? `www.${ad.domain}/` : 'website.com');
     const directGoogleUrl = ad.googleTransparencyUrl || `https://adstransparency.google.com/?region=TR&domain=${encodeURIComponent(ad.domain || ad.pageName)}`;
+    const isSearch = ad.format === 'SEARCH';
+    const isImage = ad.format === 'IMAGE';
+    const brandName = (ad as any).brandLogo || ad.domain || ad.pageName;
 
     return (
       <div style={{
         backgroundColor: '#ffffff',
-        border: isWinner ? '1.5px solid #f59e0b' : '1px solid #dadce0',
-        borderRadius: '8px',
+        border: isWinner ? '1.5px solid #f59e0b' : '1px solid #e2e8f0',
+        borderRadius: '10px',
         overflow: 'hidden',
         display: 'flex',
         flexDirection: 'column',
-        boxShadow: '0 1px 3px rgba(60,64,67,0.08)',
-        fontFamily: 'Roboto, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif',
+        boxShadow: isWinner ? '0 4px 12px rgba(245, 158, 11, 0.08)' : '0 1px 3px rgba(0,0,0,0.05)',
+        fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        position: 'relative',
       }}>
-        {/* Main Google Ad Canvas */}
-        <div style={{ padding: '1rem', flex: 1, display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-          
-          {/* Header Row: Sponsor Tag & Domain */}
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-              <div style={{
-                width: '28px',
-                height: '28px',
-                borderRadius: '50%',
-                backgroundColor: '#e8f0fe',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                overflow: 'hidden',
-                border: '1px solid #d2e3fc',
-              }}>
-                <img
-                  src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(ad.domain || visUrl)}&sz=64`}
-                  alt="favicon"
-                  style={{ width: '18px', height: '18px' }}
-                  onError={(e) => {
-                    (e.target as HTMLElement).style.display = 'none';
-                  }}
-                />
-              </div>
+        {/* Top Accent Strip */}
+        <div style={{
+          height: '4px',
+          background: isWinner 
+            ? 'linear-gradient(90deg, #f59e0b, #ef4444)' 
+            : 'linear-gradient(90deg, #4285f4, #34a853)',
+        }} />
 
-              <div>
-                <div style={{ fontSize: '0.825rem', fontWeight: 600, color: '#202124', lineHeight: 1.2 }}>
-                  {brandTitle}
-                </div>
-                <div style={{ fontSize: '0.72rem', color: '#5f6368', lineHeight: 1.2 }}>
-                  {visUrl}
-                </div>
-              </div>
+        {/* Card Header: Brand & Format Badge */}
+        <div style={{ padding: '0.85rem 1rem', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#fcfdfe' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+            <div style={{
+              width: '32px',
+              height: '32px',
+              borderRadius: '8px',
+              backgroundColor: '#eff6ff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              border: '1px solid #dbeafe',
+              overflow: 'hidden',
+            }}>
+              <img
+                src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(ad.domain || 'google.com')}&sz=64`}
+                alt="favicon"
+                style={{ width: '18px', height: '18px' }}
+                onError={(e) => {
+                  (e.target as HTMLElement).style.display = 'none';
+                }}
+              />
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: '#5f6368' }}>
-              <span style={{ fontSize: '0.68rem', color: '#70757a', fontWeight: 500 }}>Sponsorlu</span>
-              {isWinner && (
-                <span style={{ fontSize: '0.65rem', backgroundColor: '#fef3c7', color: '#92400e', padding: '1px 5px', borderRadius: '4px', fontWeight: 600 }}>
-                  🔥 Winner
-                </span>
-              )}
-              <MoreVertical size={14} style={{ cursor: 'pointer' }} />
+            <div>
+              <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#1e293b' }}>
+                {brandName}
+              </div>
+              <div style={{ fontSize: '0.72rem', color: '#64748b' }}>
+                Google Reklamvereni
+              </div>
             </div>
           </div>
 
-          {/* Headline (Google Blue) */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+            {isWinner && (
+              <span style={{
+                fontSize: '0.68rem',
+                backgroundColor: '#fef3c7',
+                color: '#92400e',
+                padding: '2px 7px',
+                borderRadius: '6px',
+                fontWeight: 700,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '3px',
+                border: '1px solid #fde68a',
+              }}>
+                🔥 Winner ({ad.activeDaysCount} Gün)
+              </span>
+            )}
+            <span style={{
+              fontSize: '0.68rem',
+              backgroundColor: ad.activeStatus === 'ACTIVE' ? '#ecfdf5' : '#f1f5f9',
+              color: ad.activeStatus === 'ACTIVE' ? '#065f46' : '#475569',
+              padding: '2px 7px',
+              borderRadius: '6px',
+              fontWeight: 600,
+            }}>
+              {ad.activeStatus === 'ACTIVE' ? '🟢 Aktif' : '⚪ Arşiv'}
+            </span>
+          </div>
+        </div>
+
+        {/* Card Body: Format & Duration Intelligence */}
+        <div style={{ padding: '1rem', flex: 1, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          
+          {/* Format Indicator Box */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.6rem',
+            padding: '0.6rem 0.75rem',
+            backgroundColor: '#f8fafc',
+            borderRadius: '8px',
+            border: '1px solid #e2e8f0',
+          }}>
+            <div style={{
+              width: '28px',
+              height: '28px',
+              borderRadius: '6px',
+              backgroundColor: isSearch ? '#e0f2fe' : isImage ? '#fef3c7' : '#fee2e2',
+              color: isSearch ? '#0284c7' : isImage ? '#d97706' : '#dc2626',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              {isSearch ? <Search size={14} /> : isImage ? <ImageIcon size={14} /> : <Video size={14} />}
+            </div>
+
+            <div>
+              <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#0f172a' }}>
+                {isSearch ? 'Google Arama (Search Reklamı)' : isImage ? 'Google Görüntülü (GDN Banner)' : 'YouTube / Responsive Video'}
+              </div>
+              <div style={{ fontSize: '0.7rem', color: '#64748b' }}>
+                Kreatif ID: <span style={{ fontFamily: 'monospace', color: '#0284c7' }}>{ad.id}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Timeline & Duration Box (First Shown + Last Shown) */}
+          <div style={{
+            backgroundColor: '#ffffff',
+            borderRadius: '8px',
+            border: '1px solid #e2e8f0',
+            padding: '0.75rem',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.45rem',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.75rem' }}>
+              <span style={{ color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Calendar size={12} /> İlk Yayın:
+              </span>
+              <strong style={{ color: '#1e293b' }}>
+                {new Date(ad.startDate).toLocaleDateString('tr-TR')}
+              </strong>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.75rem' }}>
+              <span style={{ color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Clock size={12} /> Son Gösterim:
+              </span>
+              <strong style={{ color: '#1e293b' }}>
+                {ad.lastSeenDate ? new Date(ad.lastSeenDate).toLocaleDateString('tr-TR') : 'Güncel / Aktif'}
+              </strong>
+            </div>
+
+            <div style={{
+              marginTop: '0.2rem',
+              paddingTop: '0.45rem',
+              borderTop: '1px dashed #e2e8f0',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              fontSize: '0.75rem',
+            }}>
+              <span style={{ color: '#64748b' }}>Toplam Yayın Süresi:</span>
+              <span style={{
+                color: isWinner ? '#b45309' : '#047857',
+                fontWeight: 700,
+                backgroundColor: isWinner ? '#fef3c7' : '#ecfdf5',
+                padding: '1px 6px',
+                borderRadius: '4px',
+              }}>
+                {ad.activeDaysCount} gün boyunca yayında
+              </span>
+            </div>
+          </div>
+
+          {/* Privacy Note */}
+          <div style={{ fontSize: '0.7rem', color: '#94a3b8', lineHeight: 1.4, textAlign: 'center' }}>
+            🔒 Orijinal görsel ve metin Google Şeffaflık Merkezi üzerinden doğrulanır.
+          </div>
+
+        </div>
+
+        {/* Card Footer with 1-Click Google Transparency Launcher */}
+        <div style={{
+          backgroundColor: '#f8fafc',
+          borderTop: '1px solid #e2e8f0',
+          padding: '0.75rem 1rem',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '0.5rem',
+        }}>
+          <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#334155', maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={ad.pageName}>
+            {ad.pageName}
+          </div>
+
           <a
             href={directGoogleUrl}
             target="_blank"
             rel="noreferrer"
             style={{
-              fontSize: '1.05rem',
-              fontWeight: 500,
-              color: '#1a0dab',
-              lineHeight: 1.35,
-              cursor: 'pointer',
+              backgroundColor: '#2563eb',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '6px',
+              padding: '0.45rem 0.85rem',
+              fontSize: '0.75rem',
               textDecoration: 'none',
-              marginTop: '0.2rem',
+              fontWeight: 600,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              boxShadow: '0 1px 2px rgba(37, 99, 235, 0.2)',
+              transition: 'background-color 0.15s ease',
             }}
-            onMouseEnter={(e) => e.currentTarget.style.textDecoration = 'underline'}
-            onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1d4ed8'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#2563eb'}
           >
-            {ad.adHeadline}
+            <span>Google'da Aç</span>
+            <ExternalLink size={12} />
           </a>
-
-          {/* Body Snippet */}
-          <p style={{
-            fontSize: '0.825rem',
-            color: '#4d5156',
-            lineHeight: 1.45,
-            margin: 0,
-          }}>
-            {ad.adBodyText}
-          </p>
-
-          {/* Google Creative Metadata Pill */}
-          <div style={{
-            marginTop: '0.3rem',
-            padding: '0.4rem 0.6rem',
-            backgroundColor: '#f8f9fa',
-            borderRadius: '6px',
-            border: '1px solid #e8eaed',
-            fontSize: '0.72rem',
-            color: '#5f6368',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}>
-            <span>📅 Yayında: <strong>{new Date(ad.startDate).toLocaleDateString('tr-TR')}</strong> ({ad.activeDaysCount} gün)</span>
-            <span style={{ color: '#1a73e8', fontWeight: 500 }}>ID: {ad.id}</span>
-          </div>
-
-        </div>
-
-        {/* Card Footer with Legal Advertiser Name & Transparency Link */}
-        <div style={{
-          backgroundColor: '#f8f9fa',
-          borderTop: '1px solid #e8eaed',
-          padding: '0.65rem 1rem',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}>
-          <div style={{ fontSize: '0.75rem', fontWeight: 500, color: '#3c4043', maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={ad.pageName}>
-            {ad.pageName}
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-            <button
-              onClick={() => onInspect(ad)}
-              style={{
-                backgroundColor: '#ffffff',
-                border: '1px solid #dadce0',
-                borderRadius: '4px',
-                padding: '3px 8px',
-                fontSize: '0.7rem',
-                color: '#3c4043',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '3px',
-              }}
-            >
-              <Eye size={11} /> Detay
-            </button>
-            <a
-              href={directGoogleUrl}
-              target="_blank"
-              rel="noreferrer"
-              style={{
-                backgroundColor: '#e8f0fe',
-                border: '1px solid #d2e3fc',
-                borderRadius: '4px',
-                padding: '3px 8px',
-                fontSize: '0.7rem',
-                color: '#1a73e8',
-                textDecoration: 'none',
-                fontWeight: 600,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '3px',
-              }}
-            >
-              <ExternalLink size={11} /> Google'da Gör
-            </a>
-          </div>
         </div>
       </div>
     );
   }
 
-  // Meta Ads Card Layout
+  // Meta Ads Card Layout (100% Real Facebook/Instagram Media & Text)
   return (
     <div className="card" style={{
       display: 'flex',

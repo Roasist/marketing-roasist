@@ -29,6 +29,7 @@ export interface AdItem {
   format: AdFormat;
   creationDate: string; // ISO String
   startDate: string;    // ISO String
+  lastSeenDate?: string; // ISO String (Google Ads Transparency)
   endDate?: string;     // ISO String if INACTIVE
   activeDaysCount: number; // e.g. 42 days running
   adBodyText: string;
