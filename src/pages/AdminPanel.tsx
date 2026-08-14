@@ -72,8 +72,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [isEditingSubmitting, setIsEditingSubmitting] = useState(false);
 
   // Settings state
-  const [metaToken, setMetaToken] = useState('EAAG...RoasistLiveToken_2026');
-  const [geminiApiKey, setGeminiApiKey] = useState('AIzaSy...RoasistAiEngine_Key');
+  const [metaToken, setMetaToken] = useState('');
+  const [geminiApiKey, setGeminiApiKey] = useState('');
   const [isSaved, setIsSaved] = useState(false);
 
   // Feature Flags
@@ -113,9 +113,27 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     }
   };
 
+  const loadSettings = async () => {
+    try {
+      const res = await ApiService.getSettings();
+      if (res && res.settings) {
+        if (res.settings.metaToken) setMetaToken(res.settings.metaToken);
+        if (res.settings.geminiApiKey) setGeminiApiKey(res.settings.geminiApiKey);
+        if (res.settings.flags) {
+          try {
+            setFlags(JSON.parse(res.settings.flags));
+          } catch {}
+        }
+      }
+    } catch {
+      // Fallback
+    }
+  };
+
   useEffect(() => {
     loadUsers();
     loadLogs();
+    loadSettings();
   }, []);
 
   const handleSaveSettings = async () => {

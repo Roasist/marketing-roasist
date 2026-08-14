@@ -134,6 +134,13 @@ export class ApiService {
     });
   }
 
+  // --- Live Meta Ad Library Ingestion ---
+  public static async fetchMetaAds(pageId?: string, country = 'TR'): Promise<AdItem[]> {
+    const query = pageId ? `&page_id=${encodeURIComponent(pageId)}` : '';
+    const res = await this.request<{ status: string; ads: AdItem[]; message?: string }>(`/ads.php?action=fetch_meta_ads&country=${country}${query}`);
+    return res.ads || [];
+  }
+
   // --- App Settings & Audit Logs ---
   public static async getSettings(): Promise<any> {
     const res = await this.request<{ status: string; settings: any }>('/settings.php');
