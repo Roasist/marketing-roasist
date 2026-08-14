@@ -40,16 +40,45 @@ if ($action === 'fetch_meta_ads') {
         exit;
     }
 
+    $countryParam = ($country === 'ALL' || $country === 'GLOBAL')
+        ? "['TR','US','DE','GB','RU','AE','FR','IT','ES','AZ']"
+        : "['$country']";
+
     $params = [
         'access_token' => $accessToken,
-        'ad_reached_countries' => "['$country']",
+        'ad_reached_countries' => $countryParam,
         'ad_active_status' => in_array($status, ['ACTIVE', 'INACTIVE', 'ALL']) ? $status : 'ACTIVE',
         'fields' => 'id,ad_creation_time,ad_delivery_start_time,ad_delivery_stop_time,ad_creative_bodies,ad_creative_link_captions,ad_creative_link_titles,ad_creative_link_descriptions,ad_snapshot_url,publisher_platforms,page_id,page_name,currency,spend,impressions,bylines,languages',
         'limit' => $limit
     ];
 
     if (!empty($pageId)) {
-        $params['search_page_ids'] = $pageId;
+        if (is_numeric($pageId)) {
+            $params['search_page_ids'] = $pageId;
+        } else {
+            // Attempt to resolve numeric page ID
+            $resolved = false;
+            try {
+                $chResolve = curl_init("https://graph.facebook.com/v19.0/" . urlencode($pageId) . "?fields=id&access_token=" . urlencode($accessToken));
+                curl_setopt($chResolve, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($chResolve, CURLOPT_TIMEOUT, 4);
+                $resJson = curl_exec($chResolve);
+                $rCode = curl_getinfo($chResolve, CURLINFO_HTTP_CODE);
+                curl_close($chResolve);
+
+                if ($rCode === 200) {
+                    $rData = json_decode($resJson, true);
+                    if (!empty($rData['id']) && is_numeric($rData['id'])) {
+                        $params['search_page_ids'] = (string)$rData['id'];
+                        $resolved = true;
+                    }
+                }
+            } catch (Exception $e) {}
+
+            if (!$resolved) {
+                $params['search_terms'] = $pageId;
+            }
+        }
     } elseif (!empty($searchQuery)) {
         $params['search_terms'] = $searchQuery;
     }

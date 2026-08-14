@@ -36,7 +36,7 @@ export const CompetitorsModule: React.FC<CompetitorsModuleProps> = ({
   competitors: initialCompetitors,
   ads: initialAds,
   metaConfig: _metaConfig,
-  onAddCompetitor,
+  onAddCompetitor: _onAddCompetitor,
   onRemoveCompetitor,
   onExportCsv,
 }) => {
@@ -109,11 +109,21 @@ export const CompetitorsModule: React.FC<CompetitorsModuleProps> = ({
 
   const handleAddComp = async (urlOrId: string) => {
     try {
+      setIsLoadingAds(true);
       const newComp = await ApiService.addCompetitor(urlOrId);
-      setCompetitors(prev => [...prev, newComp]);
-      onAddCompetitor(urlOrId);
-    } catch {
-      onAddCompetitor(urlOrId);
+      if (newComp) {
+        setCompetitors(prev => {
+          if (prev.some(c => c.id === newComp.id || c.pageId === newComp.pageId)) return prev;
+          return [...prev, newComp];
+        });
+        const targetPageId = newComp.pageId || newComp.id;
+        setSelectedCompetitorId(targetPageId);
+        await fetchLiveAds(targetPageId);
+      }
+    } catch (err: any) {
+      alert('Rakip eklenirken hata: ' + (err.message || 'Bilinmeyen hata'));
+    } finally {
+      setIsLoadingAds(false);
     }
   };
 
@@ -122,9 +132,12 @@ export const CompetitorsModule: React.FC<CompetitorsModuleProps> = ({
     try {
       await ApiService.deleteCompetitor(id);
       setCompetitors(prev => prev.filter(c => c.id !== id && c.pageId !== id));
+      if (selectedCompetitorId === id) {
+        setSelectedCompetitorId('ALL');
+      }
       onRemoveCompetitor(id);
-    } catch {
-      onRemoveCompetitor(id);
+    } catch (err: any) {
+      alert('Silme hatası: ' + err.message);
     }
   };
 

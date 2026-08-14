@@ -103,6 +103,7 @@ export const AdFilters: React.FC<AdFiltersProps> = ({
             onChange={(e) => onFilterChange({ country: e.target.value })}
             style={{ fontSize: '0.8rem', padding: '0.4rem 0.65rem' }}
           >
+            <option value="ALL">🌍 Tüm Ülkeler (Global)</option>
             <option value="TR">🇹🇷 Türkiye (TR)</option>
             <option value="US">🇺🇸 ABD (US)</option>
             <option value="DE">🇩🇪 Almanya (DE)</option>
