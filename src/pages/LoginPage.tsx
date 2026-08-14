@@ -30,12 +30,6 @@ export const LoginPage: React.FC = () => {
     }
   };
 
-  const handleQuickDemoFill = () => {
-    setEmail('admin@roasist.com');
-    setPassword('RoasistAdmin2026!');
-    setError(null);
-  };
-
   return (
     <div style={{
       minHeight: '100vh',
@@ -152,7 +146,7 @@ export const LoginPage: React.FC = () => {
                 <Mail size={16} color="var(--text-muted)" style={{ position: 'absolute', left: '11px', top: '50%', transform: 'translateY(-50%)' }} />
                 <input
                   type="email"
-                  placeholder="admin@roasist.com"
+                  placeholder="ornek@roasist.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   style={{
@@ -208,32 +202,6 @@ export const LoginPage: React.FC = () => {
             </button>
 
           </form>
-
-          {/* Quick Demo Fill Box */}
-          <div style={{
-            marginTop: '1.5rem',
-            paddingTop: '1.25rem',
-            borderTop: '1px solid var(--border-default)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}>
-            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-              <div>Yönetici: <strong style={{ color: 'var(--text-secondary)' }}>admin@roasist.com</strong></div>
-            </div>
-
-            <button
-              type="button"
-              onClick={handleQuickDemoFill}
-              className="btn-secondary"
-              style={{
-                fontSize: '0.75rem',
-                padding: '0.35rem 0.65rem',
-              }}
-            >
-              Bilgileri Doldur
-            </button>
-          </div>
 
         </div>
 
