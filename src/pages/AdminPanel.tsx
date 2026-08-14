@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MarketingRoute } from '../types/suite';
+import { MarketingRoute, AdminTab } from '../types/suite';
 import { User, UserRole } from '../types/auth';
 import { useAuth } from '../contexts/AuthContext';
 import { ApiService } from '../services/apiService';
@@ -21,11 +21,29 @@ import {
 
 interface AdminPanelProps {
   onNavigate: (route: MarketingRoute) => void;
+  activeTab?: AdminTab;
+  onTabChange?: (tab: AdminTab) => void;
 }
 
-export const AdminPanel: React.FC<AdminPanelProps> = ({ onNavigate: _onNavigate }) => {
+export const AdminPanel: React.FC<AdminPanelProps> = ({ 
+  onNavigate: _onNavigate,
+  activeTab: controlledTab = 'users',
+  onTabChange,
+}) => {
   const { user: loggedInUser } = useAuth();
-  const [activeTab, setActiveTab] = useState<'users' | 'keys' | 'flags' | 'logs'>('users');
+  const [internalTab, setInternalTab] = useState<AdminTab>(controlledTab);
+
+  useEffect(() => {
+    setInternalTab(controlledTab);
+  }, [controlledTab]);
+
+  const activeTab = internalTab;
+  const setActiveTab = (tab: AdminTab) => {
+    setInternalTab(tab);
+    if (onTabChange) {
+      onTabChange(tab);
+    }
+  };
   
   // Users state
   const [users, setUsers] = useState<User[]>([]);

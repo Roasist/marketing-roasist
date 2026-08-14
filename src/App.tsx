@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { MarketingRoute } from './types/suite';
+import { MarketingRoute, AdminTab } from './types/suite';
 import { Competitor, AdItem, MetaApiConfig } from './types/ad';
 import { MetaAdLibraryService } from './services/metaAdLibraryApi';
 import { ExportService } from './services/exportService';
@@ -20,6 +20,7 @@ import { Loader2 } from 'lucide-react';
 function AppContent() {
   const { isAuthenticated, isLoading, hasRole } = useAuth();
   const [currentRoute, setCurrentRoute] = useState<MarketingRoute>('dashboard');
+  const [adminTab, setAdminTab] = useState<AdminTab>('users');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   // Data states
@@ -117,6 +118,11 @@ function AppContent() {
         onNavigate={navigateTo}
         isCollapsed={isSidebarCollapsed}
         onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+        adminTab={adminTab}
+        onSelectAdminTab={(tab) => {
+          setAdminTab(tab);
+          navigateTo('admin');
+        }}
       />
 
       {/* Main Right Content Layout */}
@@ -161,6 +167,8 @@ function AppContent() {
           {currentRoute === 'admin' && (
             <AdminPanel
               onNavigate={navigateTo}
+              activeTab={adminTab}
+              onTabChange={(tab) => setAdminTab(tab)}
             />
           )}
 

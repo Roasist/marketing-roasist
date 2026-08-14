@@ -1,5 +1,5 @@
 import React from 'react';
-import { MarketingRoute } from '../types/suite';
+import { MarketingRoute, AdminTab } from '../types/suite';
 import { useAuth } from '../contexts/AuthContext';
 import { 
   LayoutDashboard, 
@@ -13,6 +13,7 @@ import {
   ArrowLeft,
   Users,
   Key,
+  SlidersHorizontal,
   Activity
 } from 'lucide-react';
 
@@ -21,6 +22,8 @@ interface SidebarProps {
   onNavigate: (route: MarketingRoute) => void;
   isCollapsed: boolean;
   onToggleCollapse: () => void;
+  adminTab?: AdminTab;
+  onSelectAdminTab?: (tab: AdminTab) => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -28,6 +31,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onNavigate,
   isCollapsed,
   onToggleCollapse,
+  adminTab = 'users',
+  onSelectAdminTab,
 }) => {
   const { user, logout, hasRole } = useAuth();
   const isAdminRoute = currentRoute === 'admin';
@@ -57,6 +62,39 @@ export const Sidebar: React.FC<SidebarProps> = ({
       badge: 'Beta',
     },
   ];
+
+  // Admin Console Menu Items
+  const adminMenuItems = [
+    {
+      id: 'users' as AdminTab,
+      name: 'Kullanıcı Yönetimi',
+      icon: Users,
+    },
+    {
+      id: 'keys' as AdminTab,
+      name: 'API Bağlantıları',
+      icon: Key,
+    },
+    {
+      id: 'flags' as AdminTab,
+      name: 'Modül Ayarları',
+      icon: SlidersHorizontal,
+    },
+    {
+      id: 'logs' as AdminTab,
+      name: 'Denetim Günlüğü',
+      icon: Activity,
+    },
+  ];
+
+  const handleAdminItemClick = (tab: AdminTab) => {
+    if (onSelectAdminTab) {
+      onSelectAdminTab(tab);
+    }
+    if (currentRoute !== 'admin') {
+      onNavigate('admin');
+    }
+  };
 
   return (
     <aside style={{
@@ -163,69 +201,40 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
             )}
 
-            <button
-              onClick={() => onNavigate('admin')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: isCollapsed ? 'center' : 'flex-start',
-                gap: '0.65rem',
-                padding: isCollapsed ? '0.6rem 0' : '0.5rem 0.65rem',
-                borderRadius: 'var(--radius-sm)',
-                backgroundColor: 'var(--bg-surface-elevated)',
-                color: 'var(--text-primary)',
-                fontWeight: 600,
-                fontSize: '0.85rem',
-                cursor: 'pointer',
-                border: 'none',
-                width: '100%',
-              }}
-            >
-              <Users size={16} color="var(--brand-primary)" />
-              {!isCollapsed && <span>Kullanıcı Yönetimi</span>}
-            </button>
+            {adminMenuItems.map((item) => {
+              const IconComponent = item.icon;
+              const isActive = adminTab === item.id;
 
-            <button
-              onClick={() => onNavigate('admin')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: isCollapsed ? 'center' : 'flex-start',
-                gap: '0.65rem',
-                padding: isCollapsed ? '0.6rem 0' : '0.5rem 0.65rem',
-                borderRadius: 'var(--radius-sm)',
-                backgroundColor: 'transparent',
-                color: 'var(--text-secondary)',
-                fontSize: '0.85rem',
-                cursor: 'pointer',
-                border: 'none',
-                width: '100%',
-              }}
-            >
-              <Key size={16} color="var(--text-muted)" />
-              {!isCollapsed && <span>API Anahtarları</span>}
-            </button>
-
-            <button
-              onClick={() => onNavigate('admin')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: isCollapsed ? 'center' : 'flex-start',
-                gap: '0.65rem',
-                padding: isCollapsed ? '0.6rem 0' : '0.5rem 0.65rem',
-                borderRadius: 'var(--radius-sm)',
-                backgroundColor: 'transparent',
-                color: 'var(--text-secondary)',
-                fontSize: '0.85rem',
-                cursor: 'pointer',
-                border: 'none',
-                width: '100%',
-              }}
-            >
-              <Activity size={16} color="var(--text-muted)" />
-              {!isCollapsed && <span>Denetim Logları</span>}
-            </button>
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => handleAdminItemClick(item.id)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: isCollapsed ? 'center' : 'flex-start',
+                    gap: '0.65rem',
+                    padding: isCollapsed ? '0.6rem 0' : '0.5rem 0.65rem',
+                    borderRadius: 'var(--radius-sm)',
+                    backgroundColor: isActive ? 'var(--bg-surface-elevated)' : 'transparent',
+                    color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+                    fontWeight: isActive ? 600 : 400,
+                    fontSize: '0.85rem',
+                    cursor: 'pointer',
+                    border: isActive ? '1px solid var(--border-default)' : '1px solid transparent',
+                    width: '100%',
+                    transition: 'all var(--transition-fast)',
+                  }}
+                  title={isCollapsed ? item.name : undefined}
+                >
+                  <IconComponent 
+                    size={16} 
+                    color={isActive ? 'var(--brand-primary)' : 'var(--text-muted)'} 
+                  />
+                  {!isCollapsed && <span>{item.name}</span>}
+                </button>
+              );
+            })}
           </>
         ) : (
           /* CASE 2: In Marketing Suite Tools */
