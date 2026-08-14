@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { AdItem } from '../types/ad';
-import { ExternalLink, Play, Calendar, Eye, Globe, Phone, Navigation, MoreVertical } from 'lucide-react';
+import { ExternalLink, Play, Calendar, Eye, MoreVertical } from 'lucide-react';
 
 interface AdCardProps {
   ad: AdItem;
@@ -14,22 +14,21 @@ export const AdCard: React.FC<AdCardProps> = ({ ad, onInspect }) => {
   const isWinner = ad.activeDaysCount >= 30;
   const isGoogle = ad.network === 'GOOGLE' || (ad.format as string) === 'SEARCH' || (ad.format as string) === 'SEARCH_IMAGE' || ad.platforms?.includes('google_search') || ad.platforms?.includes('youtube') || ad.platforms?.includes('google_display');
 
-  // If it's a Google Ad, render the exact Google Ads Transparency Center layout from the screenshot!
+  // Google Ads Transparency Card Layout
   if (isGoogle) {
-    const hasImages = (ad.mediaUrls && ad.mediaUrls.length > 0) || (ad.format as string) === 'SEARCH_IMAGE';
-
     const brandTitle = (ad as any).brandLogo || ad.pageName;
     const visUrl = (ad as any).visibleUrl || (ad.domain ? `www.${ad.domain}/` : 'website.com');
+    const directGoogleUrl = ad.googleTransparencyUrl || `https://adstransparency.google.com/?region=TR&domain=${encodeURIComponent(ad.domain || ad.pageName)}`;
 
     return (
       <div style={{
         backgroundColor: '#ffffff',
-        border: '1px solid #dadce0',
+        border: isWinner ? '1.5px solid #f59e0b' : '1px solid #dadce0',
         borderRadius: '8px',
         overflow: 'hidden',
         display: 'flex',
         flexDirection: 'column',
-        boxShadow: '0 1px 3px rgba(60,64,67,0.1)',
+        boxShadow: '0 1px 3px rgba(60,64,67,0.08)',
         fontFamily: 'Roboto, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif',
       }}>
         {/* Main Google Ad Canvas */}
@@ -50,7 +49,7 @@ export const AdCard: React.FC<AdCardProps> = ({ ad, onInspect }) => {
                 border: '1px solid #d2e3fc',
               }}>
                 <img
-                  src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(visUrl)}&sz=64`}
+                  src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(ad.domain || visUrl)}&sz=64`}
                   alt="favicon"
                   style={{ width: '18px', height: '18px' }}
                   onError={(e) => {
@@ -60,7 +59,7 @@ export const AdCard: React.FC<AdCardProps> = ({ ad, onInspect }) => {
               </div>
 
               <div>
-                <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#202124', lineHeight: 1.2 }}>
+                <div style={{ fontSize: '0.825rem', fontWeight: 600, color: '#202124', lineHeight: 1.2 }}>
                   {brandTitle}
                 </div>
                 <div style={{ fontSize: '0.72rem', color: '#5f6368', lineHeight: 1.2 }}>
@@ -69,31 +68,22 @@ export const AdCard: React.FC<AdCardProps> = ({ ad, onInspect }) => {
               </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', color: '#5f6368' }}>
-              <span style={{ fontSize: '0.68rem', color: '#70757a', fontWeight: 500 }}>Gesponsert</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: '#5f6368' }}>
+              <span style={{ fontSize: '0.68rem', color: '#70757a', fontWeight: 500 }}>Sponsorlu</span>
+              {isWinner && (
+                <span style={{ fontSize: '0.65rem', backgroundColor: '#fef3c7', color: '#92400e', padding: '1px 5px', borderRadius: '4px', fontWeight: 600 }}>
+                  🔥 Winner
+                </span>
+              )}
               <MoreVertical size={14} style={{ cursor: 'pointer' }} />
             </div>
           </div>
 
-          {/* Photos Row (if multi-image search ad) */}
-          {hasImages && ad.mediaUrls && ad.mediaUrls.length >= 2 && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginTop: '0.2rem' }}>
-              <img
-                src={ad.mediaUrls[0]}
-                alt="Ad creative 1"
-                style={{ width: '100%', height: '110px', objectFit: 'cover', borderRadius: '4px' }}
-              />
-              <img
-                src={ad.mediaUrls[1]}
-                alt="Ad creative 2"
-                style={{ width: '100%', height: '110px', objectFit: 'cover', borderRadius: '4px' }}
-              />
-            </div>
-          )}
-
           {/* Headline (Google Blue) */}
-          <div
-            onClick={() => onInspect(ad)}
+          <a
+            href={directGoogleUrl}
+            target="_blank"
+            rel="noreferrer"
             style={{
               fontSize: '1.05rem',
               fontWeight: 500,
@@ -107,7 +97,7 @@ export const AdCard: React.FC<AdCardProps> = ({ ad, onInspect }) => {
             onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}
           >
             {ad.adHeadline}
-          </div>
+          </a>
 
           {/* Body Snippet */}
           <p style={{
@@ -119,56 +109,22 @@ export const AdCard: React.FC<AdCardProps> = ({ ad, onInspect }) => {
             {ad.adBodyText}
           </p>
 
-          {/* Google Action Buttons (Website, Call, Directions) */}
-          {hasImages && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '0.4rem' }}>
-              <button style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                backgroundColor: '#ffffff',
-                border: '1px solid #dadce0',
-                borderRadius: '16px',
-                padding: '4px 10px',
-                fontSize: '0.72rem',
-                color: '#1a73e8',
-                fontWeight: 500,
-                cursor: 'pointer',
-              }}>
-                <Globe size={11} /> Website
-              </button>
-              <button style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                backgroundColor: '#ffffff',
-                border: '1px solid #dadce0',
-                borderRadius: '16px',
-                padding: '4px 10px',
-                fontSize: '0.72rem',
-                color: '#1a73e8',
-                fontWeight: 500,
-                cursor: 'pointer',
-              }}>
-                <Phone size={11} /> Call
-              </button>
-              <button style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                backgroundColor: '#ffffff',
-                border: '1px solid #dadce0',
-                borderRadius: '16px',
-                padding: '4px 10px',
-                fontSize: '0.72rem',
-                color: '#1a73e8',
-                fontWeight: 500,
-                cursor: 'pointer',
-              }}>
-                <Navigation size={11} /> Directions
-              </button>
-            </div>
-          )}
+          {/* Google Creative Metadata Pill */}
+          <div style={{
+            marginTop: '0.3rem',
+            padding: '0.4rem 0.6rem',
+            backgroundColor: '#f8f9fa',
+            borderRadius: '6px',
+            border: '1px solid #e8eaed',
+            fontSize: '0.72rem',
+            color: '#5f6368',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}>
+            <span>📅 Yayında: <strong>{new Date(ad.startDate).toLocaleDateString('tr-TR')}</strong> ({ad.activeDaysCount} gün)</span>
+            <span style={{ color: '#1a73e8', fontWeight: 500 }}>ID: {ad.id}</span>
+          </div>
 
         </div>
 
@@ -181,7 +137,7 @@ export const AdCard: React.FC<AdCardProps> = ({ ad, onInspect }) => {
           alignItems: 'center',
           justifyContent: 'space-between',
         }}>
-          <div style={{ fontSize: '0.8rem', fontWeight: 500, color: '#3c4043' }}>
+          <div style={{ fontSize: '0.75rem', fontWeight: 500, color: '#3c4043', maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={ad.pageName}>
             {ad.pageName}
           </div>
 
@@ -204,20 +160,24 @@ export const AdCard: React.FC<AdCardProps> = ({ ad, onInspect }) => {
               <Eye size={11} /> Detay
             </button>
             <a
-              href={ad.googleTransparencyUrl || `https://adstransparency.google.com/?region=TR&domain=${encodeURIComponent(ad.domain || ad.pageName)}`}
+              href={directGoogleUrl}
               target="_blank"
               rel="noreferrer"
               style={{
+                backgroundColor: '#e8f0fe',
+                border: '1px solid #d2e3fc',
+                borderRadius: '4px',
+                padding: '3px 8px',
                 fontSize: '0.7rem',
                 color: '#1a73e8',
                 textDecoration: 'none',
-                fontWeight: 500,
+                fontWeight: 600,
                 display: 'flex',
                 alignItems: 'center',
-                gap: '2px',
+                gap: '3px',
               }}
             >
-              <ExternalLink size={11} /> Google Kütüphanesi
+              <ExternalLink size={11} /> Google'da Gör
             </a>
           </div>
         </div>
@@ -225,7 +185,7 @@ export const AdCard: React.FC<AdCardProps> = ({ ad, onInspect }) => {
     );
   }
 
-  // Fallback for Meta Ads
+  // Meta Ads Card Layout
   return (
     <div className="card" style={{
       display: 'flex',

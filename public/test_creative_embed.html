@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Google Creative Embed Test</title>
+  <style>
+    body { margin: 20px; font-family: sans-serif; background: #f1f3f4; }
+    .card { background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #dadce0; max-width: 400px; }
+  </style>
+</head>
+<body>
+  <h2>Google Ads Creative Render Test</h2>
+  <div class="card">
+    <div id="fletch-render-test"></div>
+  </div>
+
+  <script>
+    window.fletchCallbackTest = function(data) {
+      console.log('Fletch Callback Data:', data);
+      var container = document.getElementById('fletch-render-test');
+      if (typeof data === 'string') {
+        container.innerHTML = data;
+      } else if (data && data.html) {
+        container.innerHTML = data.html;
+      }
+    };
+  </script>
+  <script src="https://displayads-formats.googleusercontent.com/ads/preview/content.js?client=ads-integrity-transparency&obfuscatedCustomerId=6807836751&creativeId=818795859742&uiFeatures=12&adGroupId=198057156639&assets=%3DH4sIAAAAAAAAAOPS5uLgeP7-62VzAUYuTo5VK1oO9zKCmZdP9c6-wi3AzMXJsRXKlGLjODtlw4Y6KTaONVB6JZhm5-hr_7j_A0jBC6jEp0kQiZO_J75dwijFxvEMLMDGcROq4CuIDwDIMkMlfwAAAA&allowedVariations=39&sig=ACiVB_xpOt7hpkKbtvj3LaqvmD7kOwWvBw&htmlParentId=fletch-render-test&responseCallback=fletchCallbackTest"></script>
+</body>
+</html>
