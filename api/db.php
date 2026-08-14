@@ -133,22 +133,6 @@ class Database {
                 VALUES (?, ?, ?, 'SUPER_ADMIN', 'ACTIVE')
             ");
             $insertStmt->execute(['Roasist Kurucu', 'admin@roasist.com', $defaultPasswordHash]);
-
-            // Seed Initial Competitors
-            $initialCompetitors = [
-                ['comp_1', '10382959102', 'Trendyol', 'https://www.facebook.com/trendyol', 'https://images.unsplash.com/photo-1472851294608-062f824d29cc?w=150', 'E-Ticaret Pazaryeri', 42],
-                ['comp_2', '20491823901', 'Hepsiburada', 'https://www.facebook.com/hepsiburada', 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=150', 'Pazaryeri & Teknoloji', 28],
-                ['comp_3', '39102948192', 'Nike Turkey', 'https://www.facebook.com/nike', 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=150', 'Spor & Giyim', 19],
-                ['comp_4', '49102948195', 'Roasist SaaS', 'https://www.facebook.com/roasist', 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=150', 'Pazarlama & Yazılım', 12]
-            ];
-
-            $compStmt = $pdo->prepare("
-                INSERT OR IGNORE INTO competitors (id, page_id, name, facebook_page_url, avatar_url, category, active_ads_count, created_by)
-                VALUES (?, ?, ?, ?, ?, ?, ?, 1)
-            ");
-            foreach ($initialCompetitors as $c) {
-                $compStmt->execute($c);
-            }
         }
     }
 }

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Competitor } from '../types/ad';
-import { Plus, ExternalLink, Trash2, Search, X } from 'lucide-react';
+import { Plus, ExternalLink, Trash2, Search, X, Sparkles } from 'lucide-react';
 
 interface CompetitorBarProps {
   competitors: Competitor[];
@@ -18,14 +18,16 @@ export const CompetitorBar: React.FC<CompetitorBarProps> = ({
   onRemoveCompetitor,
 }) => {
   const [inputVal, setInputVal] = useState('');
-  const [isAdding, setIsAdding] = useState(false);
+  const [isAdding, setIsAdding] = useState(competitors.length === 0);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputVal.trim()) return;
     onAddCompetitor(inputVal.trim());
     setInputVal('');
-    setIsAdding(false);
+    if (competitors.length > 0) {
+      setIsAdding(false);
+    }
   };
 
   return (
@@ -49,14 +51,26 @@ export const CompetitorBar: React.FC<CompetitorBarProps> = ({
           </span>
         </div>
 
-        <button
-          onClick={() => setIsAdding(!isAdding)}
-          className="btn-secondary"
-          style={{ padding: '0.35rem 0.75rem', fontSize: '0.78rem' }}
-        >
-          {isAdding ? <X size={14} /> : <Plus size={14} />}
-          {isAdding ? 'Vazgeç' : 'Yeni Rakip Ekle'}
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <a
+            href="https://www.facebook.com/ads/library/?active_status=all&ad_type=all&country=TR"
+            target="_blank"
+            rel="noreferrer"
+            className="btn-ghost"
+            style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', textDecoration: 'none' }}
+          >
+            <ExternalLink size={12} /> Meta Reklam Kütüphanesi
+          </a>
+
+          <button
+            onClick={() => setIsAdding(!isAdding)}
+            className="btn-primary"
+            style={{ padding: '0.35rem 0.75rem', fontSize: '0.78rem' }}
+          >
+            {isAdding && competitors.length > 0 ? <X size={14} /> : <Plus size={14} />}
+            {isAdding && competitors.length > 0 ? 'Kapat' : 'Yeni Rakip Ekle'}
+          </button>
+        </div>
       </div>
 
       {/* Add Competitor Input Form */}
@@ -72,9 +86,10 @@ export const CompetitorBar: React.FC<CompetitorBarProps> = ({
             display: 'flex',
             gap: '0.5rem',
             alignItems: 'center',
+            flexWrap: 'wrap',
           }}
         >
-          <div style={{ flex: 1, position: 'relative' }}>
+          <div style={{ flex: 1, minWidth: '240px', position: 'relative' }}>
             <Search 
               size={15} 
               color="var(--text-muted)" 
@@ -82,7 +97,7 @@ export const CompetitorBar: React.FC<CompetitorBarProps> = ({
             />
             <input
               type="text"
-              placeholder="Meta Sayfa URL'si (örn: https://facebook.com/trendyol) veya Sayfa ID'si"
+              placeholder="Meta Sayfa Linki (örn: https://facebook.com/trendyol) veya Sayfa ID'si"
               value={inputVal}
               onChange={(e) => setInputVal(e.target.value)}
               style={{
@@ -93,107 +108,135 @@ export const CompetitorBar: React.FC<CompetitorBarProps> = ({
             />
           </div>
           <button type="submit" className="btn-primary" style={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
-            Ekle & Analiz Et
+            <Sparkles size={13} /> Ekle & Analiz Et
           </button>
         </form>
       )}
 
       {/* Competitor Pills Grid */}
-      <div style={{
-        display: 'flex',
-        gap: '0.5rem',
-        overflowX: 'auto',
-        paddingBottom: '0.25rem',
-      }}>
-        
-        {/* ALL Selector */}
-        <button
-          onClick={() => onSelectCompetitor('ALL')}
-          style={{
-            padding: '0.45rem 0.85rem',
-            borderRadius: 'var(--radius-sm)',
-            border: selectedCompetitorId === 'ALL' 
-              ? '1px solid var(--border-strong)' 
-              : '1px solid var(--border-subtle)',
-            backgroundColor: selectedCompetitorId === 'ALL' 
-              ? 'var(--bg-surface-hover)' 
-              : 'var(--bg-surface-elevated)',
-            color: selectedCompetitorId === 'ALL' ? '#ffffff' : 'var(--text-secondary)',
-            fontWeight: selectedCompetitorId === 'ALL' ? 600 : 400,
-            fontSize: '0.825rem',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            whiteSpace: 'nowrap',
-            flexShrink: 0,
-            transition: 'all var(--transition-fast)',
-          }}
-        >
-          <span>Tüm Rakipler</span>
-          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Toplu</span>
-        </button>
+      {competitors.length === 0 ? (
+        <div style={{
+          padding: '1.25rem',
+          textAlign: 'center',
+          backgroundColor: 'var(--bg-surface-elevated)',
+          borderRadius: 'var(--radius-sm)',
+          border: '1px dashed var(--border-default)',
+          color: 'var(--text-secondary)',
+          fontSize: '0.825rem',
+        }}>
+          Henüz takip edilen bir rakip eklenmedi. Yukarıdaki arama kutusuna rakip markanın Facebook sayfa linkini veya ID'sini yazarak ilk rakibinizi ekleyebilirsiniz.
+        </div>
+      ) : (
+        <div style={{
+          display: 'flex',
+          gap: '0.5rem',
+          overflowX: 'auto',
+          paddingBottom: '0.25rem',
+        }}>
+          
+          {/* ALL Selector */}
+          <button
+            onClick={() => onSelectCompetitor('ALL')}
+            style={{
+              padding: '0.45rem 0.85rem',
+              borderRadius: 'var(--radius-sm)',
+              border: selectedCompetitorId === 'ALL' 
+                ? '1px solid var(--brand-primary)' 
+                : '1px solid var(--border-default)',
+              backgroundColor: selectedCompetitorId === 'ALL' 
+                ? 'var(--bg-surface-elevated)' 
+                : 'transparent',
+              color: selectedCompetitorId === 'ALL' ? 'var(--brand-primary)' : 'var(--text-secondary)',
+              fontWeight: selectedCompetitorId === 'ALL' ? 600 : 400,
+              fontSize: '0.825rem',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              whiteSpace: 'nowrap',
+              flexShrink: 0,
+              transition: 'all var(--transition-fast)',
+            }}
+          >
+            <span>Tüm Rakipler</span>
+            <span className="badge badge-neutral" style={{ fontSize: '0.68rem', padding: '0.1rem 0.35rem' }}>Toplu</span>
+          </button>
 
-        {/* Individual Competitor Buttons */}
-        {competitors.map((comp) => {
-          const isSelected = selectedCompetitorId === comp.pageId || selectedCompetitorId === comp.id;
-          return (
-            <div
-              key={comp.id}
-              onClick={() => onSelectCompetitor(comp.pageId)}
-              style={{
-                padding: '0.35rem 0.65rem',
-                borderRadius: 'var(--radius-sm)',
-                border: isSelected 
-                  ? '1px solid var(--border-strong)' 
-                  : '1px solid var(--border-subtle)',
-                backgroundColor: isSelected 
-                  ? 'var(--bg-surface-hover)' 
-                  : 'var(--bg-surface-elevated)',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                flexShrink: 0,
-                transition: 'all var(--transition-fast)',
-              }}
-            >
-              <img
-                src={comp.avatarUrl}
-                alt={comp.name}
+          {/* Individual Competitor Buttons */}
+          {competitors.map((comp) => {
+            const isSelected = selectedCompetitorId === comp.pageId || selectedCompetitorId === comp.id;
+            return (
+              <div
+                key={comp.id}
+                onClick={() => onSelectCompetitor(comp.pageId)}
                 style={{
+                  padding: '0.35rem 0.65rem',
+                  borderRadius: 'var(--radius-sm)',
+                  border: isSelected 
+                    ? '1px solid var(--brand-primary)' 
+                    : '1px solid var(--border-default)',
+                  backgroundColor: isSelected 
+                    ? 'var(--bg-surface-elevated)' 
+                    : 'transparent',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  flexShrink: 0,
+                  transition: 'all var(--transition-fast)',
+                }}
+              >
+                <div style={{
                   width: '20px',
                   height: '20px',
                   borderRadius: '4px',
-                  objectFit: 'cover',
-                }}
-              />
-              <span style={{
-                fontSize: '0.825rem',
-                fontWeight: isSelected ? 600 : 400,
-                color: isSelected ? '#ffffff' : 'var(--text-secondary)',
-                whiteSpace: 'nowrap',
-              }}>
-                {comp.name}
-              </span>
+                  backgroundColor: 'var(--border-default)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 600,
+                  fontSize: '0.68rem',
+                  color: 'var(--text-primary)',
+                  flexShrink: 0,
+                  overflow: 'hidden',
+                }}>
+                  {comp.avatarUrl && comp.avatarUrl.startsWith('http') ? (
+                    <img
+                      src={comp.avatarUrl}
+                      alt={comp.name}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                    />
+                  ) : (
+                    comp.name.charAt(0).toUpperCase()
+                  )}
+                </div>
 
-              <span className="badge badge-neutral" style={{ fontSize: '0.68rem', padding: '0.1rem 0.35rem' }}>
-                {comp.activeAdsCount}
-              </span>
+                <span style={{
+                  fontSize: '0.825rem',
+                  fontWeight: isSelected ? 600 : 400,
+                  color: isSelected ? 'var(--brand-primary)' : 'var(--text-secondary)',
+                  whiteSpace: 'nowrap',
+                }}>
+                  {comp.name}
+                </span>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '2px', marginLeft: '0.2rem' }}>
-                <a
-                  href={comp.facebookPageUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                  title="Meta Sayfası"
-                  style={{ color: 'var(--text-muted)', display: 'flex', padding: '2px' }}
-                >
-                  <ExternalLink size={12} />
-                </a>
+                <span className="badge badge-neutral" style={{ fontSize: '0.68rem', padding: '0.1rem 0.35rem' }}>
+                  {comp.activeAdsCount}
+                </span>
 
-                {competitors.length > 1 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '2px', marginLeft: '0.2rem' }}>
+                  <a
+                    href={comp.facebookPageUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    title="Meta Sayfası"
+                    style={{ color: 'var(--text-muted)', display: 'flex', padding: '2px' }}
+                  >
+                    <ExternalLink size={12} />
+                  </a>
+
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -211,13 +254,13 @@ export const CompetitorBar: React.FC<CompetitorBarProps> = ({
                   >
                     <Trash2 size={12} />
                   </button>
-                )}
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
 
-      </div>
+        </div>
+      )}
 
     </div>
   );

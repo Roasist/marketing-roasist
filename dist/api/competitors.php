@@ -85,6 +85,16 @@ if ($method === 'POST') {
 // DELETE: Delete Competitor
 if ($method === 'DELETE') {
     $id = trim($_GET['id'] ?? $input['id'] ?? '');
+    $action = $_GET['action'] ?? '';
+
+    if ($action === 'clear_all' || $id === 'ALL') {
+        $pdo->exec("DELETE FROM competitors");
+        $pdo->exec("DELETE FROM saved_ads");
+        logAudit((int)$currentUser['id'], $currentUser['name'], 'Tüm Rakipler Temizlendi', "Tüm örnek rakip ve reklam verileri silindi.", 'RAKİP');
+        echo json_encode(['status' => 'success', 'message' => 'Tüm kayıtlar temizlendi.']);
+        exit;
+    }
+
     if (empty($id)) {
         http_response_code(400);
         echo json_encode(['status' => 'error', 'message' => 'Geçersiz rakip ID.']);
@@ -94,7 +104,7 @@ if ($method === 'DELETE') {
     $stmt = $pdo->prepare("DELETE FROM competitors WHERE id = ? OR page_id = ?");
     $stmt->execute([$id, $id]);
 
-    logAudit((int)$currentUser['id'], $currentUser['name'], 'Rakip Silindi', "Rakip kaldırıldı: ID $id");
+    logAudit((int)$currentUser['id'], $currentUser['name'], 'Rakip Silindi', "Rakip kaldırıldı: ID $id", 'RAKİP');
 
     echo json_encode([
         'status' => 'success',

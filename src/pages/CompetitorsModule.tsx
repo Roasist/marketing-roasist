@@ -19,7 +19,8 @@ import {
   Download, 
   Bookmark, 
   Trash2, 
-  Tag
+  Tag,
+  ExternalLink
 } from 'lucide-react';
 
 interface CompetitorsModuleProps {
@@ -236,13 +237,42 @@ export const CompetitorsModule: React.FC<CompetitorsModuleProps> = ({
           />
 
           {filteredAds.length === 0 ? (
-            <div className="card" style={{ padding: '3rem', textAlign: 'center' }}>
-              <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                Kriterlere uygun reklam bulunamadı.
+            <div className="card" style={{ padding: '3.5rem 2rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '12px',
+                backgroundColor: 'var(--bg-surface-elevated)',
+                border: '1px solid var(--border-default)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--brand-primary)',
+                marginBottom: '1rem',
+              }}>
+                <Flame size={24} />
               </div>
-              <p style={{ fontSize: '0.825rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>
-                Filtreleri sıfırlayarak veya başka bir rakip seçerek tekrar deneyin.
+
+              <div style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.35rem' }}>
+                {competitors.length === 0 ? 'Takip Edilen Rakip Bulunmuyor' : 'Filtre Kriterlerine Uygun Reklam Bulunamadı'}
+              </div>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', maxWidth: '460px', lineHeight: 1.5, marginBottom: '1.25rem' }}>
+                {competitors.length === 0 
+                  ? 'Meta Reklam Kütüphanesinden takip etmek istediğiniz rakiplerin sayfa linkini veya ID\'sini yukarıdaki alana girerek istihbarat havuzunuzu oluşturabilirsiniz.'
+                  : 'Seçili filtreleri sıfırlayarak veya yukarıdan başka bir rakip seçerek aktif reklamları görüntüleyebilirsiniz.'}
               </p>
+
+              {competitors.length === 0 && (
+                <a
+                  href="https://www.facebook.com/ads/library/?active_status=all&ad_type=all&country=TR"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="btn-secondary"
+                  style={{ textDecoration: 'none', fontSize: '0.825rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
+                >
+                  <ExternalLink size={14} /> Meta Reklam Kütüphanesini Aç (TR)
+                </a>
+              )}
             </div>
           ) : (
             <div style={{

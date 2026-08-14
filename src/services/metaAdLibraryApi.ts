@@ -1,5 +1,4 @@
 import { AdItem, Competitor, MetaApiConfig } from '../types/ad';
-import { INITIAL_ADS, INITIAL_COMPETITORS } from './mockData';
 
 const META_GRAPH_URL = 'https://graph.facebook.com/v19.0/ads_archive';
 
@@ -43,8 +42,7 @@ export class MetaAdLibraryService {
         // Fallback
       }
     }
-    localStorage.setItem(this.competitorsKey, JSON.stringify(INITIAL_COMPETITORS));
-    return INITIAL_COMPETITORS;
+    return [];
   }
 
   public static saveCompetitors(competitors: Competitor[]): void {
@@ -60,8 +58,7 @@ export class MetaAdLibraryService {
         // Fallback
       }
     }
-    localStorage.setItem(this.adsKey, JSON.stringify(INITIAL_ADS));
-    return INITIAL_ADS;
+    return [];
   }
 
   public static saveAds(ads: AdItem[]): void {
