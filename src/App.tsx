@@ -4,6 +4,8 @@ import { Competitor, AdItem, MetaApiConfig } from './types/ad';
 import { MetaAdLibraryService } from './services/metaAdLibraryApi';
 import { ExportService } from './services/exportService';
 
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { LoginPage } from './pages/LoginPage';
 import { Sidebar } from './components/Sidebar';
 import { TopBar } from './components/TopBar';
 
@@ -12,9 +14,11 @@ import { CompetitorsModule } from './pages/CompetitorsModule';
 import { AiCopywriterModule } from './pages/AiCopywriterModule';
 import { RoasOptimizerModule } from './pages/RoasOptimizerModule';
 import { AdminPanel } from './pages/AdminPanel';
+import { Loader2 } from 'lucide-react';
 
-export function App() {
-  const [currentRoute, setCurrentRoute] = useState<MarketingRoute>('competitors');
+function AppContent() {
+  const { isAuthenticated, isLoading, hasRole } = useAuth();
+  const [currentRoute, setCurrentRoute] = useState<MarketingRoute>('dashboard');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   // Data states
@@ -42,8 +46,8 @@ export function App() {
       setCurrentRoute('ai-copywriter');
     } else if (path === 'roas-optimizer') {
       setCurrentRoute('roas-optimizer');
-    } else if (path === '') {
-      setCurrentRoute('competitors'); // Default landing tool
+    } else if (path === '' || path === 'dashboard') {
+      setCurrentRoute('dashboard');
     }
 
     const handlePopState = () => {
@@ -52,7 +56,7 @@ export function App() {
       else if (p === 'admin') setCurrentRoute('admin');
       else if (p === 'ai-copywriter') setCurrentRoute('ai-copywriter');
       else if (p === 'roas-optimizer') setCurrentRoute('roas-optimizer');
-      else if (p === '') setCurrentRoute('competitors');
+      else if (p === '' || p === 'dashboard') setCurrentRoute('dashboard');
     };
 
     window.addEventListener('popstate', handlePopState);
@@ -60,6 +64,12 @@ export function App() {
   }, []);
 
   const navigateTo = (route: MarketingRoute) => {
+    // Role check: If navigating to admin, must have ADMIN role
+    if (route === 'admin' && !hasRole(['SUPER_ADMIN', 'ADMIN'])) {
+      alert('Bu alana erişim için Yönetici (Admin) yetkisi gereklidir.');
+      return;
+    }
+
     setCurrentRoute(route);
     const targetPath = route === 'dashboard' ? '/' : `/${route}`;
     window.history.pushState({}, '', targetPath);
@@ -81,6 +91,23 @@ export function App() {
   const handleExportCsv = () => {
     ExportService.exportToCsv(ads, 'Roasist_Rakipler');
   };
+
+  // Loading Screen
+  if (isLoading) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-primary)', color: 'var(--accent-purple)' }}>
+        <div style={{ textAlign: 'center' }}>
+          <Loader2 size={40} className="animate-spin" style={{ margin: '0 auto 1rem' }} />
+          <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Roasist AI Suite Yükleniyor...</div>
+        </div>
+      </div>
+    );
+  }
+
+  // If not logged in, show sleek LoginPage
+  if (!isAuthenticated) {
+    return <LoginPage />;
+  }
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-primary)' }}>
@@ -149,12 +176,20 @@ export function App() {
           color: 'var(--text-muted)',
           background: 'rgba(11, 15, 25, 0.9)',
         }}>
-          Roasist Enterprise Marketing Suite • Active Domain: <span style={{ color: 'var(--accent-cyan)' }}>marketing.roasist.com</span>
+          Roasist Enterprise Marketing Suite • Veritabanı: <span style={{ color: '#34d399' }}>Bağlı</span> • Domain: <span style={{ color: 'var(--accent-cyan)' }}>marketing.roasist.com</span>
         </footer>
 
       </div>
 
     </div>
+  );
+}
+
+export function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }
 

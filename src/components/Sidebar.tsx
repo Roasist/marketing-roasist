@@ -1,16 +1,18 @@
 import React from 'react';
 import { MarketingRoute } from '../types/suite';
+import { useAuth } from '../contexts/AuthContext';
 import { 
   LayoutDashboard, 
   Target, 
   PenTool, 
   TrendingUp, 
-  ShieldCheck, 
   ChevronLeft, 
   ChevronRight, 
   Sparkles, 
   Building,
-  Sliders
+  Sliders,
+  LogOut,
+  ShieldCheck
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -26,6 +28,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isCollapsed,
   onToggleCollapse,
 }) => {
+  const { user, logout, hasRole } = useAuth();
+
   const menuItems = [
     {
       id: 'dashboard' as MarketingRoute,
@@ -54,13 +58,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
       path: '/roas-optimizer',
       isBeta: true,
     },
-    {
-      id: 'admin' as MarketingRoute,
-      name: 'Admin Yönetim Paneli',
-      icon: Sliders,
-      path: '/admin',
-      badge: 'Admin',
-    },
+    ...(hasRole(['SUPER_ADMIN', 'ADMIN']) ? [
+      {
+        id: 'admin' as MarketingRoute,
+        name: 'Admin & Kullanıcı Yönetimi',
+        icon: Sliders,
+        path: '/admin',
+        badge: 'Admin',
+      }
+    ] : []),
   ];
 
   return (
@@ -152,7 +158,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <div style={{ fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 Roasist Main Workspace
               </div>
-              <div style={{ fontSize: '0.68rem', color: 'var(--accent-emerald)' }}>● Pro Lisans</div>
+              <div style={{ fontSize: '0.68rem', color: 'var(--accent-emerald)' }}>
+                ● Veritabanı: Aktif (SQLite)
+              </div>
             </div>
           </div>
         </div>
@@ -230,16 +238,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
       )}
 
-      {/* Footer Profile Status */}
-      {!isCollapsed && (
-        <div style={{
-          padding: '1rem 1.25rem',
-          borderTop: '1px solid var(--border-glass)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.75rem',
-          fontSize: '0.8rem',
-        }}>
+      {/* Footer Profile & Logout */}
+      <div style={{
+        padding: isCollapsed ? '0.75rem' : '1rem 1.25rem',
+        borderTop: '1px solid var(--border-glass)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        fontSize: '0.8rem',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', overflow: 'hidden' }}>
           <div style={{
             width: '34px',
             height: '34px',
@@ -250,17 +258,44 @@ export const Sidebar: React.FC<SidebarProps> = ({
             justifyContent: 'center',
             fontWeight: 800,
             color: 'white',
+            flexShrink: 0,
           }}>
-            R
+            {user?.name ? user.name.charAt(0).toUpperCase() : 'R'}
           </div>
-          <div>
-            <div style={{ fontWeight: 700 }}>Roasist Admin</div>
-            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-              <ShieldCheck size={12} color="#34d399" /> Sistem Yöneticisi
+          
+          {!isCollapsed && (
+            <div style={{ overflow: 'hidden' }}>
+              <div style={{ fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {user?.name || 'Kullanıcı'}
+              </div>
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                <ShieldCheck size={12} color="#34d399" />
+                {user?.role === 'SUPER_ADMIN' ? 'Süper Admin' : user?.role === 'ADMIN' ? 'Yönetici' : 'Pazarlamacı'}
+              </div>
             </div>
-          </div>
+          )}
         </div>
-      )}
+
+        {!isCollapsed && (
+          <button
+            onClick={logout}
+            title="Güvenli Çıkış Yap"
+            style={{
+              background: 'rgba(244, 63, 94, 0.1)',
+              border: '1px solid rgba(244, 63, 94, 0.3)',
+              borderRadius: '8px',
+              color: '#fb7185',
+              cursor: 'pointer',
+              padding: '6px 8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <LogOut size={15} />
+          </button>
+        )}
+      </div>
 
     </aside>
   );

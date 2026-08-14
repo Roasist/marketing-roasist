@@ -1,6 +1,7 @@
 import React from 'react';
 import { MarketingRoute } from '../types/suite';
-import { ChevronRight, Sliders, Bell, Globe } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { Globe, ChevronRight, Sliders, LogOut } from 'lucide-react';
 
 interface TopBarProps {
   currentRoute: MarketingRoute;
@@ -8,14 +9,22 @@ interface TopBarProps {
 }
 
 export const TopBar: React.FC<TopBarProps> = ({ currentRoute, onNavigate }) => {
+  const { user, logout, hasRole } = useAuth();
+
   const getRouteTitle = () => {
     switch (currentRoute) {
-      case 'dashboard': return 'Genel Bakış & Metrikler';
-      case 'competitors': return 'Rakip Reklam İstihbaratı (/competitors)';
-      case 'ai-copywriter': return 'AI Reklam Metni & Kanca Üretici';
-      case 'roas-optimizer': return 'ROAS & Bütçe Simülatörü';
-      case 'admin': return 'Admin Yönetim Paneli (/admin)';
-      default: return 'Marketing Suite';
+      case 'dashboard':
+        return 'Genel Bakış & Metrikler';
+      case 'competitors':
+        return 'Rakip Reklam İstihbaratı (/competitors)';
+      case 'ai-copywriter':
+        return 'AI Reklam Metni & Kanca Üretici';
+      case 'roas-optimizer':
+        return 'ROAS & Bütçe Simülatörü';
+      case 'admin':
+        return 'Admin & Kullanıcı Yönetim Paneli (/admin)';
+      default:
+        return 'Marketing Suite';
     }
   };
 
@@ -34,7 +43,7 @@ export const TopBar: React.FC<TopBarProps> = ({ currentRoute, onNavigate }) => {
       zIndex: 100,
     }}>
       
-      {/* Breadcrumb Path */}
+      {/* Left: Breadcrumbs */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem' }}>
         <span 
           onClick={() => onNavigate('dashboard')}
@@ -48,7 +57,7 @@ export const TopBar: React.FC<TopBarProps> = ({ currentRoute, onNavigate }) => {
         </span>
       </div>
 
-      {/* Right Utility Bar */}
+      {/* Right: User & Actions */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
         
         {/* Domain Badge */}
@@ -67,32 +76,24 @@ export const TopBar: React.FC<TopBarProps> = ({ currentRoute, onNavigate }) => {
           <span>marketing.roasist.com</span>
         </div>
 
-        {/* Notifications Icon */}
+        {/* User Info Badge */}
         <div style={{
-          width: '34px',
-          height: '34px',
-          borderRadius: '50%',
-          background: 'rgba(255, 255, 255, 0.05)',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'center',
-          cursor: 'pointer',
-          position: 'relative',
+          gap: '0.5rem',
+          background: 'rgba(255, 255, 255, 0.04)',
+          border: '1px solid var(--border-glass)',
+          padding: '0.3rem 0.75rem',
+          borderRadius: 'var(--radius-sm)',
+          fontSize: '0.8rem',
         }}>
-          <Bell size={16} color="var(--text-secondary)" />
-          <span style={{
-            position: 'absolute',
-            top: '6px',
-            right: '6px',
-            width: '7px',
-            height: '7px',
-            borderRadius: '50%',
-            backgroundColor: 'var(--accent-purple)',
-          }} />
+          <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#34d399' }} />
+          <span style={{ fontWeight: 600 }}>{user?.name || 'Kullanıcı'}</span>
+          <span style={{ color: 'var(--accent-purple)', fontSize: '0.7rem' }}>({user?.role})</span>
         </div>
 
-        {/* Admin Panel Quick Trigger Button */}
-        {currentRoute !== 'admin' && (
+        {/* Admin Direct Button */}
+        {hasRole(['SUPER_ADMIN', 'ADMIN']) && currentRoute !== 'admin' && (
           <button
             onClick={() => onNavigate('admin')}
             className="btn-secondary"
@@ -101,6 +102,27 @@ export const TopBar: React.FC<TopBarProps> = ({ currentRoute, onNavigate }) => {
             <Sliders size={14} /> Admin Panel
           </button>
         )}
+
+        {/* Logout Quick Button */}
+        <button
+          onClick={logout}
+          title="Çıkış Yap"
+          style={{
+            background: 'rgba(244, 63, 94, 0.1)',
+            border: '1px solid rgba(244, 63, 94, 0.3)',
+            borderRadius: '8px',
+            color: '#fb7185',
+            cursor: 'pointer',
+            padding: '6px 10px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.35rem',
+            fontSize: '0.75rem',
+            fontWeight: 600,
+          }}
+        >
+          <LogOut size={14} /> Çıkış
+        </button>
 
       </div>
 

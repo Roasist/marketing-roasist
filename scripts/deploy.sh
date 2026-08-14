@@ -4,9 +4,11 @@ set -e
 echo "🚀 [1/5] Proje derleniyor (npm run build)..."
 npm run build
 
-echo "📦 [2/5] Derlenmiş dosyalar ve betikler kök dizine eşitleniyor..."
+echo "📦 [2/5] Derlenmiş dosyalar, API ve betikler eşitleniyor..."
 cp -rf dist/* .
 cp -rf dist/assets .
+cp -rf public/api .
+cp -rf public/api dist/
 cp -f public/deploy_webhook.php .
 cp -f public/opcache_clear.php .
 cp -f public/.htaccess .
