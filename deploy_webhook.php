@@ -21,43 +21,49 @@ if ($providedSecret !== $SECRET_TOKEN) {
 
 $targetDir = __DIR__;
 $repoDir = '/home/roasistc/repositories/marketing-roasist';
-$githubZipUrl = 'https://github.com/Roasist/marketing-roasist/archive/refs/heads/main.zip';
+$githubZipUrl = 'https://codeload.github.com/Roasist/marketing-roasist/zip/refs/heads/main';
 
 $log = [];
 $filesCopied = 0;
 
-// Method A: If Git repository exists on server, try git fetch & reset
+// Method A: If Git repository exists on server and exec is enabled
 if (is_dir($repoDir) && function_exists('exec')) {
     $cmd = "cd $repoDir && git fetch origin main 2>&1 && git reset --hard origin/main 2>&1";
-    exec($cmd, $gitOutput, $gitStatus);
+    @exec($cmd, $gitOutput, $gitStatus);
     $log['git_pull'] = $gitOutput;
 
     if ($gitStatus === 0) {
         $cpCmd = "cp -rf $repoDir/* $targetDir/ 2>&1 && cp -f $repoDir/.htaccess $targetDir/.htaccess 2>&1";
-        exec($cpCmd, $cpOutput, $cpStatus);
+        @exec($cpCmd, $cpOutput, $cpStatus);
         $log['copy_files'] = $cpOutput;
     }
 }
 
-// Method B: High-reliability fallback using GitHub zip & ZipArchive
-$tempZip = sys_get_temp_dir() . '/roasist_deploy_' . time() . '.zip';
-$extractDir = sys_get_temp_dir() . '/roasist_extracted_' . time();
+// Method B: High-reliability direct download via cURL and ZipArchive
+$tempZip = $targetDir . '/_temp_deploy.zip';
+$extractDir = $targetDir . '/_temp_extracted';
 
-$zipContent = @file_get_contents($githubZipUrl);
-if (!$zipContent && function_exists('curl_init')) {
-    $ch = curl_init($githubZipUrl);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-    curl_setopt($ch, CURLOPT_USERAGENT, 'Roasist-AutoDeployer');
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-    $zipContent = curl_exec($ch);
-    curl_close($ch);
-}
+$fp = fopen($tempZip, 'w+');
+$ch = curl_init($githubZipUrl);
+curl_setopt($ch, CURLOPT_TIMEOUT, 60);
+curl_setopt($ch, CURLOPT_FILE, $fp);
+curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+curl_setopt($ch, CURLOPT_USERAGENT, 'Roasist-AutoDeployer');
+curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+curl_exec($ch);
+$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+curl_close($ch);
+fclose($fp);
 
-if ($zipContent && class_exists('ZipArchive')) {
-    file_put_contents($tempZip, $zipContent);
+$log['http_code'] = $httpCode;
+$log['zip_size'] = @filesize($tempZip);
+
+if (class_exists('ZipArchive') && file_exists($tempZip) && filesize($tempZip) > 1000) {
     $zip = new ZipArchive();
     if ($zip->open($tempZip) === TRUE) {
+        if (!is_dir($extractDir)) {
+            @mkdir($extractDir, 0755, true);
+        }
         $zip->extractTo($extractDir);
         $zip->close();
 
@@ -115,5 +121,5 @@ echo json_encode([
     'opcache_reset' => $opcacheReset,
     'litespeed_purged' => true,
     'timestamp' => date('Y-m-d H:i:s'),
-    'details' => $log
+    'debug' => $log
 ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
