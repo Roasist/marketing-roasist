@@ -9,7 +9,8 @@ import {
   X, 
   Sparkles, 
   CheckCircle2, 
-  Loader2
+  Loader2,
+  Globe
 } from 'lucide-react';
 
 interface CompetitorBarProps {
@@ -29,15 +30,17 @@ export const CompetitorBar: React.FC<CompetitorBarProps> = ({
 }) => {
   const [inputVal, setInputVal] = useState('');
   const [isAdding, setIsAdding] = useState(competitors.length === 0);
-  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [metaSuggestions, setMetaSuggestions] = useState<any[]>([]);
+  const [googleSuggestions, setGoogleSuggestions] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Debounced search query to Meta Graph API autocomplete
+  // Debounced search query to both Google Ads Transparency & Meta Graph API autocomplete
   useEffect(() => {
     if (!inputVal.trim() || inputVal.trim().length < 2) {
-      setSuggestions([]);
+      setMetaSuggestions([]);
+      setGoogleSuggestions([]);
       setShowDropdown(false);
       return;
     }
@@ -45,15 +48,24 @@ export const CompetitorBar: React.FC<CompetitorBarProps> = ({
     const timer = setTimeout(async () => {
       setIsSearching(true);
       try {
-        const results = await ApiService.searchAdvertisers(inputVal.trim());
-        setSuggestions(results);
-        setShowDropdown(true);
+        const [googleRes, metaRes] = await Promise.allSettled([
+          ApiService.searchGoogleAdvertisers(inputVal.trim()),
+          ApiService.searchAdvertisers(inputVal.trim())
+        ]);
+
+        const gList = googleRes.status === 'fulfilled' ? googleRes.value : [];
+        const mList = metaRes.status === 'fulfilled' ? metaRes.value : [];
+
+        setGoogleSuggestions(gList);
+        setMetaSuggestions(mList);
+        setShowDropdown(gList.length > 0 || mList.length > 0);
       } catch {
-        setSuggestions([]);
+        setGoogleSuggestions([]);
+        setMetaSuggestions([]);
       } finally {
         setIsSearching(false);
       }
-    }, 280);
+    }, 250);
 
     return () => clearTimeout(timer);
   }, [inputVal]);
@@ -69,7 +81,24 @@ export const CompetitorBar: React.FC<CompetitorBarProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleSelectAdvertiser = (adv: any) => {
+  const handleSelectGoogleAdvertiser = (adv: any) => {
+    onAddCompetitor({
+      name: adv.name,
+      pageId: adv.domain || adv.advertiserId || adv.id,
+      domain: adv.domain || adv.name,
+      network: 'GOOGLE',
+      category: adv.category || 'Google Ads',
+      avatarUrl: adv.avatarUrl || "https://www.google.com/s2/favicons?domain=" + (adv.domain || adv.name) + "&sz=128",
+      googleTransparencyUrl: adv.googleTransparencyUrl
+    });
+    setInputVal('');
+    setShowDropdown(false);
+    if (competitors.length > 0) {
+      setIsAdding(false);
+    }
+  };
+
+  const handleSelectMetaAdvertiser = (adv: any) => {
     if (adv.isExactPhrase) {
       onAddCompetitor(adv.pageId);
     } else {
@@ -99,6 +128,8 @@ export const CompetitorBar: React.FC<CompetitorBarProps> = ({
     }
   };
 
+  const hasSuggestions = googleSuggestions.length > 0 || metaSuggestions.length > 0;
+
   return (
     <div className="card" style={{ padding: '1rem 1.25rem', overflow: 'visible' }}>
       
@@ -122,13 +153,23 @@ export const CompetitorBar: React.FC<CompetitorBarProps> = ({
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <a
+            href="https://adstransparency.google.com/?region=TR"
+            target="_blank"
+            rel="noreferrer"
+            className="btn-ghost"
+            style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', textDecoration: 'none', color: '#ea4335' }}
+          >
+            <ExternalLink size={12} /> Google Reklam Şeffaflığı
+          </a>
+
+          <a
             href="https://www.facebook.com/ads/library/?active_status=all&ad_type=all&country=TR"
             target="_blank"
             rel="noreferrer"
             className="btn-ghost"
             style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', textDecoration: 'none' }}
           >
-            <ExternalLink size={12} /> Meta Reklam Kütüphanesi
+            <ExternalLink size={12} /> Meta Kütüphanesi
           </a>
 
           <button
@@ -145,7 +186,7 @@ export const CompetitorBar: React.FC<CompetitorBarProps> = ({
         </div>
       </div>
 
-      {/* Add Competitor Input Form with Live Meta Typeahead Dropdown */}
+      {/* Add Competitor Input Form with Live Google & Meta Autocomplete Dropdown */}
       {isAdding && (
         <div ref={containerRef} style={{ position: 'relative', marginBottom: '1rem', zIndex: 90 }}>
           <form 
@@ -169,10 +210,10 @@ export const CompetitorBar: React.FC<CompetitorBarProps> = ({
               />
               <input
                 type="text"
-                placeholder="Marka adı (örn: 23 PROJECTS, Trendyol) veya Meta Sayfa linki yazın..."
+                placeholder="Google web sitesi (örn: 23projects.net, trendyol.com) veya Meta marka adı yazın..."
                 value={inputVal}
                 onChange={(e) => setInputVal(e.target.value)}
-                onFocus={() => { if (suggestions.length > 0) setShowDropdown(true); }}
+                onFocus={() => { if (hasSuggestions) setShowDropdown(true); }}
                 style={{
                   width: '100%',
                   paddingLeft: '2.1rem',
@@ -194,8 +235,8 @@ export const CompetitorBar: React.FC<CompetitorBarProps> = ({
             </button>
           </form>
 
-          {/* Meta Live Typeahead Dropdown Menu */}
-          {showDropdown && suggestions.length > 0 && (
+          {/* Omnichannel Autocomplete Dropdown */}
+          {showDropdown && hasSuggestions && (
             <div 
               style={{
                 position: 'absolute',
@@ -205,117 +246,192 @@ export const CompetitorBar: React.FC<CompetitorBarProps> = ({
                 backgroundColor: 'var(--bg-surface)',
                 border: '1px solid var(--border-default)',
                 borderRadius: 'var(--radius-md)',
-                boxShadow: '0 12px 30px rgba(0, 0, 0, 0.25)',
-                maxHeight: '380px',
+                boxShadow: '0 14px 35px rgba(0, 0, 0, 0.3)',
+                maxHeight: '420px',
                 overflowY: 'auto',
                 zIndex: 100,
                 padding: '0.4rem',
               }}
             >
-              <div style={{ padding: '0.4rem 0.6rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Meta Reklam Verenler & Markalar
-              </div>
-
-              {suggestions.map((adv, idx) => (
-                <div
-                  key={adv.id || idx}
-                  onClick={() => handleSelectAdvertiser(adv)}
-                  style={{
+              {/* Google Ads Suggestions Section */}
+              {googleSuggestions.length > 0 && (
+                <div style={{ marginBottom: '0.5rem' }}>
+                  <div style={{
+                    padding: '0.4rem 0.65rem',
+                    fontSize: '0.72rem',
+                    fontWeight: 700,
+                    color: '#ea4335',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '0.75rem',
-                    padding: '0.6rem 0.75rem',
-                    borderRadius: 'var(--radius-sm)',
-                    cursor: 'pointer',
-                    transition: 'background-color 0.15s ease',
-                    borderBottom: idx === suggestions.length - 2 ? '1px solid var(--border-default)' : 'none',
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-surface-elevated)'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                >
-                  {/* Brand Avatar */}
-                  {adv.isExactPhrase ? (
-                    <div style={{
-                      width: '34px',
-                      height: '34px',
-                      borderRadius: '50%',
-                      backgroundColor: 'var(--bg-surface-elevated)',
-                      border: '1px solid var(--border-default)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: 'var(--brand-primary)',
-                      flexShrink: 0
-                    }}>
-                      <Search size={16} />
-                    </div>
-                  ) : adv.avatarUrl ? (
-                    <img
-                      src={adv.avatarUrl}
-                      alt={adv.name}
-                      style={{
-                        width: '34px',
-                        height: '34px',
-                        borderRadius: '50%',
-                        objectFit: 'cover',
-                        border: '1px solid var(--border-default)',
-                        flexShrink: 0
-                      }}
-                      onError={(e) => {
-                        e.currentTarget.style.display = 'none';
-                      }}
-                    />
-                  ) : (
-                    <div style={{
-                      width: '34px',
-                      height: '34px',
-                      borderRadius: '50%',
-                      backgroundColor: 'var(--bg-surface-elevated)',
-                      border: '1px solid var(--border-default)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontWeight: 700,
-                      fontSize: '0.8rem',
-                      color: 'var(--text-primary)',
-                      flexShrink: 0
-                    }}>
-                      {adv.name.charAt(0)}
-                    </div>
-                  )}
-
-                  {/* Brand Details */}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                      <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {adv.name}
-                      </span>
-                      {adv.verified && (
-                        <CheckCircle2 size={13} color="var(--brand-primary)" style={{ flexShrink: 0 }} />
-                      )}
-                    </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
-                      {adv.handle && (
-                        <span style={{ color: 'var(--brand-primary)', fontWeight: 500 }}>
-                          {adv.handle}
-                        </span>
-                      )}
-                      {adv.followers && (
-                        <span>• {adv.followers.toLocaleString('tr-TR')} Takipçi</span>
-                      )}
-                      {adv.category && (
-                        <span>• {adv.category}</span>
-                      )}
-                    </div>
+                    gap: '0.35rem',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                  }}>
+                    <span>🔴 Google Reklamverenleri & Web Siteleri (Google Ads Transparency)</span>
                   </div>
 
-                  {/* Action Badge */}
-                  <span className="badge badge-neutral" style={{ fontSize: '0.7rem', padding: '0.2rem 0.5rem' }}>
-                    {adv.isExactPhrase ? 'Metin Ara' : 'Seç & İncele'}
-                  </span>
+                  {googleSuggestions.map((gAdv, idx) => (
+                    <div
+                      key={gAdv.id || idx}
+                      onClick={() => handleSelectGoogleAdvertiser(gAdv)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.75rem',
+                        padding: '0.55rem 0.75rem',
+                        borderRadius: 'var(--radius-sm)',
+                        cursor: 'pointer',
+                        transition: 'background-color 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-surface-elevated)'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                    >
+                      <div style={{
+                        width: '32px',
+                        height: '32px',
+                        borderRadius: '50%',
+                        backgroundColor: '#ffffff',
+                        border: '1px solid var(--border-default)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontWeight: 700,
+                        fontSize: '0.75rem',
+                        color: '#ea4335',
+                        flexShrink: 0,
+                      }}>
+                        <Globe size={16} color="#ea4335" />
+                      </div>
+
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                          <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {gAdv.name}
+                          </span>
+                          {gAdv.country && (
+                            <span className="badge badge-neutral" style={{ fontSize: '0.65rem', padding: '1px 4px' }}>
+                              {gAdv.country}
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.1rem' }}>
+                          {gAdv.type === 'DOMAIN' ? 'Web Sitesi / Domain' : 'Google Doğrulanmış Reklamveren'}
+                        </div>
+                      </div>
+
+                      <span className="badge" style={{ fontSize: '0.7rem', backgroundColor: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca' }}>
+                        Google Ads
+                      </span>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
+
+              {/* Meta Suggestions Section */}
+              {metaSuggestions.length > 0 && (
+                <div>
+                  <div style={{
+                    padding: '0.4rem 0.65rem',
+                    fontSize: '0.72rem',
+                    fontWeight: 700,
+                    color: 'var(--brand-primary)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    borderTop: googleSuggestions.length > 0 ? '1px solid var(--border-default)' : 'none',
+                    paddingTop: googleSuggestions.length > 0 ? '0.6rem' : '0.4rem',
+                  }}>
+                    <span>🔵 Meta (Facebook & Instagram) Reklam Verenleri</span>
+                  </div>
+
+                  {metaSuggestions.map((mAdv, idx) => (
+                    <div
+                      key={mAdv.id || idx}
+                      onClick={() => handleSelectMetaAdvertiser(mAdv)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.75rem',
+                        padding: '0.55rem 0.75rem',
+                        borderRadius: 'var(--radius-sm)',
+                        cursor: 'pointer',
+                        transition: 'background-color 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-surface-elevated)'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                    >
+                      {mAdv.isExactPhrase ? (
+                        <div style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '50%',
+                          backgroundColor: 'var(--bg-surface-elevated)',
+                          border: '1px solid var(--border-default)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: 'var(--brand-primary)',
+                          flexShrink: 0
+                        }}>
+                          <Search size={14} />
+                        </div>
+                      ) : mAdv.avatarUrl ? (
+                        <img
+                          src={mAdv.avatarUrl}
+                          alt={mAdv.name}
+                          style={{
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '50%',
+                            objectFit: 'cover',
+                            border: '1px solid var(--border-default)',
+                            flexShrink: 0
+                          }}
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                          }}
+                        />
+                      ) : (
+                        <div style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '50%',
+                          backgroundColor: 'var(--brand-primary)',
+                          color: '#ffffff',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontWeight: 700,
+                          fontSize: '0.75rem',
+                          flexShrink: 0
+                        }}>
+                          {mAdv.name.charAt(0)}
+                        </div>
+                      )}
+
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                          <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {mAdv.name}
+                          </span>
+                          {mAdv.verified && (
+                            <CheckCircle2 size={13} color="var(--brand-primary)" style={{ flexShrink: 0 }} />
+                          )}
+                        </div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.1rem' }}>
+                          {mAdv.handle || mAdv.category || 'Meta Reklamveren'}
+                        </div>
+                      </div>
+
+                      <span className="badge badge-neutral" style={{ fontSize: '0.7rem' }}>
+                        {mAdv.isExactPhrase ? 'Metin Ara' : 'Meta Ads'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -332,7 +448,7 @@ export const CompetitorBar: React.FC<CompetitorBarProps> = ({
           borderRadius: 'var(--radius-sm)',
           border: '1px dashed var(--border-default)',
         }}>
-          Henüz takip edilen bir rakip eklenmedi. Yukarıdaki arama kutusuna rakip markanın Facebook sayfa linkini veya ID'sini yazarak ilk rakibinizi ekleyebilirsiniz.
+          Henüz takip edilen bir rakip eklenmedi. Yukarıdaki arama kutusuna rakip markanın web sitesini (örn: <strong>23projects.net</strong> veya <strong>trendyol.com</strong>) yazarak anında analiz edebilirsiniz.
         </div>
       ) : (
         <div style={{
