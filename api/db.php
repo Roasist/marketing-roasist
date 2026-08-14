@@ -1,9 +1,10 @@
 <?php
 /**
  * Roasist Marketing Suite - Database Layer & Schema Migrator
+ * Compatible with all PHP versions (PHP 7.0 - 8.3+)
  */
 
-ini_set('display_errors', '1');
+ini_set('display_errors', '0');
 error_reporting(E_ALL);
 
 header('Access-Control-Allow-Origin: *');
@@ -16,9 +17,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 class Database {
-    private static ?PDO $pdo = null;
+    private static $pdo = null;
 
-    public static function getConnection(): PDO {
+    public static function getConnection() {
         if (self::$pdo !== null) {
             return self::$pdo;
         }
@@ -37,17 +38,17 @@ class Database {
             self::$pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
             self::runMigrations(self::$pdo);
             return self::$pdo;
-        } catch (Throwable $e) {
+        } catch (Exception $e) {
             http_response_code(500);
             echo json_encode([
                 'status' => 'error',
                 'message' => 'Veritabanı hatası: ' . $e->getMessage()
-            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+            ]);
             exit;
         }
     }
 
-    private static function runMigrations(PDO $pdo): void {
+    private static function runMigrations($pdo) {
         // 1. Users Table
         $pdo->exec("
             CREATE TABLE IF NOT EXISTS users (
@@ -150,14 +151,18 @@ class Database {
     }
 }
 
-function getAuthUser(): ?array {
-    $headers = getallheaders();
+function getAuthUser() {
+    $headers = function_exists('getallheaders') ? getallheaders() : [];
     $authHeader = '';
     foreach ($headers as $k => $v) {
         if (strtolower($k) === 'authorization') {
             $authHeader = $v;
             break;
         }
+    }
+
+    if (empty($authHeader) && isset($_SERVER['HTTP_AUTHORIZATION'])) {
+        $authHeader = $_SERVER['HTTP_AUTHORIZATION'];
     }
 
     if (!preg_match('/Bearer\s(\S+)/', $authHeader, $matches)) {
@@ -180,7 +185,7 @@ function getAuthUser(): ?array {
     return $stmt->fetch() ?: null;
 }
 
-function requireAuth(?string $minRole = null): array {
+function requireAuth($minRole = null) {
     $user = getAuthUser();
     if (!$user) {
         http_response_code(401);
@@ -197,13 +202,13 @@ function requireAuth(?string $minRole = null): array {
     return $user;
 }
 
-function logAudit(int $userId, string $userName, string $action, string $details): void {
+function logAudit($userId, $userName, $action, $details) {
     try {
         $pdo = Database::getConnection();
         $ip = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
         $stmt = $pdo->prepare("INSERT INTO audit_logs (user_id, user_name, action, details, ip_address) VALUES (?, ?, ?, ?, ?)");
         $stmt->execute([$userId, $userName, $action, $details, $ip]);
-    } catch (Throwable $e) {
+    } catch (Exception $e) {
         // Ignore log errors
     }
 }
