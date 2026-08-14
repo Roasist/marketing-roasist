@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { MarketingRoute, AdminTab } from './types/suite';
 import { Competitor, AdItem, MetaApiConfig } from './types/ad';
-import { MetaAdLibraryService } from './services/metaAdLibraryApi';
+import { ApiService } from './services/apiService';
 import { ExportService } from './services/exportService';
 
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -26,17 +26,36 @@ function AppContent() {
   // Data states
   const [competitors, setCompetitors] = useState<Competitor[]>([]);
   const [ads, setAds] = useState<AdItem[]>([]);
-  const [metaConfig, setMetaConfig] = useState<MetaApiConfig>({ accessToken: '', isConfigured: false, useSandboxMock: true });
+  const [metaConfig, setMetaConfig] = useState<MetaApiConfig>({ accessToken: '', isConfigured: false, useSandboxMock: false });
+
+  const loadRealData = async () => {
+    // Clear old legacy mock data from browser localStorage
+    localStorage.removeItem('adpulse_competitors');
+    localStorage.removeItem('adpulse_ads');
+    localStorage.removeItem('adpulse_meta_config');
+
+    try {
+      const dbComps = await ApiService.getCompetitors();
+      setCompetitors(dbComps || []);
+      
+      const settings = await ApiService.getSettings();
+      if (settings && settings.metaToken) {
+        setMetaConfig({
+          accessToken: settings.metaToken,
+          isConfigured: true,
+          useSandboxMock: false,
+        });
+      }
+    } catch {
+      setCompetitors([]);
+    }
+  };
 
   // Initialize URL & Data on mount
   useEffect(() => {
-    const loadedCompetitors = MetaAdLibraryService.getCompetitors();
-    const loadedAds = MetaAdLibraryService.getAds();
-    const loadedConfig = MetaAdLibraryService.getConfig();
-
-    setCompetitors(loadedCompetitors);
-    setAds(loadedAds);
-    setMetaConfig(loadedConfig);
+    if (isAuthenticated) {
+      loadRealData();
+    }
 
     // Initial Path Route Sync
     const path = window.location.pathname.replace('/', '').toLowerCase();
@@ -63,7 +82,7 @@ function AppContent() {
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
+  }, [isAuthenticated]);
 
   const navigateTo = (route: MarketingRoute) => {
     if (route === 'admin' && !hasRole(['SUPER_ADMIN', 'ADMIN'])) {
@@ -76,16 +95,29 @@ function AppContent() {
     window.history.pushState({}, '', targetPath);
   };
 
-  const handleAddCompetitor = (inputUrlOrId: string) => {
-    MetaAdLibraryService.addCompetitorByUrlOrId(inputUrlOrId);
-    setCompetitors(MetaAdLibraryService.getCompetitors());
-    setAds(MetaAdLibraryService.getAds());
+  const handleAddCompetitor = async (inputUrlOrId: string) => {
+    try {
+      const newComp = await ApiService.addCompetitor(inputUrlOrId);
+      setCompetitors(prev => [...prev, newComp]);
+      
+      // Fetch live ads for this newly added competitor
+      const fetchedAds = await ApiService.fetchMetaAds(newComp.pageId);
+      if (fetchedAds && fetchedAds.length > 0) {
+        setAds(prev => [...prev.filter(a => a.pageId !== newComp.pageId), ...fetchedAds]);
+      }
+    } catch (err: any) {
+      alert('Rakip eklenirken hata: ' + err.message);
+    }
   };
 
-  const handleRemoveCompetitor = (id: string) => {
-    const updated = competitors.filter(c => c.id !== id);
-    setCompetitors(updated);
-    MetaAdLibraryService.saveCompetitors(updated);
+  const handleRemoveCompetitor = async (id: string) => {
+    try {
+      await ApiService.deleteCompetitor(id);
+      setCompetitors(prev => prev.filter(c => c.id !== id && c.pageId !== id));
+      setAds(prev => prev.filter(a => a.pageId !== id));
+    } catch (err: any) {
+      alert('Hata: ' + err.message);
+    }
   };
 
   const handleExportCsv = () => {
@@ -112,31 +144,39 @@ function AppContent() {
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: 'var(--bg-app)' }}>
       
-      {/* Sidebar */}
+      {/* 1. Sidebar Navigation */}
       <Sidebar
         currentRoute={currentRoute}
         onNavigate={navigateTo}
         isCollapsed={isSidebarCollapsed}
         onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
         adminTab={adminTab}
-        onSelectAdminTab={(tab) => {
-          setAdminTab(tab);
-          navigateTo('admin');
-        }}
+        onSelectAdminTab={(tab) => setAdminTab(tab)}
       />
 
-      {/* Main Right Content Layout */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+      {/* 2. Main Workspace Layout */}
+      <div style={{
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        minWidth: 0,
+        overflowX: 'hidden',
+      }}>
         
-        {/* TopBar */}
+        {/* Top Header Bar */}
         <TopBar
           currentRoute={currentRoute}
           onNavigate={navigateTo}
         />
 
-        {/* Dynamic Route Content */}
-        <main style={{ maxWidth: '1400px', width: '100%', margin: '0 auto', padding: '1.5rem', flex: 1 }}>
-          
+        {/* Dynamic Page Content */}
+        <main style={{
+          flex: 1,
+          padding: '1.75rem',
+          maxWidth: '1600px',
+          width: '100%',
+          margin: '0 auto',
+        }}>
           {currentRoute === 'dashboard' && (
             <DashboardOverview
               competitors={competitors}
@@ -171,21 +211,7 @@ function AppContent() {
               onTabChange={(tab) => setAdminTab(tab)}
             />
           )}
-
         </main>
-
-        {/* Footer */}
-        <footer style={{
-          borderTop: '1px solid var(--border-subtle)',
-          padding: '1rem',
-          textAlign: 'center',
-          fontSize: '0.78rem',
-          color: 'var(--text-muted)',
-          backgroundColor: 'var(--bg-surface)',
-        }}>
-          Roasist Marketing Suite • marketing.roasist.com
-        </footer>
-
       </div>
 
     </div>

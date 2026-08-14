@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Competitor, AdItem, FilterState, MetaApiConfig } from '../types/ad';
 import { SavedAdItem } from '../types/auth';
 import { ApiService } from '../services/apiService';
-import { INITIAL_ADS } from '../services/mockData';
 
 import { CompetitorBar } from '../components/CompetitorBar';
 import { AdFilters } from '../components/AdFilters';
@@ -41,7 +40,7 @@ export const CompetitorsModule: React.FC<CompetitorsModuleProps> = ({
   onExportCsv,
 }) => {
   const [competitors, setCompetitors] = useState<Competitor[]>(initialCompetitors);
-  const [ads] = useState<AdItem[]>(initialAds.length > 0 ? initialAds : INITIAL_ADS);
+  const [ads, setAds] = useState<AdItem[]>(initialAds);
   const [selectedCompetitorId, setSelectedCompetitorId] = useState<string>('ALL');
   const [activeSubTab, setActiveSubTab] = useState<'feed' | 'timeline' | 'analytics' | 'ai-strategy' | 'saved-ads'>('feed');
   const [selectedAdForModal, setSelectedAdForModal] = useState<AdItem | null>(null);
@@ -63,15 +62,22 @@ export const CompetitorsModule: React.FC<CompetitorsModuleProps> = ({
   const loadDatabaseData = async () => {
     try {
       const dbComps = await ApiService.getCompetitors();
-      if (dbComps.length > 0) {
-        setCompetitors(dbComps);
-      }
+      setCompetitors(dbComps || []);
       const dbSaved = await ApiService.getSavedAds();
-      setSavedAds(dbSaved);
+      setSavedAds(dbSaved || []);
     } catch {
-      // Fallback
+      setCompetitors([]);
+      setSavedAds([]);
     }
   };
+
+  useEffect(() => {
+    setCompetitors(initialCompetitors || []);
+  }, [initialCompetitors]);
+
+  useEffect(() => {
+    setAds(initialAds || []);
+  }, [initialAds]);
 
   useEffect(() => {
     loadDatabaseData();
