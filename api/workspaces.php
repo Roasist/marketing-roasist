@@ -88,25 +88,6 @@ if ($method === 'POST') {
         $stmtMem = $pdo->prepare("INSERT INTO workspace_members (workspace_id, user_id, role) VALUES (?, ?, 'OWNER')");
         $stmtMem->execute([$id, $currentUser['id']]);
 
-        // If a domain was specified, auto-add it as a primary tracked entity in this workspace
-        if (!empty($domain) && strpos($domain, '.') !== false) {
-            $compId = 'comp_' . md5($domain . $id);
-            $stmtComp = $pdo->prepare("
-                INSERT OR IGNORE INTO competitors (id, page_id, name, facebook_page_url, avatar_url, category, active_ads_count, created_by, workspace_id)
-                VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)
-            ");
-            $stmtComp->execute([
-                $compId,
-                $domain,
-                $name,
-                "https://$domain",
-                $logoUrl,
-                $industry,
-                $currentUser['id'],
-                $id
-            ]);
-        }
-
         logAudit((int)$currentUser['id'], $currentUser['name'], 'Çalışma Alanı Oluşturuldu', "$name ($domain) çalışma alanı oluşturuldu.", 'ÇALIŞMA_ALANI');
 
         echo json_encode([
@@ -121,7 +102,7 @@ if ($method === 'POST') {
                 'color' => $color,
                 'logo_url' => $logoUrl,
                 'currency' => $currency,
-                'competitor_count' => !empty($domain) ? 1 : 0,
+                'competitor_count' => 0,
                 'saved_ads_count' => 0
             ]
         ]);

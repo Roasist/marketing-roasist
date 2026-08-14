@@ -32,6 +32,7 @@ interface SidebarProps {
   onSelectWorkspace?: (id: string) => void;
   onOpenCreateWorkspaceModal?: () => void;
   onOpenEditWorkspaceModal?: (workspace: Workspace) => void;
+  onDeleteWorkspace?: (id: string) => Promise<void>;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -46,6 +47,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onSelectWorkspace,
   onOpenCreateWorkspaceModal,
   onOpenEditWorkspaceModal,
+  onDeleteWorkspace,
 }) => {
   const { user, logout, hasRole } = useAuth();
   const isAdminRoute = currentRoute === 'admin';
@@ -142,6 +144,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               onSelectWorkspace={onSelectWorkspace}
               onOpenCreateModal={onOpenCreateWorkspaceModal}
               onOpenEditModal={onOpenEditWorkspaceModal}
+              onDeleteWorkspace={onDeleteWorkspace}
               isCollapsed={isCollapsed}
             />
           ) : (

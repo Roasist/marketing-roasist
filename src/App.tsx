@@ -227,6 +227,7 @@ function AppContent() {
         onSelectWorkspace={handleSelectWorkspace}
         onOpenCreateWorkspaceModal={handleOpenCreateModal}
         onOpenEditWorkspaceModal={handleOpenEditModal}
+        onDeleteWorkspace={handleDeleteWorkspace}
       />
 
       {/* 2. Main Workspace Layout */}

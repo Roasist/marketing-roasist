@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Workspace } from '../types/workspace';
-import { ChevronDown, Plus, Check, Settings, Building2 } from 'lucide-react';
+import { ChevronDown, Plus, Check, Pencil, Trash2, Building2 } from 'lucide-react';
 
 interface WorkspaceSwitcherProps {
   workspaces: Workspace[];
@@ -8,6 +8,7 @@ interface WorkspaceSwitcherProps {
   onSelectWorkspace: (id: string) => void;
   onOpenCreateModal: () => void;
   onOpenEditModal: (workspace: Workspace) => void;
+  onDeleteWorkspace?: (id: string) => Promise<void>;
   isCollapsed?: boolean;
 }
 
@@ -17,6 +18,7 @@ export const WorkspaceSwitcher: React.FC<WorkspaceSwitcherProps> = ({
   onSelectWorkspace,
   onOpenCreateModal,
   onOpenEditModal,
+  onDeleteWorkspace,
   isCollapsed = false,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -44,10 +46,28 @@ export const WorkspaceSwitcher: React.FC<WorkspaceSwitcherProps> = ({
     (w.domain && w.domain.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
+  const handleDelete = async (e: React.MouseEvent, ws: Workspace) => {
+    e.stopPropagation();
+    if (!onDeleteWorkspace) return;
+    if (workspaces.length <= 1) {
+      alert('Son kalan çalışma alanı silinemez.');
+      return;
+    }
+    if (window.confirm(`"${ws.name}" çalışma alanını ve tüm rakip verilerini silmek istediğinize emin misiniz?`)) {
+      await onDeleteWorkspace(ws.id);
+    }
+  };
+
+  const handleEdit = (e: React.MouseEvent, ws: Workspace) => {
+    e.stopPropagation();
+    setIsOpen(false);
+    onOpenEditModal(ws);
+  };
+
   return (
     <div ref={dropdownRef} style={{ position: 'relative', width: isCollapsed ? 'auto' : '100%' }}>
       
-      {/* Switcher Button */}
+      {/* Active Workspace Header Button */}
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
@@ -146,7 +166,7 @@ export const WorkspaceSwitcher: React.FC<WorkspaceSwitcherProps> = ({
           position: 'absolute',
           top: isCollapsed ? '0' : 'calc(100% + 6px)',
           left: isCollapsed ? 'calc(100% + 8px)' : 0,
-          width: '270px',
+          width: '280px',
           backgroundColor: 'var(--bg-surface)',
           border: '1px solid var(--border-default)',
           borderRadius: 'var(--radius-md)',
@@ -194,8 +214,8 @@ export const WorkspaceSwitcher: React.FC<WorkspaceSwitcherProps> = ({
             </div>
           )}
 
-          {/* Workspace List */}
-          <div style={{ maxHeight: '220px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+          {/* Workspace List with Direct Edit & Delete Icons */}
+          <div style={{ maxHeight: '240px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '2px' }}>
             {filteredWorkspaces.map((ws) => {
               const isSelected = ws.id === activeWorkspace.id;
               return (
@@ -205,15 +225,17 @@ export const WorkspaceSwitcher: React.FC<WorkspaceSwitcherProps> = ({
                     onSelectWorkspace(ws.id);
                     setIsOpen(false);
                   }}
+                  className="workspace-row"
                   style={{
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    padding: '0.5rem 0.65rem',
+                    padding: '0.5rem 0.6rem',
                     borderRadius: 'var(--radius-xs)',
                     backgroundColor: isSelected ? 'var(--bg-surface-elevated)' : 'transparent',
                     cursor: 'pointer',
                     transition: 'background-color 0.1s ease',
+                    gap: '0.4rem',
                   }}
                   onMouseEnter={(e) => {
                     if (!isSelected) e.currentTarget.style.backgroundColor = 'var(--bg-surface-elevated)';
@@ -222,7 +244,7 @@ export const WorkspaceSwitcher: React.FC<WorkspaceSwitcherProps> = ({
                     if (!isSelected) e.currentTarget.style.backgroundColor = 'transparent';
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', minWidth: 0, flex: 1 }}>
                     {/* Favicon or Initial */}
                     <div style={{
                       width: '26px',
@@ -250,7 +272,7 @@ export const WorkspaceSwitcher: React.FC<WorkspaceSwitcherProps> = ({
                       )}
                     </div>
 
-                    <div style={{ minWidth: 0 }}>
+                    <div style={{ minWidth: 0, flex: 1 }}>
                       <div style={{
                         fontSize: '0.8rem',
                         fontWeight: isSelected ? 600 : 500,
@@ -261,15 +283,77 @@ export const WorkspaceSwitcher: React.FC<WorkspaceSwitcherProps> = ({
                       }}>
                         {ws.name}
                       </div>
-                      <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+                      <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {ws.domain || 'Özel Alan'}
                       </div>
                     </div>
                   </div>
 
-                  {isSelected && (
-                    <Check size={14} color="var(--brand-primary)" style={{ flexShrink: 0, marginLeft: '0.5rem' }} />
-                  )}
+                  {/* Right Actions: Edit & Delete Icons & Active Checkmark */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+                    
+                    {/* Edit Icon Button */}
+                    <button
+                      type="button"
+                      title="Çalışma Alanını Düzenle"
+                      onClick={(e) => handleEdit(e, ws)}
+                      style={{
+                        padding: '4px',
+                        borderRadius: '4px',
+                        border: 'none',
+                        backgroundColor: 'transparent',
+                        color: 'var(--text-muted)',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = 'var(--bg-app)';
+                        e.currentTarget.style.color = 'var(--text-primary)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                        e.currentTarget.style.color = 'var(--text-muted)';
+                      }}
+                    >
+                      <Pencil size={12} />
+                    </button>
+
+                    {/* Delete Icon Button (if more than 1 workspace) */}
+                    {workspaces.length > 1 && onDeleteWorkspace && (
+                      <button
+                        type="button"
+                        title="Çalışma Alanını Sil"
+                        onClick={(e) => handleDelete(e, ws)}
+                        style={{
+                          padding: '4px',
+                          borderRadius: '4px',
+                          border: 'none',
+                          backgroundColor: 'transparent',
+                          color: 'var(--text-muted)',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.15)';
+                          e.currentTarget.style.color = '#ef4444';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'transparent';
+                          e.currentTarget.style.color = 'var(--text-muted)';
+                        }}
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    )}
+
+                    {isSelected && (
+                      <Check size={14} color="var(--brand-primary)" style={{ marginLeft: '2px' }} />
+                    )}
+                  </div>
                 </div>
               );
             })}
@@ -277,40 +361,6 @@ export const WorkspaceSwitcher: React.FC<WorkspaceSwitcherProps> = ({
 
           {/* Action Buttons Divider */}
           <div style={{ height: '1px', backgroundColor: 'var(--border-subtle)', margin: '0.2rem 0' }} />
-
-          {/* Edit Current Workspace Button */}
-          <button
-            type="button"
-            onClick={() => {
-              setIsOpen(false);
-              onOpenEditModal(activeWorkspace as Workspace);
-            }}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              width: '100%',
-              padding: '0.45rem 0.65rem',
-              fontSize: '0.78rem',
-              color: 'var(--text-secondary)',
-              backgroundColor: 'transparent',
-              border: 'none',
-              borderRadius: 'var(--radius-xs)',
-              cursor: 'pointer',
-              textAlign: 'left',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = 'var(--bg-surface-elevated)';
-              e.currentTarget.style.color = 'var(--text-primary)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
-              e.currentTarget.style.color = 'var(--text-secondary)';
-            }}
-          >
-            <Settings size={13} />
-            <span>Marka Ayarlarını Düzenle</span>
-          </button>
 
           {/* Create New Workspace Button */}
           <button
