@@ -338,14 +338,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           </p>
         </div>
 
-        <button
-          onClick={handleSaveSettings}
-          className="btn-primary"
-          style={{ fontSize: '0.825rem' }}
-        >
-          {isSaved ? <Check size={14} /> : <Save size={14} />}
-          {isSaved ? 'Kaydedildi' : 'Değişiklikleri Kaydet'}
-        </button>
+        {(activeTab === 'keys' || activeTab === 'flags') && (
+          <button
+            onClick={handleSaveSettings}
+            className="btn-primary"
+            style={{ fontSize: '0.825rem' }}
+          >
+            {isSaved ? <Check size={14} /> : <Save size={14} />}
+            {isSaved ? 'Değişiklikler Kaydedildi!' : 'Değişiklikleri Kaydet'}
+          </button>
+        )}
       </div>
 
       {/* Admin Tabs */}
@@ -529,24 +531,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           
           {/* Header Info */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
-            <div>
-              <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                API Anahtarları & Dış Entegrasyonlar
-              </div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
-                Meta Ad Library ve AI motoru bağlantı ayarlarını yapılandırın.
-              </div>
+          <div>
+            <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+              API Anahtarları & Dış Entegrasyonlar
             </div>
-
-            <button
-              onClick={handleSaveSettings}
-              className="btn-primary"
-              style={{ fontSize: '0.8rem' }}
-            >
-              {isSaved ? <Check size={14} /> : <Save size={14} />}
-              {isSaved ? 'Değişiklikler Kaydedildi!' : 'Değişiklikleri Kaydet'}
-            </button>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+              Meta Ad Library ve AI motoru bağlantı ayarlarını yapılandırın.
+            </div>
           </div>
 
           {testResult && (
