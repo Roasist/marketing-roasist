@@ -78,8 +78,8 @@ export const CompetitorsModule: React.FC<CompetitorsModuleProps> = ({
   const fetchLiveAds = async (targetId?: string) => {
     setIsLoadingAds(true);
     try {
-      const activeCompetitor = competitors.find(c => c.id === targetId || c.pageId === targetId);
-      const queryName = activeCompetitor ? activeCompetitor.name : (targetId && targetId !== 'ALL' ? targetId : '');
+      const activeCompetitor = competitors.find(c => c.id === targetId || c.pageId === targetId || c.domain === targetId);
+      const queryName = activeCompetitor ? (activeCompetitor.domain || activeCompetitor.name) : (targetId && targetId !== 'ALL' ? targetId : '');
 
       const promises: Promise<AdItem[]>[] = [];
 
@@ -95,8 +95,10 @@ export const CompetitorsModule: React.FC<CompetitorsModuleProps> = ({
 
       // 2. Google Ads Transparency Fetch
       if (filters.network === 'ALL' || filters.network === 'GOOGLE') {
-        const domainOrBrand = activeCompetitor?.domain || activeCompetitor?.name || queryName || 'e-ticaret';
-        promises.push(ApiService.fetchGoogleAds(domainOrBrand, filters.country || 'TR', filters.format));
+        const domainOrBrand = activeCompetitor?.domain || activeCompetitor?.name || queryName || (targetId !== 'ALL' ? targetId : '');
+        if (domainOrBrand) {
+          promises.push(ApiService.fetchGoogleAds(domainOrBrand, filters.country || 'TR', filters.format));
+        }
       }
 
       const results = await Promise.allSettled(promises);
@@ -108,9 +110,7 @@ export const CompetitorsModule: React.FC<CompetitorsModuleProps> = ({
         }
       });
 
-      if (combinedAds.length > 0) {
-        setAds(combinedAds);
-      }
+      setAds(combinedAds);
     } catch {
       // Non-blocking
     } finally {
@@ -143,6 +143,8 @@ export const CompetitorsModule: React.FC<CompetitorsModuleProps> = ({
         });
         const targetPageId = newComp.pageId || newComp.id;
         setSelectedCompetitorId(targetPageId);
+        // Switch to ALL network if needed so it displays immediately
+        setFilters(prev => ({ ...prev, network: 'ALL' }));
         await fetchLiveAds(targetPageId);
       }
     } catch (err: any) {
@@ -190,8 +192,12 @@ export const CompetitorsModule: React.FC<CompetitorsModuleProps> = ({
 
   // Filter Ads
   const filteredAds = ads.filter((ad) => {
-    if (selectedCompetitorId !== 'ALL' && ad.pageId !== selectedCompetitorId && ad.domain !== selectedCompetitorId) {
-      return false;
+    if (selectedCompetitorId !== 'ALL') {
+      const s = selectedCompetitorId.toLowerCase();
+      const matchId = ad.pageId?.toLowerCase() === s;
+      const matchDomain = ad.domain?.toLowerCase() === s;
+      const matchName = ad.pageName?.toLowerCase() === s;
+      if (!matchId && !matchDomain && !matchName) return false;
     }
     if (filters.network === 'META' && ad.network === 'GOOGLE') {
       return false;
