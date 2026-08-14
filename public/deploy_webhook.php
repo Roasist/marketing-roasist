@@ -19,47 +19,32 @@ if ($providedSecret !== $SECRET_TOKEN) {
 $targetDir = __DIR__;
 $repoDir = '/home/roasistc/repositories/marketing-roasist';
 
-$debug = [];
-$filesCopied = 0;
+// 2. Git Pull Çalıştırma (HOME ve PATH tanımlı olarak)
+$cmd1 = "cd $repoDir && export HOME=/home/roasistc && export PATH=\$PATH:/usr/local/cpanel/3rdparty/bin:/usr/bin:/bin && git pull origin main 2>&1";
+$out1 = shell_exec($cmd1);
 
-// Method 1: Execute cPanel Git pull directly on authenticated repository
-$gitCommands = [
-    "cd $repoDir && /usr/local/cpanel/3rdparty/bin/git pull origin main 2>&1",
-    "cd $repoDir && git pull origin main 2>&1",
-    "git --git-dir=$repoDir/.git --work-tree=$repoDir pull origin main 2>&1"
-];
+// 3. Dosyaları Canlı Klasöre Kopyalama
+$cmd2 = "cp -rf $repoDir/* $targetDir/ 2>&1 && cp -rf $repoDir/dist/* $targetDir/ 2>&1 && cp -f $repoDir/.htaccess $targetDir/.htaccess 2>&1";
+$out2 = shell_exec($cmd2);
 
-$gitSuccess = false;
-foreach ($gitCommands as $cmd) {
-    @exec($cmd, $out, $ret);
-    $debug['commands'][] = ['cmd' => $cmd, 'output' => $out, 'code' => $ret];
-    if ($ret === 0) {
-        $gitSuccess = true;
-        break;
-    }
-}
+// 4. Eğer .git klasörü doğrudan hedef klasördeyse fallback
+$cmd3 = "cd $targetDir && export HOME=/home/roasistc && export PATH=\$PATH:/usr/local/cpanel/3rdparty/bin:/usr/bin:/bin && git pull origin main 2>&1";
+$out3 = shell_exec($cmd3);
 
-// Method 2: Copy from repository to marketing.roasist.com
-if (is_dir($repoDir)) {
-    // Copy all files
-    @exec("cp -rf $repoDir/* $targetDir/ 2>&1", $cpOut1);
-    @exec("cp -rf $repoDir/dist/* $targetDir/ 2>&1", $cpOut2);
-    @exec("cp -f $repoDir/.htaccess $targetDir/.htaccess 2>&1", $cpOut3);
-    $debug['copy'] = ['cp1' => $cpOut1, 'cp2' => $cpOut2, 'cp3' => $cpOut3];
-}
-
-// Method 3: OPcache & LiteSpeed Clear
+// 5. OPcache & LiteSpeed Önbellek Temizliği
+$opcacheReset = false;
 if (function_exists('opcache_reset')) {
-    @opcache_reset();
+    $opcacheReset = @opcache_reset();
 }
 header('X-LiteSpeed-Purge: *');
 
 echo json_encode([
     'status' => 'success',
     'message' => 'Roasist Marketing Suite canlı sunucuya başarıyla dağıtıldı!',
-    'git_success' => $gitSuccess,
-    'opcache_reset' => true,
+    'git_pull_repo' => trim($out1 ?? ''),
+    'copy_files' => trim($out2 ?? ''),
+    'git_pull_target' => trim($out3 ?? ''),
+    'opcache_reset' => $opcacheReset,
     'litespeed_purged' => true,
-    'timestamp' => date('Y-m-d H:i:s'),
-    'debug' => $debug
+    'timestamp' => date('Y-m-d H:i:s')
 ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
