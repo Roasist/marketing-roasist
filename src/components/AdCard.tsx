@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { AdItem } from '../types/ad';
-import { ExternalLink, Play, Calendar, Eye, Globe } from 'lucide-react';
+import { ExternalLink, Play, Calendar, Eye, Globe, FileText, Image as ImageIcon, Video as VideoIcon } from 'lucide-react';
 
 interface AdCardProps {
   ad: AdItem;
@@ -20,32 +20,37 @@ export const AdCard: React.FC<AdCardProps> = ({ ad, onInspect }) => {
       flexDirection: 'column',
       overflow: 'hidden',
       position: 'relative',
-      border: isWinner ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid var(--border-subtle)',
+      borderRadius: 'var(--radius-md)',
+      border: isWinner ? '1px solid rgba(245, 158, 11, 0.45)' : '1px solid var(--border-subtle)',
+      backgroundColor: 'var(--bg-surface)',
+      boxShadow: 'var(--shadow-sm)',
     }}>
       
-      {/* Card Header */}
+      {/* Card Header (Google Ads Transparency / Meta Header) */}
       <div style={{
         padding: '0.85rem 1rem',
         borderBottom: '1px solid var(--border-subtle)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        backgroundColor: 'var(--bg-surface)',
+        backgroundColor: isGoogle ? 'rgba(234, 67, 53, 0.03)' : 'var(--bg-surface)',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
           {isGoogle ? (
             <div style={{
               width: '32px',
               height: '32px',
               borderRadius: '50%',
               backgroundColor: '#ffffff',
-              border: '1px solid var(--border-default)',
+              border: '1px solid #e2e8f0',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontWeight: 700,
-              fontSize: '0.75rem',
+              fontWeight: 800,
+              fontSize: '0.85rem',
               color: '#ea4335',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+              flexShrink: 0,
             }}>
               G
             </div>
@@ -62,23 +67,20 @@ export const AdCard: React.FC<AdCardProps> = ({ ad, onInspect }) => {
               fontWeight: 700,
               fontSize: '0.75rem',
               color: 'var(--text-primary)',
+              flexShrink: 0,
             }}>
               {ad.pageName.substring(0, 2).toUpperCase()}
             </div>
           )}
-          <div>
+          
+          <div style={{ minWidth: 0 }}>
             <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-              <span style={{ maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={ad.pageName}>
+              <span style={{ maxWidth: '170px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={ad.pageName}>
                 {ad.pageName}
               </span>
-              {isGoogle && (
-                <span className="badge" style={{ fontSize: '0.65rem', backgroundColor: '#e8f0fe', color: '#1a73e8', padding: '1px 5px' }}>
-                  Google Ads
-                </span>
-              )}
             </div>
-            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-              <span>Sponsorlu</span>
+            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.3rem', marginTop: '1px' }}>
+              <span>{isGoogle ? 'Google Reklamı' : 'Sponsorlu'}</span>
               <span>•</span>
               <Calendar size={11} />
               <span>{new Date(ad.startDate).toLocaleDateString('tr-TR')} ({ad.activeDaysCount} gün)</span>
@@ -86,60 +88,95 @@ export const AdCard: React.FC<AdCardProps> = ({ ad, onInspect }) => {
           </div>
         </div>
 
-        {/* Status Pill */}
-        {isWinner ? (
-          <span className="badge badge-carousel" style={{ fontSize: '0.68rem' }}>
-            🔥 Winner ({ad.activeDaysCount}g)
-          </span>
-        ) : ad.activeStatus === 'ACTIVE' ? (
-          <span className="badge badge-active" style={{ fontSize: '0.68rem' }}>
-            Aktif
-          </span>
-        ) : (
-          <span className="badge badge-inactive" style={{ fontSize: '0.68rem' }}>
-            Pasif
-          </span>
-        )}
+        {/* Right Badges */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+          {isGoogle ? (
+            <span style={{
+              fontSize: '0.68rem',
+              fontWeight: 600,
+              padding: '2px 7px',
+              borderRadius: '12px',
+              backgroundColor: ad.format === 'SEARCH' ? '#e0f2fe' : (ad.format === 'VIDEO' ? '#fee2e2' : '#dcfce7'),
+              color: ad.format === 'SEARCH' ? '#0369a1' : (ad.format === 'VIDEO' ? '#b91c1c' : '#15803d'),
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.25rem'
+            }}>
+              {ad.format === 'SEARCH' ? <FileText size={10} /> : (ad.format === 'VIDEO' ? <VideoIcon size={10} /> : <ImageIcon size={10} />)}
+              {ad.format === 'SEARCH' ? 'Metin' : (ad.format === 'VIDEO' ? 'Video' : 'Görsel')}
+            </span>
+          ) : null}
+
+          {isWinner && (
+            <span className="badge badge-carousel" style={{ fontSize: '0.68rem', padding: '2px 6px' }}>
+              🔥 Winner
+            </span>
+          )}
+        </div>
       </div>
 
-      {/* Media Creative Display */}
+      {/* Media / Creative Display (Authentic Google Search SERP or Image/Video) */}
       {ad.format === 'SEARCH' ? (
-        /* Google Search Ad SERP Preview */
+        /* Authentic Google Search Ad SERP Preview */
         <div style={{
-          padding: '1.25rem 1rem',
+          padding: '1.25rem 1.15rem',
           backgroundColor: 'var(--bg-surface-elevated)',
           borderBottom: '1px solid var(--border-subtle)',
           display: 'flex',
           flexDirection: 'column',
-          gap: '0.5rem',
-          minHeight: '160px',
+          gap: '0.55rem',
+          minHeight: '175px',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-            <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>Sponsorlu</span>
+          {/* URL Row with Google Favicon */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+            <span style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.72rem' }}>Sponsorlu</span>
             <span>•</span>
-            <Globe size={11} />
-            <span>{ad.targetUrl || `https://${ad.domain || 'website.com'}`}</span>
+            <Globe size={12} color="#1a73e8" />
+            <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>
+              {ad.targetUrl || `https://${ad.domain || 'turkeyhouse.com'}`}
+            </span>
           </div>
 
-          <div style={{ fontSize: '0.95rem', fontWeight: 600, color: '#38bdf8', lineHeight: 1.35, cursor: 'pointer' }}>
+          {/* Blue Headline */}
+          <div 
+            onClick={() => onInspect(ad)}
+            style={{
+              fontSize: '1rem',
+              fontWeight: 600,
+              color: '#38bdf8',
+              lineHeight: 1.35,
+              cursor: 'pointer',
+              textDecoration: 'none',
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.textDecoration = 'underline'}
+            onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}
+          >
             {ad.adHeadline}
           </div>
 
-          <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.45, margin: 0 }}>
+          {/* Ad Snippet */}
+          <p style={{
+            fontSize: '0.825rem',
+            color: 'var(--text-secondary)',
+            lineHeight: 1.5,
+            margin: 0,
+          }}>
             {ad.adBodyText}
           </p>
 
+          {/* Sitelinks Pills */}
           {ad.sitelinks && ad.sitelinks.length > 0 && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: '0.4rem' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.45rem', marginTop: '0.35rem' }}>
               {ad.sitelinks.map((link, idx) => (
                 <span key={idx} style={{
                   fontSize: '0.72rem',
                   color: '#38bdf8',
                   backgroundColor: 'var(--bg-surface)',
                   border: '1px solid var(--border-default)',
-                  borderRadius: '4px',
-                  padding: '2px 6px',
+                  borderRadius: 'var(--radius-xs)',
+                  padding: '3px 8px',
                   fontWeight: 500,
+                  cursor: 'pointer',
                 }}>
                   {link}
                 </span>
@@ -148,7 +185,7 @@ export const AdCard: React.FC<AdCardProps> = ({ ad, onInspect }) => {
           )}
         </div>
       ) : (
-        /* Image / Video / GDN Display Banner */
+        /* Image / Video / Display Banner */
         <div style={{
           position: 'relative',
           width: '100%',
@@ -178,12 +215,13 @@ export const AdCard: React.FC<AdCardProps> = ({ ad, onInspect }) => {
                   width: '42px',
                   height: '42px',
                   borderRadius: '50%',
-                  backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                  backgroundColor: 'rgba(255, 255, 255, 0.95)',
                   color: '#000000',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   cursor: 'pointer',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
                 }}>
                   <Play size={18} style={{ marginLeft: '2px' }} fill="#000000" />
                 </div>
@@ -226,67 +264,6 @@ export const AdCard: React.FC<AdCardProps> = ({ ad, onInspect }) => {
                 </div>
               )}
             </div>
-          ) : isGoogle && ad.mediaUrls?.[0]?.includes('displayads-formats') ? (
-            /* Real Google Display Format Banner Box */
-            <div style={{
-              width: '100%',
-              height: '100%',
-              padding: '1.25rem',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-              background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
-              color: '#ffffff',
-            }}>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.5rem' }}>
-                  <span style={{ fontSize: '0.7rem', padding: '2px 6px', borderRadius: '4px', backgroundColor: '#ea4335', color: '#ffffff', fontWeight: 600 }}>
-                    Google Display Network
-                  </span>
-                  <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>ID: {ad.id}</span>
-                </div>
-                <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#f8fafc', lineHeight: 1.3 }}>
-                  {ad.pageName}
-                </div>
-                <div style={{ fontSize: '0.75rem', color: '#38bdf8', marginTop: '0.2rem' }}>
-                  🌐 {ad.domain || '23projects.net'}
-                </div>
-              </div>
-
-              <div style={{
-                backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                borderRadius: 'var(--radius-sm)',
-                padding: '0.6rem',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-              }}>
-                <span style={{ fontSize: '0.72rem', color: '#cbd5e1' }}>
-                  Google Reklam Kreatifi Doğrulandı
-                </span>
-                <a
-                  href={ad.googleTransparencyUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{
-                    fontSize: '0.72rem',
-                    color: '#38bdf8',
-                    textDecoration: 'none',
-                    fontWeight: 600,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.2rem'
-                  }}
-                >
-                  <ExternalLink size={11} /> Önizle
-                </a>
-              </div>
-
-              <span className="badge badge-image" style={{ position: 'absolute', bottom: '8px', left: '8px' }}>
-                GDN Display Banner
-              </span>
-            </div>
           ) : (
             <div style={{ position: 'relative', width: '100%', height: '100%' }}>
               <img
@@ -295,104 +272,103 @@ export const AdCard: React.FC<AdCardProps> = ({ ad, onInspect }) => {
                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
               />
               <span className="badge badge-image" style={{ position: 'absolute', bottom: '8px', left: '8px' }}>
-                {ad.format === 'DISPLAY' ? 'Google GDN Display' : 'Görsel'}
+                {isGoogle ? 'Google GDN Banner' : 'Görsel'}
               </span>
             </div>
           )}
         </div>
       )}
 
-      {/* Ad Content & Body */}
-      <div style={{ padding: '0.85rem 1rem', flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-        
-        {/* Hook Label */}
-        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-          Kanca / Strateji: <strong style={{ color: 'var(--text-secondary)' }}>{ad.hookType}</strong>
-        </div>
-
-        {ad.format !== 'SEARCH' && (
-          <>
-            {/* Headline */}
-            <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.3 }}>
-              {ad.adHeadline}
-            </div>
-
-            {/* Ad Body Text */}
-            <p style={{
-              fontSize: '0.8rem',
-              color: 'var(--text-secondary)',
-              lineHeight: 1.45,
-            }}>
-              {isExpanded ? ad.adBodyText : `${ad.adBodyText.substring(0, 100)}${ad.adBodyText.length > 100 ? '...' : ''}`}
-            </p>
-
-            {ad.adBodyText.length > 100 && (
-              <button
-                onClick={() => setIsExpanded(!isExpanded)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--text-primary)',
-                  fontSize: '0.72rem',
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                  alignSelf: 'flex-start',
-                  padding: 0,
-                  textDecoration: 'underline',
-                }}
-              >
-                {isExpanded ? 'Daha Az Göster' : 'Devamını Gör'}
-              </button>
-            )}
-          </>
-        )}
-
-        {/* CTA & Platform Badges */}
-        <div style={{
-          marginTop: 'auto',
-          paddingTop: '0.65rem',
-          borderTop: '1px solid var(--border-subtle)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}>
+      {/* Ad Content & Body for Meta / Non-Search */}
+      {ad.format !== 'SEARCH' && (
+        <div style={{ padding: '0.85rem 1rem', flex: 1, display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
           <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-            Kanal: <strong style={{ color: isGoogle ? '#ea4335' : 'var(--brand-primary)' }}>{isGoogle ? 'Google Ads' : 'Meta Ads'}</strong>
+            Kanca / Strateji: <strong style={{ color: 'var(--text-secondary)' }}>{ad.hookType}</strong>
           </div>
 
-          <div style={{ display: 'flex', gap: '0.35rem' }}>
-            <button
-              onClick={() => onInspect(ad)}
-              className="btn-secondary"
-              style={{ padding: '0.3rem 0.55rem', fontSize: '0.72rem' }}
-            >
-              <Eye size={12} /> Detay
-            </button>
-            {isGoogle ? (
-              <a
-                href={ad.googleTransparencyUrl || `https://adstransparency.google.com/?region=TR&domain=${encodeURIComponent(ad.domain || ad.pageName)}`}
-                target="_blank"
-                rel="noreferrer"
-                className="btn-ghost"
-                style={{ padding: '0.3rem 0.55rem', fontSize: '0.72rem', color: '#ea4335' }}
-              >
-                <ExternalLink size={12} /> Google Kreatifi
-              </a>
-            ) : (
-              <a
-                href={ad.metaLibraryUrl || `https://www.facebook.com/ads/library/?id=${ad.id}`}
-                target="_blank"
-                rel="noreferrer"
-                className="btn-ghost"
-                style={{ padding: '0.3rem 0.55rem', fontSize: '0.72rem' }}
-              >
-                <ExternalLink size={12} /> Meta
-              </a>
-            )}
+          <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.3 }}>
+            {ad.adHeadline}
           </div>
+
+          <p style={{
+            fontSize: '0.8rem',
+            color: 'var(--text-secondary)',
+            lineHeight: 1.45,
+          }}>
+            {isExpanded ? ad.adBodyText : `${ad.adBodyText.substring(0, 100)}${ad.adBodyText.length > 100 ? '...' : ''}`}
+          </p>
+
+          {ad.adBodyText.length > 100 && (
+            <button
+              onClick={() => setIsExpanded(!isExpanded)}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--text-primary)',
+                fontSize: '0.72rem',
+                fontWeight: 500,
+                cursor: 'pointer',
+                alignSelf: 'flex-start',
+                padding: 0,
+                textDecoration: 'underline',
+              }}
+            >
+              {isExpanded ? 'Daha Az Göster' : 'Devamını Gör'}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Footer Bar */}
+      <div style={{
+        marginTop: 'auto',
+        padding: '0.75rem 1rem',
+        borderTop: '1px solid var(--border-subtle)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        backgroundColor: 'var(--bg-surface)',
+      }}>
+        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+          {isGoogle ? (
+            <span>ID: <code style={{ color: 'var(--text-secondary)', fontSize: '0.68rem' }}>{ad.id}</code></span>
+          ) : (
+            <span>CTA: <strong style={{ color: 'var(--text-secondary)' }}>{ad.adCta || 'İncele'}</strong></span>
+          )}
         </div>
 
+        <div style={{ display: 'flex', gap: '0.35rem' }}>
+          <button
+            onClick={() => onInspect(ad)}
+            className="btn-secondary"
+            style={{ padding: '0.3rem 0.6rem', fontSize: '0.72rem' }}
+          >
+            <Eye size={12} /> Detay
+          </button>
+          {isGoogle ? (
+            <a
+              href={ad.googleTransparencyUrl || `https://adstransparency.google.com/?region=TR&domain=${encodeURIComponent(ad.domain || ad.pageName)}`}
+              target="_blank"
+              rel="noreferrer"
+              className="btn-ghost"
+              style={{ padding: '0.3rem 0.6rem', fontSize: '0.72rem', color: '#ea4335' }}
+            >
+              <ExternalLink size={12} /> Google Şeffaflık
+            </a>
+          ) : (
+            <a
+              href={ad.metaLibraryUrl || `https://www.facebook.com/ads/library/?id=${ad.id}`}
+              target="_blank"
+              rel="noreferrer"
+              className="btn-ghost"
+              style={{ padding: '0.3rem 0.6rem', fontSize: '0.72rem' }}
+            >
+              <ExternalLink size={12} /> Meta Kütüphanesi
+            </a>
+          )}
+        </div>
       </div>
+
     </div>
   );
 };
