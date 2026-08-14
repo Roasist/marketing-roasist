@@ -19,7 +19,7 @@ export const AdCard: React.FC<AdCardProps> = ({ ad, onInspect }) => {
     const hasImages = (ad.mediaUrls && ad.mediaUrls.length > 0) || (ad.format as string) === 'SEARCH_IMAGE';
 
     const brandTitle = (ad as any).brandLogo || ad.pageName;
-    const visUrl = (ad as any).visibleUrl || ad.domain || 'turkeyhouse.com';
+    const visUrl = (ad as any).visibleUrl || (ad.domain ? `www.${ad.domain}/` : 'website.com');
 
     return (
       <div style={{
