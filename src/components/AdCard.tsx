@@ -14,12 +14,13 @@ export const AdCard: React.FC<AdCardProps> = ({ ad, onInspect }) => {
   const isWinner = ad.activeDaysCount >= 30;
   const isGoogle = ad.network === 'GOOGLE' || (ad.format as string) === 'SEARCH' || (ad.format as string) === 'SEARCH_IMAGE' || ad.platforms?.includes('google_search') || ad.platforms?.includes('youtube') || ad.platforms?.includes('google_display');
 
-  // Authentic Google Ads Intelligence Card Layout (Option 2: No Fake Text)
+  // Authentic Google Ads Intelligence Card Layout
   if (isGoogle) {
     const directGoogleUrl = ad.googleTransparencyUrl || `https://adstransparency.google.com/?region=TR&domain=${encodeURIComponent(ad.domain || ad.pageName)}`;
     const isSearch = ad.format === 'SEARCH';
     const isImage = ad.format === 'IMAGE';
     const brandName = (ad as any).brandLogo || ad.domain || ad.pageName;
+    const isActive = ad.activeStatus === 'ACTIVE';
 
     return (
       <div style={{
@@ -38,7 +39,9 @@ export const AdCard: React.FC<AdCardProps> = ({ ad, onInspect }) => {
           height: '4px',
           background: isWinner 
             ? 'linear-gradient(90deg, #f59e0b, #ef4444)' 
-            : 'linear-gradient(90deg, #4285f4, #34a853)',
+            : isActive 
+              ? 'linear-gradient(90deg, #10b981, #059669)'
+              : 'linear-gradient(90deg, #94a3b8, #cbd5e1)',
         }} />
 
         {/* Card Header: Brand & Format Badge */}
@@ -94,13 +97,14 @@ export const AdCard: React.FC<AdCardProps> = ({ ad, onInspect }) => {
             )}
             <span style={{
               fontSize: '0.68rem',
-              backgroundColor: ad.activeStatus === 'ACTIVE' ? '#ecfdf5' : '#f1f5f9',
-              color: ad.activeStatus === 'ACTIVE' ? '#065f46' : '#475569',
+              backgroundColor: isActive ? '#ecfdf5' : '#f1f5f9',
+              color: isActive ? '#065f46' : '#475569',
               padding: '2px 7px',
               borderRadius: '6px',
               fontWeight: 600,
+              border: isActive ? '1px solid #a7f3d0' : '1px solid #e2e8f0',
             }}>
-              {ad.activeStatus === 'ACTIVE' ? '🟢 Aktif' : '⚪ Arşiv'}
+              {isActive ? '🟢 Aktif Yayında' : '⚪ Pasif / Arşiv'}
             </span>
           </div>
         </div>
@@ -141,7 +145,7 @@ export const AdCard: React.FC<AdCardProps> = ({ ad, onInspect }) => {
             </div>
           </div>
 
-          {/* Timeline & Duration Box (First Shown + Last Shown) */}
+          {/* Timeline & Duration Box (First Shown + Last Shown + Active rule) */}
           <div style={{
             backgroundColor: '#ffffff',
             borderRadius: '8px',
@@ -164,8 +168,9 @@ export const AdCard: React.FC<AdCardProps> = ({ ad, onInspect }) => {
               <span style={{ color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <Clock size={12} /> Son Gösterim:
               </span>
-              <strong style={{ color: '#1e293b' }}>
-                {ad.lastSeenDate ? new Date(ad.lastSeenDate).toLocaleDateString('tr-TR') : 'Güncel / Aktif'}
+              <strong style={{ color: isActive ? '#059669' : '#64748b' }}>
+                {ad.lastSeenDate ? new Date(ad.lastSeenDate).toLocaleDateString('tr-TR') : 'Güncel'}
+                {isActive ? ' (Yayında)' : ' (Sona erdi)'}
               </strong>
             </div>
 
@@ -178,15 +183,15 @@ export const AdCard: React.FC<AdCardProps> = ({ ad, onInspect }) => {
               justifyContent: 'space-between',
               fontSize: '0.75rem',
             }}>
-              <span style={{ color: '#64748b' }}>Toplam Yayın Süresi:</span>
+              <span style={{ color: '#64748b' }}>Yayın Süresi:</span>
               <span style={{
-                color: isWinner ? '#b45309' : '#047857',
+                color: isWinner ? '#b45309' : isActive ? '#047857' : '#475569',
                 fontWeight: 700,
-                backgroundColor: isWinner ? '#fef3c7' : '#ecfdf5',
+                backgroundColor: isWinner ? '#fef3c7' : isActive ? '#ecfdf5' : '#f1f5f9',
                 padding: '1px 6px',
                 borderRadius: '4px',
               }}>
-                {ad.activeDaysCount} gün boyunca yayında
+                {ad.activeDaysCount} gün boyunca yayında kaldı
               </span>
             </div>
           </div>

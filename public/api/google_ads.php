@@ -1,7 +1,7 @@
 <?php
 /**
  * Roasist Marketing Suite - Live Google Ads Transparency Center Engine
- * 100% Authentic Campaign Intelligence (No Synthetic Text)
+ * 100% Authentic Campaign Intelligence with 2-Day Active Rule
  */
 
 header('Content-Type: application/json');
@@ -128,7 +128,7 @@ if ($action === 'search_advertisers') {
     exit;
 }
 
-// 2. ACTION: Exact Real Google Ads Ingestion (No Fake/Synthetic Text)
+// 2. ACTION: Exact Real Google Ads Ingestion (No Fake/Synthetic Text, 2-Day Active Rule)
 if ($action === 'fetch_google_ads') {
     $brandBase = ucwords(str_replace(['.', '-', '_'], ' ', explode('.', $domainName)[0]));
     $gTransparencyUrl = "https://adstransparency.google.com/?region=" . ($region === 'ALL' ? 'anywhere' : $region) . "&domain=" . urlencode($domainName);
@@ -265,8 +265,8 @@ if ($action === 'fetch_google_ads') {
         // Exact duration in days (Between First Shown and Last Shown)
         $activeDays = max(1, round(($lastSeenTs - $startTs) / 86400));
         
-        // Status determination: Active if seen in recent days
-        $isActive = (time() - $lastSeenTs) <= (30 * 86400);
+        // 2-Day Active Rule: Active ONLY IF seen within the last 2 days (48 hours)
+        $isActive = (time() - $lastSeenTs) <= (2 * 86400);
         $status = $isActive ? 'ACTIVE' : 'INACTIVE';
 
         $format = 'SEARCH';
