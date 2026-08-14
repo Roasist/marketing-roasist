@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Workspace, CreateWorkspacePayload } from '../types/workspace';
-import { X, Globe, Building2, Palette, Coins, Loader2, Trash2 } from 'lucide-react';
+import { X, Globe, Building2, Loader2, Trash2 } from 'lucide-react';
 
 interface WorkspaceModalProps {
   isOpen: boolean;
@@ -10,30 +10,6 @@ interface WorkspaceModalProps {
   editWorkspace?: Workspace | null;
   totalWorkspacesCount?: number;
 }
-
-const INDUSTRY_OPTIONS = [
-  'Genel & Çoklu Sektör',
-  'Turizm, Otelcilik & Konaklama',
-  'Gayrimenkul & Emlak',
-  'E-Ticaret & Perakende',
-  'SaaS & Teknoloji',
-  'Sağlık, Klinik & Medikal',
-  'Eğitim & Akademi',
-  'Otomotiv & Lojistik',
-  'Finans & Sigorta',
-  'Ajans & Danışmanlık'
-];
-
-const PRESET_COLORS = [
-  '#2563eb', // Blue
-  '#059669', // Emerald
-  '#7c3aed', // Purple
-  '#ea580c', // Orange
-  '#db2777', // Pink
-  '#0284c7', // Sky
-  '#475569', // Slate
-  '#b91c1c'  // Red
-];
 
 export const WorkspaceModal: React.FC<WorkspaceModalProps> = ({
   isOpen,
@@ -45,9 +21,6 @@ export const WorkspaceModal: React.FC<WorkspaceModalProps> = ({
 }) => {
   const [name, setName] = useState('');
   const [domain, setDomain] = useState('');
-  const [industry, setIndustry] = useState(INDUSTRY_OPTIONS[0]);
-  const [color, setColor] = useState(PRESET_COLORS[0]);
-  const [currency, setCurrency] = useState('TRY');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -55,15 +28,9 @@ export const WorkspaceModal: React.FC<WorkspaceModalProps> = ({
     if (editWorkspace) {
       setName(editWorkspace.name || '');
       setDomain(editWorkspace.domain || '');
-      setIndustry(editWorkspace.industry || INDUSTRY_OPTIONS[0]);
-      setColor(editWorkspace.color || PRESET_COLORS[0]);
-      setCurrency(editWorkspace.currency || 'TRY');
     } else {
       setName('');
       setDomain('');
-      setIndustry(INDUSTRY_OPTIONS[0]);
-      setColor(PRESET_COLORS[0]);
-      setCurrency('TRY');
     }
     setErrorMsg(null);
   }, [editWorkspace, isOpen]);
@@ -85,9 +52,6 @@ export const WorkspaceModal: React.FC<WorkspaceModalProps> = ({
       await onSave({
         name: name.trim(),
         domain: cleanDomain,
-        industry,
-        color,
-        currency,
         logoUrl: cleanDomain ? `https://www.google.com/s2/favicons?domain=${cleanDomain}&sz=128` : undefined
       }, editWorkspace?.id);
       onClose();
@@ -129,7 +93,7 @@ export const WorkspaceModal: React.FC<WorkspaceModalProps> = ({
     }}>
       <div className="card" style={{
         width: '100%',
-        maxWidth: '520px',
+        maxWidth: '460px',
         backgroundColor: 'var(--bg-surface)',
         borderRadius: 'var(--radius-md)',
         boxShadow: 'var(--shadow-xl)',
@@ -147,15 +111,15 @@ export const WorkspaceModal: React.FC<WorkspaceModalProps> = ({
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
             <div style={{
-              width: '34px',
-              height: '34px',
+              width: '36px',
+              height: '36px',
               borderRadius: '8px',
-              backgroundColor: `${color}18`,
-              color: color,
+              backgroundColor: 'rgba(37, 99, 235, 0.12)',
+              color: 'var(--brand-primary)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              border: `1px solid ${color}35`,
+              border: '1px solid rgba(37, 99, 235, 0.25)',
             }}>
               <Building2 size={18} />
             </div>
@@ -164,7 +128,7 @@ export const WorkspaceModal: React.FC<WorkspaceModalProps> = ({
                 {isEditing ? 'Çalışma Alanını Düzenle' : 'Yeni Marka / Çalışma Alanı'}
               </div>
               <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                {isEditing ? 'Marka profilini ve sektör ayarlarını güncelleyin' : 'Yöneteceğiniz yeni bir marka veya müşteri hesabı oluşturun'}
+                {isEditing ? 'Marka adı ve domain bilgilerini güncelleyin' : 'Yöneteceğiniz yeni bir marka veya müşteri hesabı oluşturun'}
               </div>
             </div>
           </div>
@@ -178,8 +142,8 @@ export const WorkspaceModal: React.FC<WorkspaceModalProps> = ({
           </button>
         </div>
 
-        {/* Modal Body / Form */}
-        <form onSubmit={handleSubmit} style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.15rem' }}>
+        {/* Modal Form */}
+        <form onSubmit={handleSubmit} style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           
           {errorMsg && (
             <div style={{
@@ -196,107 +160,44 @@ export const WorkspaceModal: React.FC<WorkspaceModalProps> = ({
 
           {/* Workspace Name */}
           <div>
-            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-primary)', marginBottom: '0.4rem' }}>
+            <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.45rem' }}>
               Marka / Çalışma Alanı Adı <span style={{ color: '#ef4444' }}>*</span>
             </label>
             <input
               type="text"
-              placeholder="Örn: Summer Homes, Livane Hotels, 23 Projects..."
+              placeholder="Örn: 23 Projects, Summer Homes, Livane Hotels..."
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
-              style={{ width: '100%' }}
+              autoFocus
+              style={{ width: '100%', padding: '0.6rem 0.85rem' }}
             />
           </div>
 
           {/* Brand Domain */}
           <div>
-            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-primary)', marginBottom: '0.4rem' }}>
+            <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.45rem' }}>
               Resmi Web Sitesi / Domain (İsteğe Bağlı)
             </label>
             <div style={{ position: 'relative' }}>
-              <Globe size={15} color="var(--text-muted)" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }} />
+              <Globe size={16} color="var(--text-muted)" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
               <input
                 type="text"
-                placeholder="Örn: summerhomes.com"
+                placeholder="Örn: 23projects.net veya summerhomes.com"
                 value={domain}
                 onChange={(e) => setDomain(e.target.value)}
-                style={{ width: '100%', paddingLeft: '2.2rem' }}
+                style={{ width: '100%', padding: '0.6rem 0.85rem 0.6rem 2.4rem' }}
               />
             </div>
-            <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-              Domain girildiğinde markanın logosu ve varsayılan rakip havuzu otomatik hazırlanır.
+            <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>
+              Domain girildiğinde markanın logosu ve varsayılan rakip havuzu otomatik olarak hazırlanır.
             </p>
-          </div>
-
-          {/* Industry Selection */}
-          <div>
-            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-primary)', marginBottom: '0.4rem' }}>
-              Sektör / Faaliyet Alanı
-            </label>
-            <select
-              value={industry}
-              onChange={(e) => setIndustry(e.target.value)}
-              style={{ width: '100%' }}
-            >
-              {INDUSTRY_OPTIONS.map((opt) => (
-                <option key={opt} value={opt}>{opt}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Color & Currency Row */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-            
-            {/* Accent Color */}
-            <div>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-primary)', marginBottom: '0.4rem' }}>
-                <Palette size={13} /> Tema Rengi
-              </label>
-              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
-                {PRESET_COLORS.map((c) => (
-                  <div
-                    key={c}
-                    onClick={() => setColor(c)}
-                    style={{
-                      width: '24px',
-                      height: '24px',
-                      borderRadius: '50%',
-                      backgroundColor: c,
-                      cursor: 'pointer',
-                      border: color === c ? '2.5px solid #ffffff' : '1px solid rgba(0,0,0,0.1)',
-                      boxShadow: color === c ? `0 0 0 2px ${c}` : 'none',
-                      transition: 'transform 0.1s ease',
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
-
-            {/* Currency */}
-            <div>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-primary)', marginBottom: '0.4rem' }}>
-                <Coins size={13} /> Para Birimi
-              </label>
-              <select
-                value={currency}
-                onChange={(e) => setCurrency(e.target.value)}
-                style={{ width: '100%' }}
-              >
-                <option value="TRY">₺ Türk Lirası (TRY)</option>
-                <option value="USD">$ Amerikan Doları (USD)</option>
-                <option value="EUR">€ Euro (EUR)</option>
-                <option value="GBP">£ İngiliz Sterlini (GBP)</option>
-                <option value="AED">د.إ BAE Dirhemi (AED)</option>
-              </select>
-            </div>
-
           </div>
 
           {/* Footer Actions */}
           <div style={{
-            marginTop: '0.5rem',
-            paddingTop: '1rem',
+            marginTop: '0.25rem',
+            paddingTop: '1.15rem',
             borderTop: '1px solid var(--border-subtle)',
             display: 'flex',
             alignItems: 'center',
@@ -338,7 +239,7 @@ export const WorkspaceModal: React.FC<WorkspaceModalProps> = ({
                 type="submit"
                 className="btn-primary"
                 disabled={isSubmitting}
-                style={{ fontSize: '0.825rem', padding: '0.45rem 1.25rem', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                style={{ fontSize: '0.825rem', padding: '0.5rem 1.35rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
               >
                 {isSubmitting && <Loader2 size={14} className="animate-spin" />}
                 <span>{isEditing ? 'Değişiklikleri Kaydet' : 'Çalışma Alanı Oluştur'}</span>

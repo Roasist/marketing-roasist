@@ -214,7 +214,7 @@ function AppContent() {
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: 'var(--bg-app)' }}>
       
-      {/* 1. Sidebar Navigation */}
+      {/* 1. Sidebar Navigation with Workspace Switcher */}
       <Sidebar
         currentRoute={currentRoute}
         onNavigate={navigateTo}
@@ -222,6 +222,11 @@ function AppContent() {
         onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
         adminTab={adminTab}
         onSelectAdminTab={(tab) => setAdminTab(tab)}
+        workspaces={workspaces}
+        activeWorkspaceId={activeWorkspaceId}
+        onSelectWorkspace={handleSelectWorkspace}
+        onOpenCreateWorkspaceModal={handleOpenCreateModal}
+        onOpenEditWorkspaceModal={handleOpenEditModal}
       />
 
       {/* 2. Main Workspace Layout */}
@@ -233,15 +238,10 @@ function AppContent() {
         overflowX: 'hidden',
       }}>
         
-        {/* Top Header Bar with Workspace Switcher */}
+        {/* Top Header Bar */}
         <TopBar
           currentRoute={currentRoute}
           onNavigate={navigateTo}
-          workspaces={workspaces}
-          activeWorkspaceId={activeWorkspaceId}
-          onSelectWorkspace={handleSelectWorkspace}
-          onOpenCreateWorkspaceModal={handleOpenCreateModal}
-          onOpenEditWorkspaceModal={handleOpenEditModal}
         />
 
         {/* Dynamic Page Content */}

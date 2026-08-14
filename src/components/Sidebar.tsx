@@ -17,6 +17,9 @@ import {
   Activity
 } from 'lucide-react';
 
+import { Workspace } from '../types/workspace';
+import { WorkspaceSwitcher } from './WorkspaceSwitcher';
+
 interface SidebarProps {
   currentRoute: MarketingRoute;
   onNavigate: (route: MarketingRoute) => void;
@@ -24,6 +27,11 @@ interface SidebarProps {
   onToggleCollapse: () => void;
   adminTab?: AdminTab;
   onSelectAdminTab?: (tab: AdminTab) => void;
+  workspaces?: Workspace[];
+  activeWorkspaceId?: string;
+  onSelectWorkspace?: (id: string) => void;
+  onOpenCreateWorkspaceModal?: () => void;
+  onOpenEditWorkspaceModal?: (workspace: Workspace) => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -33,6 +41,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onToggleCollapse,
   adminTab = 'users',
   onSelectAdminTab,
+  workspaces = [],
+  activeWorkspaceId = '',
+  onSelectWorkspace,
+  onOpenCreateWorkspaceModal,
+  onOpenEditWorkspaceModal,
 }) => {
   const { user, logout, hasRole } = useAuth();
   const isAdminRoute = currentRoute === 'admin';
@@ -111,36 +124,40 @@ export const Sidebar: React.FC<SidebarProps> = ({
       flexShrink: 0,
     }}>
       
-      {/* Brand Header */}
+      {/* Brand & Workspace Switcher Header */}
       <div style={{
-        height: '56px',
-        padding: isCollapsed ? '0' : '0 1rem',
+        height: '60px',
+        padding: isCollapsed ? '0 0.5rem' : '0 0.65rem',
         borderBottom: '1px solid var(--border-default)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: isCollapsed ? 'center' : 'space-between',
+        gap: '0.35rem',
       }}>
-        <div 
-          onClick={() => onNavigate('dashboard')}
-          style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', cursor: 'pointer', overflow: 'hidden' }}
-        >
-          <img
-            src="/favicon.svg"
-            alt="Roasist Logo"
-            style={{
-              width: '26px',
-              height: '26px',
-              objectFit: 'contain',
-              flexShrink: 0,
-            }}
-          />
-
-          {!isCollapsed && (
-            <div style={{ fontWeight: 600, fontSize: '0.95rem', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
-              {isAdminRoute ? (
-                <>Roasist <span style={{ color: 'var(--brand-primary)', fontWeight: 600 }}>Admin</span></>
-              ) : (
-                <>Roasist <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>Suite</span></>
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', justifyContent: isCollapsed ? 'center' : 'flex-start' }}>
+          {workspaces.length > 0 && onSelectWorkspace && onOpenCreateWorkspaceModal && onOpenEditWorkspaceModal ? (
+            <WorkspaceSwitcher
+              workspaces={workspaces}
+              activeWorkspaceId={activeWorkspaceId}
+              onSelectWorkspace={onSelectWorkspace}
+              onOpenCreateModal={onOpenCreateWorkspaceModal}
+              onOpenEditModal={onOpenEditWorkspaceModal}
+              isCollapsed={isCollapsed}
+            />
+          ) : (
+            <div 
+              onClick={() => onNavigate('dashboard')}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', cursor: 'pointer', overflow: 'hidden' }}
+            >
+              <img
+                src="/favicon.svg"
+                alt="Roasist Logo"
+                style={{ width: '24px', height: '24px', objectFit: 'contain', flexShrink: 0 }}
+              />
+              {!isCollapsed && (
+                <div style={{ fontWeight: 600, fontSize: '0.95rem', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                  Roasist <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>Suite</span>
+                </div>
               )}
             </div>
           )}
@@ -149,6 +166,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {!isCollapsed && (
           <button
             onClick={onToggleCollapse}
+            title="Menüyü Daralt"
             style={{
               background: 'transparent',
               border: 'none',
@@ -157,6 +175,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               cursor: 'pointer',
               padding: '4px',
               display: 'flex',
+              flexShrink: 0,
             }}
           >
             <ChevronLeft size={16} />

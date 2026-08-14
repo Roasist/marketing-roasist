@@ -8,6 +8,7 @@ interface WorkspaceSwitcherProps {
   onSelectWorkspace: (id: string) => void;
   onOpenCreateModal: () => void;
   onOpenEditModal: (workspace: Workspace) => void;
+  isCollapsed?: boolean;
 }
 
 export const WorkspaceSwitcher: React.FC<WorkspaceSwitcherProps> = ({
@@ -16,6 +17,7 @@ export const WorkspaceSwitcher: React.FC<WorkspaceSwitcherProps> = ({
   onSelectWorkspace,
   onOpenCreateModal,
   onOpenEditModal,
+  isCollapsed = false,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -23,10 +25,8 @@ export const WorkspaceSwitcher: React.FC<WorkspaceSwitcherProps> = ({
 
   const activeWorkspace = workspaces.find(w => w.id === activeWorkspaceId) || workspaces[0] || {
     id: 'ws_default',
-    name: 'Ana Çalışma Alanı',
-    domain: 'roasist.com',
-    industry: 'Genel',
-    color: '#2563eb'
+    name: 'Ana Marka',
+    domain: 'roasist.com'
   };
 
   useEffect(() => {
@@ -41,44 +41,55 @@ export const WorkspaceSwitcher: React.FC<WorkspaceSwitcherProps> = ({
 
   const filteredWorkspaces = workspaces.filter(w =>
     w.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (w.domain && w.domain.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (w.industry && w.industry.toLowerCase().includes(searchTerm.toLowerCase()))
+    (w.domain && w.domain.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   return (
-    <div ref={dropdownRef} style={{ position: 'relative', display: 'inline-block' }}>
+    <div ref={dropdownRef} style={{ position: 'relative', width: isCollapsed ? 'auto' : '100%' }}>
       
       {/* Switcher Button */}
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
+        title={isCollapsed ? `${activeWorkspace.name} - Çalışma Alanı Değiştir` : undefined}
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '0.6rem',
-          backgroundColor: 'var(--bg-surface-elevated)',
-          border: '1px solid var(--border-default)',
+          gap: isCollapsed ? '0' : '0.6rem',
+          backgroundColor: isOpen ? 'var(--bg-surface-elevated)' : 'transparent',
+          border: '1px solid',
+          borderColor: isOpen ? 'var(--border-strong)' : 'transparent',
           borderRadius: 'var(--radius-sm)',
-          padding: '0.4rem 0.75rem',
+          padding: isCollapsed ? '6px' : '0.4rem 0.5rem',
           cursor: 'pointer',
           color: 'var(--text-primary)',
           transition: 'all 0.15s ease',
-          boxShadow: 'var(--shadow-sm)',
-          maxWidth: '240px',
+          width: '100%',
+          justifyContent: isCollapsed ? 'center' : 'flex-start',
         }}
-        onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--border-strong)'}
-        onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border-default)'}
+        onMouseEnter={(e) => {
+          if (!isOpen) {
+            e.currentTarget.style.backgroundColor = 'var(--bg-surface-elevated)';
+            e.currentTarget.style.borderColor = 'var(--border-default)';
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!isOpen) {
+            e.currentTarget.style.backgroundColor = 'transparent';
+            e.currentTarget.style.borderColor = 'transparent';
+          }
+        }}
       >
-        {/* Favicon or Initial Icon */}
+        {/* Brand Favicon or Initial */}
         <div style={{
-          width: '24px',
-          height: '24px',
+          width: '26px',
+          height: '26px',
           borderRadius: '6px',
-          backgroundColor: activeWorkspace.color ? `${activeWorkspace.color}20` : '#eff6ff',
+          backgroundColor: 'rgba(37, 99, 235, 0.12)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          border: `1px solid ${activeWorkspace.color || '#2563eb'}40`,
+          border: '1px solid rgba(37, 99, 235, 0.25)',
           overflow: 'hidden',
           flexShrink: 0,
         }}>
@@ -86,57 +97,61 @@ export const WorkspaceSwitcher: React.FC<WorkspaceSwitcherProps> = ({
             <img
               src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(activeWorkspace.domain)}&sz=64`}
               alt="favicon"
-              style={{ width: '14px', height: '14px' }}
+              style={{ width: '16px', height: '16px' }}
               onError={(e) => {
                 (e.target as HTMLElement).style.display = 'none';
               }}
             />
           ) : (
-            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: activeWorkspace.color || '#2563eb' }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--brand-primary)' }}>
               {activeWorkspace.name.substring(0, 1).toUpperCase()}
             </span>
           )}
         </div>
 
-        {/* Name and Industry */}
-        <div style={{ textAlign: 'left', minWidth: 0, flex: 1 }}>
-          <div style={{
-            fontSize: '0.825rem',
-            fontWeight: 600,
-            color: 'var(--text-primary)',
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            lineHeight: 1.2,
-          }}>
-            {activeWorkspace.name}
-          </div>
-          <div style={{
-            fontSize: '0.68rem',
-            color: 'var(--text-muted)',
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-          }}>
-            {activeWorkspace.industry || 'Marka Alanı'}
-          </div>
-        </div>
+        {/* Brand Name & Domain (when expanded) */}
+        {!isCollapsed && (
+          <>
+            <div style={{ textAlign: 'left', minWidth: 0, flex: 1 }}>
+              <div style={{
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                color: 'var(--text-primary)',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                lineHeight: 1.2,
+              }}>
+                {activeWorkspace.name}
+              </div>
+              <div style={{
+                fontSize: '0.68rem',
+                color: 'var(--text-muted)',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}>
+                {activeWorkspace.domain || 'Çalışma Alanı'}
+              </div>
+            </div>
 
-        <ChevronDown size={14} color="var(--text-muted)" style={{ transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease' }} />
+            <ChevronDown size={14} color="var(--text-muted)" style={{ transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease', flexShrink: 0 }} />
+          </>
+        )}
       </button>
 
       {/* Dropdown Menu */}
       {isOpen && (
         <div style={{
           position: 'absolute',
-          top: 'calc(100% + 6px)',
-          left: 0,
-          width: '290px',
+          top: isCollapsed ? '0' : 'calc(100% + 6px)',
+          left: isCollapsed ? 'calc(100% + 8px)' : 0,
+          width: '270px',
           backgroundColor: 'var(--bg-surface)',
           border: '1px solid var(--border-default)',
           borderRadius: 'var(--radius-md)',
           boxShadow: 'var(--shadow-xl)',
-          zIndex: 9990,
+          zIndex: 9999,
           padding: '0.5rem',
           display: 'flex',
           flexDirection: 'column',
@@ -180,7 +195,7 @@ export const WorkspaceSwitcher: React.FC<WorkspaceSwitcherProps> = ({
           )}
 
           {/* Workspace List */}
-          <div style={{ maxHeight: '240px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+          <div style={{ maxHeight: '220px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '2px' }}>
             {filteredWorkspaces.map((ws) => {
               const isSelected = ws.id === activeWorkspace.id;
               return (
@@ -213,11 +228,11 @@ export const WorkspaceSwitcher: React.FC<WorkspaceSwitcherProps> = ({
                       width: '26px',
                       height: '26px',
                       borderRadius: '6px',
-                      backgroundColor: ws.color ? `${ws.color}18` : '#eff6ff',
+                      backgroundColor: 'rgba(37, 99, 235, 0.1)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      border: `1px solid ${ws.color || '#2563eb'}30`,
+                      border: '1px solid rgba(37, 99, 235, 0.2)',
                       overflow: 'hidden',
                       flexShrink: 0,
                     }}>
@@ -225,13 +240,13 @@ export const WorkspaceSwitcher: React.FC<WorkspaceSwitcherProps> = ({
                         <img
                           src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(ws.domain)}&sz=64`}
                           alt="favicon"
-                          style={{ width: '14px', height: '14px' }}
+                          style={{ width: '15px', height: '15px' }}
                           onError={(e) => {
                             (e.target as HTMLElement).style.display = 'none';
                           }}
                         />
                       ) : (
-                        <Building2 size={13} color={ws.color || '#2563eb'} />
+                        <Building2 size={13} color="var(--brand-primary)" />
                       )}
                     </div>
 
@@ -247,7 +262,7 @@ export const WorkspaceSwitcher: React.FC<WorkspaceSwitcherProps> = ({
                         {ws.name}
                       </div>
                       <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
-                        {ws.domain || ws.industry || 'Özel Marka'}
+                        {ws.domain || 'Özel Alan'}
                       </div>
                     </div>
                   </div>
