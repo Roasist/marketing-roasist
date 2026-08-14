@@ -12,7 +12,7 @@ export const AdCard: React.FC<AdCardProps> = ({ ad, onInspect }) => {
   const [activeSlide, setActiveSlide] = useState(0);
 
   const isWinner = ad.activeDaysCount >= 30;
-  const isGoogle = ad.network === 'GOOGLE' || ad.format === 'SEARCH' || ad.platforms?.includes('google_search') || ad.platforms?.includes('youtube');
+  const isGoogle = ad.network === 'GOOGLE' || ad.format === 'SEARCH' || ad.platforms?.includes('google_search') || ad.platforms?.includes('youtube') || ad.platforms?.includes('google_display');
 
   return (
     <div className="card" style={{
@@ -68,7 +68,9 @@ export const AdCard: React.FC<AdCardProps> = ({ ad, onInspect }) => {
           )}
           <div>
             <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-              {ad.pageName}
+              <span style={{ maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={ad.pageName}>
+                {ad.pageName}
+              </span>
               {isGoogle && (
                 <span className="badge" style={{ fontSize: '0.65rem', backgroundColor: '#e8f0fe', color: '#1a73e8', padding: '1px 5px' }}>
                   Google Ads
@@ -146,13 +148,16 @@ export const AdCard: React.FC<AdCardProps> = ({ ad, onInspect }) => {
           )}
         </div>
       ) : (
-        /* Image / Video / Carousel Display */
+        /* Image / Video / GDN Display Banner */
         <div style={{
           position: 'relative',
           width: '100%',
           height: '240px',
-          backgroundColor: '#000000',
+          backgroundColor: '#0a0d14',
           overflow: 'hidden',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
         }}>
           {ad.format === 'VIDEO' ? (
             <div style={{ position: 'relative', width: '100%', height: '100%' }}>
@@ -220,6 +225,67 @@ export const AdCard: React.FC<AdCardProps> = ({ ad, onInspect }) => {
                   ))}
                 </div>
               )}
+            </div>
+          ) : isGoogle && ad.mediaUrls?.[0]?.includes('displayads-formats') ? (
+            /* Real Google Display Format Banner Box */
+            <div style={{
+              width: '100%',
+              height: '100%',
+              padding: '1.25rem',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+              background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+              color: '#ffffff',
+            }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.5rem' }}>
+                  <span style={{ fontSize: '0.7rem', padding: '2px 6px', borderRadius: '4px', backgroundColor: '#ea4335', color: '#ffffff', fontWeight: 600 }}>
+                    Google Display Network
+                  </span>
+                  <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>ID: {ad.id}</span>
+                </div>
+                <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#f8fafc', lineHeight: 1.3 }}>
+                  {ad.pageName}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#38bdf8', marginTop: '0.2rem' }}>
+                  🌐 {ad.domain || '23projects.net'}
+                </div>
+              </div>
+
+              <div style={{
+                backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                borderRadius: 'var(--radius-sm)',
+                padding: '0.6rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}>
+                <span style={{ fontSize: '0.72rem', color: '#cbd5e1' }}>
+                  Google Reklam Kreatifi Doğrulandı
+                </span>
+                <a
+                  href={ad.googleTransparencyUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{
+                    fontSize: '0.72rem',
+                    color: '#38bdf8',
+                    textDecoration: 'none',
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.2rem'
+                  }}
+                >
+                  <ExternalLink size={11} /> Önizle
+                </a>
+              </div>
+
+              <span className="badge badge-image" style={{ position: 'absolute', bottom: '8px', left: '8px' }}>
+                GDN Display Banner
+              </span>
             </div>
           ) : (
             <div style={{ position: 'relative', width: '100%', height: '100%' }}>
@@ -291,7 +357,7 @@ export const AdCard: React.FC<AdCardProps> = ({ ad, onInspect }) => {
           justifyContent: 'space-between',
         }}>
           <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-            CTA: <strong style={{ color: 'var(--text-secondary)' }}>{ad.adCta || 'İncele'}</strong>
+            Kanal: <strong style={{ color: isGoogle ? '#ea4335' : 'var(--brand-primary)' }}>{isGoogle ? 'Google Ads' : 'Meta Ads'}</strong>
           </div>
 
           <div style={{ display: 'flex', gap: '0.35rem' }}>
@@ -310,7 +376,7 @@ export const AdCard: React.FC<AdCardProps> = ({ ad, onInspect }) => {
                 className="btn-ghost"
                 style={{ padding: '0.3rem 0.55rem', fontSize: '0.72rem', color: '#ea4335' }}
               >
-                <ExternalLink size={12} /> Google
+                <ExternalLink size={12} /> Google Kreatifi
               </a>
             ) : (
               <a
