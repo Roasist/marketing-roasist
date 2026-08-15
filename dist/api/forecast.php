@@ -334,19 +334,22 @@ function detectPageLanguage($title, $text) {
     if (count($cyr[0] ?? []) > 8) return ['code' => 'ru', 'name' => 'Rusça'];
     if (count($ara[0] ?? []) > 8) return ['code' => 'ar', 'name' => 'Arapça'];
 
-    // 2. Word scoring for Latin scripts
+    // 2. Character-exclusive markers
+    preg_match_all('/[ğşIıİĞŞ]/u', $full, $exclusiveTr);
+    preg_match_all('/[äÄß]/u', $full, $exclusiveDe);
+    $trExclusiveCount = count($exclusiveTr[0] ?? []);
+    $deExclusiveCount = count($exclusiveDe[0] ?? []);
+
+    // 3. Word scoring for Latin scripts
     $enWords = preg_match_all('/\b(the|of|in|and|for|with|by|to|is|are|citizenship|investment|property|real estate|passport|turkey|turkish|houses|villas|apartment|apartments|contact|about|services|home|talent|recruitment|consulting|career|jobs)\b/ui', $full, $mEn);
-    $trWords = preg_match_all('/\b(ve|ile|için|bir|bu|da|de|olarak|gibi|satılık|kiralık|fiyatları|konut|daire|otel|villa|emlak|vatandaşlık|pasaport|gayrimenkul|yatırım|hakkımızda|iletişim|danışmanlık|işe alım)\b/ui', $full, $mTr);
-    $deWords = preg_match_all('/\b(und|für|mit|der|die|das|kaufen|wohnung|türkei|immobilien|haus|staatsbürgerschaft)\b/ui', $full, $mDe);
-    
-    preg_match_all('/[ğşIıİöüçĞŞÖÜÇ]/u', $full, $turkChars);
-    $trSpecialCount = count($turkChars[0] ?? []);
+    $trWords = preg_match_all('/\b(ve|ile|için|bir|bu|da|de|olarak|gibi|satılık|kiralık|fiyatları|konut|daire|otel|villa|emlak|vatandaşlık|pasaport|gayrimenkul|yatırım|hakkımızda|iletişim|danışmanlık|işe alım|hizmetlerimiz)\b/ui', $full, $mTr);
+    $deWords = preg_match_all('/\b(und|für|mit|der|die|das|dem|den|des|ein|eine|einer|einem|einen|eines|von|bei|aus|nach|über|unter|vor|zu|zum|zur|nicht|wir|sie|ihr|uns|unsere|stellenangebote|dienstleistungen|karriere|kundenservice|mitarbeiter|kontakt|anrufen|kunden|callcenter|unternehmen)\b/ui', $full, $mDe);
 
-    $enScore = $enWords ?: 0;
-    $trScore = ($trWords ?: 0) + ($trSpecialCount * 2);
-    $deScore = $deWords ?: 0;
+    $enScore = ($enWords ?: 0);
+    $trScore = ($trWords ?: 0) + ($trExclusiveCount * 3);
+    $deScore = ($deWords ?: 0) + ($deExclusiveCount * 3);
 
-    if ($deScore > $enScore && $deScore > $trScore && $deScore > 3) {
+    if ($deScore > $enScore && $deScore > $trScore) {
         return ['code' => 'de', 'name' => 'Almanca'];
     }
     if ($enScore >= $trScore && $enScore > 3) {
