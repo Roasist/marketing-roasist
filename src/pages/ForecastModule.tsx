@@ -562,6 +562,21 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           </button>
         </div>
 
+        {/* Loading Progress State */}
+        {isLoading && (
+          <div style={{ backgroundColor: 'rgba(37, 99, 235, 0.08)', border: '1px solid var(--brand-primary)', color: 'var(--text-primary)', padding: '1.25rem', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <RefreshCw size={24} className="animate-spin" color="var(--brand-primary)" />
+            <div>
+              <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--brand-primary)' }}>
+                Google AI ve Sayfa Kazıyıcı Çalışıyor...
+              </div>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                Hedef açılış sayfası taranıyor, sayfa dili tespit ediliyor ve 30+ yüksek potansiyelli Google Ads anahtar kelimesi ile TBM projeksiyonları çıkarılıyor (ortalama 3-6 sn).
+              </div>
+            </div>
+          </div>
+        )}
+
         {errorMsg && (
           <div style={{ background: 'var(--danger-bg)', color: 'var(--danger)', padding: '0.65rem 0.85rem', borderRadius: 'var(--radius-xs)', fontSize: '0.8rem' }}>
             {errorMsg}
@@ -570,7 +585,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       </div>
 
       {/* 3. Empty State OR 3-Step Stepper Wizard */}
-      {keywords.length === 0 && activeTab !== 'saved-plans' ? (
+      {keywords.length === 0 && !isLoading && activeTab !== 'saved-plans' ? (
         <div className="card" style={{ padding: '3.5rem 1.5rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1rem' }}>
           <div style={{ width: '64px', height: '64px', borderRadius: '50%', backgroundColor: 'rgba(37, 99, 235, 0.1)', color: 'var(--brand-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Search size={32} />
