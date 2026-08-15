@@ -177,9 +177,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         geminiApiKey,
         flags: JSON.stringify(flags),
       });
+
       const res = await ApiService.testMetaToken();
       if (res.status === 'success') {
         setTestResult({ success: true, message: res.message });
+      } else if (res.status === 'warning') {
+        setTestResult({ success: false, isWarning: true, message: res.message } as any);
       } else {
         setTestResult({ success: false, message: res.message });
       }
@@ -542,17 +545,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
           {testResult && (
             <div style={{
-              background: testResult.success ? 'var(--success-bg)' : 'var(--danger-bg)',
-              border: `1px solid ${testResult.success ? 'var(--success-border)' : 'var(--danger-border)'}`,
-              color: testResult.success ? '#34d399' : 'var(--danger)',
-              padding: '0.75rem 1rem',
+              background: testResult.success ? 'var(--success-bg)' : ((testResult as any).isWarning ? 'rgba(234, 179, 8, 0.12)' : 'var(--danger-bg)'),
+              border: `1px solid ${testResult.success ? 'var(--success-border)' : ((testResult as any).isWarning ? 'rgba(234, 179, 8, 0.35)' : 'var(--danger-border)')}`,
+              color: testResult.success ? '#34d399' : ((testResult as any).isWarning ? '#facc15' : 'var(--danger)'),
+              padding: '0.85rem 1rem',
               borderRadius: 'var(--radius-sm)',
               fontSize: '0.825rem',
               display: 'flex',
               alignItems: 'center',
-              gap: '0.5rem',
+              gap: '0.65rem',
+              lineHeight: 1.45,
             }}>
-              {testResult.success ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
+              {testResult.success ? <CheckCircle2 size={18} style={{ flexShrink: 0 }} /> : <AlertCircle size={18} style={{ flexShrink: 0 }} />}
               <span>{testResult.message}</span>
             </div>
           )}

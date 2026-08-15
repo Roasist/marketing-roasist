@@ -59,7 +59,7 @@ if ($action === 'logs') {
     exit;
 }
 
-// Test Meta API Token
+// Test Meta API Token & Ad Library Verification
 if ($action === 'test_meta') {
     requireAuth('ADMIN');
     $stmt = $pdo->prepare("SELECT setting_value FROM app_settings WHERE setting_key = 'metaToken'");
@@ -68,30 +68,67 @@ if ($action === 'test_meta') {
     $token = $row ? trim($row['setting_value']) : '';
 
     if (empty($token)) {
-        echo json_encode(['status' => 'error', 'message' => 'Token bulunamadı. Lütfen önce tokenı alana yapıştırıp kaydedin.']);
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'Henüz kayıtlı bir Meta Token bulunamadı. Lütfen önce tokenı alana yapıştırıp "Değişiklikleri Kaydet" butonuna basın.'
+        ]);
         exit;
     }
 
-    $ch = curl_init('https://graph.facebook.com/v19.0/me?access_token=' . urlencode($token));
+    // Step 1: Check basic token & user identity via /me
+    $ch = curl_init('https://graph.facebook.com/v19.0/me?fields=id,name&access_token=' . urlencode($token));
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 8);
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
-    $res = curl_exec($ch);
-    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $resMe = curl_exec($ch);
+    $codeMe = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
 
-    $json = json_decode($res, true);
-    if ($code === 200 && isset($json['id'])) {
-        echo json_encode([
-            'status' => 'success',
-            'message' => '✓ Meta API Bağlantısı Başarılı! (Geliştirici Hesabı: ' . ($json['name'] ?? $json['id']) . ')',
-            'user' => $json
-        ]);
-    } else {
-        $msg = $json['error']['message'] ?? 'Geçersiz veya süresi dolmuş token.';
+    $jsonMe = json_decode($resMe, true);
+    if ($codeMe !== 200 || empty($jsonMe['id'])) {
+        $errorMsg = $jsonMe['error']['message'] ?? 'Token geçersiz veya süresi dolmuş.';
         echo json_encode([
             'status' => 'error',
-            'message' => 'Meta Doğrulama Hatası: ' . $msg
+            'verified' => false,
+            'message' => '❌ Meta Token Geçersiz: ' . $errorMsg
+        ]);
+        exit;
+    }
+
+    $devName = $jsonMe['name'] ?? $jsonMe['id'];
+
+    // Step 2: Check Ad Library (ads_archive) permission & Identity confirmation
+    $testAdUrl = 'https://graph.facebook.com/v19.0/ads_archive?fields=id,page_id&search_terms=test&ad_reached_countries=["TR"]&limit=1&access_token=' . urlencode($token);
+    $chAd = curl_init($testAdUrl);
+    curl_setopt($chAd, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($chAd, CURLOPT_TIMEOUT, 8);
+    curl_setopt($chAd, CURLOPT_SSL_VERIFYPEER, true);
+    $resAd = curl_exec($chAd);
+    $codeAd = curl_getinfo($chAd, CURLINFO_HTTP_CODE);
+    curl_close($chAd);
+
+    $jsonAd = json_decode($resAd, true);
+
+    if ($codeAd === 200 && isset($jsonAd['data'])) {
+        echo json_encode([
+            'status' => 'success',
+            'verified' => true,
+            'adLibraryApproved' => true,
+            'message' => '🎉 TEBRİKLER! Meta Kimlik Onayınız ve Reklam Kütüphanesi (Ad Library API) İzniniz AKTİF! (Geliştirici: ' . $devName . ')',
+            'user' => $jsonMe
+        ]);
+    } else {
+        $adError = $jsonAd['error']['message'] ?? 'Reklam kütüphanesine erişim izni henüz onaylanmamış.';
+        $adCode = $jsonAd['error']['code'] ?? $codeAd;
+        
+        echo json_encode([
+            'status' => 'warning',
+            'verified' => true,
+            'adLibraryApproved' => false,
+            'message' => '⚠️ Token Geçerli (' . $devName . ') ancak Meta Kimlik Onayı / Ad Library İzni Bekleniyor. (Meta Yanıtı: ' . $adError . ')',
+            'details' => $adError,
+            'errorCode' => $adCode,
+            'user' => $jsonMe
         ]);
     }
     exit;
