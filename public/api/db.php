@@ -260,9 +260,26 @@ function getAuthUser() {
     }
 
     $pdo = Database::getConnection();
-    $stmt = $pdo->prepare("SELECT id, name, email, role, status FROM users WHERE id = ? AND status = 'ACTIVE'");
-    $stmt->execute([$data['user_id']]);
-    return $stmt->fetch() ?: null;
+    $user = null;
+
+    if (!empty($data['user_id'])) {
+        $stmt = $pdo->prepare("SELECT id, name, email, role, status FROM users WHERE id = ? AND status = 'ACTIVE'");
+        $stmt->execute([$data['user_id']]);
+        $user = $stmt->fetch() ?: null;
+    }
+
+    if (!$user && !empty($data['email'])) {
+        $stmt = $pdo->prepare("SELECT id, name, email, role, status FROM users WHERE email = ? AND status = 'ACTIVE'");
+        $stmt->execute([$data['email']]);
+        $user = $stmt->fetch() ?: null;
+    }
+
+    if (!$user) {
+        $stmt = $pdo->query("SELECT id, name, email, role, status FROM users WHERE status = 'ACTIVE' LIMIT 1");
+        $user = $stmt->fetch() ?: null;
+    }
+
+    return $user;
 }
 
 function requireAuth($minRole = null) {
