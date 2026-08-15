@@ -137,8 +137,9 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
     curl_close($chAds);
 
     $adsJson = json_decode($adsRes, true);
+    $parsedKeywords = [];
+
     if ($adsCode === 200 && !empty($adsJson['results'])) {
-        $parsedKeywords = [];
         foreach ($adsJson['results'] as $idx => $r) {
             $kwText = $r['text'] ?? '';
             if (empty($kwText)) continue;
@@ -152,9 +153,9 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
 
             // Compute search intent
             $intent = 'COMMERCIAL';
-            if (preg_match('/\b(fiyat|satın al|ücret|ajans|hizmet|paket|danışmanlık|al|fiyatları|fiyatı|sipariş|rezervasyon)\b/ui', $kwText)) {
+            if (preg_match('/\b(fiyat|satın al|ücret|ajans|hizmet|paket|danışmanlık|al|fiyatları|fiyatı|sipariş|rezervasyon|job|jobs|stellenangebote|bewerbung)\b/ui', $kwText)) {
                 $intent = 'TRANSACTIONAL';
-            } elseif (preg_match('/\b(nedir|nasıl|rehber|örnek|yorum|tavsiye|forum)\b/ui', $kwText)) {
+            } elseif (preg_match('/\b(nedir|nasıl|rehber|örnek|yorum|tavsiye|forum|was ist|wie)\b/ui', $kwText)) {
                 $intent = 'INFORMATIONAL';
             }
 
@@ -184,10 +185,70 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
                 'opportunityScore' => $oppScore
             ];
         }
+    }
 
-        if (count($parsedKeywords) > 0) {
-            return $parsedKeywords;
+    // If URL seed returned fewer than 15 keywords (e.g. unindexed small website), retry with pure keywordSeed
+    if (count($parsedKeywords) < 15 && !empty($keywords) && is_array($keywords) && count($keywords) > 0) {
+        $retryPayload = [
+            "keywordPlanNetwork" => "GOOGLE_SEARCH",
+            "language" => $langConst,
+            "geoTargetConstants" => [$geoConst],
+            "keywordSeed" => ["keywords" => array_slice($keywords, 0, 20)]
+        ];
+
+        $chRetry = curl_init("https://googleads.googleapis.com/v22/customers/{$customerId}:generateKeywordIdeas");
+        curl_setopt($chRetry, CURLOPT_POST, true);
+        curl_setopt($chRetry, CURLOPT_POSTFIELDS, json_encode($retryPayload));
+        curl_setopt($chRetry, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($chRetry, CURLOPT_HTTPHEADER, [
+            'Authorization: Bearer ' . $accessToken,
+            'developer-token: ' . $devToken,
+            'Content-Type: application/json'
+        ]);
+        curl_setopt($chRetry, CURLOPT_TIMEOUT, 25);
+        $retryRes = curl_exec($chRetry);
+        curl_close($chRetry);
+
+        $retryJson = json_decode($retryRes, true);
+        if (!empty($retryJson['results'])) {
+            foreach ($retryJson['results'] as $idx => $r) {
+                $kwText = $r['text'] ?? '';
+                if (empty($kwText)) continue;
+
+                $metrics = $r['keywordIdeaMetrics'] ?? [];
+                $avgVol = (int)($metrics['avgMonthlySearches'] ?? 0);
+                $lowBid = isset($metrics['lowTopOfPageBidMicros']) ? round($metrics['lowTopOfPageBidMicros'] / 1000000, 2) : 0;
+                $highBid = isset($metrics['highTopOfPageBidMicros']) ? round($metrics['highTopOfPageBidMicros'] / 1000000, 2) : 0;
+                $comp = $metrics['competition'] ?? 'MEDIUM';
+                $compIdx = (int)($metrics['competitionIndex'] ?? 50);
+
+                $intent = 'COMMERCIAL';
+                if (preg_match('/\b(fiyat|satın al|ücret|ajans|hizmet|paket|danışmanlık|al|fiyatları|fiyatı|sipariş|rezervasyon|job|jobs|stellenangebote|bewerbung)\b/ui', $kwText)) {
+                    $intent = 'TRANSACTIONAL';
+                } elseif (preg_match('/\b(nedir|nasıl|rehber|örnek|yorum|tavsiye|forum|was ist|wie)\b/ui', $kwText)) {
+                    $intent = 'INFORMATIONAL';
+                }
+
+                $oppScore = min(99, max(50, 95 - round($compIdx * 0.3) + ($avgVol > 5000 ? 10 : 5)));
+
+                $parsedKeywords[] = [
+                    'id' => 'ads_kw_seed_' . ($idx + 1) . '_' . substr(md5($kwText), 0, 6),
+                    'keyword' => $kwText,
+                    'monthlyVolume' => $avgVol,
+                    'lowCpc' => $lowBid,
+                    'highCpc' => $highBid,
+                    'competition' => $comp,
+                    'competitionIndex' => $compIdx,
+                    'intent' => $intent,
+                    'trendChangePercent' => 0,
+                    'opportunityScore' => $oppScore
+                ];
+            }
         }
+    }
+
+    if (count($parsedKeywords) > 0) {
+        return $parsedKeywords;
     }
 
     return null;
@@ -954,10 +1015,10 @@ if ($action === 'discover' && $method === 'POST') {
         $suggestedCountries[0]['code'] ?? 'TR'
     );
 
-    if (!empty($officialKeywords) && count($officialKeywords) > 0) {
+    if (!empty($officialKeywords) && count($officialKeywords) >= 15) {
         // Apply Semantic Context-Aware Relevance Filter
         $filteredOfficial = filterKeywordsByPageContext($officialKeywords, $pageDetails, $query, $langInfo['code']);
-        if (!empty($filteredOfficial) && count($filteredOfficial) > 0) {
+        if (!empty($filteredOfficial) && count($filteredOfficial) >= 15) {
             $officialKeywords = $filteredOfficial;
         }
 
@@ -970,34 +1031,36 @@ if ($action === 'discover' && $method === 'POST') {
             }));
         }
 
-        $result = [
-            'query' => $query,
-            'mode' => $mode,
-            'source' => 'google_ads_official',
-            'sector' => $sectorTitle,
-            'businessModel' => $aiAnalysis['businessModel'] ?? 'LEAD_GEN',
-            'detectedLanguage' => $langInfo['code'],
-            'detectedLanguageName' => $langInfo['name'],
-            'pageTitle' => $pageDetails['title'] ?? $query,
-            'pageSummary' => 'Resmi Google Ads Keyword Planner servisinden çekilen ve sayfa bağlamına göre filtrelenmiş resmi arama verileri.',
-            'suggestedCountries' => $suggestedCountries,
-            'totalCount' => count($officialKeywords),
-            'keywords' => $officialKeywords,
-            'timestamp' => date('c')
-        ];
+        if (count($officialKeywords) >= 15) {
+            $result = [
+                'query' => $query,
+                'mode' => $mode,
+                'source' => 'google_ads_official',
+                'sector' => $sectorTitle,
+                'businessModel' => $aiAnalysis['businessModel'] ?? 'LEAD_GEN',
+                'detectedLanguage' => $langInfo['code'],
+                'detectedLanguageName' => $langInfo['name'],
+                'pageTitle' => $pageDetails['title'] ?? $query,
+                'pageSummary' => 'Resmi Google Ads Keyword Planner servisinden çekilen ve sayfa bağlamına göre filtrelenmiş resmi arama verileri.',
+                'suggestedCountries' => $suggestedCountries,
+                'totalCount' => count($officialKeywords),
+                'keywords' => $officialKeywords,
+                'timestamp' => date('c')
+            ];
 
-        // Cache result
-        try {
-            $stmtSave = $pdo->prepare("INSERT OR REPLACE INTO keyword_cache (cache_key, query, mode, data, created_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)");
-            $stmtSave->execute([$cacheKey, $query, $mode, json_encode($result)]);
-        } catch (Exception $e) {}
+            // Cache result
+            try {
+                $stmtSave = $pdo->prepare("INSERT OR REPLACE INTO keyword_cache (cache_key, query, mode, data, created_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)");
+                $stmtSave->execute([$cacheKey, $query, $mode, json_encode($result)]);
+            } catch (Exception $e) {}
 
-        echo json_encode([
-            'status' => 'success',
-            'source' => 'google_ads_official',
-            'data' => $result
-        ]);
-        exit;
+            echo json_encode([
+                'status' => 'success',
+                'source' => 'google_ads_official',
+                'data' => $result
+            ]);
+            exit;
+        }
     }
 
     // 3. Fallback to Google Gemini AI Engine with live scraped page content
@@ -1051,12 +1114,11 @@ if ($action === 'discover' && $method === 'POST') {
         . "}";
 
     $endpointsToTry = [
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
         'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.7-flash:generateContent',
         'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent',
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent',
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent',
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent',
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent'
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent',
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent'
     ];
 
     $keywordsResult = [];
