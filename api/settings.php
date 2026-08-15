@@ -136,6 +136,8 @@ if ($action === 'test_meta') {
             'adLibraryApproved' => false,
             'message' => '⚠️ Token Geçerli (' . $devName . ') ancak Meta Kimlik Onayı / Ad Library İzni Bekleniyor. (Meta Yanıtı: ' . $adError . ')',
             'details' => $adError,
+        ]);
+    }
     exit;
 }
 
