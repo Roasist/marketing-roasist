@@ -812,17 +812,24 @@ function filterKeywordsByPageContext($keywords, $pageDetails, $query, $langCode)
         }
 
         // 8. If page is Real Estate / Property / Residence (e.g. 23 Square, Cordelia, Summer Homes):
-        // Prune standalone playground/pool amenities that have no property/location context
+        // Prune standalone playground/pool amenities that do not have explicit property/purchase intent
         if ($isCitizenshipOrRealEstate) {
-            $isAmenityOnly = preg_match('/^(oyun parkı|çocuk oyun|çocuk için oyun|çocuk alanı|çocuk havuzu|çocuk su havuzu|çocuk yüzme|havuz çocuk için|kapalı çocuk oyun parkı|oyun yeri|yetişkin havuz|yüzme kursu|oyun parkları|park oyun|oyun parkı çocuk|çocuk parkı|su kaydırağı|top havuzu|oyun alanı)\b/ui', $kwLower);
-            if ($isAmenityOnly && !preg_match('/\b(satılık|daire|konut|villa|proje|residence|square|alanya|antalya|istanbul|kıbrıs|cyprus|fiyat|fiyatları|yatırım|gayrimenkul|ev)\b/ui', $kwLower)) {
-                continue; // ❌ REJECT standalone playground / pool equipment noise
+            $isAmenity = preg_match('/\b(oyun park|oyun alan|oyun yer|çocuk park|cocuk park|çocuk havuz|cocuk havuz|çocuk alan|cocuk alan|çocuk yüzme|cocuk yuzme|su havuz|yetişkin havuz|yetiskin havuz|bebek havuz|bebek oyun|kapalı alan oyun|kaydırak|top havuz|aquapark)\b/ui', $kwLower);
+            if ($isAmenity) {
+                // Must contain explicit property/sales intent (e.g. "alanya satılık havuzlu daire", "23 square çocuk parklı konut")
+                $hasPropertyIntent = preg_match('/\b(satılık|satilik|daire|konut|villa|rezidans|residence|proje|projeleri|emlak|gayrimenkul|mülk|mulk|ev|satın al|yatırım|yatirim|23 square)\b/ui', $kwLower);
+                if (!$hasPropertyIntent) {
+                    continue; // ❌ REJECT standalone park/pool/amenity without property buying intent!
+                }
             }
         }
 
         // 9. Prune meaningless broken filler phrases and generic UI words (e.g. from Pedalbox or English scripts)
-        if (preg_match('/^(it s|o my got|where i am|kayıt olmak|bir ara|ara toplam|i am from|i get it|if i was you|takip edin|bizi takip edin|üye ol|giriş yap|devamını oku|sepetim|iletişim|hakkımızda)$/ui', $kwLower)) {
+        if (preg_match('/^(it s|o my got|where i am|kayıt olmak|bir ara|ara toplam|i am from|i get it|if i was you|takip edin|bizi takip edin|üye ol|giriş yap|devamını oku|sepetim|iletişim|hakkımızda|olmak|your|it|am|from|if|you|where)$/ui', $kwLower)) {
             continue; // ❌ REJECT meaningless broken filler noise
+        }
+        if (preg_match('/\b(it s|o my got|where i am|i am from|i get it|if i was you)\b/ui', $kwLower)) {
+            continue;
         }
 
         // 7. Calculate precision relevance score
