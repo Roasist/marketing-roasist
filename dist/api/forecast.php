@@ -359,7 +359,80 @@ function detectPageLanguage($title, $text) {
     return ['code' => 'en', 'name' => 'İngilizce'];
 }
 
-// Extract Location Context, Brand Entities, and High-Intent Smart Seeds
+// -------------------------------------------------------------
+// HELPER: AI-POWERED ZERO-SHOT LANDING PAGE INTENT ENGINE (GEMINI)
+// -------------------------------------------------------------
+function analyzeLandingPageWithAI($pageDetails, $query, $geminiKey) {
+    if (empty($geminiKey) || empty($pageDetails)) return null;
+
+    $prompt = "Sen dünyanın en üst düzey Google Ads, SEM ve Çok Dilli Uluslararası Performans Pazarlaması uzmanısın.\n\n"
+        . "Aşağıdaki taranmış web sayfası içeriğini derinlemesine analiz et:\n"
+        . "URL / Domain: '{$query}'\n"
+        . "Sayfa Başlığı (Title): " . ($pageDetails['title'] ?? '') . "\n"
+        . "Sayfa Açıklaması (Meta Description): " . ($pageDetails['description'] ?? '') . "\n"
+        . "Ana Başlıklar (H1 / H2): " . implode(' | ', $pageDetails['headings'] ?? []) . "\n"
+        . "Metin Özeti: " . mb_substr($pageDetails['textSnippet'] ?? '', 0, 1500, 'UTF-8') . "\n\n"
+        . "GÖREVLER:\n"
+        . "1. Sayfanın sunduğu gerçek hizmeti/ürünü, ana sektörünü, iş modelini ('LEAD_GEN', 'ECOMMERCE', 'B2B_SERVICE', 'TOURISM', 'HEALTH_CARE') ve hedef coğrafyasını kesin olarak tespit et.\n"
+        . "2. Sayfanın dilini ve adını tespit et (Örn: 'de' -> 'Almanca', 'ru' -> 'Rusça', 'en' -> 'İngilizce', 'tr' -> 'Türkçe', 'ar' -> 'Arapça', 'fr' -> 'Fransızca', 'es' -> 'İspanyolca', 'it' -> 'İtalyanca', 'nl' -> 'Felemenkçe').\n"
+        . "3. Bu işletmenin gerçek müşterisi/alıcısı olmak isteyen kişilerin Google Arama'da arattığı EN DOĞRU ve YÜKSEK NİYETLİ 15-20 ADET yerel tohum anahtar kelimeyi KESİNLİKLE BU SAYFANIN KENDİ DİLİNDE üret.\n"
+        . "4. Bu kampanya için KESİNLİKLE HARİÇ TUTULMASI (Negatif) gereken 10-15 alakasız terimi/sektörü listele (Örn: otel sayfasıysa 'satılık daire, emlak, kiralık ev'; gayrimenkul sayfasıysa 'otel, tatil, kiralık araç'; B2B ise 'bedava, ücretsiz, hobi').\n"
+        . "5. Bu sayfa için Google Ads'te hedeflenebilecek en mantıklı 4-5 hedef ülkeyi listele.\n\n"
+        . "Yanıtını SADECE geçerli JSON formatında şu şemayla ver (başka metin ekleme):\n"
+        . "{\n"
+        . "  \"detectedLanguage\": \"de\",\n"
+        . "  \"detectedLanguageName\": \"Almanca\",\n"
+        . "  \"sector\": \"Almanca Çağrı Merkezi & Müşteri Hizmetleri Dış Kaynak\",\n"
+        . "  \"businessModel\": \"B2B_SERVICE\",\n"
+        . "  \"targetLocation\": \"Almanya, Avusturya, İsviçre\",\n"
+        . "  \"highIntentSeeds\": [\"callcenter türkei\", \"kundenservice outsourcing\", \"b2b call center dienstleister\"],\n"
+        . "  \"negativeExclusions\": [\"gayrimenkul\", \"satılık daire\", \"hotel\", \"citizenship\", \"kostenlos\"],\n"
+        . "  \"suggestedCountries\": [\n"
+        . "    {\"code\": \"DE\", \"name\": \"Almanya\", \"flag\": \"🇩🇪\", \"region\": \"Avrupa\", \"cpcMultiplier\": 1.9, \"volumeMultiplier\": 0.8, \"currency\": \"EUR\"},\n"
+        . "    {\"code\": \"AT\", \"name\": \"Avusturya\", \"flag\": \"🇦🇹\", \"region\": \"Avrupa\", \"cpcMultiplier\": 1.8, \"volumeMultiplier\": 0.3, \"currency\": \"EUR\"},\n"
+        . "    {\"code\": \"CH\", \"name\": \"İsviçre\", \"flag\": \"🇨🇭\", \"region\": \"Avrupa\", \"cpcMultiplier\": 2.4, \"volumeMultiplier\": 0.25, \"currency\": \"CHF\"},\n"
+        . "    {\"code\": \"TR\", \"name\": \"Türkiye (Gurbetçi & Yerleşik)\", \"flag\": \"🇹🇷\", \"region\": \"Yerel\", \"cpcMultiplier\": 0.9, \"volumeMultiplier\": 0.3, \"currency\": \"TRY\"}\n"
+        . "  ]\n"
+        . "}";
+
+    $modelsToTry = [
+        'gemini-2.5-flash',
+        'gemini-3.7-flash',
+        'gemini-3.5-flash',
+        'gemini-flash-latest'
+    ];
+
+    foreach ($modelsToTry as $model) {
+        $url = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key=" . urlencode($geminiKey);
+        $payload = [
+            "contents" => [["parts" => [["text" => $prompt]]]],
+            "generationConfig" => ["temperature" => 0.2, "responseMimeType" => "application/json"]
+        ];
+
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+        $res = curl_exec($ch);
+        curl_close($ch);
+
+        $gJson = json_decode($res, true);
+        if (isset($gJson['candidates'][0]['content']['parts'][0]['text'])) {
+            $raw = $gJson['candidates'][0]['content']['parts'][0]['text'];
+            $clean = preg_replace('/^```(?:json)?\s*/i', '', trim($raw));
+            $clean = preg_replace('/\s*```$/', '', $clean);
+            $parsed = json_decode($clean, true);
+            if ($parsed && !empty($parsed['highIntentSeeds']) && is_array($parsed['highIntentSeeds'])) {
+                return $parsed;
+            }
+        }
+    }
+    return null;
+}
+
+// Extract Location Context, Brand Entities, and High-Intent Smart Seeds (Rule-based Fallback)
 function extractLocationAndSmartSeeds($pageDetails, $query, $langCode = 'en') {
     $title = mb_strtolower($pageDetails['title'] ?? '', 'UTF-8');
     $desc = mb_strtolower($pageDetails['description'] ?? '', 'UTF-8');
@@ -847,12 +920,27 @@ if ($action === 'discover' && $method === 'POST') {
         $pageDetails = fetchLandingPageDetails($query);
     }
 
-    // Detect language
-    $langInfo = detectPageLanguage($pageDetails['title'] ?? '', $pageDetails['textSnippet'] ?? '');
-    $suggestedCountries = getSuggestedCountriesByLang($langInfo['code']);
+    // 2.1 Run AI-Powered Zero-Shot Landing Page Intent Analysis (Gemini)
+    $aiAnalysis = null;
+    if (!empty($geminiKey) && !empty($pageDetails)) {
+        $aiAnalysis = analyzeLandingPageWithAI($pageDetails, $query, $geminiKey);
+    }
 
-    // 2.1 Extract Location & Smart Context Seeds
-    $smartSeeds = extractLocationAndSmartSeeds($pageDetails, $query, $langInfo['code']);
+    // Determine Language, Sector and Seeds
+    if ($aiAnalysis && !empty($aiAnalysis['detectedLanguage'])) {
+        $langInfo = [
+            'code' => $aiAnalysis['detectedLanguage'],
+            'name' => $aiAnalysis['detectedLanguageName'] ?? 'Otomatik'
+        ];
+        $sectorTitle = $aiAnalysis['sector'] ?? ($pageDetails['title'] ?? 'Google Ads Kampanyası');
+        $suggestedCountries = !empty($aiAnalysis['suggestedCountries']) ? $aiAnalysis['suggestedCountries'] : getSuggestedCountriesByLang($langInfo['code']);
+        $smartSeeds = !empty($aiAnalysis['highIntentSeeds']) ? $aiAnalysis['highIntentSeeds'] : extractLocationAndSmartSeeds($pageDetails, $query, $langInfo['code']);
+    } else {
+        $langInfo = detectPageLanguage($pageDetails['title'] ?? '', $pageDetails['textSnippet'] ?? '');
+        $suggestedCountries = getSuggestedCountriesByLang($langInfo['code']);
+        $sectorTitle = $pageDetails['title'] ?? 'Google Ads Kampanyası';
+        $smartSeeds = extractLocationAndSmartSeeds($pageDetails, $query, $langInfo['code']);
+    }
 
     // 2.2 Call Official Google Ads API with Dual Seeding (URL + Location Grounded Seeds)
     $officialKeywords = fetchGoogleAdsOfficialKeywordIdeas(
@@ -870,11 +958,21 @@ if ($action === 'discover' && $method === 'POST') {
             $officialKeywords = $filteredOfficial;
         }
 
+        // Also prune negative exclusions from AI if available
+        if ($aiAnalysis && !empty($aiAnalysis['negativeExclusions'])) {
+            $negPattern = '/\b(' . implode('|', array_map('preg_quote', $aiAnalysis['negativeExclusions'])) . ')\b/ui';
+            $officialKeywords = array_values(array_filter($officialKeywords, function($k) use ($negPattern) {
+                $kw = is_array($k) ? ($k['keyword'] ?? '') : (string)$k;
+                return !preg_match($negPattern, $kw);
+            }));
+        }
+
         $result = [
             'query' => $query,
             'mode' => $mode,
             'source' => 'google_ads_official',
-            'sector' => $pageDetails['title'] ?? 'Google Ads Kampanyası',
+            'sector' => $sectorTitle,
+            'businessModel' => $aiAnalysis['businessModel'] ?? 'LEAD_GEN',
             'detectedLanguage' => $langInfo['code'],
             'detectedLanguageName' => $langInfo['name'],
             'pageTitle' => $pageDetails['title'] ?? $query,
