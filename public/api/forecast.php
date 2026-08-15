@@ -304,32 +304,21 @@ function filterKeywordsByPageContext($keywords, $pageDetails, $query, $langCode)
         preg_match('/\b(vatandaşlık|pasaport|gayrimenkul|emlak|konut|daire|villa|yatırım|ikamet)\b/ui', $fullContext)
     );
 
-    // List of competing destination countries / non-Turkey citizenship terms to strictly exclude if Turkey is the primary subject
-    $competingDestinations = [
-        'us citizenship', 'usa citizenship', 'u.s. citizenship', 'united states citizenship', 'us citizen', 'usa citizen', 'american citizenship',
-        'canada citizenship', 'canadian citizenship', 'canada citizen', 'canadian citizen',
-        'uk citizenship', 'british citizenship', 'uk citizen', 'british citizen',
-        'australia citizenship', 'australian citizenship', 'australia citizen',
-        'german citizenship', 'germany citizenship', 'german citizen',
-        'italian citizenship', 'italy citizenship', 'italian citizen',
-        'spanish citizenship', 'spain citizenship', 'spanish citizen',
-        'portugal citizenship', 'portuguese citizenship', 'portuguese citizen',
-        'greek citizenship', 'greece citizenship', 'greek golden visa', 'golden visa greece',
-        'golden visa portugal', 'golden visa spain', 'portugal golden visa', 'spain golden visa',
-        'grenada citizenship', 'st kitts', 'saint kitts', 'dominica citizenship', 'vanuatu citizenship',
-        'antigua citizenship', 'malta citizenship', 'cyprus citizenship', 'st lucia citizenship', 'saint lucia',
-        'eb5', 'eb-5', 'h1b', 'h-1b', 'green card', 'greencard', 'us passport', 'uk passport', 'canada passport',
-        'us visa', 'us immigration', 'canada immigration', 'australia immigration',
-        'naturalized citizen', 'naturalization test', 'citizenship test', 'what is citizenship', 'civics test',
-        'us citizenship and', 'us citizenship application', 'us citizenship requirements'
+    // Competing foreign destination keywords to strictly exclude if Turkey is the primary focus
+    $foreignGeo = [
+        'us', 'usa', 'u.s.', 'america', 'american', 'united states',
+        'canada', 'canadian', 'uk', 'britain', 'british',
+        'australia', 'australian', 'german', 'germany',
+        'italian', 'italy', 'spanish', 'spain',
+        'portugal', 'portuguese', 'greek', 'greece',
+        'malta', 'cyprus', 'grenada', 'dominica', 'vanuatu',
+        'antigua', 'st kitts', 'saint kitts', 'st lucia', 'saint lucia',
+        'eb5', 'eb-5', 'h1b', 'h-1b', 'green card', 'greencard',
+        'london', 'new york', 'california', 'florida', 'texas', 'miami', 'chicago', 'los angeles',
+        'france', 'french', 'mexico', 'mexican'
     ];
-
-    $competingRegex = '/\b(' . implode('|', array_map('preg_quote', $competingDestinations)) . ')\b/ui';
-
-    // Competing country isolated patterns (e.g., "us passport", "canada visa", "american citizen")
-    $isolatedCompetingCountries = ['us', 'usa', 'america', 'american', 'canada', 'canadian', 'uk', 'britain', 'british', 'australia', 'australian', 'germany', 'german', 'italy', 'italian', 'spain', 'spanish', 'portugal', 'portuguese', 'greece', 'greek', 'malta', 'cyprus', 'grenada', 'dominica', 'vanuatu', 'mexico', 'mexican', 'ireland', 'irish', 'new zealand'];
-    $isolatedCompetingRegex = '/\b(' . implode('|', $isolatedCompetingCountries) . ')\s+(citizenship|citizen|passport|visa|immigration|resident|residency|green card|naturalization|civics)\b/ui';
-    $isolatedCompetingSuffixRegex = '/\b(citizenship|citizen|passport|visa|immigration)\s+(in|of|for|to)?\s*(the\s+)?(' . implode('|', $isolatedCompetingCountries) . ')\b/ui';
+    $foreignPattern = '/\b(' . implode('|', array_map('preg_quote', $foreignGeo)) . ')\b/ui';
+    $turkeyPattern = '/\b(turkey|turkish|türkiye|türk|istanbul|alanya|antalya|bodrum|fethiye|izmir|ankara|mersin|bursa|trabzon)\b/ui';
 
     $filtered = [];
 
@@ -340,39 +329,57 @@ function filterKeywordsByPageContext($keywords, $pageDetails, $query, $langCode)
         if (empty($kwLower)) continue;
         if (mb_strlen($kwLower, 'UTF-8') < 3) continue;
 
-        // Rule 1: If page is Turkey-focused, prune all competing foreign destination keywords
+        // 1. Remove broken repeating words like "homes in homes", "homes to homes", "real estate real estate"
+        if (preg_match('/(\b\w+\b)\s+\1/i', $kwLower) || preg_match('/(\b\w+\b)\s+\w+\s+\1/i', $kwLower)) {
+            continue;
+        }
+
+        // 2. Remove dangling prepositions at end: "for sale in", "housing for sale in"
+        if (preg_match('/\b(in|to|for|at|of|on|by|and|the|a|an)$/i', $kwLower)) {
+            continue;
+        }
+
+        // 3. Remove meaningless 1-2 word filler like "one homes", "every homes", "no homes", "call homes"
+        if (preg_match('/^(one|every|no|call|our|all|the|view|city)\s+(homes|houses|properties|views)$/i', $kwLower)) {
+            continue;
+        }
+
+        // 4. Foreign destination removal
         if ($isTurkeyFocus && $isCitizenshipOrRealEstate) {
-            if (preg_match($competingRegex, $kwLower) || preg_match($isolatedCompetingRegex, $kwLower) || preg_match($isolatedCompetingSuffixRegex, $kwLower)) {
-                if (!preg_match('/\b(turkey|turkish|türkiye|türk|istanbul|alanya|antalya)\b/ui', $kwLower)) {
-                    continue; // ❌ REJECT irrelevant foreign destination keyword
-                }
+            if (preg_match($foreignPattern, $kwLower) && !preg_match($turkeyPattern, $kwLower)) {
+                continue; // ❌ Exclude foreign country keyword!
             }
 
             // Reject pure civic / naturalization test noise
             if (preg_match('/\b(naturalized|naturalization|civics test|citizenship test|what is citizenship|meaning of citizen|oath of allegiance)\b/ui', $kwLower)) {
-                continue; // ❌ REJECT
+                continue; // ❌ Exclude civic test noise
             }
         }
 
-        // Rule 2: If page is Digital Marketing Agency (Roasist), prune irrelevant industries
+        // 5. If page is Digital Marketing Agency (Roasist), prune irrelevant industries
         $isMarketingFocus = preg_match('/\b(marketing|pazarlama|reklam|roas|ajans|agency|seo|google ads|meta ads|e-ticaret)\b/ui', $fullContext);
         if ($isMarketingFocus) {
             if (preg_match('/\b(hukuk|avukat|doktor|hastane|inşaat firması|otel rezervasyon|nakliyat|temizlik şirketi|oto kiralama)\b/ui', $kwLower)) {
-                continue; // ❌ REJECT
+                continue;
             }
         }
 
-        // Rule 3: Relevance scoring boost for core contextual matches
-        if ($isTurkeyFocus && is_array($kw)) {
-            if (preg_match('/\b(turkey|turkish|türkiye|türk|istanbul|alanya|antalya)\b/ui', $kwLower)) {
-                $kw['opportunityScore'] = min(99, ($kw['opportunityScore'] ?? 80) + 10);
-            }
+        // 6. Calculate precision relevance score
+        $relevanceScore = 50;
+        if (preg_match($turkeyPattern, $kwLower)) $relevanceScore += 35;
+        if (preg_match('/\b(citizenship|citizen|passport|гражданство|паспорт|vatandaşlık|pasaport)\b/ui', $kwLower)) $relevanceScore += 25;
+        if (preg_match('/\b(investment|invest|инвестиции|yatırım)\b/ui', $kwLower)) $relevanceScore += 15;
+        if (preg_match('/\b(real estate|property|properties|villa|apartment|house|flat|emlak|gayrimenkul)\b/ui', $kwLower)) $relevanceScore += 15;
+        if (is_array($kw) && ($kw['intent'] ?? '') === 'TRANSACTIONAL') $relevanceScore += 5;
+
+        if (is_array($kw)) {
+            $kw['opportunityScore'] = min(99, max(50, $relevanceScore));
         }
 
         $filtered[] = $kw;
     }
 
-    // Sort: prioritize higher opportunity score and monthly volume
+    // Sort: prioritize highest contextual relevance score first, then search volume
     usort($filtered, function($a, $b) {
         $scoreA = is_array($a) ? ($a['opportunityScore'] ?? 50) : 50;
         $scoreB = is_array($b) ? ($b['opportunityScore'] ?? 50) : 50;
