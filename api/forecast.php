@@ -236,9 +236,6 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
     return $parsedKeywords;
 }
 
-    return null;
-}
-
 // Universal Encoding Normalizer: Converts any character encoding (ISO-8859-9, Windows-1254, Windows-1251, ISO-8859-1, etc.) to valid UTF-8
 function ensureUtf8String($str) {
     if (!is_string($str) || $str === '') return $str;
