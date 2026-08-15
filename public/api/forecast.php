@@ -586,6 +586,32 @@ if ($action === 'negative_keywords' && $method === 'POST') {
     exit;
 }
 
+if ($action === 'list_models') {
+    $apiKeys = getApiKeys($pdo);
+    $geminiKey = $apiKeys['geminiApiKey'] ?: $apiKeys['googleApiKey'];
+    if (empty($geminiKey)) {
+        echo json_encode(['status' => 'error', 'message' => 'API Key tanımlanmamış.']);
+        exit;
+    }
+
+    $ch = curl_init("https://generativelanguage.googleapis.com/v1beta/models?key=" . urlencode($geminiKey));
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+    $res = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    $json = json_decode($res, true);
+    echo json_encode([
+        'status' => 'success',
+        'httpCode' => $httpCode,
+        'keyLength' => strlen($geminiKey),
+        'keyMasked' => substr($geminiKey, 0, 6) . '...' . substr($geminiKey, -4),
+        'raw' => $json
+    ]);
+    exit;
+}
+
 // -------------------------------------------------------------
 // ACTION: SAVE / LIST / DELETE FORECAST PLANS
 // -------------------------------------------------------------
