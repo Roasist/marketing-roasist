@@ -247,6 +247,43 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
     return null;
 }
 
+// Universal Encoding Normalizer: Converts any character encoding (ISO-8859-9, Windows-1254, Windows-1251, ISO-8859-1, etc.) to valid UTF-8
+function ensureUtf8String($str) {
+    if (!is_string($str) || $str === '') return $str;
+    
+    // 1. Check meta charset in HTML if present
+    if (preg_match('/<meta[^>]+charset=[\'"]?([a-zA-Z0-9_-]+)/i', $str, $mCharset)) {
+        $metaEnc = strtoupper(trim($mCharset[1]));
+        if ($metaEnc && $metaEnc !== 'UTF-8' && @mb_check_encoding($str, $metaEnc)) {
+            $converted = @mb_convert_encoding($str, 'UTF-8', $metaEnc);
+            if ($converted !== false && mb_check_encoding($converted, 'UTF-8')) {
+                return $converted;
+            }
+        }
+    } elseif (preg_match('/<meta[^>]+http-equiv=[\'"]?Content-Type[\'"][^>]+content=[\'"][^"\']*charset=([a-zA-Z0-9_-]+)/i', $str, $mCharset)) {
+        $metaEnc = strtoupper(trim($mCharset[1]));
+        if ($metaEnc && $metaEnc !== 'UTF-8' && @mb_check_encoding($str, $metaEnc)) {
+            $converted = @mb_convert_encoding($str, 'UTF-8', $metaEnc);
+            if ($converted !== false && mb_check_encoding($converted, 'UTF-8')) {
+                return $converted;
+            }
+        }
+    }
+
+    // 2. Check encoding with mb_detect_encoding
+    if (!mb_check_encoding($str, 'UTF-8')) {
+        $enc = mb_detect_encoding($str, ['UTF-8', 'ISO-8859-9', 'WINDOWS-1254', 'WINDOWS-1251', 'ISO-8859-1', 'WINDOWS-1252'], true);
+        if ($enc && $enc !== 'UTF-8') {
+            $str = @mb_convert_encoding($str, 'UTF-8', $enc);
+        } else {
+            $str = @mb_convert_encoding($str, 'UTF-8', 'ISO-8859-9');
+        }
+    }
+
+    // 3. Clean invalid UTF-8 bytes
+    return mb_convert_encoding($str, 'UTF-8', 'UTF-8');
+}
+
 // Helper to scrape Landing Page Content (title, meta description, headings, text)
 function fetchLandingPageDetails($url) {
     if (!preg_match('/^https?:\/\//i', $url)) {
@@ -261,13 +298,16 @@ function fetchLandingPageDetails($url) {
     curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
     curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
-    $html = curl_exec($ch);
+    $rawHtml = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
 
-    if (!$html || $httpCode >= 400) {
+    if (!$rawHtml || $httpCode >= 400) {
         return null;
     }
+
+    // Ensure raw HTML is converted from Windows-1254 / ISO-8859-9 / ISO-8859-1 to UTF-8
+    $html = ensureUtf8String($rawHtml);
 
     // Extract title
     $title = '';
@@ -470,7 +510,7 @@ function analyzeLandingPageWithAI($pageDetails, $query, $geminiKey) {
 
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload, JSON_INVALID_UTF8_SUBSTITUTE | JSON_UNESCAPED_UNICODE));
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
         curl_setopt($ch, CURLOPT_TIMEOUT, 15);
@@ -1141,7 +1181,7 @@ if ($action === 'discover' && $method === 'POST') {
         return $volB - $volA;
     });
 
-    if (count($officialKeywords) >= 15) {
+    if (count($officialKeywords) >= 1) {
         $result = [
             'query' => $query,
             'mode' => $mode,
@@ -1161,14 +1201,14 @@ if ($action === 'discover' && $method === 'POST') {
         // Cache result
         try {
             $stmtSave = $pdo->prepare("INSERT OR REPLACE INTO keyword_cache (cache_key, query, mode, data, created_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)");
-            $stmtSave->execute([$cacheKey, $query, $mode, json_encode($result)]);
+            $stmtSave->execute([$cacheKey, $query, $mode, json_encode($result, JSON_INVALID_UTF8_SUBSTITUTE | JSON_UNESCAPED_UNICODE)]);
         } catch (Exception $e) {}
 
         echo json_encode([
             'status' => 'success',
             'source' => 'google_ads_official',
             'data' => $result
-        ]);
+        ], JSON_INVALID_UTF8_SUBSTITUTE | JSON_UNESCAPED_UNICODE);
         exit;
     }
 
@@ -1253,7 +1293,7 @@ if ($action === 'discover' && $method === 'POST') {
 
         $chGemini = curl_init($geminiUrl);
         curl_setopt($chGemini, CURLOPT_POST, true);
-        curl_setopt($chGemini, CURLOPT_POSTFIELDS, json_encode($payload));
+        curl_setopt($chGemini, CURLOPT_POSTFIELDS, json_encode($payload, JSON_INVALID_UTF8_SUBSTITUTE | JSON_UNESCAPED_UNICODE));
         curl_setopt($chGemini, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($chGemini, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
         curl_setopt($chGemini, CURLOPT_TIMEOUT, 25);
