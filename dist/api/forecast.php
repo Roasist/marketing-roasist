@@ -218,22 +218,22 @@ function fetchLandingPageDetails($url) {
     // Extract title
     $title = '';
     if (preg_match('/<title[^>]*>(.*?)<\/title>/is', $html, $m)) {
-        $title = trim(html_entity_decode(strip_tags($m[1])));
+        $title = trim(html_entity_decode(strip_tags($m[1]), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
     }
 
     // Extract meta description
     $description = '';
     if (preg_match('/<meta[^>]+name=[\'"]description[\'"][^>]+content=[\'"](.*?)[\'"]/is', $html, $m)) {
-        $description = trim(html_entity_decode($m[1]));
+        $description = trim(html_entity_decode($m[1], ENT_QUOTES | ENT_HTML5, 'UTF-8'));
     } elseif (preg_match('/<meta[^>]+content=[\'"](.*?)[\'"][^>]+name=[\'"]description[\'"]/is', $html, $m)) {
-        $description = trim(html_entity_decode($m[1]));
+        $description = trim(html_entity_decode($m[1], ENT_QUOTES | ENT_HTML5, 'UTF-8'));
     }
 
     // Extract H1 & H2 tags
     $headings = [];
     if (preg_match_all('/<h[12][^>]*>(.*?)<\/h[12]>/is', $html, $m)) {
         foreach ($m[1] as $h) {
-            $hClean = trim(html_entity_decode(strip_tags($h)));
+            $hClean = trim(html_entity_decode(strip_tags($h), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
             if (!empty($hClean) && strlen($hClean) < 150) {
                 $headings[] = $hClean;
             }
@@ -367,8 +367,48 @@ function extractLocationAndSmartSeeds($pageDetails, $query, $langCode = 'en') {
     $text = mb_strtolower($pageDetails['textSnippet'] ?? '', 'UTF-8');
     $full = $title . ' ' . $desc . ' ' . $headings . ' ' . $text . ' ' . mb_strtolower($query, 'UTF-8');
 
-    // 1. Detect Talent Acquisition / Recruitment / HR Consulting (TalentFinder)
-    if (preg_match('/\b(talent|recruitment|recruiting|hiring|headhunting|executive search|staffing|hr consulting|career consulting|human resources|işe alım|insan kaynakları|talentfinder)\b/ui', $full)) {
+    // 1. Detect Hotel, Resort, Vacation & Accommodation (e.g. Livaneli Hotels, Alanya tatil, Bodrum otel)
+    if (preg_match('/\b(hotel|hotels|otel|otelleri|resort|resorts|tatil|konaklama|pansiyon|boutique hotel|butik otel|all inclusive|her şey dahil|rezervasyon|booking|livaneli)\b/ui', $full)) {
+        $loc = 'alanya';
+        if (preg_match('/\b(alanya)\b/ui', $full)) $loc = 'alanya';
+        elseif (preg_match('/\b(antalya)\b/ui', $full)) $loc = 'antalya';
+        elseif (preg_match('/\b(bodrum)\b/ui', $full)) $loc = 'bodrum';
+        elseif (preg_match('/\b(fethiye)\b/ui', $full)) $loc = 'fethiye';
+        elseif (preg_match('/\b(kemer)\b/ui', $full)) $loc = 'kemer';
+        elseif (preg_match('/\b(side|manavgat)\b/ui', $full)) $loc = 'side';
+        elseif (preg_match('/\b(çeşme|cesme)\b/ui', $full)) $loc = 'çeşme';
+        elseif (preg_match('/\b(marmaris)\b/ui', $full)) $loc = 'marmaris';
+        elseif (preg_match('/\b(kuşadası|kusadasi)\b/ui', $full)) $loc = 'kuşadası';
+        elseif (preg_match('/\b(kaş|kas)\b/ui', $full)) $loc = 'kaş';
+        elseif (preg_match('/\b(istanbul)\b/ui', $full)) $loc = 'istanbul';
+        elseif (preg_match('/\b(cyprus|kıbrıs)\b/ui', $full)) $loc = 'kıbrıs';
+
+        $brand = '';
+        if (preg_match('/\b(livaneli)\b/ui', $full)) $brand = 'livaneli';
+
+        $seeds = [
+            "{$loc} otelleri",
+            "{$loc} tatil otelleri",
+            "{$loc} lüks otel",
+            "{$loc} butik otel",
+            "{$loc} her şey dahil oteller",
+            "{$loc} resort otel",
+            "{$loc} denize sıfır otel",
+            "{$loc} erken rezervasyon otelleri",
+            "{$loc} uygun oteller",
+            "{$loc} konaklama fiyatları",
+            "hotels in {$loc} turkey",
+            "{$loc} luxury resort",
+            "{$loc} beach hotel"
+        ];
+        if (!empty($brand)) {
+            array_unshift($seeds, "{$brand} hotels {$loc}", "{$brand} boutique hotel", "{$brand} {$loc}");
+        }
+        return array_slice($seeds, 0, 20);
+    }
+
+    // 2. Detect Talent Acquisition / Recruitment / HR Consulting (TalentFinder, HRShortlist)
+    if (preg_match('/\b(talent|recruitment|recruiting|hiring|headhunting|executive search|staffing|hr consulting|career consulting|human resources|işe alım|insan kaynakları|talentfinder|hrshortlist)\b/ui', $full)) {
         return [
             'talent acquisition consulting',
             'executive search agency',
@@ -387,8 +427,8 @@ function extractLocationAndSmartSeeds($pageDetails, $query, $langCode = 'en') {
         ];
     }
 
-    // 2. Detect Cyprus / North Cyprus Location
-    if (preg_match('/\b(cyprus|north cyprus|kıbrıs|kuzey kıbrıs|kktc|esentepe|girne|kyrenia|famagusta|gazimağusa|tatlısu|iskele|lefkosa|nicosia|cordelia)\b/ui', $full)) {
+    // 3. Detect Cyprus / North Cyprus Real Estate Location (Cordelia, etc.)
+    if (preg_match('/\b(cyprus|north cyprus|kıbrıs|kuzey kıbrıs|kktc|esentepe|girne|kyrenia|famagusta|gazimağusa|tatlısu|iskele|cordelia)\b/ui', $full) && preg_match('/\b(property|real estate|villa|apartment|satılık|konut|residence|daire|investment|invest)\b/ui', $full)) {
         $brand = '';
         if (preg_match('/\b(cordelia)\b/ui', $full)) $brand = 'cordelia';
 
@@ -416,8 +456,8 @@ function extractLocationAndSmartSeeds($pageDetails, $query, $langCode = 'en') {
         return array_slice($seeds, 0, 20);
     }
 
-    // 3. Detect Turkey Citizenship & Real Estate
-    if (preg_match('/\b(turkish citizenship|citizenship by investment|vatandaşlık|alanya|istanbul|antalya|bodrum|fethiye|summer homes)\b/ui', $full)) {
+    // 4. Detect Turkey Citizenship & Real Estate (Summer Homes, 23projects, etc.)
+    if (preg_match('/\b(turkish citizenship|citizenship by investment|vatandaşlık|real estate|gayrimenkul|property for sale|properties for sale|satılık daire|satılık ev|satılık mülk|konut projesi|summer homes)\b/ui', $full)) {
         $seeds = [
             'turkish citizenship by investment',
             'turkey real estate investment',
@@ -434,7 +474,7 @@ function extractLocationAndSmartSeeds($pageDetails, $query, $langCode = 'en') {
         return array_slice($seeds, 0, 20);
     }
 
-    // 4. Detect Digital Marketing / Agency (Roasist)
+    // 5. Detect Digital Marketing / Agency (Roasist)
     if (preg_match('/\b(marketing|pazarlama|reklam|roas|ajans|agency|seo|google ads|meta ads|e-ticaret)\b/ui', $full)) {
         return [
             'performans pazarlama ajansı',
@@ -448,7 +488,7 @@ function extractLocationAndSmartSeeds($pageDetails, $query, $langCode = 'en') {
         ];
     }
 
-    // 4. Default: Extract key multi-word phrases from headings and title
+    // 6. Default: Extract key multi-word phrases from headings and title
     $autoSeeds = [];
     if (!empty($pageDetails['headings'])) {
         foreach ($pageDetails['headings'] as $h) {
@@ -472,7 +512,17 @@ function filterKeywordsByPageContext($keywords, $pageDetails, $query, $langCode)
     $text = mb_strtolower($pageDetails['textSnippet'] ?? '', 'UTF-8');
     $fullContext = $title . ' ' . $desc . ' ' . $headings . ' ' . $text . ' ' . mb_strtolower($query, 'UTF-8');
 
-    // 1. Detect Core Location Entity
+    // 1. Hotel / Tourism Detector
+    $isHotelOrTourism = preg_match('/\b(hotel|hotels|otel|otelleri|resort|resorts|tatil|konaklama|pansiyon|boutique|butik otel|all inclusive|her şey dahil|rezervasyon|booking|livaneli)\b/ui', $fullContext);
+
+    // 2. Real Estate / Citizenship Detector (Strictly NOT hotels!)
+    $isCitizenshipOrRealEstate = !$isHotelOrTourism && (
+        preg_match('/\b(citizenship|citizen|passport|real estate|property|properties|villa|villas|apartment|apartments|investment|invest|residency|residence|residences)\b/ui', $fullContext) ||
+        preg_match('/(гражданств|паспорт|недвижим|квартир|вилл|внж|инвестиц)/ui', $fullContext) ||
+        preg_match('/\b(vatandaşlık|pasaport|gayrimenkul|emlak|konut|daire|villa|yatırım|ikamet)\b/ui', $fullContext)
+    );
+
+    // 3. Location Entity
     $isCyprusFocus = (
         preg_match('/\b(cyprus|north cyprus|kıbrıs|kuzey kıbrıs|kktc|esentepe|girne|kyrenia|famagusta|gazimağusa|tatlısu|iskele|lefkosa|nicosia|cordelia)\b/ui', $fullContext) ||
         preg_match('/(кипр|северный кипр|эсентепе|гирне|фамагуста|татлысу)/ui', $fullContext)
@@ -481,12 +531,6 @@ function filterKeywordsByPageContext($keywords, $pageDetails, $query, $langCode)
     $isTurkeyFocus = !$isCyprusFocus && (
         preg_match('/\b(turkish|turkey|türkiye|türk|turk|istanbul|alanya|antalya|bodrum|fethiye|izmir|ankara|mersin|bursa|trabzon)\b/ui', $fullContext) ||
         preg_match('/(турци|турецк|стамбул|алань|анталь)/ui', $fullContext)
-    );
-
-    $isCitizenshipOrRealEstate = (
-        preg_match('/\b(citizenship|citizen|passport|real estate|property|properties|villa|villas|apartment|apartments|investment|invest|residency|residence|residences)\b/ui', $fullContext) ||
-        preg_match('/(гражданств|паспорт|недвижим|квартир|вилл|внж|инвестиц)/ui', $fullContext) ||
-        preg_match('/\b(vatandaşlık|pasaport|gayrimenkul|emlak|konut|daire|villa|yatırım|ikamet)\b/ui', $fullContext)
     );
 
     // Is this a property development for sale / investment? (Strictly NOT rental!)
@@ -505,7 +549,6 @@ function filterKeywordsByPageContext($keywords, $pageDetails, $query, $langCode)
         'london', 'new york', 'california', 'florida', 'texas', 'miami', 'chicago', 'los angeles',
         'france', 'french', 'mexico', 'mexican'
     ];
-    // Remove cyprus from foreign list if cyprus is target
     if ($isCyprusFocus) {
         $foreignGeo = array_diff($foreignGeo, ['cyprus', 'greek', 'greece']);
         $foreignGeo[] = 'turkey';
@@ -522,6 +565,9 @@ function filterKeywordsByPageContext($keywords, $pageDetails, $query, $langCode)
     // Strict Rent keywords to prune for sale developments
     $strictRentPattern = '/\b(rent|rental|rentals|for rent|to rent|to let|kiralık|kira|kiralama|sahibinden|roommates|roommate|flatmate)\b/ui';
 
+    // Strict Real Estate / Citizenship keywords to prune on Hotel/Tourism sites
+    $realEstateExclusionPattern = '/\b(citizenship|citizen|vatandaşlık|passport|pasaport|real estate|gayrimenkul|satılık|for sale|buy property|invest in property|property for sale|apartments for sale|villas for sale|sale house|satılık daire|satılık ev|satılık mülk|emlak|housing)\b/ui';
+
     $filtered = [];
 
     foreach ($keywords as $kw) {
@@ -531,27 +577,32 @@ function filterKeywordsByPageContext($keywords, $pageDetails, $query, $langCode)
         if (empty($kwLower)) continue;
         if (mb_strlen($kwLower, 'UTF-8') < 3) continue;
 
-        // 1. Remove broken repeating words like "homes in homes", "homes to homes", "real estate real estate"
+        // 1. If page is Hotel / Tourism, STRICTLY exclude real estate, citizenship, and property for sale noise!
+        if ($isHotelOrTourism && preg_match($realEstateExclusionPattern, $kwLower)) {
+            continue; // ❌ REJECT real estate term on a hotel/tourism page!
+        }
+
+        // 2. Remove broken repeating words like "homes in homes", "homes to homes", "real estate real estate"
         if (preg_match('/(\b\w+\b)\s+\1/i', $kwLower) || preg_match('/(\b\w+\b)\s+\w+\s+\1/i', $kwLower)) {
             continue;
         }
 
-        // 2. Remove dangling prepositions at end: "for sale in", "housing for sale in"
+        // 3. Remove dangling prepositions at end: "for sale in", "housing for sale in"
         if (preg_match('/\b(in|to|for|at|of|on|by|and|the|a|an)$/i', $kwLower)) {
             continue;
         }
 
-        // 3. Remove meaningless 1-2 word filler like "one homes", "every homes", "no homes", "call homes"
+        // 4. Remove meaningless 1-2 word filler like "one homes", "every homes", "no homes", "call homes"
         if (preg_match('/^(one|every|no|call|our|all|the|view|city)\s+(homes|houses|properties|views)$/i', $kwLower)) {
             continue;
         }
 
-        // 4. Strict Rent Exclusion for Sale/Investment projects
+        // 5. Strict Rent Exclusion for Sale/Investment projects
         if ($isSaleProject && preg_match($strictRentPattern, $kwLower)) {
             continue; // ❌ REJECT rent/rental terms on a property sales page!
         }
 
-        // 5. Location Grounding Enforcement
+        // 6. Location Grounding Enforcement
         if ($isCyprusFocus && $isCitizenshipOrRealEstate) {
             // Drop ungrounded generic keywords that lack Cyprus location or project name
             if (preg_match($genericRealEstatePattern, $kwLower) || (!preg_match($cyprusPattern, $kwLower) && preg_match('/\b(homes|houses|properties|real estate|apartment|villas)\b/i', $kwLower) && !preg_match('/\b(mediterranean|beachfront|off plan|luxury)\b/i', $kwLower))) {

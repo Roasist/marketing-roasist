@@ -45,14 +45,21 @@ export const groupKeywordsSemantically = (kwList: KeywordMetric[]): KeywordClust
   if (!kwList || kwList.length === 0) return [];
 
   const themeRules = [
-    // 1. Costs, Fees & 400.000$ Rule
+    // 1. Hotel, Resort, Vacation & Tourism
+    {
+      id: 'hotel_tourism',
+      name: 'Otel, Tatil & Konaklama Fırsatları',
+      icon: '🏨',
+      regex: /(hotel|hotels|otel|otelleri|resort|resorts|tatil|konaklama|pansiyon|butik otel|boutique|all inclusive|her şey dahil|rezervasyon|booking)/i
+    },
+    // 2. Costs, Fees & 400.000$ Rule
     {
       id: 'costs_fees',
       name: 'Yatırım Tutarları, Fiyatlar & Harçlar',
       icon: '💰',
       regex: /(400k|400\.000|400\s?тысяч|400\s?bin|250k|тысяч|доллар|цена|стоимост|расход|минимальн|сумм|cost|costs|price|prices|fee|fees|how much|fiyat|fiyatı|fiyatları|ücret|maliyet|harç|masraf)/i
     },
-    // 2. Apartments & Flats
+    // 3. Apartments & Flats
     {
       id: 'apartments_flats',
       name: 'Satılık Daireler & Rezidanslar',
