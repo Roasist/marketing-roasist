@@ -79,9 +79,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [metaToken, setMetaToken] = useState(() => localStorage.getItem('roasist_meta_token') || '');
   const [geminiApiKey, setGeminiApiKey] = useState(() => localStorage.getItem('roasist_gemini_api_key') || '');
   const [googleApiKey, setGoogleApiKey] = useState(() => localStorage.getItem('roasist_google_api_key') || '');
+  const [googleAdsDevToken, setGoogleAdsDevToken] = useState(() => localStorage.getItem('roasist_google_dev_token') || '');
   const [googleAdsCustomerId, setGoogleAdsCustomerId] = useState(() => localStorage.getItem('roasist_google_customer_id') || '');
   const [showMetaToken, setShowMetaToken] = useState(false);
   const [showGoogleKey, setShowGoogleKey] = useState(false);
+  const [showDevToken, setShowDevToken] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [isTestingMeta, setIsTestingMeta] = useState(false);
   const [isTestingGoogle, setIsTestingGoogle] = useState(false);
@@ -141,6 +143,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           setGoogleApiKey(res.settings.googleApiKey);
           localStorage.setItem('roasist_google_api_key', res.settings.googleApiKey);
         }
+        if (res.settings.googleAdsDevToken) {
+          setGoogleAdsDevToken(res.settings.googleAdsDevToken);
+          localStorage.setItem('roasist_google_dev_token', res.settings.googleAdsDevToken);
+        }
         if (res.settings.googleAdsCustomerId) {
           setGoogleAdsCustomerId(res.settings.googleAdsCustomerId);
           localStorage.setItem('roasist_google_customer_id', res.settings.googleAdsCustomerId);
@@ -167,11 +173,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       localStorage.setItem('roasist_meta_token', metaToken);
       localStorage.setItem('roasist_gemini_api_key', geminiApiKey);
       localStorage.setItem('roasist_google_api_key', googleApiKey);
+      localStorage.setItem('roasist_google_dev_token', googleAdsDevToken);
       localStorage.setItem('roasist_google_customer_id', googleAdsCustomerId);
       await ApiService.updateSettings({
         metaToken,
         geminiApiKey,
         googleApiKey,
+        googleAdsDevToken,
         googleAdsCustomerId,
         flags: JSON.stringify(flags),
       });
@@ -192,6 +200,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         metaToken,
         geminiApiKey,
         googleApiKey,
+        googleAdsDevToken,
         googleAdsCustomerId,
         flags: JSON.stringify(flags),
       });
@@ -216,10 +225,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     setGoogleTestResult(null);
     try {
       localStorage.setItem('roasist_google_api_key', googleApiKey);
+      localStorage.setItem('roasist_google_dev_token', googleAdsDevToken);
       await ApiService.updateSettings({
         metaToken,
         geminiApiKey,
         googleApiKey,
+        googleAdsDevToken,
         googleAdsCustomerId,
         flags: JSON.stringify(flags),
       });
@@ -654,12 +665,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
               <div>
                 <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
-                  Google / Gemini API Anahtarı
+                  1. Google Gemini API Anahtarı (AI & Semantik Analiz)
                 </label>
                 <div style={{ position: 'relative', width: '100%' }}>
                   <input
                     type={showGoogleKey ? 'text' : 'password'}
-                    placeholder="AIzaSy... ile başlayan Google API Anahtarı"
+                    placeholder="AIzaSy... ile başlayan Google / Gemini API Anahtarı"
                     value={googleApiKey || geminiApiKey}
                     onChange={(e) => {
                       setGoogleApiKey(e.target.value);
@@ -687,11 +698,51 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     {showGoogleKey ? <EyeOff size={15} /> : <Eye size={15} />}
                   </button>
                 </div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                  Google AI Studio'dan alınan yapay zeka motoru anahtarı.
+                </div>
               </div>
 
               <div>
                 <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
-                  Google Ads Müşteri Kimliği (Customer ID - İsteğe Bağlı)
+                  2. Google Ads Developer Token (Resmi Ads API - İsteğe Bağlı)
+                </label>
+                <div style={{ position: 'relative', width: '100%' }}>
+                  <input
+                    type={showDevToken ? 'text' : 'password'}
+                    placeholder="Google Ads API Center'dan aldığınız Developer Token"
+                    value={googleAdsDevToken}
+                    onChange={(e) => setGoogleAdsDevToken(e.target.value)}
+                    style={{ width: '100%', paddingRight: '2.5rem', fontFamily: showDevToken ? 'var(--font-mono)' : 'inherit', fontSize: '0.8rem' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowDevToken(!showDevToken)}
+                    style={{
+                      position: 'absolute',
+                      right: '10px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--text-muted)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                    }}
+                    title={showDevToken ? 'Gizle' : 'Göster'}
+                  >
+                    {showDevToken ? <EyeOff size={15} /> : <Eye size={15} />}
+                  </button>
+                </div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                  Google Ads API Center ekranınızdaki <em>Developer token</em> (Basic Access).
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
+                  3. Google Ads Müşteri Kimliği (Customer ID - İsteğe Bağlı)
                 </label>
                 <input
                   type="text"
