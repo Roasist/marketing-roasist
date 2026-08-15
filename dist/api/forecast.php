@@ -153,46 +153,20 @@ if ($action === 'discover' && $method === 'POST') {
         } catch (Exception $e) {}
     }
 
-    // 4. Fallback Keyword Synthesizer if Gemini key not set or timed out
+    if (empty($geminiKey)) {
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'Tahminleme ve anahtar kelime motorunu çalıştırmak için lütfen Yönetim Paneli > API Bağlantıları sekmesinden Google / Gemini API Anahtarınızı kaydedin.'
+        ]);
+        exit;
+    }
+
     if (empty($keywordsResult)) {
-        $baseWords = array_merge([$query], $googleSuggestions);
-        $suffixes = ['fiyatları', 'satın al', 'en iyi', 'kampanyaları', 'modelleri', 'online sipariş', 'tavsiye', 'ücretleri', 'indirim'];
-        
-        $synthList = [];
-        $idCounter = 1;
-        foreach ($baseWords as $bw) {
-            $bw = trim($bw);
-            if (empty($bw) || strlen($bw) < 3) continue;
-
-            $synthList[] = [
-                'id' => 'kw_' . $idCounter++,
-                'keyword' => $bw,
-                'monthlyVolume' => rand(1500, 45000),
-                'lowCpc' => round(rand(250, 650) / 100, 2),
-                'highCpc' => round(rand(800, 2200) / 100, 2),
-                'competition' => (rand(0, 10) > 4 ? 'HIGH' : 'MEDIUM'),
-                'competitionIndex' => rand(45, 95),
-                'intent' => (rand(0, 10) > 3 ? 'TRANSACTIONAL' : 'COMMERCIAL'),
-                'trendChangePercent' => rand(-10, 45),
-                'opportunityScore' => rand(65, 96),
-            ];
-
-            foreach (array_slice($suffixes, 0, 3) as $sfx) {
-                $synthList[] = [
-                    'id' => 'kw_' . $idCounter++,
-                    'keyword' => $bw . ' ' . $sfx,
-                    'monthlyVolume' => rand(500, 18000),
-                    'lowCpc' => round(rand(350, 950) / 100, 2),
-                    'highCpc' => round(rand(1100, 2800) / 100, 2),
-                    'competition' => 'HIGH',
-                    'competitionIndex' => rand(60, 98),
-                    'intent' => 'TRANSACTIONAL',
-                    'trendChangePercent' => rand(5, 60),
-                    'opportunityScore' => rand(70, 98),
-                ];
-            }
-        }
-        $keywordsResult = array_slice($synthList, 0, 30);
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'Bu arama terimi için anahtar kelime verisi alınamadı. Lütfen API anahtarınızı doğrulayın veya farklı bir web sitesi / terim deneyin.'
+        ]);
+        exit;
     }
 
     // Add unique IDs

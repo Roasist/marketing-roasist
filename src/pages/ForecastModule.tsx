@@ -27,7 +27,7 @@ interface ForecastModuleProps {
 
 export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) => {
   // Search & Discovery State
-  const [query, setQuery] = useState('summerhomes.com');
+  const [query, setQuery] = useState('');
   const [mode, setMode] = useState<'URL' | 'KEYWORDS'>('URL');
   const [country, setCountry] = useState('TR');
   const [language, setLanguage] = useState('tr');
@@ -35,7 +35,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Data Results
-  const [sectorName, setSectorName] = useState<string>('Gayrimenkul & Yatırım');
+  const [sectorName, setSectorName] = useState<string>('');
   const [keywords, setKeywords] = useState<KeywordMetric[]>([]);
   const [selectedKeywordIds, setSelectedKeywordIds] = useState<Set<string>>(new Set());
 
@@ -70,7 +70,6 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
   useEffect(() => {
     loadSavedPlans();
-    handleDiscover();
   }, [workspaceId]);
 
   // Execute Keyword Discovery
@@ -443,74 +442,125 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         )}
       </div>
 
-      {/* 3. Aggregate KPI Metric Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
-        
-        {/* Total Volume */}
-        <div className="card" style={{ padding: '1.15rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Toplam Aylık Hacim</span>
-            <div style={{ padding: '6px', borderRadius: '50%', backgroundColor: 'var(--bg-surface-elevated)', color: 'var(--brand-primary)' }}>
-              <Eye size={15} />
+      {/* 3. Aggregate KPI Metric Cards or Empty State */}
+      {keywords.length === 0 && activeTab !== 'saved-plans' ? (
+        <div className="card" style={{ padding: '3.5rem 1.5rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1rem' }}>
+          <div style={{ width: '64px', height: '64px', borderRadius: '50%', backgroundColor: 'rgba(37, 99, 235, 0.1)', color: 'var(--brand-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Search size={32} />
+          </div>
+          <div>
+            <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+              Google Ads Tahminleme & Bütçe Planlama
+            </div>
+            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', maxWidth: '550px', margin: '0.5rem auto 0 auto', lineHeight: 1.5 }}>
+              Yukarıdaki arama kutusuna analiz etmek istediğiniz <strong>web sitesini</strong> (örn: <code>summerhomes.com</code>) veya sektörel <strong>anahtar kelimeleri</strong> yazarak <em>"Analiz Et & Tahmin Çıkar"</em> butonuna tıklayın.
             </div>
           </div>
-          <div style={{ fontSize: '1.65rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '0.35rem' }}>
-            {totalSearchVolume.toLocaleString('tr-TR')}
-          </div>
-          <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
-            Seçili {selectedKeywordsPool.length} anahtar kelimenin toplam aylık araması
-          </div>
-        </div>
 
-        {/* Avg Top of Page CPC */}
-        <div className="card" style={{ padding: '1.15rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Ort. Sayfa Üstü TBM (CPC)</span>
-            <div style={{ padding: '6px', borderRadius: '50%', backgroundColor: 'var(--bg-surface-elevated)', color: '#34d399' }}>
-              <DollarSign size={15} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Hızlı Başlangıç:</span>
+            {[
+              { label: 'summerhomes.com', mode: 'URL' as const },
+              { label: 'livanelihotels.com', mode: 'URL' as const },
+              { label: '23projects.net', mode: 'URL' as const },
+              { label: 'dijital pazarlama ajansı', mode: 'KEYWORDS' as const },
+            ].map(chip => (
+              <button
+                key={chip.label}
+                onClick={() => {
+                  setQuery(chip.label);
+                  setMode(chip.mode);
+                  handleDiscover(chip.label, chip.mode);
+                }}
+                className="btn-ghost"
+                style={{ fontSize: '0.75rem', padding: '0.3rem 0.65rem', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-full)' }}
+              >
+                + {chip.label}
+              </button>
+            ))}
+          </div>
+
+          {savedPlans.length > 0 && (
+            <div style={{ marginTop: '0.5rem' }}>
+              <button
+                onClick={() => { setActiveTab('saved-plans'); loadSavedPlans(); }}
+                className="btn-secondary"
+                style={{ fontSize: '0.8rem', padding: '0.4rem 0.85rem' }}
+              >
+                <FolderDown size={14} /> Kayıtlı Planları Görüntüle ({savedPlans.length})
+              </button>
             </div>
-          </div>
-          <div style={{ fontSize: '1.65rem', fontWeight: 700, color: '#34d399', marginTop: '0.35rem' }}>
-            ₺{avgTopPageCpc.toFixed(2)}
-          </div>
-          <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
-            Google 1. sıra hedefi için ortalama tıklama başı maliyet
-          </div>
+          )}
         </div>
-
-        {/* High-Intent Ratio */}
-        <div className="card" style={{ padding: '1.15rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Satın Alma Odaklı Kelimeler</span>
-            <div style={{ padding: '6px', borderRadius: '50%', backgroundColor: 'var(--bg-surface-elevated)', color: 'var(--info)' }}>
-              <Target size={15} />
+      ) : (
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
+            
+            {/* Total Volume */}
+            <div className="card" style={{ padding: '1.15rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Toplam Aylık Hacim</span>
+                <div style={{ padding: '6px', borderRadius: '50%', backgroundColor: 'var(--bg-surface-elevated)', color: 'var(--brand-primary)' }}>
+                  <Eye size={15} />
+                </div>
+              </div>
+              <div style={{ fontSize: '1.65rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '0.35rem' }}>
+                {totalSearchVolume.toLocaleString('tr-TR')}
+              </div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                Seçili {selectedKeywordsPool.length} anahtar kelimenin toplam aylık araması
+              </div>
             </div>
-          </div>
-          <div style={{ fontSize: '1.65rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '0.35rem' }}>
-            %{highIntentRatio}
-          </div>
-          <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
-            Doğrudan sipariş veya talep getiren yüksek niyetli kelime oranı
-          </div>
-        </div>
 
-        {/* Opportunity Score */}
-        <div className="card" style={{ padding: '1.15rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Sektörel Fırsat Skoru</span>
-            <div style={{ padding: '6px', borderRadius: '50%', backgroundColor: 'var(--bg-surface-elevated)', color: '#facc15' }}>
-              <Sparkles size={15} />
+            {/* Avg Top of Page CPC */}
+            <div className="card" style={{ padding: '1.15rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Ort. Sayfa Üstü TBM (CPC)</span>
+                <div style={{ padding: '6px', borderRadius: '50%', backgroundColor: 'var(--bg-surface-elevated)', color: '#34d399' }}>
+                  <DollarSign size={15} />
+                </div>
+              </div>
+              <div style={{ fontSize: '1.65rem', fontWeight: 700, color: '#34d399', marginTop: '0.35rem' }}>
+                ₺{avgTopPageCpc.toFixed(2)}
+              </div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                Google 1. sıra hedefi için ortalama tıklama başı maliyet
+              </div>
             </div>
-          </div>
-          <div style={{ fontSize: '1.65rem', fontWeight: 700, color: '#facc15', marginTop: '0.35rem' }}>
-            {avgOpportunityScore} / 100
-          </div>
-          <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
-            {sectorName} kategorisindeki kâr ve rekabet avantajı
-          </div>
-        </div>
 
-      </div>
+            {/* High-Intent Ratio */}
+            <div className="card" style={{ padding: '1.15rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Satın Alma Odaklı Kelimeler</span>
+                <div style={{ padding: '6px', borderRadius: '50%', backgroundColor: 'var(--bg-surface-elevated)', color: 'var(--info)' }}>
+                  <Target size={15} />
+                </div>
+              </div>
+              <div style={{ fontSize: '1.65rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '0.35rem' }}>
+                %{highIntentRatio}
+              </div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                Doğrudan sipariş veya talep getiren yüksek niyetli kelime oranı
+              </div>
+            </div>
+
+            {/* Opportunity Score */}
+            <div className="card" style={{ padding: '1.15rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Sektörel Fırsat Skoru</span>
+                <div style={{ padding: '6px', borderRadius: '50%', backgroundColor: 'var(--bg-surface-elevated)', color: '#facc15' }}>
+                  <Sparkles size={15} />
+                </div>
+              </div>
+              <div style={{ fontSize: '1.65rem', fontWeight: 700, color: '#facc15', marginTop: '0.35rem' }}>
+                {avgOpportunityScore} / 100
+              </div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                {sectorName} kategorisindeki kâr ve rekabet avantajı
+              </div>
+            </div>
+
+          </div>
 
       {/* 4. Navigation Sub-Tabs */}
       <div style={{ display: 'flex', gap: '0.35rem', borderBottom: '1px solid var(--border-default)', paddingBottom: '0.5rem', overflowX: 'auto' }}>
@@ -1078,6 +1128,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           </div>
 
         </div>
+      )}
+
+        </>
       )}
 
     </div>
