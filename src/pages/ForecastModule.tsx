@@ -19,7 +19,12 @@ import {
   FolderDown,
   Globe,
   Languages,
-  CheckCircle2
+  CheckCircle2,
+  ArrowRight,
+  ArrowLeft,
+  Plus,
+  X,
+  Tag
 } from 'lucide-react';
 import { KeywordMetric, ForecastSimulation, NegativeCategory, ForecastPlan, CountryOption, CountryMetric } from '../types/forecast';
 import { ApiService } from '../services/apiService';
@@ -43,6 +48,9 @@ interface ForecastModuleProps {
 }
 
 export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) => {
+  // Stepper State: 1 = Sayfa Kelimeleri, 2 = Hedef Pazarlar, 3 = Hacim & Forecast
+  const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
+
   // Search & Discovery State
   const [query, setQuery] = useState('');
   const [mode, setMode] = useState<'URL' | 'KEYWORDS'>('URL');
@@ -57,6 +65,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   const [pageSummary, setPageSummary] = useState<string>('');
   const [keywords, setKeywords] = useState<KeywordMetric[]>([]);
   const [selectedKeywordIds, setSelectedKeywordIds] = useState<Set<string>>(new Set());
+  const [newKeywordInput, setNewKeywordInput] = useState<string>('');
 
   // Step 2: Target Countries / Multi-Market Selection
   const [availableCountries, setAvailableCountries] = useState<CountryOption[]>(DEFAULT_GLOBAL_COUNTRIES);
@@ -142,6 +151,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         const allIds = new Set<string>(res.keywords.map((k: KeywordMetric) => k.id));
         setSelectedKeywordIds(allIds);
 
+        // Switch to Step 1 for user review
+        setCurrentStep(1);
+
         // Fetch negative keywords in the detected language
         loadNegatives(res.sector || 'Genel', res.keywords.map((k: KeywordMetric) => k.keyword), res.detectedLanguage || 'tr');
       } else {
@@ -152,6 +164,37 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleAddCustomKeyword = () => {
+    if (!newKeywordInput.trim()) return;
+    const cleanKw = newKeywordInput.trim();
+    const newId = 'custom_' + Date.now();
+    const newMetric: KeywordMetric = {
+      id: newId,
+      keyword: cleanKw,
+      monthlyVolume: 4200,
+      lowCpc: 4.80,
+      highCpc: 19.50,
+      competition: 'MEDIUM',
+      competitionIndex: 65,
+      intent: 'TRANSACTIONAL',
+      trendChangePercent: 15,
+      opportunityScore: 88
+    };
+    setKeywords(prev => [newMetric, ...prev]);
+    setSelectedKeywordIds(prev => new Set([...prev, newId]));
+    setNewKeywordInput('');
+  };
+
+  const handleRemoveKeyword = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setKeywords(prev => prev.filter(k => k.id !== id));
+    setSelectedKeywordIds(prev => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
   };
 
   const loadNegatives = async (sector: string, kwList: string[], lang: string) => {
@@ -248,24 +291,27 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
   // Overall Aggregate KPIs (Scaled with Active Target Countries)
   const baseSearchVolume = useMemo(() => {
-    return selectedKeywordsPool.reduce((acc, k) => acc + k.monthlyVolume, 0);
+    return selectedKeywordsPool.reduce((sum, k) => sum + k.monthlyVolume, 0);
   }, [selectedKeywordsPool]);
 
   const totalSearchVolume = useMemo(() => {
     return Math.round(baseSearchVolume * totalVolumeMultiplier);
   }, [baseSearchVolume, totalVolumeMultiplier]);
 
-  const avgTopPageCpc = useMemo(() => {
+  const baseTopPageCpc = useMemo(() => {
     if (selectedKeywordsPool.length === 0) return 0;
-    const sum = selectedKeywordsPool.reduce((acc, k) => acc + ((k.lowCpc + k.highCpc) / 2), 0);
-    const baseAvg = sum / selectedKeywordsPool.length;
-    return Math.round(baseAvg * blendedCpcMultiplier * 100) / 100;
-  }, [selectedKeywordsPool, blendedCpcMultiplier]);
+    const sumCpc = selectedKeywordsPool.reduce((sum, k) => sum + ((k.lowCpc + k.highCpc) / 2), 0);
+    return sumCpc / selectedKeywordsPool.length;
+  }, [selectedKeywordsPool]);
+
+  const avgTopPageCpc = useMemo(() => {
+    return baseTopPageCpc * blendedCpcMultiplier;
+  }, [baseTopPageCpc, blendedCpcMultiplier]);
 
   const highIntentRatio = useMemo(() => {
     if (selectedKeywordsPool.length === 0) return 0;
-    const high = selectedKeywordsPool.filter(k => k.intent === 'TRANSACTIONAL').length;
-    return Math.round((high / selectedKeywordsPool.length) * 100);
+    const transactionalCount = selectedKeywordsPool.filter(k => k.intent === 'TRANSACTIONAL').length;
+    return Math.round((transactionalCount / selectedKeywordsPool.length) * 100);
   }, [selectedKeywordsPool]);
 
   // 🎛️ Real-Time Dynamic Simulation Calculation
@@ -322,6 +368,14 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     });
   }, [activeCountries, baseSearchVolume, avgTopPageCpc, blendedCpcMultiplier, simulation]);
 
+  // Copy Negative Keywords to Clipboard
+  const handleCopyNegatives = (words: string[], categoryTitle: string) => {
+    const text = words.join('\n');
+    navigator.clipboard.writeText(text);
+    setCopiedCategory(categoryTitle);
+    setTimeout(() => setCopiedCategory(null), 2000);
+  };
+
   // Save Plan Action
   const handleSavePlan = async () => {
     try {
@@ -330,10 +384,14 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         name: `${query} (${sectorName}) - ₺${monthlyBudget.toLocaleString('tr-TR')} Bütçe Planı`,
         targetUrl: mode === 'URL' ? query : '',
         seedKeywords: mode === 'KEYWORDS' ? query : '',
+        detectedLanguage,
+        detectedLanguageName,
         monthlyBudget,
         selectedKeywords: selectedKeywordsPool,
         simulationResult: simulation,
-        negativeKeywords: negativeCategories
+        negativeKeywords: negativeCategories,
+        targetCountries: activeCountries.map(c => c.name),
+        countryBreakdown
       });
       setPlanSaveSuccess(true);
       setTimeout(() => setPlanSaveSuccess(false), 2500);
@@ -343,39 +401,37 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     }
   };
 
-  // Copy Negative Keywords to Clipboard
-  const handleCopyNegatives = (words: string[], categoryTitle: string) => {
-    const text = words.join('\n');
-    navigator.clipboard.writeText(text);
-    setCopiedCategory(categoryTitle);
-    setTimeout(() => setCopiedCategory(null), 2000);
-  };
-
-  // Export CSV
+  // Export to CSV
   const handleExportCsv = () => {
-    const headers = ['Anahtar Kelime', 'Aylık Hacim', 'Min TBM (TL)', 'Max TBM (TL)', 'Rekabet', 'Arama Niyeti', 'Fırsat Skoru'];
-    const rows = filteredKeywords.map(k => [
+    if (keywords.length === 0) return;
+    const headers = ['Anahtar Kelime', 'Dil', 'Hedef Pazarlar', 'Aylık Hacim', '3 Aylık Trend %', 'Rekabet Düzeyi', 'Min TBM (₺)', 'Max TBM (₺)', 'Ort TBM (₺)', 'Arama Niyeti', 'Fırsat Skoru'];
+    const activeCountryNames = activeCountries.map(c => c.name).join(' + ');
+    const rows = selectedKeywordsPool.map(k => [
       `"${k.keyword}"`,
-      k.monthlyVolume,
-      k.lowCpc,
-      k.highCpc,
+      `"${detectedLanguageName}"`,
+      `"${activeCountryNames}"`,
+      Math.round(k.monthlyVolume * totalVolumeMultiplier),
+      `${k.trendChangePercent}%`,
       k.competition,
+      (k.lowCpc * blendedCpcMultiplier).toFixed(2),
+      (k.highCpc * blendedCpcMultiplier).toFixed(2),
+      (((k.lowCpc + k.highCpc) / 2) * blendedCpcMultiplier).toFixed(2),
       k.intent,
       k.opportunityScore
     ]);
 
-    const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `Roasist_Forecast_${query.replace(/[^a-zA-Z0-9]/g, '_')}.csv`);
+    link.setAttribute('download', `Google_Ads_Forecast_${(query || 'analiz').replace(/[^a-zA-Z0-9]/g, '_')}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', maxWidth: '1600px', margin: '0 auto' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
       
       {/* 1. Header & Value Proposition */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
@@ -389,7 +445,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
             </span>
           </div>
           <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-            Arama hacimleri, TBM maliyetleri, canlı bütçe simülasyonu ve bütçe israfını önleyen negatif kelime kalkanı.
+            3 Aşamalı Akıllı Akış: Sayfa Analizi ➔ Hedef Ülke Seçimi ➔ Hacim, TBM & ROAS Simülasyonu.
           </p>
         </div>
 
@@ -463,7 +519,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           {/* Quick Examples */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
             <span>Örnekler:</span>
-            {['summerhomes.com', '23projects.net', 'villa kiralama alanya', 'dijital pazarlama ajansı'].map((ex) => (
+            {['https://grazhdanstvo.23projects.net/', 'summerhomes.com', 'roasist.com', 'dijital pazarlama ajansı'].map((ex) => (
               <button
                 key={ex}
                 onClick={() => {
@@ -502,7 +558,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
             style={{ padding: '0.55rem 1.25rem', fontSize: '0.85rem', whiteSpace: 'nowrap' }}
           >
             <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
-            {isLoading ? 'Sayfa Kazınıyor & Analiz Ediliyor...' : 'Analiz Et & Keşfet'}
+            {isLoading ? 'Sayfayı Tara & Kelimeleri Çıkar...' : 'Sayfayı Tara & Kelimeleri Çıkar'}
           </button>
         </div>
 
@@ -513,7 +569,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         )}
       </div>
 
-      {/* 3. Empty State OR (Step 1 + Step 2 + KPIs) */}
+      {/* 3. Empty State OR 3-Step Stepper Wizard */}
       {keywords.length === 0 && activeTab !== 'saved-plans' ? (
         <div className="card" style={{ padding: '3.5rem 1.5rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1rem' }}>
           <div style={{ width: '64px', height: '64px', borderRadius: '50%', backgroundColor: 'rgba(37, 99, 235, 0.1)', color: 'var(--brand-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -524,7 +580,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
               Google Ads Akıllı Tahminleme & Bütçe Planlama
             </div>
             <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', maxWidth: '580px', margin: '0.5rem auto 0 auto', lineHeight: 1.5 }}>
-              Yukarıdaki arama kutusuna analiz etmek istediğiniz <strong>landing page / web sitesini</strong> (örn: <code>https://grazhdanstvo.23projects.net/</code>) yazın. Sistemimiz sayfanın dilini ve sektörel içeriğini otomatik algılayacaktır.
+              Yukarıdaki arama kutusuna analiz etmek istediğiniz <strong>landing page / web sitesini</strong> (örn: <code>https://grazhdanstvo.23projects.net/</code>) yazın. Sistemimiz sayfanın dilini ve sektörel içeriğini otomatik tarayıp anahtar kelimeleri çıkaracaktır.
             </div>
           </div>
 
@@ -533,7 +589,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
             {[
               { label: 'https://grazhdanstvo.23projects.net/', mode: 'URL' as const },
               { label: 'summerhomes.com', mode: 'URL' as const },
-              { label: 'livanelihotels.com', mode: 'URL' as const },
+              { label: 'roasist.com', mode: 'URL' as const },
               { label: 'dijital pazarlama ajansı', mode: 'KEYWORDS' as const },
             ].map(chip => (
               <button
@@ -565,182 +621,452 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         </div>
       ) : (
         <>
-          {/* STEP 1: Auto-Detected Language & Page Summary Card */}
-          <div className="card" style={{ padding: '1rem 1.25rem', backgroundColor: 'var(--bg-surface)', borderLeft: '4px solid var(--brand-primary)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-              <div style={{ padding: '8px', borderRadius: '50%', backgroundColor: 'rgba(37, 99, 235, 0.1)', color: 'var(--brand-primary)' }}>
-                <Languages size={20} />
+          {/* 3-Step Wizard Navigation Bar */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', backgroundColor: 'var(--bg-surface)', padding: '0.65rem 1rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)', overflowX: 'auto' }}>
+            
+            {/* Step 1 Pill */}
+            <div 
+              onClick={() => setCurrentStep(1)}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer', opacity: currentStep === 1 ? 1 : 0.6, transition: 'all 0.15s ease' }}
+            >
+              <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: currentStep === 1 ? 'var(--brand-primary)' : 'var(--bg-surface-elevated)', color: currentStep === 1 ? '#ffffff' : 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.82rem', fontWeight: 700 }}>
+                1
               </div>
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.5px' }}>1. ADIM: SAYFA DİLİ & BAĞLAM</span>
-                  <span className="badge badge-active" style={{ fontSize: '0.725rem' }}>
-                    <CheckCircle2 size={11} /> {detectedLanguageName} ({detectedLanguage.toUpperCase()}) — Otomatik Algılandı
-                  </span>
-                  {sectorName && (
-                    <span className="badge badge-neutral" style={{ fontSize: '0.725rem' }}>
-                      {sectorName}
-                    </span>
-                  )}
+                <div style={{ fontSize: '0.82rem', fontWeight: 600, color: currentStep === 1 ? 'var(--brand-primary)' : 'var(--text-primary)' }}>
+                  1. Sayfa Analizi & Kelimeler
                 </div>
-                <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)', marginTop: '0.2rem' }}>
-                  {pageTitle || query}
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                  {detectedLanguageName} • {selectedKeywordIds.size} / {keywords.length} Kelime Seçili
                 </div>
               </div>
             </div>
 
-            {pageSummary && (
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', maxWidth: '450px', lineHeight: 1.45, backgroundColor: 'var(--bg-surface-elevated)', padding: '0.4rem 0.65rem', borderRadius: 'var(--radius-xs)' }}>
-                💡 {pageSummary}
+            <ArrowRight size={16} color="var(--border-default)" />
+
+            {/* Step 2 Pill */}
+            <div 
+              onClick={() => setCurrentStep(2)}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer', opacity: currentStep === 2 ? 1 : 0.6, transition: 'all 0.15s ease' }}
+            >
+              <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: currentStep === 2 ? 'var(--brand-primary)' : 'var(--bg-surface-elevated)', color: currentStep === 2 ? '#ffffff' : 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.82rem', fontWeight: 700 }}>
+                2
               </div>
-            )}
+              <div>
+                <div style={{ fontSize: '0.82rem', fontWeight: 600, color: currentStep === 2 ? 'var(--brand-primary)' : 'var(--text-primary)' }}>
+                  2. Hedef Pazar & Ülkeler
+                </div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                  {activeCountries.length} Ülke Aktif ({activeCountries.map(c => c.flag).join(' ')})
+                </div>
+              </div>
+            </div>
+
+            <ArrowRight size={16} color="var(--border-default)" />
+
+            {/* Step 3 Pill */}
+            <div 
+              onClick={() => setCurrentStep(3)}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer', opacity: currentStep === 3 ? 1 : 0.6, transition: 'all 0.15s ease' }}
+            >
+              <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: currentStep === 3 ? 'var(--brand-primary)' : 'var(--bg-surface-elevated)', color: currentStep === 3 ? '#ffffff' : 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.82rem', fontWeight: 700 }}>
+                3
+              </div>
+              <div>
+                <div style={{ fontSize: '0.82rem', fontWeight: 600, color: currentStep === 3 ? 'var(--brand-primary)' : 'var(--text-primary)' }}>
+                  3. Hacim & Bütçe Tahmini
+                </div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                  {totalSearchVolume.toLocaleString('tr-TR')} Aylık Hacim • ₺{avgTopPageCpc.toFixed(2)} TBM
+                </div>
+              </div>
+            </div>
+
           </div>
 
-          {/* STEP 2: Multi-Country Target Market Selection */}
-          <div className="card" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <div style={{ padding: '6px', borderRadius: '50%', backgroundColor: 'rgba(37, 99, 235, 0.1)', color: 'var(--brand-primary)' }}>
-                  <Globe size={18} />
+          {/* ========================================================================= */}
+          {/* STEP 1 VIEW: Landing Page Context & Keyword Review / Selection           */}
+          {/* ========================================================================= */}
+          {currentStep === 1 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              
+              {/* Context Summary Header */}
+              <div className="card" style={{ padding: '1rem 1.25rem', backgroundColor: 'var(--bg-surface)', borderLeft: '4px solid var(--brand-primary)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+                  <div style={{ padding: '8px', borderRadius: '50%', backgroundColor: 'rgba(37, 99, 235, 0.1)', color: 'var(--brand-primary)' }}>
+                    <Languages size={20} />
+                  </div>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.5px' }}>AÇILIŞ SAYFASI ANALİZİ</span>
+                      <span className="badge badge-active" style={{ fontSize: '0.725rem' }}>
+                        <CheckCircle2 size={11} /> {detectedLanguageName} ({detectedLanguage.toUpperCase()}) — Otomatik Algılandı
+                      </span>
+                      {sectorName && (
+                        <span className="badge badge-neutral" style={{ fontSize: '0.725rem' }}>
+                          {sectorName}
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)', marginTop: '0.2rem' }}>
+                      {pageTitle || query}
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <div style={{ fontSize: '0.925rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                    2. Adım: Hedef Pazar & Ülke Seçimi ({activeCountries.length} Ülke Seçili)
+
+                {pageSummary && (
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', maxWidth: '450px', lineHeight: 1.45, backgroundColor: 'var(--bg-surface-elevated)', padding: '0.4rem 0.65rem', borderRadius: 'var(--radius-xs)' }}>
+                    💡 {pageSummary}
                   </div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                    Bu kampanyayı hangi ülkelerde yayınlayacaksınız? Seçtiğiniz pazarlara göre arama hacimleri ve TBM (tıklama maliyetleri) anlık hesaplanır.
+                )}
+              </div>
+
+              {/* Keyword Extraction & Selection Board */}
+              <div className="card" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+                  <div>
+                    <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <Tag size={16} color="var(--brand-primary)" />
+                      Sayfadan Tespit Edilen Anahtar Kelimeler ({keywords.length} Adet)
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
+                      Açılış sayfanızın içeriğinden çıkarılan tohum kelimeler aşağıdadır. İstemediğiniz kelimelerin onayını kaldırabilir veya yenilerini ekleyebilirsiniz.
+                    </div>
                   </div>
+
+                  {/* Actions & Counters */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <button
+                      onClick={toggleSelectAll}
+                      className="btn-ghost"
+                      style={{ fontSize: '0.75rem', padding: '0.35rem 0.65rem', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-xs)' }}
+                    >
+                      {selectedKeywordIds.size === filteredKeywords.length ? 'Seçimi Temizle' : `Tümünü Seç (${filteredKeywords.length})`}
+                    </button>
+                    
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                      Seçili: <strong style={{ color: 'var(--brand-primary)' }}>{selectedKeywordIds.size}</strong> / {keywords.length}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Quick Add Custom Keyword Bar */}
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  <input
+                    type="text"
+                    placeholder={`Sayfaya yeni bir ${detectedLanguageName} anahtar kelime ekleyin...`}
+                    value={newKeywordInput}
+                    onChange={(e) => setNewKeywordInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleAddCustomKeyword(); }}
+                    style={{ flex: 1, fontSize: '0.8rem', padding: '0.4rem 0.75rem' }}
+                  />
+                  <button
+                    onClick={handleAddCustomKeyword}
+                    disabled={!newKeywordInput.trim()}
+                    className="btn-secondary"
+                    style={{ fontSize: '0.78rem', padding: '0.4rem 0.85rem' }}
+                  >
+                    <Plus size={13} /> Kelime Ekle
+                  </button>
+                </div>
+
+                {/* Interactive Keyword Grid / Tags */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '0.65rem', maxHeight: '420px', overflowY: 'auto', padding: '0.25rem' }}>
+                  {keywords.map(kw => {
+                    const isSelected = selectedKeywordIds.has(kw.id);
+                    return (
+                      <div
+                        key={kw.id}
+                        onClick={() => toggleKeyword(kw.id)}
+                        style={{
+                          padding: '0.55rem 0.75rem',
+                          borderRadius: 'var(--radius-sm)',
+                          border: isSelected ? '1.5px solid var(--brand-primary)' : '1px solid var(--border-default)',
+                          backgroundColor: isSelected ? 'rgba(37, 99, 235, 0.08)' : 'var(--bg-surface-elevated)',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '0.5rem',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 0, flex: 1 }}>
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleKeyword(kw.id)}
+                            onClick={(e) => e.stopPropagation()}
+                            style={{ cursor: 'pointer' }}
+                          />
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <div style={{ fontSize: '0.82rem', fontWeight: isSelected ? 600 : 400, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {kw.keyword}
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.15rem' }}>
+                              <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+                                {kw.monthlyVolume.toLocaleString('tr-TR')} arama
+                              </span>
+                              <span style={{ fontSize: '0.65rem', padding: '1px 4px', borderRadius: '3px', backgroundColor: kw.intent === 'TRANSACTIONAL' ? 'rgba(34, 197, 94, 0.15)' : 'rgba(59, 130, 246, 0.15)', color: kw.intent === 'TRANSACTIONAL' ? '#16a34a' : 'var(--brand-primary)', fontWeight: 600 }}>
+                                {kw.intent === 'TRANSACTIONAL' ? 'Satın Alma' : 'Araştırma'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Remove button */}
+                        <button
+                          onClick={(e) => handleRemoveKeyword(kw.id, e)}
+                          title="Listeden Kaldır"
+                          className="btn-ghost"
+                          style={{ padding: '3px', color: 'var(--text-muted)', borderRadius: '50%' }}
+                        >
+                          <X size={13} />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Step 1 Next Action */}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--border-default)', paddingTop: '0.75rem' }}>
+                  <button
+                    onClick={() => setCurrentStep(2)}
+                    disabled={selectedKeywordIds.size === 0}
+                    className="btn-primary"
+                    style={{ fontSize: '0.85rem', padding: '0.55rem 1.25rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+                  >
+                    <span>2. Adım: Hedef Pazar & Ülke Seçimine Geç</span>
+                    <ArrowRight size={15} />
+                  </button>
+                </div>
+
+              </div>
+
+            </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* STEP 2 VIEW: Target Market & Multi-Country Selection                     */}
+          {/* ========================================================================= */}
+          {currentStep === 2 && (
+            <div className="card" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <div style={{ padding: '8px', borderRadius: '50%', backgroundColor: 'rgba(37, 99, 235, 0.1)', color: 'var(--brand-primary)' }}>
+                    <Globe size={20} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                      2. Adım: Hedef Pazar & Ülke Seçimi ({activeCountries.length} Ülke Seçili)
+                    </div>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
+                      Seçilen <strong>{selectedKeywordIds.size} anahtar kelimeyi</strong> hangi ülke pazarlarında yayınlayacaksınız? Seçimlerinize göre arama hacimleri ve ortalama TBM anlık hesaplanır.
+                    </div>
+                  </div>
+                </div>
+
+                {/* Quick Region Presets */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Hazır Pazar Paketleri:</span>
+                  {[
+                    { label: '🇷🇺 BDT & Rusça', codes: ['RU', 'KZ', 'UZ'] },
+                    { label: '🇦🇪 Körfez / GCC', codes: ['AE', 'SA'] },
+                    { label: '🇹🇷 Türkiye İçi', codes: ['TR'] },
+                    { label: '🇩🇪 Avrupa', codes: ['DE', 'GB', 'NL'] },
+                    { label: '✨ Tümünü Seç', codes: availableCountries.map(c => c.code) },
+                  ].map(p => (
+                    <button
+                      key={p.label}
+                      onClick={() => selectRegionPreset(p.codes)}
+                      className="btn-ghost"
+                      style={{ fontSize: '0.72rem', padding: '0.3rem 0.6rem', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-xs)' }}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
                 </div>
               </div>
 
-              {/* Quick Region Presets */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Hazır Pazar Paketleri:</span>
-                {[
-                  { label: '🇷🇺 BDT & Rusça', codes: ['RU', 'KZ', 'UZ'] },
-                  { label: '🇦🇪 Körfez / GCC', codes: ['AE', 'SA'] },
-                  { label: '🇹🇷 Türkiye İçi', codes: ['TR'] },
-                  { label: '🇩🇪 Avrupa', codes: ['DE', 'GB', 'NL'] },
-                  { label: '✨ Tümünü Seç', codes: availableCountries.map(c => c.code) },
-                ].map(p => (
+              {/* Country Pills (Multi-Select) */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '0.65rem' }}>
+                {availableCountries.map(c => {
+                  const isSelected = selectedCountryCodes.has(c.code);
+                  return (
+                    <button
+                      key={c.code}
+                      onClick={() => toggleCountry(c.code)}
+                      style={{
+                        padding: '0.65rem 0.85rem',
+                        borderRadius: 'var(--radius-sm)',
+                        border: isSelected ? '1.5px solid var(--brand-primary)' : '1px solid var(--border-default)',
+                        backgroundColor: isSelected ? 'rgba(37, 99, 235, 0.12)' : 'var(--bg-surface-elevated)',
+                        color: isSelected ? 'var(--text-primary)' : 'var(--text-secondary)',
+                        fontSize: '0.82rem',
+                        fontWeight: isSelected ? 600 : 400,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '0.5rem',
+                        transition: 'all 0.15s ease',
+                        textAlign: 'left'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span style={{ fontSize: '1.25rem' }}>{c.flag}</span>
+                        <div>
+                          <div>{c.name}</div>
+                          <div style={{ fontSize: '0.7rem', color: isSelected ? 'var(--brand-primary)' : 'var(--text-muted)' }}>
+                            TBM Çarpanı: {c.cpcMultiplier}x ({c.currency})
+                          </div>
+                        </div>
+                      </div>
+                      {isSelected && <Check size={16} color="var(--brand-primary)" />}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Selected Market Impact Summary */}
+              <div style={{ backgroundColor: 'var(--bg-surface-elevated)', padding: '0.85rem 1rem', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                  Seçili Pazarlar: <strong>{activeCountries.map(c => c.name).join(', ')}</strong>
+                </div>
+                <div style={{ display: 'flex', gap: '1rem', fontSize: '0.78rem' }}>
+                  <span>Toplam Pazar Hacim Çarpanı: <strong style={{ color: 'var(--brand-primary)' }}>{totalVolumeMultiplier.toFixed(2)}x</strong></span>
+                  <span>Ağırlıklı TBM Çarpanı: <strong style={{ color: '#34d399' }}>{blendedCpcMultiplier.toFixed(2)}x</strong></span>
+                </div>
+              </div>
+
+              {/* Navigation Actions */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border-default)', paddingTop: '0.85rem' }}>
+                <button
+                  onClick={() => setCurrentStep(1)}
+                  className="btn-secondary"
+                  style={{ fontSize: '0.82rem', padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                >
+                  <ArrowLeft size={14} />
+                  <span>1. Adım: Kelimelere Dön</span>
+                </button>
+
+                <button
+                  onClick={() => setCurrentStep(3)}
+                  disabled={activeCountries.length === 0}
+                  className="btn-primary"
+                  style={{ fontSize: '0.85rem', padding: '0.55rem 1.25rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+                >
+                  <span>3. Adım: Hacim & Bütçe Tahminlerini Gör</span>
+                  <ArrowRight size={15} />
+                </button>
+              </div>
+
+            </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* STEP 3 VIEW: KPIs, Matrix, Simulator, Negatives & Saved Plans             */}
+          {/* ========================================================================= */}
+          {currentStep === 3 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              
+              {/* Step 3 Quick Context Bar */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem', backgroundColor: 'var(--bg-surface)', padding: '0.5rem 0.85rem', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-default)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                  <span>Dil: <strong>{detectedLanguageName}</strong></span>
+                  <span>•</span>
+                  <span>Seçili Kelimeler: <strong>{selectedKeywordsPool.length} Adet</strong></span>
+                  <span>•</span>
+                  <span>Hedef Ülkeler: <strong>{activeCountries.map(c => c.flag + ' ' + c.name).join(', ')}</strong></span>
+                </div>
+                <div style={{ display: 'flex', gap: '0.4rem' }}>
                   <button
-                    key={p.label}
-                    onClick={() => selectRegionPreset(p.codes)}
+                    onClick={() => setCurrentStep(1)}
                     className="btn-ghost"
-                    style={{ fontSize: '0.7rem', padding: '0.25rem 0.55rem', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-xs)' }}
+                    style={{ fontSize: '0.72rem', padding: '0.2rem 0.5rem' }}
                   >
-                    {p.label}
+                    1. Kelimeleri Düzenle
                   </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Country Pills (Multi-Select) */}
-            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-              {availableCountries.map(c => {
-                const isSelected = selectedCountryCodes.has(c.code);
-                return (
                   <button
-                    key={c.code}
-                    onClick={() => toggleCountry(c.code)}
-                    style={{
-                      padding: '0.45rem 0.75rem',
-                      borderRadius: 'var(--radius-sm)',
-                      border: isSelected ? '1.5px solid var(--brand-primary)' : '1px solid var(--border-default)',
-                      backgroundColor: isSelected ? 'rgba(37, 99, 235, 0.12)' : 'var(--bg-surface-elevated)',
-                      color: isSelected ? 'var(--text-primary)' : 'var(--text-secondary)',
-                      fontSize: '0.78rem',
-                      fontWeight: isSelected ? 600 : 400,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.45rem',
-                      transition: 'all 0.15s ease'
-                    }}
+                    onClick={() => setCurrentStep(2)}
+                    className="btn-ghost"
+                    style={{ fontSize: '0.72rem', padding: '0.2rem 0.5rem' }}
                   >
-                    <span style={{ fontSize: '1.05rem' }}>{c.flag}</span>
-                    <span>{c.name}</span>
-                    <span style={{ fontSize: '0.7rem', color: isSelected ? 'var(--brand-primary)' : 'var(--text-muted)' }}>
-                      ({c.cpcMultiplier}x TBM)
-                    </span>
-                    {isSelected && <Check size={13} color="var(--brand-primary)" />}
+                    2. Ülkeleri Değiştir
                   </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Aggregate KPI Metric Cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
-            
-            {/* Total Volume */}
-            <div className="card" style={{ padding: '1.15rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Toplam Aylık Pazar Hacmi</span>
-                <div style={{ padding: '6px', borderRadius: '50%', backgroundColor: 'var(--bg-surface-elevated)', color: 'var(--brand-primary)' }}>
-                  <Eye size={15} />
                 </div>
               </div>
-              <div style={{ fontSize: '1.65rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '0.35rem' }}>
-                {totalSearchVolume.toLocaleString('tr-TR')}
-              </div>
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
-                Seçili {activeCountries.length} ülke pazarında toplam aylık arama
-              </div>
-            </div>
 
-            {/* Avg Top of Page CPC */}
-            <div className="card" style={{ padding: '1.15rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Ağırlıklı Ort. Sayfa Üstü TBM</span>
-                <div style={{ padding: '6px', borderRadius: '50%', backgroundColor: 'var(--bg-surface-elevated)', color: '#34d399' }}>
-                  <DollarSign size={15} />
+              {/* Aggregate KPI Metric Cards */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
+                
+                {/* Total Volume */}
+                <div className="card" style={{ padding: '1.15rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Toplam Aylık Pazar Hacmi</span>
+                    <div style={{ padding: '6px', borderRadius: '50%', backgroundColor: 'var(--bg-surface-elevated)', color: 'var(--brand-primary)' }}>
+                      <Eye size={15} />
+                    </div>
+                  </div>
+                  <div style={{ fontSize: '1.65rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '0.35rem' }}>
+                    {totalSearchVolume.toLocaleString('tr-TR')}
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                    Seçili {activeCountries.length} ülke pazarında toplam aylık arama
+                  </div>
                 </div>
-              </div>
-              <div style={{ fontSize: '1.65rem', fontWeight: 700, color: '#34d399', marginTop: '0.35rem' }}>
-                ₺{avgTopPageCpc.toFixed(2)}
-              </div>
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
-                Hedeflenen pazarların ağırlıklı ortalama tıklama maliyeti
-              </div>
-            </div>
 
-            {/* High-Intent Ratio */}
-            <div className="card" style={{ padding: '1.15rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Satın Alma Odaklı Kelimeler</span>
-                <div style={{ padding: '6px', borderRadius: '50%', backgroundColor: 'var(--bg-surface-elevated)', color: 'var(--info)' }}>
-                  <Target size={15} />
+                {/* Avg Top of Page CPC */}
+                <div className="card" style={{ padding: '1.15rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Ağırlıklı Ort. Sayfa Üstü TBM</span>
+                    <div style={{ padding: '6px', borderRadius: '50%', backgroundColor: 'var(--bg-surface-elevated)', color: '#34d399' }}>
+                      <DollarSign size={15} />
+                    </div>
+                  </div>
+                  <div style={{ fontSize: '1.65rem', fontWeight: 700, color: '#34d399', marginTop: '0.35rem' }}>
+                    ₺{avgTopPageCpc.toFixed(2)}
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                    Hedeflenen pazarların ağırlıklı ortalama tıklama maliyeti
+                  </div>
                 </div>
-              </div>
-              <div style={{ fontSize: '1.65rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '0.35rem' }}>
-                %{highIntentRatio}
-              </div>
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
-                Doğrudan sipariş veya talep getiren yüksek niyetli kelime oranı
-              </div>
-            </div>
 
-            {/* Active Target Markets */}
-            <div className="card" style={{ padding: '1.15rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Hedeflenen Pazarlar</span>
-                <div style={{ padding: '6px', borderRadius: '50%', backgroundColor: 'var(--bg-surface-elevated)', color: '#facc15' }}>
-                  <Globe size={15} />
+                {/* High-Intent Ratio */}
+                <div className="card" style={{ padding: '1.15rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Satın Alma Odaklı Kelimeler</span>
+                    <div style={{ padding: '6px', borderRadius: '50%', backgroundColor: 'var(--bg-surface-elevated)', color: 'var(--info)' }}>
+                      <Target size={15} />
+                    </div>
+                  </div>
+                  <div style={{ fontSize: '1.65rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '0.35rem' }}>
+                    %{highIntentRatio}
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                    Doğrudan sipariş veya talep getiren yüksek niyetli kelime oranı
+                  </div>
                 </div>
-              </div>
-              <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                {activeCountries.slice(0, 5).map(c => c.flag).join(' ')}
-                {activeCountries.length > 5 && <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>+{activeCountries.length - 5}</span>}
-              </div>
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
-                {activeCountries.map(c => c.name).join(', ')}
-              </div>
-            </div>
 
-          </div>
+                {/* Active Target Markets */}
+                <div className="card" style={{ padding: '1.15rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Hedeflenen Pazarlar</span>
+                    <div style={{ padding: '6px', borderRadius: '50%', backgroundColor: 'var(--bg-surface-elevated)', color: '#facc15' }}>
+                      <Globe size={15} />
+                    </div>
+                  </div>
+                  <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    {activeCountries.slice(0, 5).map(c => c.flag).join(' ')}
+                    {activeCountries.length > 5 && <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>+{activeCountries.length - 5}</span>}
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                    {activeCountries.map(c => c.name).join(', ')}
+                  </div>
+                </div>
 
-      {/* 4. Navigation Sub-Tabs */}
+              </div>
       <div style={{ display: 'flex', gap: '0.35rem', borderBottom: '1px solid var(--border-default)', paddingBottom: '0.5rem', overflowX: 'auto' }}>
         <button
           onClick={() => setActiveTab('matrix')}
@@ -1357,6 +1683,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
         </div>
       )}
+
+            </div>
+          )}
 
         </>
       )}
