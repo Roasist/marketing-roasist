@@ -254,11 +254,14 @@ export class ApiService {
     country?: string;
     language?: string;
   }): Promise<any> {
-    const res = await this.request<{ status: string; data: any }>('/forecast.php?action=discover', {
+    const res = await this.request<{ status: string; data?: any; message?: string }>('/forecast.php?action=discover', {
       method: 'POST',
       body: JSON.stringify(payload),
     });
-    return res.data;
+    if (res && res.status === 'error') {
+      throw new Error(res.message || 'Anahtar kelime analizi yapılamadı.');
+    }
+    return res?.data;
   }
 
   public static async generateNegativeKeywords(payload: {
