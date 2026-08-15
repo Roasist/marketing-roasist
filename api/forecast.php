@@ -504,7 +504,42 @@ function extractLocationAndSmartSeeds($pageDetails, $query, $langCode = 'en') {
     $text = mb_strtolower($pageDetails['textSnippet'] ?? '', 'UTF-8');
     $full = $title . ' ' . $desc . ' ' . $headings . ' ' . $text . ' ' . mb_strtolower($query, 'UTF-8');
 
-    // 1. Detect Hotel, Resort, Vacation & Accommodation (e.g. Livaneli Hotels, Alanya tatil, Bodrum otel)
+    // 1. Detect Call Center / Customer Service / B2B Outsourcing (e.g. CBC Call Center, Loyalcall, BBG Call Center)
+    if (preg_match('/\b(callcenter|call center|çağrı merkezi|cagri merkezi|kundenservice|kundenbetreuung|inbound|outbound|telesales|telefonservice|cbccallcenter|loyalcall|bbgcall)\b/ui', $full)) {
+        $isGermanFocus = preg_match('/\b(almanca|deutsch|deutschsprach|germany|deutschland)\b/ui', $full);
+        if ($isGermanFocus) {
+            return [
+                'almanca çağrı merkezi',
+                'almanca müşteri temsilcisi',
+                'almanca çağrı merkezi iş ilanları',
+                'almanca home office çağrı merkezi',
+                'call center almanca türkiye',
+                'almanca müşteri hizmetleri',
+                'almanca inbound çağrı merkezi',
+                'almanca telesales iş ilanları',
+                'almanca çağrı merkezi istanbul',
+                'almanca çağrı merkezi izmir',
+                'almanca çağrı merkezi ankara',
+                'callcenter türkei deutsch',
+                'kundenservice outsourcing türkei',
+                'inbound callcenter türkei'
+            ];
+        } else {
+            return [
+                'çağrı merkezi hizmetleri',
+                'call center müşteri temsilcisi',
+                'dış kaynak çağrı merkezi',
+                'inbound çağrı merkezi hizmeti',
+                'outbound satış çağrı merkezi',
+                'müşteri hizmetleri outsourcing',
+                'telesales çağrı merkezi',
+                '7 24 çağrı merkezi desteği',
+                'kurumsal çağrı merkezi çözümleri'
+            ];
+        }
+    }
+
+    // 2. Detect Hotel, Resort, Vacation & Accommodation (e.g. Livaneli Hotels, Alanya tatil, Bodrum otel)
     if (preg_match('/\b(hotel|hotels|otel|otelleri|resort|resorts|tatil|konaklama|pansiyon|boutique hotel|butik otel|all inclusive|her şey dahil|rezervasyon|booking|livaneli)\b/ui', $full)) {
         $loc = 'alanya';
         if (preg_match('/\b(alanya)\b/ui', $full)) $loc = 'alanya';
@@ -767,8 +802,17 @@ function filterKeywordsByPageContext($keywords, $pageDetails, $query, $langCode)
         // 6. If page is Digital Marketing Agency (Roasist), prune irrelevant industries
         $isMarketingFocus = preg_match('/\b(marketing|pazarlama|reklam|roas|ajans|agency|seo|google ads|meta ads|e-ticaret)\b/ui', $fullContext);
         if ($isMarketingFocus) {
-            if (preg_match('/\b(hukuk|avukat|doktor|hastane|inşaat firması|otel rezervasyon|nakliyat|temizlik şirketi|oto kiralama)\b/ui', $kwLower)) {
+            if (preg_match('/\b(hukuk|avukat|doktor|hastane|inşaat firması|otel rezervasyon|nakliyat|temizlik şirketi|oto kiralama|çelik|petrokok|lojistik)\b/ui', $kwLower)) {
                 continue;
+            }
+        }
+
+        // 7. If page is Call Center / Customer Service / B2B Support (e.g. CBC Call Center, BBG Call Center)
+        $isCallCenterFocus = preg_match('/\b(callcenter|call center|çağrı merkezi|cagri merkezi|kundenservice|müşteri hizmetleri|kundenbetreuung|inbound|outbound|telesales|telefonservice)\b/ui', $fullContext);
+        if ($isCallCenterFocus) {
+            // Strictly exclude unrelated heavy industry noise (e.g. steel, logistics, petrocoke, real estate, tourism)
+            if (preg_match('/\b(çelik|petrokok|lojistik|tokkder|bilişim 500|petrol|akaryakıt|gayrimenkul|satılık daire|otel rezervasyon|tatil|otomotiv|nakliyat)\b/ui', $kwLower)) {
+                continue; // ❌ REJECT unrelated heavy industry / petroleum / steel noise
             }
         }
 
