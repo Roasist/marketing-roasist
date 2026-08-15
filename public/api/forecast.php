@@ -469,33 +469,36 @@ function analyzeLandingPageWithAI($pageDetails, $query, $geminiKey) {
         . "Sayfa Açıklaması (Meta Description): " . ($pageDetails['description'] ?? '') . "\n"
         . "Ana Başlıklar (H1 / H2): " . implode(' | ', $pageDetails['headings'] ?? []) . "\n"
         . "Metin Özeti: " . mb_substr($pageDetails['textSnippet'] ?? '', 0, 1800, 'UTF-8') . "\n\n"
-        . "STRATEJİK GÖREVLER:\n"
-        . "1. Sayfanın sunduğu gerçek hizmeti/ürünü, ana sektörünü, iş modelini ('LEAD_GEN', 'ECOMMERCE', 'B2B_SERVICE', 'TOURISM', 'HEALTH_CARE') ve HEDEF ŞEHİR/BÖLGESİNİ (Örn: 'İzmit / Kocaeli', 'Alanya / Antalya', 'İstanbul', 'Berlin', 'Kuzey Kıbrıs') kesin olarak tespit et.\n"
+        . "STRATEJİK GÖREVLER VE SEM KELİME MATRİSİ:\n"
+        . "1. Sayfanın sunduğu gerçek hizmeti/ürünü, ana sektörünü, iş modelini ('LEAD_GEN', 'ECOMMERCE', 'B2B_SERVICE', 'TOURISM', 'HEALTH_CARE') ve HEDEF ŞEHİR/ÜLKEYİ (Örn: 'İstanbul, Türkiye', 'İzmit, Kocaeli', 'Alanya, Antalya', 'Berlin, Almanya', 'Kuzey Kıbrıs') tespit et.\n"
         . "2. Sayfanın dilini ve adını tespit et (Örn: 'de' -> 'Almanca', 'ru' -> 'Rusça', 'en' -> 'İngilizce', 'tr' -> 'Türkçe', 'ar' -> 'Arapça').\n"
-        . "3. ÇOK ÖNEMLİ KURAL - KELİME NİYETİ VE PERFORMANS STRATEJİSİ:\n"
-        . "   Google Ads'in ürettiği tek kelimelik veya ansiklopedik kelimeler ('ortaokul', 'türkçe dersleri', 'ingilizce öğrenme', 'saç', 'ev', 'otel') REKLAM BÜTÇESİNİ BOŞA YAKAR. Bir performans uzmanı olarak bu işletmeye DOĞRUDAN DÖNÜŞÜM, KAYIT, SATIŞ VE MÜŞTERİ (LEAD) GETİRECEK EN AZ 30-35 ADET YÜKSEK NİYETLİ (High-Converting Long-Tail) anahtar kelime üret ('strategistKeywords').\n"
-        . "   Bu kelimeleri KESİNLİKLE SAYFANIN KENDİ DİLİNDE şu 4 stratejik kategoriye dağıt:\n"
-        . "   a) 'TRANSACTIONAL': Doğrudan satın alma, fiyat, kayıt, ücret ve sipariş odaklı (Örn: 'izmit özel ortaokul fiyatları 2026', 'özel okul erken kayıt indirimi izmit', 'beşsekiz ortaokulu kayıt ücreti').\n"
-        . "   b) 'LOCAL_GEO': Şehir, ilçe ve yerel lokasyon hedefli aramalara özel (Örn: 'kocaeli en iyi özel ortaokullar', 'yahya kaptan butik özel ortaokul', 'izmit özel okul tavsiye').\n"
-        . "   c) 'CONSIDERATION': Akademik başarı, kalite, LGS/hizmet karşılaştırması (Örn: 'izmit lgs başarı oranı yüksek özel okullar', 'kocaeli butik ortaokul yorumları').\n"
-        . "   d) 'LEAD_MAGNET': Form doldurma, bursluluk, deneme veya randevu kancaları (Örn: 'kocaeli özel okul bursluluk sınavı 2026', 'izmit ortaokul bursluluk başvurusu').\n"
-        . "4. Bu kampanya için KESİNLİKLE HARİÇ TUTULMASI (Negatif) gereken 15 alakasız terimi/sektörü listele ('negativeExclusions') (Örn: 'devlet okulu', 'milli eğitim bakanlığı', 'ödev kapakları pdf', 'ücretsiz ders videoları').\n"
+        . "3. ÇOK ÖNEMLİ KURAL - SEM ÇAPRAZ MATRİS GENİŞLETMESİ (40-50 ADET YÜKSEK DÖNÜŞÜMLÜ KELİME):\n"
+        . "   Bir kıdemli SEM uzmanı olarak, bu işletmeye DOĞRUDAN DÖNÜŞÜM (Satış, Kayıt, Randevu, Hasta/Müşteri) getirecek EN AZ 40-50 ADET kelimeyi şu matris mantığıyla eksiksiz üret ('strategistKeywords'):\n"
+        . "   a) COĞRAFİ ÇAPRAZLAMA: Şehir bazlı olan her kelimenin aynı zamanda Ülke/Bölge varyasyonunu da üret! (Örn: 'brazilian butt lift cost istanbul' varsa KESİNLİKLE 'brazilian butt lift cost turkey' ve 'bbl cost turkey' de olmalı; 'izmit özel ilkokul fiyatları' varsa 'kocaeli özel ilkokul fiyatları' da olmalı; 'alanya satılık daire' varsa 'antalya satılık daire' de olmalı).\n"
+        . "   b) KISALTMA & EŞ ANLAMLI ÇAPRAZLAMA: Hizmetin kısaltılmış ve alternatif isimlerini dahil et! (Örn: 'bbl surgery turkey' <-> 'brazilian butt lift surgery turkey', 'hair transplant istanbul' <-> 'fue hair restoration turkey', 'özel ilkokul' <-> 'kolej ilkokul').\n"
+        . "   c) FİYAT & PAKET VARYASYONLARI ('TRANSACTIONAL'): 'cost', 'price', 'prices', 'package', 'all inclusive', 'packages', 'fiyatları', 'ücretleri', 'erken kayıt indirimi'.\n"
+        . "   d) EN İYİ & YORUM KARŞILAŞTIRMALARI ('CONSIDERATION'): 'best surgeon in...', 'top rated clinics in...', 'reviews', 'before and after', 'en iyi ...', 'tavsiye', 'veli yorumları'.\n"
+        . "   e) LEAD VE RANDEVU KANCALARI ('LEAD_MAGNET'): 'free consultation', 'book online', 'quote', 'bursluluk sınavı başvurusu', 'okul randevu al', 'ön kayıt'.\n"
+        . "4. Bu kampanya için KESİNLİKLE HARİÇ TUTULMASI (Negatif) gereken 15 alakasız terimi listele ('negativeExclusions').\n"
         . "5. Bu sayfa için Google Ads'te hedeflenebilecek en mantıklı 4-5 hedef ülkeyi listele ('suggestedCountries').\n\n"
         . "Yanıtını SADECE geçerli JSON formatında şu şemayla ver (başka hiçbir metin ekleme):\n"
         . "{\n"
-        . "  \"detectedLanguage\": \"tr\",\n"
-        . "  \"detectedLanguageName\": \"Türkçe\",\n"
-        . "  \"sector\": \"Özel Butik Ortaokul & LGS Hazırlık\",\n"
+        . "  \"detectedLanguage\": \"en\",\n"
+        . "  \"detectedLanguageName\": \"İngilizce\",\n"
+        . "  \"sector\": \"Plastik Cerrahi & BBL Estetiği\",\n"
         . "  \"businessModel\": \"LEAD_GEN\",\n"
-        . "  \"targetLocation\": \"İzmit, Kocaeli, Türkiye\",\n"
-        . "  \"highIntentSeeds\": [\"izmit özel ortaokul\", \"kocaeli özel okul fiyatları\", \"beşsekiz ortaokulu kayıt\"],\n"
-        . "  \"negativeExclusions\": [\"devlet okulu\", \"meb\", \"ücretsiz ders\", \"ödev soruları pdf\", \"ikinci el kitap\"],\n"
+        . "  \"targetLocation\": \"İstanbul, Türkiye\",\n"
+        . "  \"highIntentSeeds\": [\"brazilian butt lift istanbul\", \"bbl surgery turkey\", \"bbl cost istanbul\"],\n"
+        . "  \"negativeExclusions\": [\"free bbl exercises\", \"workout for bigger butt\", \"what is bbl meaning\", \"celebrity bbl photos\", \"scam\"],\n"
         . "  \"strategistKeywords\": [\n"
-        . "    {\"keyword\": \"izmit özel ortaokul fiyatları 2026\", \"monthlyVolume\": 2400, \"lowCpc\": 8.50, \"highCpc\": 34.00, \"intent\": \"TRANSACTIONAL\", \"strategy\": \"TRANSACTIONAL\", \"competition\": \"HIGH\", \"competitionIndex\": 88, \"trendChangePercent\": 25, \"opportunityScore\": 98},\n"
-        . "    {\"keyword\": \"kocaeli en iyi özel ortaokullar\", \"monthlyVolume\": 3600, \"lowCpc\": 9.20, \"highCpc\": 38.00, \"intent\": \"COMMERCIAL\", \"strategy\": \"LOCAL_GEO\", \"competition\": \"HIGH\", \"competitionIndex\": 90, \"trendChangePercent\": 20, \"opportunityScore\": 96}\n"
+        . "    {\"keyword\": \"brazilian butt lift cost istanbul\", \"monthlyVolume\": 1200, \"lowCpc\": 15.00, \"highCpc\": 45.00, \"intent\": \"TRANSACTIONAL\", \"strategy\": \"TRANSACTIONAL\", \"competition\": \"HIGH\", \"competitionIndex\": 90, \"trendChangePercent\": 25, \"opportunityScore\": 98},\n"
+        . "    {\"keyword\": \"brazilian butt lift cost turkey\", \"monthlyVolume\": 3600, \"lowCpc\": 16.50, \"highCpc\": 50.00, \"intent\": \"TRANSACTIONAL\", \"strategy\": \"LOCAL_GEO\", \"competition\": \"HIGH\", \"competitionIndex\": 92, \"trendChangePercent\": 30, \"opportunityScore\": 99},\n"
+        . "    {\"keyword\": \"bbl cost in turkey\", \"monthlyVolume\": 4400, \"lowCpc\": 18.00, \"highCpc\": 55.00, \"intent\": \"TRANSACTIONAL\", \"strategy\": \"TRANSACTIONAL\", \"competition\": \"HIGH\", \"competitionIndex\": 92, \"trendChangePercent\": 35, \"opportunityScore\": 99},\n"
+        . "    {\"keyword\": \"best bbl surgeon in istanbul\", \"monthlyVolume\": 800, \"lowCpc\": 12.00, \"highCpc\": 40.00, \"intent\": \"COMMERCIAL\", \"strategy\": \"CONSIDERATION\", \"competition\": \"HIGH\", \"competitionIndex\": 88, \"trendChangePercent\": 20, \"opportunityScore\": 96},\n"
+        . "    {\"keyword\": \"bbl surgery package turkey\", \"monthlyVolume\": 1500, \"lowCpc\": 20.00, \"highCpc\": 60.00, \"intent\": \"TRANSACTIONAL\", \"strategy\": \"TRANSACTIONAL\", \"competition\": \"HIGH\", \"competitionIndex\": 90, \"trendChangePercent\": 25, \"opportunityScore\": 97}\n"
         . "  ],\n"
         . "  \"suggestedCountries\": [\n"
-        . "    {\"code\": \"TR\", \"name\": \"Türkiye\", \"flag\": \"🇹🇷\", \"region\": \"Yerel\", \"cpcMultiplier\": 1.0, \"volumeMultiplier\": 1.0, \"currency\": \"TRY\"}\n"
+        . "    {\"code\": \"GB\", \"name\": \"İngiltere\", \"flag\": \"🇬🇧\", \"region\": \"Avrupa\", \"cpcMultiplier\": 3.0, \"volumeMultiplier\": 1.0, \"currency\": \"GBP\"}\n"
         . "  ]\n"
         . "}";
 
@@ -536,6 +539,159 @@ function analyzeLandingPageWithAI($pageDetails, $query, $geminiKey) {
         }
     }
     return null;
+}
+
+// Programmatic SEM Keyword Matrix Expander: Cross-multiplies City <-> Country, Acronyms <-> Full Terms, and Pricing Templates
+function expandStrategistKeywordMatrix($rawKeywords, $langCode = 'en') {
+    if (empty($rawKeywords) || !is_array($rawKeywords)) return [];
+
+    $existing = [];
+    $expanded = [];
+
+    foreach ($rawKeywords as $k) {
+        $kwText = trim($k['keyword'] ?? '');
+        if (empty($kwText)) continue;
+        $key = mb_strtolower($kwText, 'UTF-8');
+        if (!isset($existing[$key])) {
+            $existing[$key] = true;
+            $expanded[] = $k;
+        }
+    }
+
+    $geoReplacements = [
+        // English / International Cross-multipliers
+        'istanbul' => ['turkey', 'in istanbul', 'in turkey'],
+        'turkey' => ['istanbul', 'in turkey', 'in istanbul'],
+        'antalya' => ['turkey', 'in antalya'],
+        'alanya' => ['antalya', 'turkey', 'in alanya'],
+        'cyprus' => ['north cyprus', 'in cyprus'],
+        'girne' => ['cyprus', 'kyrenia'],
+        // Turkish Local Cross-multipliers
+        'izmit' => ['kocaeli', 'yahya kaptan'],
+        'kocaeli' => ['izmit', 'başiskele'],
+        'başiskele' => ['kocaeli', 'izmit'],
+        'bodrum' => ['muğla', 'türkiye'],
+        'çeşme' => ['izmir']
+    ];
+
+    $synonymReplacements = [
+        // Plastic surgery / Medical
+        'brazilian butt lift' => ['bbl', 'bbl surgery'],
+        'bbl surgery' => ['brazilian butt lift', 'bbl'],
+        'bbl' => ['brazilian butt lift'],
+        'hair transplant' => ['hair restoration', 'fue hair transplant'],
+        'hair restoration' => ['hair transplant', 'dhi hair transplant'],
+        'rhinoplasty' => ['nose job'],
+        'nose job' => ['rhinoplasty'],
+        'breast augmentation' => ['breast implants', 'boob job'],
+        'dental implants' => ['teeth implants', 'dental clinic'],
+        // Turkish Education
+        'özel ilkokul' => ['özel okul', 'kolej'],
+        'özel ortaokul' => ['özel okul', 'butik ortaokul', 'lgs hazırlık'],
+        'özel okul' => ['kolej', 'özel ilkokul']
+    ];
+
+    $priceVariants = [
+        'cost' => ['price', 'prices', 'package', 'packages'],
+        'price' => ['cost', 'package', 'prices'],
+        'prices' => ['cost', 'package', 'price'],
+        'fiyatları' => ['ücretleri', 'fiyatı', 'erken kayıt'],
+        'ücretleri' => ['fiyatları', 'kayıt ücreti']
+    ];
+
+    $baseListSnapshot = $expanded;
+
+    foreach ($baseListSnapshot as $item) {
+        $kw = $item['keyword'];
+        $kwLower = mb_strtolower($kw, 'UTF-8');
+
+        // 1. Geo variations
+        foreach ($geoReplacements as $from => $toArr) {
+            if (preg_match('/\b' . preg_quote($from, '/') . '\b/ui', $kwLower)) {
+                foreach ($toArr as $to) {
+                    $newKw = trim(preg_replace('/\b' . preg_quote($from, '/') . '\b/ui', $to, $kw));
+                    $newKw = preg_replace('/\b(in\s+)+in\b/i', 'in', $newKw);
+                    $newKw = preg_replace('/\s+/', ' ', $newKw);
+                    $newKey = mb_strtolower($newKw, 'UTF-8');
+                    if (!isset($existing[$newKey]) && mb_strlen($newKw, 'UTF-8') > 5) {
+                        $existing[$newKey] = true;
+                        $expanded[] = [
+                            'id' => 'ai_strat_geo_' . substr(md5($newKw), 0, 6),
+                            'keyword' => $newKw,
+                            'monthlyVolume' => max(50, (int)round(($item['monthlyVolume'] ?? 1000) * 0.9)),
+                            'lowCpc' => (float)($item['lowCpc'] ?? 10.0),
+                            'highCpc' => (float)($item['highCpc'] ?? 35.0),
+                            'competition' => $item['competition'] ?? 'HIGH',
+                            'competitionIndex' => (int)($item['competitionIndex'] ?? 85),
+                            'intent' => $item['intent'] ?? 'TRANSACTIONAL',
+                            'trendChangePercent' => (int)($item['trendChangePercent'] ?? 20),
+                            'opportunityScore' => 97,
+                            'isAiStrategistPick' => true,
+                            'strategistStrategy' => 'LOCAL_GEO'
+                        ];
+                    }
+                }
+            }
+        }
+
+        // 2. Acronym / Synonym variations
+        foreach ($synonymReplacements as $from => $toArr) {
+            if (preg_match('/\b' . preg_quote($from, '/') . '\b/ui', $kwLower)) {
+                foreach ($toArr as $to) {
+                    $newKw = trim(preg_replace('/\b' . preg_quote($from, '/') . '\b/ui', $to, $kw));
+                    $newKw = preg_replace('/\s+/', ' ', $newKw);
+                    $newKey = mb_strtolower($newKw, 'UTF-8');
+                    if (!isset($existing[$newKey]) && mb_strlen($newKw, 'UTF-8') > 4) {
+                        $existing[$newKey] = true;
+                        $expanded[] = [
+                            'id' => 'ai_strat_syn_' . substr(md5($newKw), 0, 6),
+                            'keyword' => $newKw,
+                            'monthlyVolume' => max(50, (int)round(($item['monthlyVolume'] ?? 1000) * 1.1)),
+                            'lowCpc' => (float)($item['lowCpc'] ?? 10.0),
+                            'highCpc' => (float)($item['highCpc'] ?? 35.0),
+                            'competition' => $item['competition'] ?? 'HIGH',
+                            'competitionIndex' => (int)($item['competitionIndex'] ?? 88),
+                            'intent' => $item['intent'] ?? 'TRANSACTIONAL',
+                            'trendChangePercent' => (int)($item['trendChangePercent'] ?? 22),
+                            'opportunityScore' => 98,
+                            'isAiStrategistPick' => true,
+                            'strategistStrategy' => $item['strategistStrategy'] ?? 'TRANSACTIONAL'
+                        ];
+                    }
+                }
+            }
+        }
+
+        // 3. Pricing / Cost variations
+        foreach ($priceVariants as $from => $toArr) {
+            if (preg_match('/\b' . preg_quote($from, '/') . '\b/ui', $kwLower)) {
+                foreach ($toArr as $to) {
+                    $newKw = trim(preg_replace('/\b' . preg_quote($from, '/') . '\b/ui', $to, $kw));
+                    $newKw = preg_replace('/\s+/', ' ', $newKw);
+                    $newKey = mb_strtolower($newKw, 'UTF-8');
+                    if (!isset($existing[$newKey]) && mb_strlen($newKw, 'UTF-8') > 5) {
+                        $existing[$newKey] = true;
+                        $expanded[] = [
+                            'id' => 'ai_strat_prc_' . substr(md5($newKw), 0, 6),
+                            'keyword' => $newKw,
+                            'monthlyVolume' => max(50, (int)round(($item['monthlyVolume'] ?? 1000) * 0.85)),
+                            'lowCpc' => (float)($item['lowCpc'] ?? 10.0),
+                            'highCpc' => (float)($item['highCpc'] ?? 35.0),
+                            'competition' => 'HIGH',
+                            'competitionIndex' => 85,
+                            'intent' => 'TRANSACTIONAL',
+                            'trendChangePercent' => 18,
+                            'opportunityScore' => 96,
+                            'isAiStrategistPick' => true,
+                            'strategistStrategy' => 'TRANSACTIONAL'
+                        ];
+                    }
+                }
+            }
+        }
+    }
+
+    return $expanded;
 }
 
 // Extract Location Context, Brand Entities, and High-Intent Smart Seeds (Rule-based Fallback)
@@ -1203,6 +1359,9 @@ if ($action === 'discover' && $method === 'POST') {
     }
 
     if (!empty($strategistPool)) {
+        // Expand strategist keywords through the SEM matrix (cross-geo, abbreviations, pricing templates)
+        $strategistPool = expandStrategistKeywordMatrix($strategistPool, $langInfo['code']);
+
         $existingMap = [];
         foreach ($officialKeywords as $k) {
             $existingMap[mb_strtolower($k['keyword'], 'UTF-8')] = true;
