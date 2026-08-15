@@ -129,13 +129,35 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
     $adsCode = curl_getinfo($chAds, CURLINFO_HTTP_CODE);
     curl_close($chAds);
 
-    $adsJson = json_decode($adsRes, true);
     $parsedKeywords = [];
+    $seenKeywords = [];
 
-    if ($adsCode === 200 && !empty($adsJson['results'])) {
+    // Helper to execute Google Ads Keyword Planner API call
+    $callGoogleAdsApi = function($payload) use ($customerId, $accessToken, $devToken) {
+        $chAds = curl_init("https://googleads.googleapis.com/v22/customers/{$customerId}:generateKeywordIdeas");
+        curl_setopt($chAds, CURLOPT_POST, true);
+        curl_setopt($chAds, CURLOPT_POSTFIELDS, json_encode($payload));
+        curl_setopt($chAds, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($chAds, CURLOPT_HTTPHEADER, [
+            'Authorization: Bearer ' . $accessToken,
+            'developer-token: ' . $devToken,
+            'Content-Type: application/json'
+        ]);
+        curl_setopt($chAds, CURLOPT_TIMEOUT, 25);
+        $adsRes = curl_exec($chAds);
+        $adsCode = curl_getinfo($chAds, CURLINFO_HTTP_CODE);
+        curl_close($chAds);
+        return ($adsCode === 200) ? json_decode($adsRes, true) : null;
+    };
+
+    $parseResults = function($adsJson, $isAiStrategist = false) use (&$parsedKeywords, &$seenKeywords) {
+        if (empty($adsJson['results'])) return;
         foreach ($adsJson['results'] as $idx => $r) {
-            $kwText = $r['text'] ?? '';
-            if (empty($kwText)) continue;
+            $kwText = trim($r['text'] ?? '');
+            if (empty($kwText) || mb_strlen($kwText, 'UTF-8') < 3) continue;
+            $kwKey = mb_strtolower($kwText, 'UTF-8');
+            if (isset($seenKeywords[$kwKey])) continue;
+            $seenKeywords[$kwKey] = true;
 
             $metrics = $r['keywordIdeaMetrics'] ?? [];
             $avgVol = (int)($metrics['avgMonthlySearches'] ?? 0);
@@ -146,7 +168,7 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
 
             // Compute search intent
             $intent = 'COMMERCIAL';
-            if (preg_match('/\b(fiyat|satın al|ücret|ajans|hizmet|paket|danışmanlık|al|fiyatları|fiyatı|sipariş|rezervasyon|job|jobs|stellenangebote|bewerbung)\b/ui', $kwText)) {
+            if (preg_match('/\b(fiyat|satın al|ücret|ajans|hizmet|paket|danışmanlık|al|fiyatları|fiyatı|sipariş|rezervasyon|kursu|eğitimi|maliyet|cost|price|preise|kosten)\b/ui', $kwText)) {
                 $intent = 'TRANSACTIONAL';
             } elseif (preg_match('/\b(nedir|nasıl|rehber|örnek|yorum|tavsiye|forum|was ist|wie)\b/ui', $kwText)) {
                 $intent = 'INFORMATIONAL';
@@ -166,7 +188,7 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
             $oppScore = min(99, max(50, 95 - round($compIdx * 0.3) + ($avgVol > 5000 ? 10 : 5)));
 
             $parsedKeywords[] = [
-                'id' => 'ads_kw_' . ($idx + 1) . '_' . substr(md5($kwText), 0, 6),
+                'id' => ($isAiStrategist ? 'ai_strat_' : 'ads_kw_') . (count($parsedKeywords) + 1) . '_' . substr(md5($kwText), 0, 6),
                 'keyword' => $kwText,
                 'monthlyVolume' => $avgVol,
                 'lowCpc' => $lowBid,
@@ -175,74 +197,44 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
                 'competitionIndex' => $compIdx,
                 'intent' => $intent,
                 'trendChangePercent' => $trendChange,
-                'opportunityScore' => $oppScore
+                'opportunityScore' => $oppScore,
+                'isAiStrategistPick' => $isAiStrategist
             ];
         }
-    }
+    };
 
-    // If URL seed returned fewer than 15 keywords (e.g. unindexed small website), retry with pure keywordSeed
-    if (count($parsedKeywords) < 15 && !empty($keywords) && is_array($keywords) && count($keywords) > 0) {
-        $retryPayload = [
+    // 1. If URL is present, query Google Ads API with URL seed
+    if (!empty($url)) {
+        if (!preg_match('/^https?:\/\//i', $url)) {
+            $url = 'https://' . $url;
+        }
+        $urlPayload = [
             "keywordPlanNetwork" => "GOOGLE_SEARCH",
             "language" => $langConst,
             "geoTargetConstants" => [$geoConst],
-            "keywordSeed" => ["keywords" => array_slice($keywords, 0, 20)]
+            "urlSeed" => ["url" => $url]
         ];
+        $urlRes = $callGoogleAdsApi($urlPayload);
+        $parseResults($urlRes, false);
+    }
 
-        $chRetry = curl_init("https://googleads.googleapis.com/v22/customers/{$customerId}:generateKeywordIdeas");
-        curl_setopt($chRetry, CURLOPT_POST, true);
-        curl_setopt($chRetry, CURLOPT_POSTFIELDS, json_encode($retryPayload));
-        curl_setopt($chRetry, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($chRetry, CURLOPT_HTTPHEADER, [
-            'Authorization: Bearer ' . $accessToken,
-            'developer-token: ' . $devToken,
-            'Content-Type: application/json'
-        ]);
-        curl_setopt($chRetry, CURLOPT_TIMEOUT, 25);
-        $retryRes = curl_exec($chRetry);
-        curl_close($chRetry);
-
-        $retryJson = json_decode($retryRes, true);
-        if (!empty($retryJson['results'])) {
-            foreach ($retryJson['results'] as $idx => $r) {
-                $kwText = $r['text'] ?? '';
-                if (empty($kwText)) continue;
-
-                $metrics = $r['keywordIdeaMetrics'] ?? [];
-                $avgVol = (int)($metrics['avgMonthlySearches'] ?? 0);
-                $lowBid = isset($metrics['lowTopOfPageBidMicros']) ? round($metrics['lowTopOfPageBidMicros'] / 1000000, 2) : 0;
-                $highBid = isset($metrics['highTopOfPageBidMicros']) ? round($metrics['highTopOfPageBidMicros'] / 1000000, 2) : 0;
-                $comp = $metrics['competition'] ?? 'MEDIUM';
-                $compIdx = (int)($metrics['competitionIndex'] ?? 50);
-
-                $intent = 'COMMERCIAL';
-                if (preg_match('/\b(fiyat|satın al|ücret|ajans|hizmet|paket|danışmanlık|al|fiyatları|fiyatı|sipariş|rezervasyon|job|jobs|stellenangebote|bewerbung)\b/ui', $kwText)) {
-                    $intent = 'TRANSACTIONAL';
-                } elseif (preg_match('/\b(nedir|nasıl|rehber|örnek|yorum|tavsiye|forum|was ist|wie)\b/ui', $kwText)) {
-                    $intent = 'INFORMATIONAL';
-                }
-
-                $oppScore = min(99, max(50, 95 - round($compIdx * 0.3) + ($avgVol > 5000 ? 10 : 5)));
-
-                $parsedKeywords[] = [
-                    'id' => 'ads_kw_seed_' . ($idx + 1) . '_' . substr(md5($kwText), 0, 6),
-                    'keyword' => $kwText,
-                    'monthlyVolume' => $avgVol,
-                    'lowCpc' => $lowBid,
-                    'highCpc' => $highBid,
-                    'competition' => $comp,
-                    'competitionIndex' => $compIdx,
-                    'intent' => $intent,
-                    'trendChangePercent' => 0,
-                    'opportunityScore' => $oppScore
-                ];
-            }
+    // 2. Query Google Ads API with High-Intent Seeds (AI seeds) to get REAL official Google Ads data!
+    if (!empty($keywords) && is_array($keywords) && count($keywords) > 0) {
+        $uniqueSeeds = array_slice(array_values(array_unique(array_filter($keywords))), 0, 20);
+        if (!empty($uniqueSeeds)) {
+            $seedPayload = [
+                "keywordPlanNetwork" => "GOOGLE_SEARCH",
+                "language" => $langConst,
+                "geoTargetConstants" => [$geoConst],
+                "keywordSeed" => ["keywords" => $uniqueSeeds]
+            ];
+            $seedRes = $callGoogleAdsApi($seedPayload);
+            $parseResults($seedRes, true);
         }
     }
 
-    if (count($parsedKeywords) > 0) {
-        return $parsedKeywords;
-    }
+    return $parsedKeywords;
+}
 
     return null;
 }
@@ -1041,6 +1033,13 @@ function filterKeywordsByPageContext($keywords, $pageDetails, $query, $langCode)
             continue; // ❌ REJECT pure stopword/filler fragments (e.g. "fits you", "we you are", "good not", "not have", "i can not", "not can")
         }
 
+        // 0.1 If language is Turkish, STRICTLY prune English prepositions (e.g. "in istanbul", "in turkey", "for sale", "near me")
+        if ($langCode === 'tr') {
+            if (preg_match('/\b(in\s+istanbul|in\s+turkey|in\s+turkei|for\s+sale|near\s+me|best\s+in|cost\s+in)\b/ui', $kwLower)) {
+                continue; // ❌ REJECT English preposition junk on Turkish sites
+            }
+        }
+
         // 1. If page is Hotel / Tourism, STRICTLY exclude real estate, citizenship, and property for sale noise!
         if ($isHotelOrTourism && preg_match($realEstateExclusionPattern, $kwLower)) {
             continue; // ❌ REJECT real estate term on a hotel/tourism page!
@@ -1332,7 +1331,7 @@ if ($action === 'discover' && $method === 'POST') {
         exit;
     }
 
-    $cacheKey = md5("forecast_v5_{$mode}_{$query}");
+    $cacheKey = md5("forecast_v6_{$mode}_{$query}");
 
     // 1. Check Server-Side Cache
     $stmtCache = $pdo->prepare("SELECT data, created_at FROM keyword_cache WHERE cache_key = ?");
@@ -1373,6 +1372,7 @@ if ($action === 'discover' && $method === 'POST') {
     }
 
     // Determine Language, Sector and Seeds
+    $aiSeeds = [];
     if ($aiAnalysis && !empty($aiAnalysis['detectedLanguage'])) {
         $langInfo = [
             'code' => $aiAnalysis['detectedLanguage'],
@@ -1380,15 +1380,24 @@ if ($action === 'discover' && $method === 'POST') {
         ];
         $sectorTitle = $aiAnalysis['sector'] ?? ($pageDetails['title'] ?? 'Google Ads Kampanyası');
         $suggestedCountries = !empty($aiAnalysis['suggestedCountries']) ? $aiAnalysis['suggestedCountries'] : getSuggestedCountriesByLang($langInfo['code']);
-        $smartSeeds = !empty($aiAnalysis['highIntentSeeds']) ? $aiAnalysis['highIntentSeeds'] : extractLocationAndSmartSeeds($pageDetails, $query, $langInfo['code']);
+        
+        if (!empty($aiAnalysis['highIntentSeeds'])) {
+            $aiSeeds = array_merge($aiSeeds, $aiAnalysis['highIntentSeeds']);
+        }
+        if (!empty($aiAnalysis['strategistKeywords'])) {
+            foreach ($aiAnalysis['strategistKeywords'] as $ak) {
+                if (!empty($ak['keyword'])) $aiSeeds[] = $ak['keyword'];
+            }
+        }
     } else {
         $langInfo = detectPageLanguage($pageDetails['title'] ?? '', $pageDetails['textSnippet'] ?? '');
         $suggestedCountries = getSuggestedCountriesByLang($langInfo['code']);
         $sectorTitle = $pageDetails['title'] ?? 'Google Ads Kampanyası';
-        $smartSeeds = extractLocationAndSmartSeeds($pageDetails, $query, $langInfo['code']);
     }
 
-    // 2.2 Call Official Google Ads API with Dual Seeding (URL + Location Grounded Seeds)
+    $smartSeeds = !empty($aiSeeds) ? array_values(array_unique(array_filter($aiSeeds))) : extractLocationAndSmartSeeds($pageDetails, $query, $langInfo['code']);
+
+    // 2.2 Call Official Google Ads API with Dual Seeding (URL + AI High-Intent Seeds)
     $officialKeywords = fetchGoogleAdsOfficialKeywordIdeas(
         $apiKeys,
         $isUrl ? $query : null,
@@ -1409,49 +1418,6 @@ if ($action === 'discover' && $method === 'POST') {
         }));
     } else {
         $officialKeywords = [];
-    }
-
-    // 2.3 Merge AI Performance Strategist & High-Converting Alternative Keywords into the Pool
-    $strategistPool = [];
-    if ($aiAnalysis && !empty($aiAnalysis['strategistKeywords']) && is_array($aiAnalysis['strategistKeywords'])) {
-        $strategistPool = array_merge($strategistPool, $aiAnalysis['strategistKeywords']);
-    }
-    if ($aiAnalysis && !empty($aiAnalysis['alternativeKeywords']) && is_array($aiAnalysis['alternativeKeywords'])) {
-        $strategistPool = array_merge($strategistPool, $aiAnalysis['alternativeKeywords']);
-    }
-
-    if (!empty($strategistPool)) {
-        // Expand strategist keywords through the dynamic SEM matrix (AI detected Geo hierarchy & synonyms)
-        $strategistPool = expandStrategistKeywordMatrix($strategistPool, $aiAnalysis, $langInfo['code']);
-
-        $existingMap = [];
-        foreach ($officialKeywords as $k) {
-            $existingMap[mb_strtolower($k['keyword'], 'UTF-8')] = true;
-        }
-
-        foreach ($strategistPool as $idx => $aiKw) {
-            $cleanKw = trim($aiKw['keyword'] ?? '');
-            if (empty($cleanKw) || mb_strlen($cleanKw, 'UTF-8') < 3) continue;
-            $kwKey = mb_strtolower($cleanKw, 'UTF-8');
-
-            if (!isset($existingMap[$kwKey])) {
-                $officialKeywords[] = [
-                    'id' => 'ai_strat_' . ($idx + 1) . '_' . substr(md5($cleanKw), 0, 6),
-                    'keyword' => $cleanKw,
-                    'monthlyVolume' => (int)($aiKw['monthlyVolume'] ?? 1800),
-                    'lowCpc' => (float)($aiKw['lowCpc'] ?? 6.50),
-                    'highCpc' => (float)($aiKw['highCpc'] ?? 24.00),
-                    'competition' => $aiKw['competition'] ?? 'HIGH',
-                    'competitionIndex' => (int)($aiKw['competitionIndex'] ?? 85),
-                    'intent' => $aiKw['intent'] ?? 'TRANSACTIONAL',
-                    'trendChangePercent' => (int)($aiKw['trendChangePercent'] ?? 20),
-                    'opportunityScore' => (int)($aiKw['opportunityScore'] ?? 98),
-                    'isAiStrategistPick' => true,
-                    'strategistStrategy' => $aiKw['strategy'] ?? 'TRANSACTIONAL'
-                ];
-                $existingMap[$kwKey] = true;
-            }
-        }
     }
 
     // Sort: prioritize AI Performance Strategist keywords first, then highest contextual relevance score, then search volume
