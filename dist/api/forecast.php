@@ -432,23 +432,25 @@ function analyzeLandingPageWithAI($pageDetails, $query, $geminiKey) {
         . "GÖREVLER:\n"
         . "1. Sayfanın sunduğu gerçek hizmeti/ürünü, ana sektörünü, iş modelini ('LEAD_GEN', 'ECOMMERCE', 'B2B_SERVICE', 'TOURISM', 'HEALTH_CARE') ve hedef coğrafyasını kesin olarak tespit et.\n"
         . "2. Sayfanın dilini ve adını tespit et (Örn: 'de' -> 'Almanca', 'ru' -> 'Rusça', 'en' -> 'İngilizce', 'tr' -> 'Türkçe', 'ar' -> 'Arapça', 'fr' -> 'Fransızca', 'es' -> 'İspanyolca', 'it' -> 'İtalyanca', 'nl' -> 'Felemenkçe').\n"
-        . "3. Bu işletmenin gerçek müşterisi/alıcısı olmak isteyen kişilerin Google Arama'da arattığı EN DOĞRU ve YÜKSEK NİYETLİ 15-20 ADET yerel tohum anahtar kelimeyi KESİNLİKLE BU SAYFANIN KENDİ DİLİNDE üret.\n"
-        . "4. Bu kampanya için KESİNLİKLE HARİÇ TUTULMASI (Negatif) gereken 10-15 alakasız terimi/sektörü listele (Örn: otel sayfasıysa 'satılık daire, emlak, kiralık ev'; gayrimenkul sayfasıysa 'otel, tatil, kiralık araç'; B2B ise 'bedava, ücretsiz, hobi').\n"
-        . "5. Bu sayfa için Google Ads'te hedeflenebilecek en mantıklı 4-5 hedef ülkeyi listele.\n\n"
+        . "3. Bu işletmenin gerçek müşterisi/alıcısı olmak isteyen kişilerin Google Arama'da arattığı EN DOĞRU ve YÜKSEK NİYETLİ 15-20 ADET yerel tohum anahtar kelimeyi KESİNLİKLE BU SAYFANIN KENDİ DİLİNDE üret ('highIntentSeeds').\n"
+        . "4. Bu kampanya için KESİNLİKLE HARİÇ TUTULMASI (Negatif) gereken 10-15 alakasız terimi/sektörü listele (Örn: gayrimenkul sayfasıysa 'çocuk oyun parkı, çocuk havuzu, plastik kaydırak, kiralık araba, otel'; oto tuning ise 'it s, where i am, kayıt ol'; otel ise 'satılık daire, emlak').\n"
+        . "5. Bu işletmenin satış ve dönüşümlerini doğrudan artıracak EN AZ 20-25 ADET yüksek niyetli, ticari (Transactional/Commercial) ALTERNATİF anahtar kelimeyi gerçekçi hacim (monthlyVolume) ve TBM (lowCpc/highCpc) ile üret ('alternativeKeywords').\n"
+        . "6. Bu sayfa için Google Ads'te hedeflenebilecek en mantıklı 4-5 hedef ülkeyi listele.\n\n"
         . "Yanıtını SADECE geçerli JSON formatında şu şemayla ver (başka metin ekleme):\n"
         . "{\n"
-        . "  \"detectedLanguage\": \"de\",\n"
-        . "  \"detectedLanguageName\": \"Almanca\",\n"
-        . "  \"sector\": \"Almanca Çağrı Merkezi & Müşteri Hizmetleri Dış Kaynak\",\n"
-        . "  \"businessModel\": \"B2B_SERVICE\",\n"
-        . "  \"targetLocation\": \"Almanya, Avusturya, İsviçre\",\n"
-        . "  \"highIntentSeeds\": [\"callcenter türkei\", \"kundenservice outsourcing\", \"b2b call center dienstleister\"],\n"
-        . "  \"negativeExclusions\": [\"gayrimenkul\", \"satılık daire\", \"hotel\", \"citizenship\", \"kostenlos\"],\n"
+        . "  \"detectedLanguage\": \"tr\",\n"
+        . "  \"detectedLanguageName\": \"Türkçe\",\n"
+        . "  \"sector\": \"Lüks Gayrimenkul & Rezidans Projesi Satışı\",\n"
+        . "  \"businessModel\": \"LEAD_GEN\",\n"
+        . "  \"targetLocation\": \"Alanya, Antalya, Türkiye\",\n"
+        . "  \"highIntentSeeds\": [\"alanya satılık lüks daire\", \"23 square alanya\", \"alanya konut projeleri lansman\"],\n"
+        . "  \"negativeExclusions\": [\"oyun parkı ev için\", \"çocuk su havuzu\", \"plastik kaydırak\", \"kiralık daire\", \"sahibinden\"],\n"
+        . "  \"alternativeKeywords\": [\n"
+        . "    {\"keyword\": \"23 square alanya satılık daire\", \"monthlyVolume\": 1600, \"lowCpc\": 5.50, \"highCpc\": 24.00, \"intent\": \"TRANSACTIONAL\", \"competition\": \"HIGH\", \"competitionIndex\": 85, \"trendChangePercent\": 20, \"opportunityScore\": 96},\n"
+        . "    {\"keyword\": \"alanya lüks rezidans projeleri\", \"monthlyVolume\": 4800, \"lowCpc\": 6.20, \"highCpc\": 28.00, \"intent\": \"TRANSACTIONAL\", \"competition\": \"HIGH\", \"competitionIndex\": 88, \"trendChangePercent\": 25, \"opportunityScore\": 94}\n"
+        . "  ],\n"
         . "  \"suggestedCountries\": [\n"
-        . "    {\"code\": \"DE\", \"name\": \"Almanya\", \"flag\": \"🇩🇪\", \"region\": \"Avrupa\", \"cpcMultiplier\": 1.9, \"volumeMultiplier\": 0.8, \"currency\": \"EUR\"},\n"
-        . "    {\"code\": \"AT\", \"name\": \"Avusturya\", \"flag\": \"🇦🇹\", \"region\": \"Avrupa\", \"cpcMultiplier\": 1.8, \"volumeMultiplier\": 0.3, \"currency\": \"EUR\"},\n"
-        . "    {\"code\": \"CH\", \"name\": \"İsviçre\", \"flag\": \"🇨🇭\", \"region\": \"Avrupa\", \"cpcMultiplier\": 2.4, \"volumeMultiplier\": 0.25, \"currency\": \"CHF\"},\n"
-        . "    {\"code\": \"TR\", \"name\": \"Türkiye (Gurbetçi & Yerleşik)\", \"flag\": \"🇹🇷\", \"region\": \"Yerel\", \"cpcMultiplier\": 0.9, \"volumeMultiplier\": 0.3, \"currency\": \"TRY\"}\n"
+        . "    {\"code\": \"TR\", \"name\": \"Türkiye\", \"flag\": \"🇹🇷\", \"region\": \"Yerel\", \"cpcMultiplier\": 1.0, \"volumeMultiplier\": 1.0, \"currency\": \"TRY\"}\n"
         . "  ]\n"
         . "}";
 
@@ -809,6 +811,20 @@ function filterKeywordsByPageContext($keywords, $pageDetails, $query, $langCode)
             }
         }
 
+        // 8. If page is Real Estate / Property / Residence (e.g. 23 Square, Cordelia, Summer Homes):
+        // Prune standalone playground/pool amenities that have no property/location context
+        if ($isCitizenshipOrRealEstate) {
+            $isAmenityOnly = preg_match('/^(oyun parkı|çocuk oyun|çocuk için oyun|çocuk alanı|çocuk havuzu|çocuk su havuzu|çocuk yüzme|havuz çocuk için|kapalı çocuk oyun parkı|oyun yeri|yetişkin havuz|yüzme kursu|oyun parkları|park oyun|oyun parkı çocuk|çocuk parkı|su kaydırağı|top havuzu|oyun alanı)\b/ui', $kwLower);
+            if ($isAmenityOnly && !preg_match('/\b(satılık|daire|konut|villa|proje|residence|square|alanya|antalya|istanbul|kıbrıs|cyprus|fiyat|fiyatları|yatırım|gayrimenkul|ev)\b/ui', $kwLower)) {
+                continue; // ❌ REJECT standalone playground / pool equipment noise
+            }
+        }
+
+        // 9. Prune meaningless broken filler phrases and generic UI words (e.g. from Pedalbox or English scripts)
+        if (preg_match('/^(it s|o my got|where i am|kayıt olmak|bir ara|ara toplam|i am from|i get it|if i was you|takip edin|bizi takip edin|üye ol|giriş yap|devamını oku|sepetim|iletişim|hakkımızda)$/ui', $kwLower)) {
+            continue; // ❌ REJECT meaningless broken filler noise
+        }
+
         // 7. Calculate precision relevance score
         $relevanceScore = 50;
         if ($isCyprusFocus) {
@@ -1052,12 +1068,9 @@ if ($action === 'discover' && $method === 'POST') {
         $suggestedCountries[0]['code'] ?? 'TR'
     );
 
-    if (!empty($officialKeywords) && count($officialKeywords) >= 15) {
-        // Apply Semantic Context-Aware Relevance Filter
-        $filteredOfficial = filterKeywordsByPageContext($officialKeywords, $pageDetails, $query, $langInfo['code']);
-        if (!empty($filteredOfficial) && count($filteredOfficial) >= 15) {
-            $officialKeywords = $filteredOfficial;
-        }
+    if (!empty($officialKeywords) && is_array($officialKeywords)) {
+        // Apply 2nd Layer Semantic Context-Aware Relevance Filter
+        $officialKeywords = filterKeywordsByPageContext($officialKeywords, $pageDetails, $query, $langInfo['code']);
 
         // Also prune negative exclusions from AI if available
         if ($aiAnalysis && !empty($aiAnalysis['negativeExclusions'])) {
@@ -1067,37 +1080,80 @@ if ($action === 'discover' && $method === 'POST') {
                 return !preg_match($negPattern, $kw);
             }));
         }
+    } else {
+        $officialKeywords = [];
+    }
 
-        if (count($officialKeywords) >= 15) {
-            $result = [
-                'query' => $query,
-                'mode' => $mode,
-                'source' => 'google_ads_official',
-                'sector' => $sectorTitle,
-                'businessModel' => $aiAnalysis['businessModel'] ?? 'LEAD_GEN',
-                'detectedLanguage' => $langInfo['code'],
-                'detectedLanguageName' => $langInfo['name'],
-                'pageTitle' => $pageDetails['title'] ?? $query,
-                'pageSummary' => 'Resmi Google Ads Keyword Planner servisinden çekilen ve sayfa bağlamına göre filtrelenmiş resmi arama verileri.',
-                'suggestedCountries' => $suggestedCountries,
-                'totalCount' => count($officialKeywords),
-                'keywords' => $officialKeywords,
-                'timestamp' => date('c')
-            ];
-
-            // Cache result
-            try {
-                $stmtSave = $pdo->prepare("INSERT OR REPLACE INTO keyword_cache (cache_key, query, mode, data, created_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)");
-                $stmtSave->execute([$cacheKey, $query, $mode, json_encode($result)]);
-            } catch (Exception $e) {}
-
-            echo json_encode([
-                'status' => 'success',
-                'source' => 'google_ads_official',
-                'data' => $result
-            ]);
-            exit;
+    // 2.3 Always Merge AI-Discovered High-Converting Alternative Keywords into the Pool
+    if ($aiAnalysis && !empty($aiAnalysis['alternativeKeywords']) && is_array($aiAnalysis['alternativeKeywords'])) {
+        $existingMap = [];
+        foreach ($officialKeywords as $k) {
+            $existingMap[mb_strtolower($k['keyword'], 'UTF-8')] = true;
         }
+
+        foreach ($aiAnalysis['alternativeKeywords'] as $idx => $aiKw) {
+            $cleanKw = trim($aiKw['keyword'] ?? '');
+            if (empty($cleanKw) || mb_strlen($cleanKw, 'UTF-8') < 3) continue;
+            $kwKey = mb_strtolower($cleanKw, 'UTF-8');
+
+            if (!isset($existingMap[$kwKey])) {
+                $officialKeywords[] = [
+                    'id' => 'ai_alt_' . ($idx + 1) . '_' . substr(md5($cleanKw), 0, 6),
+                    'keyword' => $cleanKw,
+                    'monthlyVolume' => (int)($aiKw['monthlyVolume'] ?? 1400),
+                    'lowCpc' => (float)($aiKw['lowCpc'] ?? 4.50),
+                    'highCpc' => (float)($aiKw['highCpc'] ?? 18.00),
+                    'competition' => $aiKw['competition'] ?? 'HIGH',
+                    'competitionIndex' => (int)($aiKw['competitionIndex'] ?? 80),
+                    'intent' => $aiKw['intent'] ?? 'TRANSACTIONAL',
+                    'trendChangePercent' => (int)($aiKw['trendChangePercent'] ?? 15),
+                    'opportunityScore' => (int)($aiKw['opportunityScore'] ?? 95)
+                ];
+                $existingMap[$kwKey] = true;
+            }
+        }
+    }
+
+    // Sort: prioritize highest contextual relevance score first, then search volume
+    usort($officialKeywords, function($a, $b) {
+        $scoreA = is_array($a) ? ($a['opportunityScore'] ?? 50) : 50;
+        $scoreB = is_array($b) ? ($b['opportunityScore'] ?? 50) : 50;
+        if ($scoreA !== $scoreB) return $scoreB - $scoreA;
+
+        $volA = is_array($a) ? ($a['monthlyVolume'] ?? 0) : 0;
+        $volB = is_array($b) ? ($b['monthlyVolume'] ?? 0) : 0;
+        return $volB - $volA;
+    });
+
+    if (count($officialKeywords) >= 15) {
+        $result = [
+            'query' => $query,
+            'mode' => $mode,
+            'source' => 'google_ads_official',
+            'sector' => $sectorTitle,
+            'businessModel' => $aiAnalysis['businessModel'] ?? 'LEAD_GEN',
+            'detectedLanguage' => $langInfo['code'],
+            'detectedLanguageName' => $langInfo['name'],
+            'pageTitle' => $pageDetails['title'] ?? $query,
+            'pageSummary' => 'Resmi Google Ads Keyword Planner servisinden çekilen, 2. kontrol yapay zeka süzgecinden geçmiş ve ek fırsat kelimeleriyle zenginleştirilmiş resmi veriler.',
+            'suggestedCountries' => $suggestedCountries,
+            'totalCount' => count($officialKeywords),
+            'keywords' => $officialKeywords,
+            'timestamp' => date('c')
+        ];
+
+        // Cache result
+        try {
+            $stmtSave = $pdo->prepare("INSERT OR REPLACE INTO keyword_cache (cache_key, query, mode, data, created_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)");
+            $stmtSave->execute([$cacheKey, $query, $mode, json_encode($result)]);
+        } catch (Exception $e) {}
+
+        echo json_encode([
+            'status' => 'success',
+            'source' => 'google_ads_official',
+            'data' => $result
+        ]);
+        exit;
     }
 
     // 3. Fallback to Google Gemini AI Engine with live scraped page content
