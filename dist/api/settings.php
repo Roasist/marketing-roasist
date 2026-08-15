@@ -4,6 +4,15 @@
  */
 
 header('Content-Type: application/json');
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Authorization');
+
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit;
+}
+
 require_once __DIR__ . '/db.php';
 
 $currentUser = requireAuth();
@@ -204,7 +213,9 @@ if ($method === 'POST') {
         $stmt->execute([$key, is_array($val) ? json_encode($val) : (string)$val]);
     }
 
-    logAudit((int)$currentUser['id'], $currentUser['name'], 'Sistem Ayarları Güncellendi', 'API ve genel ayarlar güncellendi.', 'AYARLAR');
+    try {
+        logAudit((int)$currentUser['id'], $currentUser['name'], 'Sistem Ayarları Güncellendi', 'API ve genel ayarlar güncellendi.', 'AYARLAR');
+    } catch (Exception $e) {}
 
     echo json_encode(['status' => 'success', 'message' => 'Ayarlar başarıyla kaydedildi!']);
     exit;

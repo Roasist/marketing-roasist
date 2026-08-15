@@ -33,9 +33,16 @@ export class ApiService {
         headers,
       });
 
-      const data = await response.json();
+      const text = await response.text();
+      let data: any = {};
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch (e) {
+        data = { status: response.ok ? 'success' : 'error', message: text };
+      }
+
       if (!response.ok) {
-        throw new Error(data.message || 'API İsteği başarısız oldu.');
+        throw new Error(data.message || `API Hatası (HTTP ${response.status})`);
       }
 
       return data as T;
