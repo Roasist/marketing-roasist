@@ -106,12 +106,15 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
     ];
 
     if (!empty($url)) {
+        if (!preg_match('/^https?:\/\//i', $url)) {
+            $url = 'https://' . $url;
+        }
         $payload["urlSeed"] = ["url" => $url];
     } elseif (!empty($keywords)) {
         $payload["keywordSeed"] = ["keywords" => is_array($keywords) ? array_slice($keywords, 0, 20) : [$keywords]];
     }
 
-    $chAds = curl_init("https://googleads.googleapis.com/v18/customers/{$customerId}:generateKeywordIdeas");
+    $chAds = curl_init("https://googleads.googleapis.com/v22/customers/{$customerId}:generateKeywordIdeas");
     curl_setopt($chAds, CURLOPT_POST, true);
     curl_setopt($chAds, CURLOPT_POSTFIELDS, json_encode($payload));
     curl_setopt($chAds, CURLOPT_RETURNTRANSFER, true);

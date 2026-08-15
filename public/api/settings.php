@@ -252,8 +252,8 @@ if ($action === 'test_google_ads') {
 
     $accessToken = $oauthJson['access_token'];
 
-    // Step 2: Test Google Ads API access by listing accessible customer accounts
-    $chAds = curl_init('https://googleads.googleapis.com/v18/customers:listAccessibleCustomers');
+    // Step 2: Test Google Ads API access by listing accessible customer accounts (v22 / v21)
+    $chAds = curl_init('https://googleads.googleapis.com/v22/customers:listAccessibleCustomers');
     curl_setopt($chAds, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($chAds, CURLOPT_HTTPHEADER, [
         'Authorization: Bearer ' . $accessToken,
