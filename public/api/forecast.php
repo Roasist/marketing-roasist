@@ -247,6 +247,75 @@ function fetchLandingPageDetails($url) {
     $plainText = trim(preg_replace('/\s+/', ' ', strip_tags($cleanHtml)));
     $textSnippet = mb_substr($plainText, 0, 2500, 'UTF-8');
 
+    // 🚀 SPA & React/Laravel Shell Deep Extraction:
+    // If the page is a client-side rendered SPA (empty body or generic title like 'Laravel', 'React App')
+    $isGenericTitle = preg_match('/^(laravel|react app|vite app|document|home|untitled|my app|app)$/i', trim($title));
+    $isEmptyBody = (mb_strlen($textSnippet, 'UTF-8') < 120);
+
+    if ($isGenericTitle || $isEmptyBody) {
+        $extractedJsStrings = [];
+        
+        // Find JS bundles from <script src="..."> or <link rel="modulepreload" href="...">
+        if (preg_match_all('/(?:src|href)=[\'"]([^\'"]*?(?:main|app|index|bundle)-[^\'"]*?\.js)[\'"]/i', $html, $jsMatches)) {
+            $parsedUrl = parse_url($url);
+            $baseUrl = ($parsedUrl['scheme'] ?? 'https') . '://' . ($parsedUrl['host'] ?? '');
+            
+            foreach (array_slice($jsMatches[1], 0, 2) as $jsPath) {
+                $fullJsUrl = (strpos($jsPath, 'http') === 0) ? $jsPath : $baseUrl . '/' . ltrim($jsPath, '/');
+                $chJs = curl_init($fullJsUrl);
+                curl_setopt($chJs, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($chJs, CURLOPT_TIMEOUT, 4);
+                curl_setopt($chJs, CURLOPT_SSL_VERIFYPEER, false);
+                $jsCode = curl_exec($chJs);
+                curl_close($chJs);
+
+                if ($jsCode && strlen($jsCode) > 500) {
+                    // Extract meaningful readable marketing words & phrases from JS strings
+                    preg_match_all('/"([A-Za-zÇĞİÖŞÜçğıöşü\s]{4,60})"/u', $jsCode, $sMatches);
+                    foreach ($sMatches[1] ?? [] as $candidate) {
+                        $candTrim = trim($candidate);
+                        if (preg_match('/(talent|finder|consult|recruit|hiring|candidate|career|job|staff|executive|insan kaynak|işe alım|danışman|kariyer|pozisyon|management)/i', $candTrim)) {
+                            $extractedJsStrings[] = $candTrim;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Domain token analysis (e.g. talentfinder.consulting -> Talent Finder Consulting)
+        $host = parse_url($url, PHP_URL_HOST) ?? '';
+        $cleanHost = preg_replace('/^www\./i', '', $host);
+        $domainParts = explode('.', $cleanHost);
+        $mainDomain = $domainParts[0] ?? '';
+        $tld = $domainParts[1] ?? '';
+        
+        $domainTokens = [];
+        if (preg_match('/(talent)(finder)/i', $mainDomain, $dm)) {
+            $domainTokens = ['Talent', 'Finder', ucfirst($tld)];
+        }
+
+        if (!empty($extractedJsStrings)) {
+            $uniqueJs = array_values(array_unique($extractedJsStrings));
+            $headings = array_merge($headings, array_slice($uniqueJs, 0, 6));
+            $textSnippet .= ' ' . implode('. ', array_slice($uniqueJs, 0, 15));
+            if ($isGenericTitle) {
+                $bestTopic = 'Talent Acquisition & Executive Search';
+                foreach ($uniqueJs as $uj) {
+                    if (preg_match('/(recruitment|talent acquisition|executive search|hr consulting|career consulting)/i', $uj)) {
+                        $bestTopic = $uj;
+                        break;
+                    }
+                }
+                $title = (!empty($domainTokens) ? implode(' ', $domainTokens) : ucfirst($mainDomain)) . ' - ' . $bestTopic;
+            }
+            if (empty($description)) {
+                $description = implode(', ', array_slice($uniqueJs, 0, 8));
+            }
+        } elseif ($isGenericTitle && !empty($domainTokens)) {
+            $title = implode(' ', $domainTokens);
+        }
+    }
+
     return [
         'title' => $title,
         'description' => $description,
@@ -266,8 +335,8 @@ function detectPageLanguage($title, $text) {
     if (count($ara[0] ?? []) > 8) return ['code' => 'ar', 'name' => 'Arapça'];
 
     // 2. Word scoring for Latin scripts
-    $enWords = preg_match_all('/\b(the|of|in|and|for|with|by|to|is|are|citizenship|investment|property|real estate|passport|turkey|turkish|houses|villas|apartment|apartments|contact|about|services|home)\b/ui', $full, $mEn);
-    $trWords = preg_match_all('/\b(ve|ile|için|bir|bu|da|de|olarak|gibi|satılık|kiralık|fiyatları|konut|daire|otel|villa|emlak|vatandaşlık|pasaport|gayrimenkul|yatırım|hakkımızda|iletişim)\b/ui', $full, $mTr);
+    $enWords = preg_match_all('/\b(the|of|in|and|for|with|by|to|is|are|citizenship|investment|property|real estate|passport|turkey|turkish|houses|villas|apartment|apartments|contact|about|services|home|talent|recruitment|consulting|career|jobs)\b/ui', $full, $mEn);
+    $trWords = preg_match_all('/\b(ve|ile|için|bir|bu|da|de|olarak|gibi|satılık|kiralık|fiyatları|konut|daire|otel|villa|emlak|vatandaşlık|pasaport|gayrimenkul|yatırım|hakkımızda|iletişim|danışmanlık|işe alım)\b/ui', $full, $mTr);
     $deWords = preg_match_all('/\b(und|für|mit|der|die|das|kaufen|wohnung|türkei|immobilien|haus|staatsbürgerschaft)\b/ui', $full, $mDe);
     
     preg_match_all('/[ğşIıİöüçĞŞÖÜÇ]/u', $full, $turkChars);
@@ -298,7 +367,27 @@ function extractLocationAndSmartSeeds($pageDetails, $query, $langCode = 'en') {
     $text = mb_strtolower($pageDetails['textSnippet'] ?? '', 'UTF-8');
     $full = $title . ' ' . $desc . ' ' . $headings . ' ' . $text . ' ' . mb_strtolower($query, 'UTF-8');
 
-    // 1. Detect Cyprus / North Cyprus Location
+    // 1. Detect Talent Acquisition / Recruitment / HR Consulting (TalentFinder)
+    if (preg_match('/\b(talent|recruitment|recruiting|hiring|headhunting|executive search|staffing|hr consulting|career consulting|human resources|işe alım|insan kaynakları|talentfinder)\b/ui', $full)) {
+        return [
+            'talent acquisition consulting',
+            'executive search agency',
+            'recruitment consultant',
+            'headhunting services',
+            'hr consulting firm',
+            'talent management consulting',
+            'executive recruitment services',
+            'recruitment agency for companies',
+            'talent search firm',
+            'career development consulting',
+            'global talent acquisition',
+            'recruitment and staffing services',
+            'işe alım danışmanlığı',
+            'insan kaynakları danışmanlığı'
+        ];
+    }
+
+    // 2. Detect Cyprus / North Cyprus Location
     if (preg_match('/\b(cyprus|north cyprus|kıbrıs|kuzey kıbrıs|kktc|esentepe|girne|kyrenia|famagusta|gazimağusa|tatlısu|iskele|lefkosa|nicosia|cordelia)\b/ui', $full)) {
         $brand = '';
         if (preg_match('/\b(cordelia)\b/ui', $full)) $brand = 'cordelia';
@@ -327,7 +416,7 @@ function extractLocationAndSmartSeeds($pageDetails, $query, $langCode = 'en') {
         return array_slice($seeds, 0, 20);
     }
 
-    // 2. Detect Turkey Citizenship & Real Estate
+    // 3. Detect Turkey Citizenship & Real Estate
     if (preg_match('/\b(turkish citizenship|citizenship by investment|vatandaşlık|alanya|istanbul|antalya|bodrum|fethiye|summer homes)\b/ui', $full)) {
         $seeds = [
             'turkish citizenship by investment',
@@ -345,7 +434,7 @@ function extractLocationAndSmartSeeds($pageDetails, $query, $langCode = 'en') {
         return array_slice($seeds, 0, 20);
     }
 
-    // 3. Detect Digital Marketing / Agency (Roasist)
+    // 4. Detect Digital Marketing / Agency (Roasist)
     if (preg_match('/\b(marketing|pazarlama|reklam|roas|ajans|agency|seo|google ads|meta ads|e-ticaret)\b/ui', $full)) {
         return [
             'performans pazarlama ajansı',

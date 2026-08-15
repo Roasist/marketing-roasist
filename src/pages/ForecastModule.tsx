@@ -129,7 +129,14 @@ export const groupKeywordsSemantically = (kwList: KeywordMetric[]): KeywordClust
       icon: '🌐',
       regex: /(двойное гражданство|второе гражданство|second citizenship|second passport|dual citizenship|çifte vatandaşlık|global)/i
     },
-    // 13. Digital Marketing & Agency
+    // 13. HR, Talent Acquisition & Recruitment Consulting
+    {
+      id: 'hr_recruitment',
+      name: 'İşe Alım, İK & Yetenek Danışmanlığı',
+      icon: '👥',
+      regex: /(talent|recruit|headhunt|hiring|staffing|executive search|human resource|insan kaynak|işe alım|kariyer|yetenek|headhunter)/i
+    },
+    // 14. Digital Marketing & Agency
     {
       id: 'agency_services',
       name: 'Dijital Pazarlama & Ajans Danışmanlığı',
