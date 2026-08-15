@@ -812,9 +812,9 @@ function filterKeywordsByPageContext($keywords, $pageDetails, $query, $langCode)
         }
 
         // 8. If page is Real Estate / Property / Residence (e.g. 23 Square, Cordelia, Summer Homes):
-        // Prune standalone playground/pool amenities that do not have explicit property/purchase intent
+        // Prune standalone playground/pool/kids/entertainment amenities that do not have explicit property/purchase intent
         if ($isCitizenshipOrRealEstate) {
-            $isAmenity = preg_match('/(oyun park|oyun alan|oyun yer|çocuk park|cocuk park|çocuk havuz|cocuk havuz|çocuk alan|cocuk alan|çocuk yüzme|cocuk yuzme|su havuz|yetişkin havuz|yetiskin havuz|bebek havuz|bebek oyun|kapalı alan oyun|kaydırak|top havuz|aquapark|oyun ev|oyun oda)/ui', $kwLower);
+            $isAmenity = preg_match('/(cocuk|çocuk|bebek|oyun|eğlence|eglence|oyuncak|havuz|yüzme|yuzme|park|salıncak|salincak|kaydırak|kaydirak|kum havuz|top havuz|çit|cit)/ui', $kwLower);
             if ($isAmenity) {
                 // Must contain explicit property/sales intent (e.g. "alanya satılık havuzlu daire", "23 square çocuk parklı konut")
                 $hasPropertyIntent = preg_match('/\b(satılık|satilik|daire|konut|villa|rezidans|residence|proje|projeleri|emlak|gayrimenkul|mülk|mulk|satın al|yatırım|yatirim|23 square)\b|\b(ev|evler|evleri)\s+(satılık|fiyat|fiyatları|projeleri)\b/ui', $kwLower);
