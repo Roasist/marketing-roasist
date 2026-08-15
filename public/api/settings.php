@@ -275,10 +275,11 @@ if ($action === 'test_google_ads') {
             'accessibleCustomers' => $customers
         ]);
     } else {
-        $errMsg = $adsJson['error']['message'] ?? $adsJson['error']['details'][0]['errors'][0]['message'] ?? 'Google Ads API erişim reddedildi.';
+        $errMsg = $adsJson['error']['message'] ?? $adsJson['error']['details'][0]['errors'][0]['message'] ?? ('HTTP ' . $adsCode . ' - Yanıt: ' . substr($adsRes, 0, 300));
         echo json_encode([
             'status' => 'error',
-            'message' => "Google Ads API (HTTP {$adsCode}): " . $errMsg
+            'message' => "Google Ads API: " . $errMsg,
+            'raw' => $adsJson ?? $adsRes
         ]);
     }
     exit;
