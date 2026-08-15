@@ -358,7 +358,7 @@ if ($action === 'discover' && $method === 'POST') {
     $pageTitle = $pageDetails['title'] ?? '';
     $pageSummary = '';
     $suggestedCountries = [];
-    $lastErrorMsg = '';
+    $modelAttempts = [];
 
     foreach ($endpointsToTry as $endpointUrl) {
         $geminiUrl = $endpointUrl . "?key=" . urlencode($geminiKey);
@@ -384,6 +384,7 @@ if ($action === 'discover' && $method === 'POST') {
         curl_close($chGemini);
 
         $gJson = json_decode($resGemini, true);
+        $modelName = basename(parse_url($endpointUrl, PHP_URL_PATH));
 
         if (isset($gJson['candidates'][0]['content']['parts'][0]['text'])) {
             $rawAiText = $gJson['candidates'][0]['content']['parts'][0]['text'];
@@ -407,14 +408,14 @@ if ($action === 'discover' && $method === 'POST') {
                 $suggestedCountries = $parsedAi['suggestedCountries'] ?? [];
                 break; // Successfully got live AI keywords!
             } else {
-                $lastErrorMsg = "AI Yanıtı JSON Şemasına Uymadı: " . mb_substr($rawAiText, 0, 150);
+                $modelAttempts[] = "{$modelName}: JSON Decode Başarısız (" . mb_substr($rawAiText, 0, 100) . ")";
             }
         } elseif (isset($gJson['error']['message'])) {
-            $lastErrorMsg = "Google API (HTTP {$httpCode}): " . $gJson['error']['message'];
+            $modelAttempts[] = "{$modelName} (HTTP {$httpCode}): " . $gJson['error']['message'];
         } elseif ($curlErr) {
-            $lastErrorMsg = "cURL Bağlantı Hatası: " . $curlErr;
+            $modelAttempts[] = "{$modelName} (cURL Hatası): " . $curlErr;
         } else {
-            $lastErrorMsg = "Google API HTTP {$httpCode}: " . mb_substr($resGemini, 0, 200);
+            $modelAttempts[] = "{$modelName} (HTTP {$httpCode}): " . mb_substr($resGemini, 0, 150);
         }
     }
 
@@ -422,11 +423,11 @@ if ($action === 'discover' && $method === 'POST') {
         // ZERO FAKE DATA - Return exact Google API error & debug info
         echo json_encode([
             'status' => 'error',
-            'message' => 'Google Gemini API Bağlantı Hatası: ' . ($lastErrorMsg ?: 'Google Generative Language API yanıt vermedi.'),
+            'message' => 'Google Gemini API Yanıt Veremedi: ' . implode(' | ', $modelAttempts),
             'diagnostics' => [
                 'geminiKeyConfigured' => !empty($geminiKey),
                 'geminiKeyMasked' => $geminiKey ? substr($geminiKey, 0, 6) . '...' . substr($geminiKey, -4) : 'YOK',
-                'lastGoogleError' => $lastErrorMsg,
+                'modelAttempts' => $modelAttempts,
                 'scrapedPage' => [
                     'url' => $query,
                     'title' => $pageDetails['title'] ?? '(Başlık Çekilemedi)',
