@@ -716,6 +716,40 @@ function extractLocationAndSmartSeeds($pageDetails, $query, $langCode = 'en') {
     return array_slice(array_unique($autoSeeds), 0, 15);
 }
 
+// Helper to detect pure stopword, pronoun, auxiliary verb, and filler fragments (e.g. "fits you", "we you are", "good not", "not have", "i can not", "not can")
+function isPureStopwordJunk($text) {
+    $clean = mb_strtolower(trim($text), 'UTF-8');
+    $clean = preg_replace('/[^\p{L}\s]/u', ' ', $clean);
+    $words = array_filter(preg_split('/\s+/u', $clean));
+    if (empty($words)) return true;
+
+    $stopSet = [
+        'i','me','my','myself','we','our','ours','ourselves','you','your','yours','yourself','yourselves',
+        'he','him','his','himself','she','her','hers','herself','it','its','itself','they','them','their','theirs','themselves',
+        'what','which','who','whom','this','that','these','those','am','is','are','was','were','be','been','being',
+        'have','has','had','having','do','does','did','doing','a','an','the','and','but','if','or','because','as','until',
+        'while','of','at','by','for','with','about','against','between','into','through','during','before','after','above','below',
+        'to','from','up','down','in','out','on','off','over','under','again','further','then','once','here','there','when','where',
+        'why','how','all','any','both','each','few','more','most','other','some','such','no','nor','not','only','own','same','so',
+        'than','too','very','s','t','can','will','just','don','should','now','d','ll','m','o','re','ve','y','ain','aren','couldn',
+        'didn','doesn','hadn','hasn','haven','isn','ma','mightn','mustn','needn','shan','shouldn','wasn','weren','won','wouldn',
+        'good','bad','fit','fits','get','got','gotten','like','make','made','take','took','see','saw','come','came','say','said',
+        // Turkish basic stop words & pronouns
+        'bir','ve','ile','için','icin','de','da','bu','şu','su','o','gibi','kadar','daha','çok','cok','en','her','hiç','hic',
+        'ama','fakat','veya','ya','ne','ise','bana','sana','ona','bize','size','onlara','ben','sen','biz','siz','onlar',
+        'mı','mi','mu','mü','olan','olarak','var','yok','diye','benim','senin','onun','bizim','sizin','onların'
+    ];
+    $stopLookup = array_flip($stopSet);
+
+    $meaningfulCount = 0;
+    foreach ($words as $w) {
+        if (!isset($stopLookup[$w]) && mb_strlen($w, 'UTF-8') >= 3) {
+            $meaningfulCount++;
+        }
+    }
+    return ($meaningfulCount === 0);
+}
+
 // Context-Aware Semantic Relevance Filter: prunes irrelevant competing foreign countries & non-aligned terms
 function filterKeywordsByPageContext($keywords, $pageDetails, $query, $langCode) {
     if (empty($keywords) || !is_array($keywords)) return [];
@@ -790,6 +824,11 @@ function filterKeywordsByPageContext($keywords, $pageDetails, $query, $langCode)
 
         if (empty($kwLower)) continue;
         if (mb_strlen($kwLower, 'UTF-8') < 3) continue;
+
+        // 0. Drop pure stopword, pronoun, auxiliary verb and filler grammatical fragments
+        if (isPureStopwordJunk($kwLower)) {
+            continue; // ❌ REJECT pure stopword/filler fragments (e.g. "fits you", "we you are", "good not", "not have", "i can not", "not can")
+        }
 
         // 1. If page is Hotel / Tourism, STRICTLY exclude real estate, citizenship, and property for sale noise!
         if ($isHotelOrTourism && preg_match($realEstateExclusionPattern, $kwLower)) {

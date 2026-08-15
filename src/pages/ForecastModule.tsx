@@ -197,10 +197,20 @@ export const groupKeywordsSemantically = (kwList: KeywordMetric[]): KeywordClust
   // 🚀 UNIVERSAL DYNAMIC SUB-CLUSTERING FOR UNASSIGNED KEYWORDS (ANY LANGUAGE / ANY NICHE)
   if (unassigned.length > 0) {
     const stopWords = new Set([
+      // German
       'und', 'der', 'die', 'das', 'ein', 'eine', 'für', 'mit', 'von', 'bei', 'aus', 'nach', 'über', 'unter', 'vor',
-      'bir', 've', 'ile', 'için', 'de', 'da', 'bu', 'şu', 'gibi', 'kadar',
-      'the', 'and', 'for', 'with', 'from', 'to', 'in', 'on', 'of', 'is', 'are', 'at', 'by', 'an', 'a',
-      'als', 'im', 'den', 'dem', 'des', 'zur', 'zum', 'am', 'zurück'
+      'als', 'im', 'den', 'dem', 'des', 'zur', 'zum', 'am', 'zurück', 'nicht', 'wir', 'sie', 'uns', 'ihr',
+      // Turkish
+      'bir', 've', 'ile', 'için', 'icin', 'de', 'da', 'bu', 'şu', 'su', 'gibi', 'kadar', 'en', 'cok', 'çok', 'daha',
+      'her', 'hic', 'hiç', 'var', 'yok', 'olan', 'olarak', 'ben', 'sen', 'biz', 'siz', 'onlar', 'bize', 'size',
+      'okul', 'okulu', 'okullari', 'ilk', 'orta', 'lise', 'egitim', 'eğitim',
+      // English
+      'the', 'and', 'for', 'with', 'from', 'to', 'in', 'on', 'of', 'is', 'are', 'at', 'by', 'an', 'a', 'it', 'its',
+      'you', 'your', 'yours', 'we', 'our', 'ours', 'us', 'they', 'them', 'their', 'theirs', 'he', 'him', 'his',
+      'she', 'her', 'hers', 'not', 'no', 'nor', 'have', 'has', 'had', 'do', 'does', 'did', 'can', 'could', 'will',
+      'would', 'shall', 'should', 'may', 'might', 'must', 'fit', 'fits', 'good', 'bad', 'get', 'got', 'make', 'see',
+      'all', 'any', 'both', 'each', 'few', 'more', 'most', 'other', 'some', 'such', 'only', 'own', 'same', 'so',
+      'than', 'too', 'very', 'just', 'now', 'where', 'when', 'why', 'how', 'who', 'what', 'which', 'this', 'that'
     ]);
 
     // Pre-defined friendly naming dictionary for popular niche roots
@@ -220,31 +230,37 @@ export const groupKeywordsSemantically = (kwList: KeywordMetric[]): KeywordClust
       pedal: { name: 'Gaz Pedalı & Tepkime Modülleri', icon: '🏎️' }
     };
 
+    // Filter out pure junk from unassigned list
+    const validUnassigned = unassigned.filter(kw => {
+      const words = kw.keyword.toLowerCase().split(/\s+/).filter(w => w.length >= 3 && !stopWords.has(w));
+      return words.length > 0;
+    });
+
     // Count token frequencies among unassigned keywords
     const tokenMap = new Map<string, KeywordMetric[]>();
-    for (const kw of unassigned) {
-      const words = kw.keyword.toLowerCase().split(/\s+/).filter(w => w.length >= 3 && !stopWords.has(w));
+    for (const kw of validUnassigned) {
+      const words = kw.keyword.toLowerCase().split(/\s+/).filter(w => w.length >= 4 && !stopWords.has(w));
       for (const w of words) {
         if (!tokenMap.has(w)) tokenMap.set(w, []);
         tokenMap.get(w)!.push(kw);
       }
     }
 
-    // Sort tokens by occurrence (highest first)
+    // Only create distinct sub-groups for verified friendly roots or significant clusters (>= 4 kws)
     const sortedTokens = Array.from(tokenMap.entries())
-      .filter(([_, list]) => list.length >= 2)
+      .filter(([token, list]) => (friendlyRootNames[token.toLowerCase()] && list.length >= 2) || list.length >= 4)
       .sort((a, b) => b[1].length - a[1].length);
 
     const claimedKeywordIds = new Set<string>();
 
     for (const [token, kws] of sortedTokens) {
       const unclaimed = kws.filter(k => !claimedKeywordIds.has(k.id));
-      if (unclaimed.length >= 2) {
+      if (unclaimed.length >= 3 || (friendlyRootNames[token.toLowerCase()] && unclaimed.length >= 2)) {
         unclaimed.forEach(k => claimedKeywordIds.add(k.id));
         const vol = unclaimed.reduce((s, k) => s + k.monthlyVolume, 0);
         const cpcSum = unclaimed.reduce((s, k) => s + ((k.lowCpc + k.highCpc) / 2), 0);
         
-        let groupTitle = `${token.charAt(0).toUpperCase() + token.slice(1)} Odaklı Reklam Grubu (${token.toUpperCase()} Focus)`;
+        let groupTitle = `${token.charAt(0).toUpperCase() + token.slice(1)} Odaklı Aramalar`;
         let groupIcon = '💡';
 
         if (friendlyRootNames[token.toLowerCase()]) {
@@ -264,8 +280,8 @@ export const groupKeywordsSemantically = (kwList: KeywordMetric[]): KeywordClust
       }
     }
 
-    // Final leftovers (only true 1-off singletons)
-    const remainingLeftovers = unassigned.filter(k => !claimedKeywordIds.has(k.id));
+    // Final clean catch-all for remaining individual queries
+    const remainingLeftovers = validUnassigned.filter(k => !claimedKeywordIds.has(k.id));
     if (remainingLeftovers.length > 0) {
       const vol = remainingLeftovers.reduce((s, k) => s + k.monthlyVolume, 0);
       const cpcSum = remainingLeftovers.reduce((s, k) => s + ((k.lowCpc + k.highCpc) / 2), 0);
