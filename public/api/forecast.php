@@ -196,12 +196,12 @@ if ($action === 'discover' && $method === 'POST') {
         . "  ]\n"
         . "}";
 
-    $modelsToTry = [
-        'gemini-1.5-flash-latest',
-        'gemini-2.0-flash',
-        'gemini-1.5-flash',
-        'gemini-1.5-pro',
-        'gemini-pro'
+    $endpointsToTry = [
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent',
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent',
+        'https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent',
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent',
+        'https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro:generateContent'
     ];
 
     $keywordsResult = [];
@@ -213,8 +213,8 @@ if ($action === 'discover' && $method === 'POST') {
     $suggestedCountries = [];
     $lastErrorMsg = '';
 
-    foreach ($modelsToTry as $modelName) {
-        $geminiUrl = "https://generativelanguage.googleapis.com/v1beta/models/{$modelName}:generateContent?key=" . urlencode($geminiKey);
+    foreach ($endpointsToTry as $endpointUrl) {
+        $geminiUrl = $endpointUrl . "?key=" . urlencode($geminiKey);
         $payload = [
             "contents" => [
                 ["parts" => [["text" => $prompt]]]
@@ -257,7 +257,7 @@ if ($action === 'discover' && $method === 'POST') {
     if (empty($keywordsResult)) {
         echo json_encode([
             'status' => 'error',
-            'message' => 'Analiz Hatası: ' . ($lastErrorMsg ?: 'Bu web sitesi için anahtar kelime analizi yapılamadı. Lütfen Google / Gemini API anahtarınızı kontrol edin.')
+            'message' => 'Analiz Hatası: ' . ($lastErrorMsg ?: 'Google Gemini API bağlantısı kurulamadı. Lütfen Yönetim Paneli > API Bağlantıları sekmesinden geçerli Gemini API anahtarınızı (AIzaSy...) kontrol edin.')
         ]);
         exit;
     }
