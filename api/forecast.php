@@ -196,27 +196,14 @@ if ($action === 'discover' && $method === 'POST') {
         . "  ]\n"
         . "}";
 
-    $geminiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" . urlencode($geminiKey);
-    $payload = [
-        "contents" => [
-            ["parts" => [["text" => $prompt]]]
-        ],
-        "generationConfig" => [
-            "temperature" => 0.2,
-            "responseMimeType" => "application/json"
-        ]
+    $modelsToTry = [
+        'gemini-1.5-flash-latest',
+        'gemini-2.0-flash',
+        'gemini-1.5-flash',
+        'gemini-1.5-pro',
+        'gemini-pro'
     ];
 
-    $chGemini = curl_init($geminiUrl);
-    curl_setopt($chGemini, CURLOPT_POST, true);
-    curl_setopt($chGemini, CURLOPT_POSTFIELDS, json_encode($payload));
-    curl_setopt($chGemini, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($chGemini, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-    curl_setopt($chGemini, CURLOPT_TIMEOUT, 25);
-    $resGemini = curl_exec($chGemini);
-    curl_close($chGemini);
-
-    $gJson = json_decode($resGemini, true);
     $keywordsResult = [];
     $detectedLang = 'tr';
     $detectedLangName = 'Türkçe';
@@ -224,26 +211,53 @@ if ($action === 'discover' && $method === 'POST') {
     $pageTitle = $pageDetails['title'] ?? '';
     $pageSummary = '';
     $suggestedCountries = [];
+    $lastErrorMsg = '';
 
-    if (isset($gJson['candidates'][0]['content']['parts'][0]['text'])) {
-        $rawAiText = $gJson['candidates'][0]['content']['parts'][0]['text'];
-        $parsedAi = json_decode($rawAiText, true);
-        if (isset($parsedAi['keywords']) && is_array($parsedAi['keywords'])) {
-            $keywordsResult = $parsedAi['keywords'];
-            $detectedLang = $parsedAi['detectedLanguage'] ?? $detectedLang;
-            $detectedLangName = $parsedAi['detectedLanguageName'] ?? $detectedLangName;
-            $sectorSummary = $parsedAi['sector'] ?? $sectorSummary;
-            $pageTitle = $parsedAi['pageTitle'] ?? $pageTitle;
-            $pageSummary = $parsedAi['pageSummary'] ?? '';
-            $suggestedCountries = $parsedAi['suggestedCountries'] ?? [];
+    foreach ($modelsToTry as $modelName) {
+        $geminiUrl = "https://generativelanguage.googleapis.com/v1beta/models/{$modelName}:generateContent?key=" . urlencode($geminiKey);
+        $payload = [
+            "contents" => [
+                ["parts" => [["text" => $prompt]]]
+            ],
+            "generationConfig" => [
+                "temperature" => 0.2,
+                "responseMimeType" => "application/json"
+            ]
+        ];
+
+        $chGemini = curl_init($geminiUrl);
+        curl_setopt($chGemini, CURLOPT_POST, true);
+        curl_setopt($chGemini, CURLOPT_POSTFIELDS, json_encode($payload));
+        curl_setopt($chGemini, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($chGemini, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+        curl_setopt($chGemini, CURLOPT_TIMEOUT, 25);
+        $resGemini = curl_exec($chGemini);
+        curl_close($chGemini);
+
+        $gJson = json_decode($resGemini, true);
+
+        if (isset($gJson['candidates'][0]['content']['parts'][0]['text'])) {
+            $rawAiText = $gJson['candidates'][0]['content']['parts'][0]['text'];
+            $parsedAi = json_decode($rawAiText, true);
+            if (isset($parsedAi['keywords']) && is_array($parsedAi['keywords'])) {
+                $keywordsResult = $parsedAi['keywords'];
+                $detectedLang = $parsedAi['detectedLanguage'] ?? $detectedLang;
+                $detectedLangName = $parsedAi['detectedLanguageName'] ?? $detectedLangName;
+                $sectorSummary = $parsedAi['sector'] ?? $sectorSummary;
+                $pageTitle = $parsedAi['pageTitle'] ?? $pageTitle;
+                $pageSummary = $parsedAi['pageSummary'] ?? '';
+                $suggestedCountries = $parsedAi['suggestedCountries'] ?? [];
+                break; // Successfully got keywords!
+            }
+        } elseif (isset($gJson['error']['message'])) {
+            $lastErrorMsg = $gJson['error']['message'];
         }
     }
 
     if (empty($keywordsResult)) {
-        $errMsg = $gJson['error']['message'] ?? 'Bu web sitesi için anahtar kelime analizi yapılamadı. Lütfen Google API anahtarınızı kontrol edin veya geçerli bir web adresi girin.';
         echo json_encode([
             'status' => 'error',
-            'message' => 'Analiz Hatası: ' . $errMsg
+            'message' => 'Analiz Hatası: ' . ($lastErrorMsg ?: 'Bu web sitesi için anahtar kelime analizi yapılamadı. Lütfen Google / Gemini API anahtarınızı kontrol edin.')
         ]);
         exit;
     }
@@ -311,26 +325,37 @@ if ($action === 'negative_keywords' && $method === 'POST') {
                 . "  }\n"
                 . "]";
 
-            $geminiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" . urlencode($geminiKey);
-            $payload = [
-                "contents" => [["parts" => [["text" => $prompt]]]],
-                "generationConfig" => ["temperature" => 0.2, "responseMimeType" => "application/json"]
+            $modelsToTry = [
+                'gemini-1.5-flash-latest',
+                'gemini-2.0-flash',
+                'gemini-1.5-flash',
+                'gemini-1.5-pro',
+                'gemini-pro'
             ];
 
-            $ch = curl_init($geminiUrl);
-            curl_setopt($ch, CURLOPT_POST, true);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 15);
-            $res = curl_exec($ch);
-            curl_close($ch);
+            foreach ($modelsToTry as $modelName) {
+                $geminiUrl = "https://generativelanguage.googleapis.com/v1beta/models/{$modelName}:generateContent?key=" . urlencode($geminiKey);
+                $payload = [
+                    "contents" => [["parts" => [["text" => $prompt]]]],
+                    "generationConfig" => ["temperature" => 0.2, "responseMimeType" => "application/json"]
+                ];
 
-            $gJson = json_decode($res, true);
-            if (isset($gJson['candidates'][0]['content']['parts'][0]['text'])) {
-                $parsedNeg = json_decode($gJson['candidates'][0]['content']['parts'][0]['text'], true);
-                if (is_array($parsedNeg) && count($parsedNeg) > 0) {
-                    $negativeCategories = $parsedNeg;
+                $ch = curl_init($geminiUrl);
+                curl_setopt($ch, CURLOPT_POST, true);
+                curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+                curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+                $res = curl_exec($ch);
+                curl_close($ch);
+
+                $gJson = json_decode($res, true);
+                if (isset($gJson['candidates'][0]['content']['parts'][0]['text'])) {
+                    $parsedNeg = json_decode($gJson['candidates'][0]['content']['parts'][0]['text'], true);
+                    if (is_array($parsedNeg) && count($parsedNeg) > 0) {
+                        $negativeCategories = $parsedNeg;
+                        break;
+                    }
                 }
             }
         } catch (Exception $e) {}
