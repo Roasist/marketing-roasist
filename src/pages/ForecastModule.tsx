@@ -46,20 +46,86 @@ export const groupKeywordsSemantically = (kwList: KeywordMetric[]): KeywordClust
 
   const clusters: KeywordCluster[] = [];
 
-  // 0. DEDICATED PINNED CLUSTER: AI Senior Performance SEM Strategist (High-Converting Picks)
+  // 0. DEDICATED PINNED CLUSTERS: AI Senior Performance SEM Strategist STAG Sub-Groups
   const strategistKeywords = kwList.filter(k => !!k.isAiStrategistPick || k.id?.startsWith('ai_strat_') || k.id?.startsWith('ai_alt_'));
   if (strategistKeywords.length > 0) {
-    const vol = strategistKeywords.reduce((s, k) => s + k.monthlyVolume, 0);
-    const cpcSum = strategistKeywords.reduce((s, k) => s + ((k.lowCpc + k.highCpc) / 2), 0);
-    clusters.push({
-      id: 'sem_strategist_picks',
-      name: '🚀 SEM Uzman Stratejisi (High-ROAS)',
-      icon: '⚡',
-      keywords: strategistKeywords,
-      totalVolume: vol,
-      avgCpc: cpcSum / strategistKeywords.length,
-      selectedCount: 0
-    });
+    const semStagRules = [
+      {
+        id: 'sem_pricing',
+        name: '💰 🚀 SEM: Fiyat, Paket & Maliyetler',
+        icon: '💰',
+        regex: /\b(fiyat|fiyatı|fiyatları|ücret|ücreti|ücretleri|maliyet|paket|paketleri|price|prices|pricing|cost|costs|package|packages|all inclusive|kosten|preise|preis|angebot)\b/i
+      },
+      {
+        id: 'sem_reviews',
+        name: '⭐ 🚀 SEM: En İyi, Tavsiye & Yorumlar',
+        icon: '⭐',
+        regex: /\b(best|top|top rated|reviews|review|before and after|before & after|en iyi|tavsiye|yorum|yorumları|yorumlar|erfahrungen|bewertung|erfahrung)\b/i
+      },
+      {
+        id: 'sem_lead_hooks',
+        name: '🪝 🚀 SEM: Randevu & Lead Kancaları',
+        icon: '🪝',
+        regex: /\b(free consultation|consultation|book|book online|quote|appointment|bursluluk|bursluluk sınavı|ön kayıt|randevu|randevu al|beratung|kostenlose beratung|anfordern|einholen)\b/i
+      },
+      {
+        id: 'sem_geo',
+        name: '📍 🚀 SEM: Lokasyon & Şehir Odaklı',
+        icon: '📍',
+        regex: /\b(istanbul|turkey|türkiye|izmit|kocaeli|yahya kaptan|başiskele|antalya|alanya|bodrum|çeşme|ankara|izmir|bursa|münchen|bayern|deutschland|berlin|london|uk|cyprus|girne|kyrenia)\b/i
+      }
+    ];
+
+    const assignedSem = new Map<string, KeywordMetric[]>();
+    semStagRules.forEach(r => assignedSem.set(r.id, []));
+    const unassignedSem: KeywordMetric[] = [];
+
+    for (const kw of strategistKeywords) {
+      let matched = false;
+      for (const rule of semStagRules) {
+        if (rule.regex.test(kw.keyword)) {
+          assignedSem.get(rule.id)!.push(kw);
+          matched = true;
+          break;
+        }
+      }
+      if (!matched) {
+        unassignedSem.push(kw);
+      }
+    }
+
+    // Add populated SEM STAG groups
+    for (const rule of semStagRules) {
+      const list = assignedSem.get(rule.id) || [];
+      if (list.length > 0) {
+        const vol = list.reduce((s, k) => s + k.monthlyVolume, 0);
+        const cpcSum = list.reduce((s, k) => s + ((k.lowCpc + k.highCpc) / 2), 0);
+        clusters.push({
+          id: rule.id,
+          name: rule.name,
+          icon: rule.icon,
+          keywords: list,
+          totalVolume: vol,
+          avgCpc: list.length > 0 ? cpcSum / list.length : 0,
+          selectedCount: 0
+        });
+      }
+    }
+
+    // Remaining core service variations
+    if (unassignedSem.length > 0) {
+      const vol = unassignedSem.reduce((s, k) => s + k.monthlyVolume, 0);
+      const cpcSum = unassignedSem.reduce((s, k) => s + ((k.lowCpc + k.highCpc) / 2), 0);
+      clusters.push({
+        id: 'sem_core_variations',
+        name: '🎯 🚀 SEM: Ana Hizmet & Varyasyonlar',
+        icon: '🎯',
+        keywords: unassignedSem,
+        totalVolume: vol,
+        avgCpc: unassignedSem.length > 0 ? cpcSum / unassignedSem.length : 0,
+        selectedCount: 0
+      });
+    }
   }
 
   const themeRules = [
