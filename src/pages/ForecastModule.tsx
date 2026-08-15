@@ -94,21 +94,35 @@ export const groupKeywordsSemantically = (kwList: KeywordMetric[]): KeywordClust
       icon: '💼',
       regex: /\b(residency|residence|permit|oturum|ikamet|ikametgah|oturma izni|внж|вид на жительство|пмж)\b/i
     },
-    // 8. Cities & Target Regions
+    // 8. Cyprus & Mediterranean Coastal Projects
+    {
+      id: 'cyprus_mediterranean',
+      name: 'Kuzey Kıbrıs & Akdeniz Projeleri',
+      icon: '🏝️',
+      regex: /\b(cyprus|north cyprus|kıbrıs|kuzey kıbrıs|kktc|esentepe|girne|kyrenia|famagusta|gazimağusa|tatlısu|iskele|lefkosa|nicosia|cordelia|mediterranean|кипр|северный кипр|эсентепе|гирне)\b/i
+    },
+    // 9. Off-plan, Project & Beachfront Developments
+    {
+      id: 'offplan_developments',
+      name: 'Lansman, Proje & Denize Sıfır Konutlar',
+      icon: '🏗️',
+      regex: /\b(off plan|off-plan|development|project|beachfront|sea view|seaside|lansman|proje|denize sıfır|manzaralı|новостройка|от застройщика|у моря)\b/i
+    },
+    // 10. Cities & Target Regions
     {
       id: 'regions_cities',
       name: 'Bölgesel Fırsatlar (İstanbul, Antalya, Alanya)',
       icon: '📍',
       regex: /\b(istanbul|antalya|alanya|bodrum|fethiye|izmir|ankara|dubai|стамбул|анталья|аланья)\b/i
     },
-    // 9. Second Passport & Dual Citizenship
+    // 11. Second Passport & Dual Citizenship
     {
       id: 'second_passport_global',
       name: 'Çifte Vatandaşlık & Global Programlar',
       icon: '🌐',
       regex: /\b(second citizenship|second passport|dual citizenship|çifte vatandaşlık|global|countries where|двойное гражданство|второе гражданство)\b/i
     },
-    // 10. Direct Citizenship Programs
+    // 12. Direct Citizenship Programs
     {
       id: 'citizenship_direct',
       name: 'Doğrudan Vatandaşlık Programları',

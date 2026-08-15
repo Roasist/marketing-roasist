@@ -105,7 +105,15 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
         "geoTargetConstants" => [$geoConst]
     ];
 
-    if (!empty($url)) {
+    if (!empty($url) && !empty($keywords) && is_array($keywords) && count($keywords) > 0) {
+        if (!preg_match('/^https?:\/\//i', $url)) {
+            $url = 'https://' . $url;
+        }
+        $payload["keywordAndUrlSeed"] = [
+            "url" => $url,
+            "keywords" => array_slice($keywords, 0, 20)
+        ];
+    } elseif (!empty($url)) {
         if (!preg_match('/^https?:\/\//i', $url)) {
             $url = 'https://' . $url;
         }
@@ -282,6 +290,89 @@ function detectPageLanguage($title, $text) {
     return ['code' => 'en', 'name' => 'İngilizce'];
 }
 
+// Extract Location Context, Brand Entities, and High-Intent Smart Seeds
+function extractLocationAndSmartSeeds($pageDetails, $query, $langCode = 'en') {
+    $title = mb_strtolower($pageDetails['title'] ?? '', 'UTF-8');
+    $desc = mb_strtolower($pageDetails['description'] ?? '', 'UTF-8');
+    $headings = mb_strtolower(implode(' ', $pageDetails['headings'] ?? []), 'UTF-8');
+    $text = mb_strtolower($pageDetails['textSnippet'] ?? '', 'UTF-8');
+    $full = $title . ' ' . $desc . ' ' . $headings . ' ' . $text . ' ' . mb_strtolower($query, 'UTF-8');
+
+    // 1. Detect Cyprus / North Cyprus Location
+    if (preg_match('/\b(cyprus|north cyprus|kıbrıs|kuzey kıbrıs|kktc|esentepe|girne|kyrenia|famagusta|gazimağusa|tatlısu|iskele|lefkosa|nicosia|cordelia)\b/ui', $full)) {
+        $brand = '';
+        if (preg_match('/\b(cordelia)\b/ui', $full)) $brand = 'cordelia';
+
+        $seeds = [
+            'north cyprus property for sale',
+            'luxury villas in north cyprus for sale',
+            'sea view apartments north cyprus',
+            'esentepe north cyprus real estate',
+            'buy apartment in north cyprus',
+            'north cyprus real estate investment',
+            'cyprus holiday homes for sale',
+            'off plan property north cyprus',
+            'mediterranean luxury villas cyprus',
+            'invest in north cyprus property',
+            'buy villa in north cyprus',
+            'cyprus luxury real estate for sale',
+            'kyrenia cyprus property for sale',
+            'kuzey kıbrıs satılık lüks villa',
+            'kktc esentepe satılık daire',
+            'kuzey kıbrıs gayrimenkul yatırımı'
+        ];
+        if (!empty($brand)) {
+            array_unshift($seeds, "{$brand} cyprus", "{$brand} residences north cyprus", "{$brand} esentepe");
+        }
+        return array_slice($seeds, 0, 20);
+    }
+
+    // 2. Detect Turkey Citizenship & Real Estate
+    if (preg_match('/\b(turkish citizenship|citizenship by investment|vatandaşlık|alanya|istanbul|antalya|bodrum|fethiye|summer homes)\b/ui', $full)) {
+        $seeds = [
+            'turkish citizenship by investment',
+            'turkey real estate investment',
+            'buy property in turkey for citizenship',
+            'apartments for sale in istanbul turkey',
+            'turkey passport by investment',
+            'real estate in turkey for foreigners',
+            'istanbul property for sale',
+            'alanya apartments for sale',
+            'antalya luxury villas for sale',
+            'invest in turkey for passport',
+            'turkey property investment'
+        ];
+        return array_slice($seeds, 0, 20);
+    }
+
+    // 3. Detect Digital Marketing / Agency (Roasist)
+    if (preg_match('/\b(marketing|pazarlama|reklam|roas|ajans|agency|seo|google ads|meta ads|e-ticaret)\b/ui', $full)) {
+        return [
+            'performans pazarlama ajansı',
+            'google ads reklam yönetimi',
+            'meta reklam danışmanlığı',
+            'dijital pazarlama ajansı istanbul',
+            'e-ticaret roas artırma',
+            'dönüşüm oranı optimizasyonu ajansı',
+            'b2b dijital pazarlama ajansı',
+            'sosyal medya reklam ajansı'
+        ];
+    }
+
+    // 4. Default: Extract key multi-word phrases from headings and title
+    $autoSeeds = [];
+    if (!empty($pageDetails['headings'])) {
+        foreach ($pageDetails['headings'] as $h) {
+            $hClean = trim(preg_replace('/[^\p{L}\p{N}\s]/u', ' ', $h));
+            $words = explode(' ', $hClean);
+            if (count($words) >= 2 && count($words) <= 5 && mb_strlen($hClean, 'UTF-8') > 6) {
+                $autoSeeds[] = mb_strtolower($hClean, 'UTF-8');
+            }
+        }
+    }
+    return array_slice(array_unique($autoSeeds), 0, 15);
+}
+
 // Context-Aware Semantic Relevance Filter: prunes irrelevant competing foreign countries & non-aligned terms
 function filterKeywordsByPageContext($keywords, $pageDetails, $query, $langCode) {
     if (empty($keywords) || !is_array($keywords)) return [];
@@ -292,19 +383,27 @@ function filterKeywordsByPageContext($keywords, $pageDetails, $query, $langCode)
     $text = mb_strtolower($pageDetails['textSnippet'] ?? '', 'UTF-8');
     $fullContext = $title . ' ' . $desc . ' ' . $headings . ' ' . $text . ' ' . mb_strtolower($query, 'UTF-8');
 
-    // 1. Check if page is specifically targeting Turkey / Turkish Real Estate / Turkish Citizenship
-    $isTurkeyFocus = (
+    // 1. Detect Core Location Entity
+    $isCyprusFocus = (
+        preg_match('/\b(cyprus|north cyprus|kıbrıs|kuzey kıbrıs|kktc|esentepe|girne|kyrenia|famagusta|gazimağusa|tatlısu|iskele|lefkosa|nicosia|cordelia)\b/ui', $fullContext) ||
+        preg_match('/(кипр|северный кипр|эсентепе|гирне|фамагуста|татлысу)/ui', $fullContext)
+    );
+
+    $isTurkeyFocus = !$isCyprusFocus && (
         preg_match('/\b(turkish|turkey|türkiye|türk|turk|istanbul|alanya|antalya|bodrum|fethiye|izmir|ankara|mersin|bursa|trabzon)\b/ui', $fullContext) ||
         preg_match('/(турци|турецк|стамбул|алань|анталь)/ui', $fullContext)
     );
 
     $isCitizenshipOrRealEstate = (
-        preg_match('/\b(citizenship|citizen|passport|real estate|property|properties|villa|apartment|investment|invest|residency|residence)\b/ui', $fullContext) ||
+        preg_match('/\b(citizenship|citizen|passport|real estate|property|properties|villa|villas|apartment|apartments|investment|invest|residency|residence|residences)\b/ui', $fullContext) ||
         preg_match('/(гражданств|паспорт|недвижим|квартир|вилл|внж|инвестиц)/ui', $fullContext) ||
         preg_match('/\b(vatandaşlık|pasaport|gayrimenkul|emlak|konut|daire|villa|yatırım|ikamet)\b/ui', $fullContext)
     );
 
-    // Competing foreign destination keywords to strictly exclude if Turkey is the primary focus
+    // Is this a property development for sale / investment? (Strictly NOT rental!)
+    $isSaleProject = $isCitizenshipOrRealEstate && !preg_match('/\b(car rental|rent a car|daily rental|günlük kiralık|kiralık daire)\b/ui', $fullContext);
+
+    // Competing foreign destination keywords
     $foreignGeo = [
         'us', 'usa', 'u.s.', 'america', 'american', 'united states',
         'canada', 'canadian', 'uk', 'britain', 'british',
@@ -317,8 +416,22 @@ function filterKeywordsByPageContext($keywords, $pageDetails, $query, $langCode)
         'london', 'new york', 'california', 'florida', 'texas', 'miami', 'chicago', 'los angeles',
         'france', 'french', 'mexico', 'mexican'
     ];
-    $foreignPattern = '/\b(' . implode('|', array_map('preg_quote', $foreignGeo)) . ')\b/ui';
+    // Remove cyprus from foreign list if cyprus is target
+    if ($isCyprusFocus) {
+        $foreignGeo = array_diff($foreignGeo, ['cyprus', 'greek', 'greece']);
+        $foreignGeo[] = 'turkey';
+        $foreignGeo[] = 'türkiye';
+    }
+
+    $foreignPattern = '/\b(' . implode('|', array_map('preg_quote', array_values($foreignGeo))) . ')\b/ui';
+    $cyprusPattern = '/\b(cyprus|north cyprus|kıbrıs|kuzey kıbrıs|kktc|esentepe|girne|kyrenia|famagusta|gazimağusa|tatlısu|iskele|cordelia)\b/ui';
     $turkeyPattern = '/\b(turkey|turkish|türkiye|türk|istanbul|alanya|antalya|bodrum|fethiye|izmir|ankara|mersin|bursa|trabzon)\b/ui';
+
+    // Generic ungrounded real estate words that MUST have location if page is location-tied
+    $genericRealEstatePattern = '/^(house for sale|homes for sale|real estate|homes for rent|searching for properties|apartments luxury|for sale apartments|properties for sell|holiday homes|buy a home|property for sale|houses for sale|luxury homes|dream homes|buying house|house for sale luxury|homes for sale luxury|for sale owner|luxury apartment complex|apartments for sale|apartments in|houses in)$/i';
+
+    // Strict Rent keywords to prune for sale developments
+    $strictRentPattern = '/\b(rent|rental|rentals|for rent|to rent|to let|kiralık|kira|kiralama|sahibinden|roommates|roommate|flatmate)\b/ui';
 
     $filtered = [];
 
@@ -344,19 +457,37 @@ function filterKeywordsByPageContext($keywords, $pageDetails, $query, $langCode)
             continue;
         }
 
-        // 4. Foreign destination removal
-        if ($isTurkeyFocus && $isCitizenshipOrRealEstate) {
+        // 4. Strict Rent Exclusion for Sale/Investment projects
+        if ($isSaleProject && preg_match($strictRentPattern, $kwLower)) {
+            continue; // ❌ REJECT rent/rental terms on a property sales page!
+        }
+
+        // 5. Location Grounding Enforcement
+        if ($isCyprusFocus && $isCitizenshipOrRealEstate) {
+            // Drop ungrounded generic keywords that lack Cyprus location or project name
+            if (preg_match($genericRealEstatePattern, $kwLower) || (!preg_match($cyprusPattern, $kwLower) && preg_match('/\b(homes|houses|properties|real estate|apartment|villas)\b/i', $kwLower) && !preg_match('/\b(mediterranean|beachfront|off plan|luxury)\b/i', $kwLower))) {
+                if (!preg_match($cyprusPattern, $kwLower)) {
+                    continue; // ❌ REJECT generic ungrounded keyword (e.g. "house for sale", "homes for rent")
+                }
+            }
+
+            // Drop competing foreign countries
+            if (preg_match($foreignPattern, $kwLower) && !preg_match($cyprusPattern, $kwLower)) {
+                continue; // ❌ REJECT competing country
+            }
+        } elseif ($isTurkeyFocus && $isCitizenshipOrRealEstate) {
+            // Drop competing foreign countries
             if (preg_match($foreignPattern, $kwLower) && !preg_match($turkeyPattern, $kwLower)) {
-                continue; // ❌ Exclude foreign country keyword!
+                continue; // ❌ REJECT foreign country
             }
 
             // Reject pure civic / naturalization test noise
             if (preg_match('/\b(naturalized|naturalization|civics test|citizenship test|what is citizenship|meaning of citizen|oath of allegiance)\b/ui', $kwLower)) {
-                continue; // ❌ Exclude civic test noise
+                continue;
             }
         }
 
-        // 5. If page is Digital Marketing Agency (Roasist), prune irrelevant industries
+        // 6. If page is Digital Marketing Agency (Roasist), prune irrelevant industries
         $isMarketingFocus = preg_match('/\b(marketing|pazarlama|reklam|roas|ajans|agency|seo|google ads|meta ads|e-ticaret)\b/ui', $fullContext);
         if ($isMarketingFocus) {
             if (preg_match('/\b(hukuk|avukat|doktor|hastane|inşaat firması|otel rezervasyon|nakliyat|temizlik şirketi|oto kiralama)\b/ui', $kwLower)) {
@@ -364,12 +495,19 @@ function filterKeywordsByPageContext($keywords, $pageDetails, $query, $langCode)
             }
         }
 
-        // 6. Calculate precision relevance score
+        // 7. Calculate precision relevance score
         $relevanceScore = 50;
-        if (preg_match($turkeyPattern, $kwLower)) $relevanceScore += 35;
-        if (preg_match('/\b(citizenship|citizen|passport|гражданство|паспорт|vatandaşlık|pasaport)\b/ui', $kwLower)) $relevanceScore += 25;
-        if (preg_match('/\b(investment|invest|инвестиции|yatırım)\b/ui', $kwLower)) $relevanceScore += 15;
-        if (preg_match('/\b(real estate|property|properties|villa|apartment|house|flat|emlak|gayrimenkul)\b/ui', $kwLower)) $relevanceScore += 15;
+        if ($isCyprusFocus) {
+            if (preg_match($cyprusPattern, $kwLower)) $relevanceScore += 40;
+            if (preg_match('/\b(cordelia)\b/ui', $kwLower)) $relevanceScore += 30;
+            if (preg_match('/\b(villa|villas|apartment|apartments|property|real estate)\b/ui', $kwLower)) $relevanceScore += 15;
+            if (preg_match('/\b(for sale|investment|buy|off plan)\b/ui', $kwLower)) $relevanceScore += 15;
+        } elseif ($isTurkeyFocus) {
+            if (preg_match($turkeyPattern, $kwLower)) $relevanceScore += 35;
+            if (preg_match('/\b(citizenship|citizen|passport|vatandaşlık|pasaport)\b/ui', $kwLower)) $relevanceScore += 25;
+            if (preg_match('/\b(investment|invest|yatırım)\b/ui', $kwLower)) $relevanceScore += 15;
+            if (preg_match('/\b(real estate|property|properties|villa|apartment|emlak|gayrimenkul)\b/ui', $kwLower)) $relevanceScore += 15;
+        }
         if (is_array($kw) && ($kw['intent'] ?? '') === 'TRANSACTIONAL') $relevanceScore += 5;
 
         if (is_array($kw)) {
@@ -573,11 +711,14 @@ if ($action === 'discover' && $method === 'POST') {
     $langInfo = detectPageLanguage($pageDetails['title'] ?? '', $pageDetails['textSnippet'] ?? '');
     $suggestedCountries = getSuggestedCountriesByLang($langInfo['code']);
 
-    // 2.1 Check if Official Google Ads API (Keyword Planner) is configured & callable
+    // 2.1 Extract Location & Smart Context Seeds
+    $smartSeeds = extractLocationAndSmartSeeds($pageDetails, $query, $langInfo['code']);
+
+    // 2.2 Call Official Google Ads API with Dual Seeding (URL + Location Grounded Seeds)
     $officialKeywords = fetchGoogleAdsOfficialKeywordIdeas(
         $apiKeys,
         $isUrl ? $query : null,
-        !$isUrl ? $query : null,
+        $smartSeeds ?: (!$isUrl ? $query : null),
         $langInfo['code'],
         $suggestedCountries[0]['code'] ?? 'TR'
     );
@@ -632,14 +773,14 @@ if ($action === 'discover' && $method === 'POST') {
     }
 
     $prompt .= "GÖREVLER VE KESİN KURALLAR:\n"
-        . "1. Sayfanın/içeriğin sunduğu GERÇEK HİZMETLERİ, ÇÖZÜMLERİ VE SEKTÖRÜ belirle.\n"
+        . "1. Sayfanın/içeriğin sunduğu GERÇEK HİZMETLERİ, LOKASYONU VE SEKTÖRÜ belirle.\n"
         . "2. Sayfanın dilini otomatik tespit et ('tr', 'ru', 'en', 'ar', 'de' vb.).\n"
-        . "3. ÇOK ÖNEMLİ KURAL: Domain adını veya marka ismini kopyalayıp sonuna 'satın al', 'fiyatları', 'tavsiye' gibi uydurma ekler KESİNLİKLE EKLEME! (Örn: 'roasist.com satın al' veya 'roasist.com fiyatları' gibi uydurma kelimeler KESİNLİKLE YASAKTIR).\n"
-        . "4. Bunun yerine, bu işletmenin müşterisi olmak isteyen kişilerin Google Arama'da arattığı EN AZ 30 ADET gerçek, sektörel, yüksek niyetli (Transactional/Commercial) Google Ads anahtar kelimesini SAYFANIN KENDİ DİLİNDE üret.\n"
-        . "   - Örnek: Eğer site bir dijital pazarlama / performans ajansı ise (Roasist gibi); 'performans pazarlama ajansı', 'google ads reklam yönetimi', 'meta reklam danışmanlığı', 'e-ticaret roas artırma', 'dijital pazarlama ajansı istanbul', 'sosyal medya reklam ajansı fiyatları', 'dönüşüm oranı optimizasyonu ajansı', 'b2b dijital pazarlama', 'tiktok reklam danışmanlığı' gibi gerçek sektörel kelimeler üret.\n"
-        . "   - Örnek: Eğer site gayrimenkul / vatandaşlık sitesi ise; 'гражданство Турции за инвестиции', 'купить квартиру в Аланье', 'паспорт Турции при покупке недвижимости' gibi sektörel kelimeler üret.\n"
-        . "5. Her kelime için gerçekçi aylık arama hacmi (monthlyVolume), sayfa üstü min TBM (lowCpc ₺), sayfa üstü max TBM (highCpc ₺), rekabet (HIGH/MEDIUM/LOW), niyet (TRANSACTIONAL/COMMERCIAL/INFORMATIONAL) ve alaka puanı (opportunityScore 1-100) üret.\n"
-        . "6. Bu dil ve sektör için Google Ads kampanyasında hedeflenecek en mantıklı 4-6 hedef ülkeyi belirle.\n\n"
+        . "3. ÇOK ÖNEMLİ KURAL: Domain adını veya marka ismini kopyalayıp sonuna 'satın al', 'fiyatları', 'tavsiye' gibi uydurma ekler KESİNLİKLE EKLEME! (Örn: 'roasist.com satın al' gibi uydurma kelimeler KESİNLİKLE YASAKTIR).\n"
+        . "4. LOKASYON & BAĞLAM KURALI: Eğer sayfa belirli bir lokasyondaki konut/gayrimenkul/otel projesi ise (Örn: Kuzey Kıbrıs / Esentepe / Girne / KKTC veya Alanya / İstanbul / Dubai); üreteceğin anahtar kelimelerin tamamına yakını BU LOKASYONU ve PROJE ADINI içermelidir (Örn: 'cordelia cyprus', 'north cyprus property for sale', 'luxury villas in north cyprus', 'esentepe cyprus apartments', 'buy apartment in north cyprus', 'kuzey kıbrıs satılık villa', 'kktc lüks konut projeleri', 'cyprus holiday homes for sale'). ASLA 'homes for rent', 'house for sale' gibi lokasyonsuz veya zıt niyetli genel kelimeler üretme!\n"
+        . "5. NİYET KURALI: Sayfa satılık lüks konut/villa/yatırım projesi ise; 'rent', 'rental', 'for rent', 'kiralık', 'sahibinden' gibi zıt kiralık kelimeleri KESİNLİKLE ÜRETME!\n"
+        . "6. Bunun yerine, bu işletmenin müşterisi/alıcısı olmak isteyen kişilerin Google Arama'da arattığı EN AZ 30 ADET gerçek, sektörel, yüksek niyetli (Transactional/Commercial) Google Ads anahtar kelimesini üret.\n"
+        . "7. Her kelime için gerçekçi aylık arama hacmi (monthlyVolume), sayfa üstü min TBM (lowCpc ₺), sayfa üstü max TBM (highCpc ₺), rekabet (HIGH/MEDIUM/LOW), niyet (TRANSACTIONAL/COMMERCIAL/INFORMATIONAL) ve alaka puanı (opportunityScore 1-100) üret.\n"
+        . "8. Bu dil ve sektör için Google Ads kampanyasında hedeflenecek en mantıklı 4-6 hedef ülkeyi belirle.\n\n"
         . "Yanıtını SADECE geçerli JSON formatında şu şemayla ver (başka metin ekleme):\n"
         . "{\n"
         . "  \"detectedLanguage\": \"tr\",\n"
