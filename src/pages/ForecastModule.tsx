@@ -266,24 +266,6 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   const [loadingStage, setLoadingStage] = useState(0);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Dynamic Loading Animation Stages
-  useEffect(() => {
-    let t1: any, t2: any, t3: any;
-    if (isLoading) {
-      setLoadingStage(0);
-      t1 = setTimeout(() => setLoadingStage(1), 1300);
-      t2 = setTimeout(() => setLoadingStage(2), 2700);
-      t3 = setTimeout(() => setLoadingStage(3), 4300);
-    } else {
-      setLoadingStage(0);
-    }
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-      clearTimeout(t3);
-    };
-  }, [isLoading]);
-
   // Step 1 Output: Auto-Detected Language & Page Details
   const [sectorName, setSectorName] = useState<string>('');
   const [detectedLanguage, setDetectedLanguage] = useState<string>('tr');
@@ -436,12 +418,31 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
     setIsLoading(true);
     setErrorMsg(null);
+    setLoadingStage(0); // Stage 1: Sayfa Taranıyor (%25)
+
+    const startTime = Date.now();
+
+    // Smoothly progress stages while API is working
+    const timer1 = setTimeout(() => setLoadingStage(1), 700);   // Stage 2: Dil & Sektör (%50)
+    const timer2 = setTimeout(() => setLoadingStage(2), 1500);  // Stage 3: Google Ads Verileri (%75)
 
     try {
       const res = await ApiService.discoverKeywords({
         query: q.trim(),
         mode: m,
       });
+
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+
+      // Advance to completion stage (%100)
+      setLoadingStage(3);
+
+      // Ensure that user sees the full completed animation with all checkmarks for at least 750ms
+      const elapsed = Date.now() - startTime;
+      const minTotalTime = 2200; // minimum 2.2s total experience
+      const remainingTime = Math.max(minTotalTime - elapsed, 750);
+      await new Promise((resolve) => setTimeout(resolve, remainingTime));
 
       if (res && res.keywords && res.keywords.length > 0) {
         setKeywords(res.keywords);
@@ -456,7 +457,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
         // Intelligently default business model based on detected landing page / sector
         const lowerContext = ((res.sector || '') + ' ' + (res.pageTitle || '') + ' ' + (res.pageSummary || '')).toLowerCase();
-        if (/emlak|gayrimenkul|citizenship|vatanda|villa|residence|apartments|property|real estate|agency|ajans|consult|danışman|hizmet|b2b|klinik|health|law|avukat|turizm/.test(lowerContext)) {
+        if (/emlak|gayrimenkul|citizenship|vatanda|villa|residence|apartments|property|real estate|agency|ajans|consult|danışman|hizmet|b2b|klinik|health|law|avukat|hotel|otel|tatil|resort|turizm/.test(lowerContext)) {
           setBusinessModel('LEAD_GEN');
         } else if (/e-ticaret|eticaret|shop|store|mağaza|ürün|giyim|ayakkabı|kozmetik|parfüm/.test(lowerContext)) {
           setBusinessModel('ECOMMERCE');
@@ -504,6 +505,8 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         setErrorMsg('Bu arama için anahtar kelime verisi üretilemedi.');
       }
     } catch (err: any) {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
       setErrorMsg(err.message || 'Veri çekilirken bir hata oluştu.');
     } finally {
       setIsLoading(false);
@@ -1027,12 +1030,18 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
               </div>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--brand-primary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                    ADIM {loadingStage + 1} / 4
+                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: loadingStage === 3 ? '#10b981' : 'var(--brand-primary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    {loadingStage === 3 ? 'TAMAMLANDI (4/4)' : `ADIM ${loadingStage + 1} / 4`}
                   </span>
-                  <span className="badge badge-active" style={{ fontSize: '0.7rem', padding: '2px 8px' }}>
-                    <RefreshCw size={10} className="animate-spin" /> Canlı İşleniyor...
-                  </span>
+                  {loadingStage === 3 ? (
+                    <span className="badge badge-active" style={{ fontSize: '0.7rem', padding: '2px 8px', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                      <Check size={11} /> Sonuçlar Hazırlandı!
+                    </span>
+                  ) : (
+                    <span className="badge badge-active" style={{ fontSize: '0.7rem', padding: '2px 8px' }}>
+                      <RefreshCw size={10} className="animate-spin" /> Canlı İşleniyor...
+                    </span>
+                  )}
                 </div>
                 <div style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '0.2rem' }}>
                   {loadingStage === 0 && 'Açılış Sayfası Taranıyor & İçerik Kazınıyor'}
@@ -1050,21 +1059,23 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
             </div>
 
             <div style={{ textAlign: 'right', minWidth: '120px' }}>
-              <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--brand-primary)' }}>
-                %{loadingStage === 0 ? 25 : (loadingStage === 1 ? 50 : (loadingStage === 2 ? 75 : 95))}
+              <div style={{ fontSize: '1.75rem', fontWeight: 800, color: loadingStage === 3 ? '#10b981' : 'var(--brand-primary)' }}>
+                %{loadingStage === 0 ? 25 : (loadingStage === 1 ? 50 : (loadingStage === 2 ? 75 : 100))}
               </div>
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Ortalama 3-5 saniye</div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                {loadingStage === 3 ? 'Veriler aktarılıyor...' : 'Ortalama 2-3 saniye'}
+              </div>
             </div>
           </div>
 
           {/* Animated Smooth Progress Bar */}
           <div style={{ width: '100%', height: '8px', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-full)', overflow: 'hidden', border: '1px solid var(--border-default)' }}>
             <div style={{
-              width: `${loadingStage === 0 ? 25 : (loadingStage === 1 ? 50 : (loadingStage === 2 ? 75 : 95))}%`,
+              width: `${loadingStage === 0 ? 25 : (loadingStage === 1 ? 50 : (loadingStage === 2 ? 75 : 100))}%`,
               height: '100%',
-              backgroundColor: 'var(--brand-primary)',
+              backgroundColor: loadingStage === 3 ? '#10b981' : 'var(--brand-primary)',
               borderRadius: 'var(--radius-full)',
-              transition: 'width 0.6s cubic-bezier(0.4, 0, 0.2, 1)'
+              transition: 'width 0.5s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.3s ease'
             }} />
           </div>
 
@@ -1076,8 +1087,8 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
               { title: 'Google Ads Hacimleri', stage: 2 },
               { title: 'Gruplama & Projeksiyon', stage: 3 }
             ].map((st) => {
-              const isPast = st.stage < loadingStage;
-              const isCurrent = st.stage === loadingStage;
+              const isPast = st.stage < loadingStage || loadingStage === 3;
+              const isCurrent = st.stage === loadingStage && loadingStage !== 3;
               return (
                 <div key={st.stage} style={{
                   display: 'flex',
@@ -1085,9 +1096,10 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                   gap: '0.5rem',
                   padding: '0.5rem 0.65rem',
                   borderRadius: 'var(--radius-xs)',
-                  backgroundColor: isCurrent ? 'rgba(37, 99, 235, 0.08)' : (isPast ? 'rgba(16, 185, 129, 0.06)' : 'transparent'),
-                  border: isCurrent ? '1px solid var(--brand-primary)' : '1px solid transparent',
-                  opacity: isCurrent || isPast ? 1 : 0.45
+                  backgroundColor: isPast ? 'rgba(16, 185, 129, 0.08)' : (isCurrent ? 'rgba(37, 99, 235, 0.08)' : 'transparent'),
+                  border: isPast ? '1px solid rgba(16, 185, 129, 0.3)' : (isCurrent ? '1px solid var(--brand-primary)' : '1px solid transparent'),
+                  opacity: isCurrent || isPast ? 1 : 0.45,
+                  transition: 'all 0.25s ease'
                 }}>
                   <div style={{
                     width: '20px',
@@ -1103,7 +1115,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                   }}>
                     {isPast ? <Check size={12} /> : (st.stage + 1)}
                   </div>
-                  <div style={{ fontSize: '0.75rem', fontWeight: isCurrent ? 700 : 500, color: isCurrent ? 'var(--brand-primary)' : 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <div style={{ fontSize: '0.75rem', fontWeight: isCurrent || isPast ? 700 : 500, color: isPast ? '#10b981' : (isCurrent ? 'var(--brand-primary)' : 'var(--text-primary)'), whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {st.title}
                   </div>
                 </div>
