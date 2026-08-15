@@ -824,11 +824,20 @@ function filterKeywordsByPageContext($keywords, $pageDetails, $query, $langCode)
             }
         }
 
-        // 9. Prune meaningless broken filler phrases and generic UI words (e.g. from Pedalbox or English scripts)
-        if (preg_match('/^(it s|o my got|where i am|kayıt olmak|bir ara|ara toplam|i am from|i get it|if i was you|takip edin|bizi takip edin|üye ol|giriş yap|devamını oku|sepetim|iletişim|hakkımızda|olmak|your|it|am|from|if|you|where)$/ui', $kwLower)) {
+        // 9. If page is Automotive / Chip Tuning / Performance (e.g. PedalBox, DTE Systems)
+        $isAutoTuning = preg_match('/\b(pedalbox|pedal box|chip tuning|chiptuning|gaz pedal|gaz tepki|tuning|performans|dte systems|beyin yazılımı|araç yazılım)\b/ui', $fullContext);
+        if ($isAutoTuning) {
+            $hasAutoContext = preg_match('/\b(pedal|pedalbox|tuning|chiptuning|chip|gaz|guc|güç|performans|motor|arac|araç|araba|oto|hiz|hız|hizlanma|hızlanma|dte|tepki|tepkime|modul|modül|yazilim|yazılım|audi|bmw|mercedes|volkswagen|golf|passat|ford|fiat|renault|toyota|hyundai|kia|honda|seat|skoda|opel|peugeot)\b/ui', $kwLower);
+            if (!$hasAutoContext) {
+                continue; // ❌ REJECT non-automotive / non-tuning English fragments
+            }
+        }
+
+        // 10. Prune meaningless broken filler phrases and generic UI words (e.g. from English scripts/reviews)
+        if (preg_match('/^(it s|o my got|where i am|kayıt olmak|kayit olmak|bir ara|ara toplam|i am from|ı am from|i get it|ı get it|if i was you|if ı was you|takip edin|bizi takip edin|üye ol|giriş yap|devamını oku|sepetim|iletişim|hakkımızda|olmak|your|it|am|from|if|you|where|my your|it iş|it is|hesap ödeme|my good|if i would|it out|in way out|since now)$/ui', $kwLower)) {
             continue; // ❌ REJECT meaningless broken filler noise
         }
-        if (preg_match('/\b(it s|o my got|where i am|i am from|i get it|if i was you)\b/ui', $kwLower)) {
+        if (preg_match('/\b(it s|o my got|where i am|where ı am|i am from|ı am from|i get it|ı get it|if i was you|if ı was you|my your|in way out|since now)\b/ui', $kwLower)) {
             continue;
         }
 
