@@ -378,6 +378,8 @@ if ($action === 'discover' && $method === 'POST') {
         curl_setopt($chGemini, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
         curl_setopt($chGemini, CURLOPT_TIMEOUT, 25);
         $resGemini = curl_exec($chGemini);
+        $curlErr = curl_error($chGemini);
+        $httpCode = curl_getinfo($chGemini, CURLINFO_HTTP_CODE);
         curl_close($chGemini);
 
         $gJson = json_decode($resGemini, true);
@@ -393,25 +395,35 @@ if ($action === 'discover' && $method === 'POST') {
                 $pageTitle = $parsedAi['pageTitle'] ?? $pageTitle;
                 $pageSummary = $parsedAi['pageSummary'] ?? '';
                 $suggestedCountries = $parsedAi['suggestedCountries'] ?? [];
-                break; // Successfully got keywords!
+                break; // Successfully got live AI keywords!
             }
         } elseif (isset($gJson['error']['message'])) {
-            $lastErrorMsg = $gJson['error']['message'];
+            $lastErrorMsg = "HTTP {$httpCode}: " . $gJson['error']['message'];
+        } elseif ($curlErr) {
+            $lastErrorMsg = "cURL Hatası: " . $curlErr;
+        } else {
+            $lastErrorMsg = "HTTP {$httpCode}: " . mb_substr($resGemini, 0, 200);
         }
     }
 
     if (empty($keywordsResult)) {
-        // Fallback to Smart Native-Language Semantic Engine from scraped page details
-        $langInfo = detectPageLanguage($pageDetails['title'] ?? '', $pageDetails['textSnippet'] ?? '');
-        $fallback = generateSemanticKeywordsFallback($query, $pageDetails ?? [], $langInfo['code']);
-        
-        $detectedLang = $langInfo['code'];
-        $detectedLangName = $langInfo['name'];
-        $sectorSummary = $fallback['sector'];
-        $pageTitle = $pageDetails['title'] ?? $query;
-        $pageSummary = $fallback['pageSummary'];
-        $keywordsResult = $fallback['keywords'];
-        $suggestedCountries = getSuggestedCountriesByLang($langInfo['code']);
+        // ZERO FAKE DATA - Return exact Google API error & debug info
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'Google Gemini API Bağlantı Hatası: ' . ($lastErrorMsg ?: 'Google Generative Language API yanıt vermedi.'),
+            'diagnostics' => [
+                'geminiKeyConfigured' => !empty($geminiKey),
+                'geminiKeyMasked' => $geminiKey ? substr($geminiKey, 0, 6) . '...' . substr($geminiKey, -4) : 'YOK',
+                'lastGoogleError' => $lastErrorMsg,
+                'scrapedPage' => [
+                    'url' => $query,
+                    'title' => $pageDetails['title'] ?? '(Başlık Çekilemedi)',
+                    'headingsCount' => count($pageDetails['headings'] ?? []),
+                    'textLength' => strlen($pageDetails['textSnippet'] ?? '')
+                ]
+            ]
+        ]);
+        exit;
     }
 
     // Add unique IDs
