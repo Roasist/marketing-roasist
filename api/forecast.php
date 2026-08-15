@@ -1302,9 +1302,16 @@ if ($action === 'discover' && $method === 'POST') {
     $isUrl = ($mode === 'URL') || preg_match('/^https?:\/\//i', $query) || (strpos($query, '.') !== false && strpos($query, ' ') === false);
     if ($isUrl) {
         $pageDetails = fetchLandingPageDetails($query);
+    } else {
+        $pageDetails = [
+            'title' => $query,
+            'description' => "Google Ads SEM Search: {$query}",
+            'headings' => [$query],
+            'textSnippet' => "Google Ads search intent and campaign targeting for: {$query}"
+        ];
     }
 
-    // 2.1 Run AI-Powered Zero-Shot Landing Page Intent Analysis (Gemini)
+    // 2.1 Run AI-Powered Zero-Shot Landing Page & Query Intent Analysis (Gemini)
     $aiAnalysis = null;
     if (!empty($geminiKey) && !empty($pageDetails)) {
         $aiAnalysis = analyzeLandingPageWithAI($pageDetails, $query, $geminiKey);
