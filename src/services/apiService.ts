@@ -263,6 +263,7 @@ export class ApiService {
   public static async generateNegativeKeywords(payload: {
     sector: string;
     keywords: string[];
+    language?: string;
   }): Promise<any[]> {
     const res = await this.request<{ status: string; categories: any[] }>('/forecast.php?action=negative_keywords', {
       method: 'POST',

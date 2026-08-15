@@ -16,10 +16,27 @@ import {
   Trash2, 
   RefreshCw, 
   Target,
-  FolderDown
+  FolderDown,
+  Globe,
+  Languages,
+  CheckCircle2
 } from 'lucide-react';
-import { KeywordMetric, ForecastSimulation, NegativeCategory, ForecastPlan } from '../types/forecast';
+import { KeywordMetric, ForecastSimulation, NegativeCategory, ForecastPlan, CountryOption, CountryMetric } from '../types/forecast';
 import { ApiService } from '../services/apiService';
+
+const DEFAULT_GLOBAL_COUNTRIES: CountryOption[] = [
+  { code: 'TR', name: 'Türkiye', flag: '🇹🇷', region: 'Yerel', cpcMultiplier: 1.0, volumeMultiplier: 1.0, currency: 'TRY' },
+  { code: 'RU', name: 'Rusya', flag: '🇷🇺', region: 'BDT', cpcMultiplier: 0.95, volumeMultiplier: 1.2, currency: 'RUB' },
+  { code: 'KZ', name: 'Kazakistan', flag: '🇰🇿', region: 'BDT', cpcMultiplier: 0.75, volumeMultiplier: 0.45, currency: 'KZT' },
+  { code: 'UZ', name: 'Özbekistan', flag: '🇺🇿', region: 'BDT', cpcMultiplier: 0.65, volumeMultiplier: 0.35, currency: 'UZS' },
+  { code: 'AE', name: 'BAE / Dubai', flag: '🇦🇪', region: 'Körfez', cpcMultiplier: 2.2, volumeMultiplier: 0.25, currency: 'AED' },
+  { code: 'SA', name: 'Suudi Arabistan', flag: '🇸🇦', region: 'Körfez', cpcMultiplier: 1.8, volumeMultiplier: 0.4, currency: 'SAR' },
+  { code: 'DE', name: 'Almanya', flag: '🇩🇪', region: 'Avrupa', cpcMultiplier: 1.9, volumeMultiplier: 0.6, currency: 'EUR' },
+  { code: 'GB', name: 'İngiltere', flag: '🇬🇧', region: 'Avrupa', cpcMultiplier: 2.1, volumeMultiplier: 0.55, currency: 'GBP' },
+  { code: 'US', name: 'Amerika (ABD)', flag: '🇺🇸', region: 'Amerika', cpcMultiplier: 2.5, volumeMultiplier: 1.5, currency: 'USD' },
+  { code: 'NL', name: 'Hollanda', flag: '🇳🇱', region: 'Avrupa', cpcMultiplier: 1.85, volumeMultiplier: 0.3, currency: 'EUR' },
+  { code: 'AZ', name: 'Azerbaycan', flag: '🇦🇿', region: 'Kafkas', cpcMultiplier: 0.7, volumeMultiplier: 0.3, currency: 'AZN' },
+];
 
 interface ForecastModuleProps {
   workspaceId?: string;
@@ -29,15 +46,21 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   // Search & Discovery State
   const [query, setQuery] = useState('');
   const [mode, setMode] = useState<'URL' | 'KEYWORDS'>('URL');
-  const [country, setCountry] = useState('TR');
-  const [language, setLanguage] = useState('tr');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Data Results
+  // Step 1 Output: Auto-Detected Language & Page Details
   const [sectorName, setSectorName] = useState<string>('');
+  const [detectedLanguage, setDetectedLanguage] = useState<string>('tr');
+  const [detectedLanguageName, setDetectedLanguageName] = useState<string>('Türkçe');
+  const [pageTitle, setPageTitle] = useState<string>('');
+  const [pageSummary, setPageSummary] = useState<string>('');
   const [keywords, setKeywords] = useState<KeywordMetric[]>([]);
   const [selectedKeywordIds, setSelectedKeywordIds] = useState<Set<string>>(new Set());
+
+  // Step 2: Target Countries / Multi-Market Selection
+  const [availableCountries, setAvailableCountries] = useState<CountryOption[]>(DEFAULT_GLOBAL_COUNTRIES);
+  const [selectedCountryCodes, setSelectedCountryCodes] = useState<Set<string>>(new Set(['RU', 'KZ', 'AE', 'TR']));
 
   // Filter & Sort State
   const [activeTab, setActiveTab] = useState<'matrix' | 'simulator' | 'negatives' | 'saved-plans'>('matrix');
@@ -72,7 +95,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     loadSavedPlans();
   }, [workspaceId]);
 
-  // Execute Keyword Discovery
+  // Execute Keyword Discovery (Step 1)
   const handleDiscover = async (customQuery?: string, customMode?: 'URL' | 'KEYWORDS') => {
     const q = customQuery || query;
     const m = customMode || mode;
@@ -85,19 +108,42 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       const res = await ApiService.discoverKeywords({
         query: q.trim(),
         mode: m,
-        country,
-        language
       });
 
       if (res && res.keywords && res.keywords.length > 0) {
         setKeywords(res.keywords);
         setSectorName(res.sector || 'Genel');
-        // Auto-select all by default for immediate forecast
+        setDetectedLanguage(res.detectedLanguage || 'tr');
+        setDetectedLanguageName(res.detectedLanguageName || 'Türkçe');
+        setPageTitle(res.pageTitle || '');
+        setPageSummary(res.pageSummary || '');
+
+        // If AI suggested specific target countries for this language/sector, update them
+        if (res.suggestedCountries && res.suggestedCountries.length > 0) {
+          setAvailableCountries(res.suggestedCountries);
+          const initialCodes = new Set<string>(res.suggestedCountries.slice(0, 4).map((c: any) => c.code));
+          setSelectedCountryCodes(initialCodes);
+        } else {
+          // Default selection based on language
+          if (res.detectedLanguage === 'ru') {
+            setSelectedCountryCodes(new Set(['RU', 'KZ', 'UZ', 'AE', 'TR']));
+          } else if (res.detectedLanguage === 'ar') {
+            setSelectedCountryCodes(new Set(['SA', 'AE', 'KW', 'QA', 'TR']));
+          } else if (res.detectedLanguage === 'de') {
+            setSelectedCountryCodes(new Set(['DE', 'AT', 'CH', 'TR']));
+          } else if (res.detectedLanguage === 'en') {
+            setSelectedCountryCodes(new Set(['US', 'GB', 'AE', 'CA']));
+          } else {
+            setSelectedCountryCodes(new Set(['TR']));
+          }
+        }
+
+        // Auto-select all keywords by default
         const allIds = new Set<string>(res.keywords.map((k: KeywordMetric) => k.id));
         setSelectedKeywordIds(allIds);
 
-        // Also fetch negative keywords in background
-        loadNegatives(res.sector || 'Genel', res.keywords.map((k: KeywordMetric) => k.keyword));
+        // Fetch negative keywords in the detected language
+        loadNegatives(res.sector || 'Genel', res.keywords.map((k: KeywordMetric) => k.keyword), res.detectedLanguage || 'tr');
       } else {
         setErrorMsg('Bu arama için anahtar kelime verisi üretilemedi.');
       }
@@ -108,11 +154,12 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     }
   };
 
-  const loadNegatives = async (sector: string, kwList: string[]) => {
+  const loadNegatives = async (sector: string, kwList: string[], lang: string) => {
     try {
       const cats = await ApiService.generateNegativeKeywords({
         sector,
-        keywords: kwList.slice(0, 15)
+        keywords: kwList.slice(0, 15),
+        language: lang
       });
       setNegativeCategories(cats || []);
     } catch {
@@ -139,6 +186,42 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     setSelectedKeywordIds(next);
   };
 
+  // Country Selection Handlers (Step 2)
+  const toggleCountry = (code: string) => {
+    const next = new Set(selectedCountryCodes);
+    if (next.has(code)) {
+      if (next.size > 1) {
+        next.delete(code);
+      }
+    } else {
+      next.add(code);
+    }
+    setSelectedCountryCodes(next);
+  };
+
+  const selectRegionPreset = (codes: string[]) => {
+    setSelectedCountryCodes(new Set(codes));
+  };
+
+  // Active Countries List
+  const activeCountries = useMemo(() => {
+    return availableCountries.filter(c => selectedCountryCodes.has(c.code));
+  }, [availableCountries, selectedCountryCodes]);
+
+  // Combined Multipliers for Multi-Country Targeting
+  const totalVolumeMultiplier = useMemo(() => {
+    if (activeCountries.length === 0) return 1.0;
+    return activeCountries.reduce((sum, c) => sum + c.volumeMultiplier, 0);
+  }, [activeCountries]);
+
+  const blendedCpcMultiplier = useMemo(() => {
+    if (activeCountries.length === 0) return 1.0;
+    const totalVol = activeCountries.reduce((sum, c) => sum + c.volumeMultiplier, 0);
+    if (totalVol === 0) return 1.0;
+    const weightedSum = activeCountries.reduce((sum, c) => sum + (c.cpcMultiplier * c.volumeMultiplier), 0);
+    return weightedSum / totalVol;
+  }, [activeCountries]);
+
   // Filtered & Sorted Keywords
   const filteredKeywords = useMemo(() => {
     return keywords
@@ -163,16 +246,21 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     return keywords.filter(k => selectedKeywordIds.has(k.id));
   }, [keywords, selectedKeywordIds]);
 
-  // Overall Aggregate KPIs
-  const totalSearchVolume = useMemo(() => {
+  // Overall Aggregate KPIs (Scaled with Active Target Countries)
+  const baseSearchVolume = useMemo(() => {
     return selectedKeywordsPool.reduce((acc, k) => acc + k.monthlyVolume, 0);
   }, [selectedKeywordsPool]);
+
+  const totalSearchVolume = useMemo(() => {
+    return Math.round(baseSearchVolume * totalVolumeMultiplier);
+  }, [baseSearchVolume, totalVolumeMultiplier]);
 
   const avgTopPageCpc = useMemo(() => {
     if (selectedKeywordsPool.length === 0) return 0;
     const sum = selectedKeywordsPool.reduce((acc, k) => acc + ((k.lowCpc + k.highCpc) / 2), 0);
-    return sum / selectedKeywordsPool.length;
-  }, [selectedKeywordsPool]);
+    const baseAvg = sum / selectedKeywordsPool.length;
+    return Math.round(baseAvg * blendedCpcMultiplier * 100) / 100;
+  }, [selectedKeywordsPool, blendedCpcMultiplier]);
 
   const highIntentRatio = useMemo(() => {
     if (selectedKeywordsPool.length === 0) return 0;
@@ -180,50 +268,59 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     return Math.round((high / selectedKeywordsPool.length) * 100);
   }, [selectedKeywordsPool]);
 
-  const avgOpportunityScore = useMemo(() => {
-    if (selectedKeywordsPool.length === 0) return 0;
-    const sum = selectedKeywordsPool.reduce((acc, k) => acc + k.opportunityScore, 0);
-    return Math.round(sum / selectedKeywordsPool.length);
-  }, [selectedKeywordsPool]);
-
   // 🎛️ Real-Time Dynamic Simulation Calculation
   const simulation: ForecastSimulation = useMemo(() => {
     const activeCpc = avgTopPageCpc > 0 ? avgTopPageCpc : 6.50;
-    
-    // Monthly & Daily
     const dailyBudget = monthlyBudget / 30.4;
-    
-    // Estimated clicks bounded by volume & budget
     const rawClicks = Math.floor(monthlyBudget / activeCpc);
     const estClicks = Math.max(10, rawClicks);
-    
-    // CTR average approx 4.8% for Google Search Top of Page
-    const avgCtr = 4.85;
-    const estImpressions = Math.round((estClicks / (avgCtr / 100)));
-    
-    // Conversions
-    const estConversions = Math.max(1, Math.round(estClicks * (conversionRate / 100)));
-    const cpa = estConversions > 0 ? monthlyBudget / estConversions : 0;
-    
-    // Revenue & ROAS
+    const avgCtr = 4.8;
+    const estImpressions = Math.round(estClicks / (avgCtr / 100));
+    const convPct = conversionRate / 100;
+    const estConversions = Math.round(estClicks * convPct);
+    const cpa = estConversions > 0 ? Math.round(monthlyBudget / estConversions) : monthlyBudget;
     const estRevenue = estConversions * avgOrderValue;
-    const projectedRoas = monthlyBudget > 0 ? Number((estRevenue / monthlyBudget).toFixed(2)) : 0;
+    const projectedRoas = monthlyBudget > 0 ? Math.round((estRevenue / monthlyBudget) * 10) / 10 : 0;
 
     return {
       monthlyBudget,
       dailyBudget: Math.round(dailyBudget),
       estClicks,
       estImpressions,
-      avgCpc: Number(activeCpc.toFixed(2)),
+      avgCpc: activeCpc,
       avgCtr,
       conversionRate,
       estConversions,
-      cpa: Math.round(cpa),
+      cpa,
       avgOrderValue,
-      estRevenue: Math.round(estRevenue),
+      estRevenue,
       projectedRoas,
+      targetCountries: Array.from(selectedCountryCodes)
     };
-  }, [monthlyBudget, avgTopPageCpc, conversionRate, avgOrderValue]);
+  }, [monthlyBudget, avgTopPageCpc, conversionRate, avgOrderValue, selectedCountryCodes]);
+
+  // Country Breakdown Metrics
+  const countryBreakdown: CountryMetric[] = useMemo(() => {
+    if (activeCountries.length === 0) return [];
+    const totalWeight = activeCountries.reduce((s, c) => s + c.volumeMultiplier, 0);
+    return activeCountries.map(c => {
+      const share = totalWeight > 0 ? (c.volumeMultiplier / totalWeight) : (1 / activeCountries.length);
+      const cVol = Math.round(baseSearchVolume * c.volumeMultiplier);
+      const cCpc = Math.round((avgTopPageCpc / blendedCpcMultiplier) * c.cpcMultiplier * 100) / 100;
+      const cClicks = Math.round((simulation.estClicks || 0) * share);
+      const cConvs = Math.round((simulation.estConversions || 0) * share);
+      return {
+        code: c.code,
+        name: c.name,
+        flag: c.flag,
+        sharePercent: Math.round(share * 100),
+        monthlyVolume: cVol,
+        avgCpc: cCpc,
+        estClicks: cClicks,
+        estConversions: cConvs,
+      };
+    });
+  }, [activeCountries, baseSearchVolume, avgTopPageCpc, blendedCpcMultiplier, simulation]);
 
   // Save Plan Action
   const handleSavePlan = async () => {
@@ -383,13 +480,13 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           </div>
         </div>
 
-        {/* Input Bar with Location & Language */}
+        {/* Input Bar */}
         <div style={{ display: 'flex', gap: '0.65rem', flexWrap: 'wrap', alignItems: 'center' }}>
           <div style={{ flex: 1, minWidth: '280px', position: 'relative' }}>
             <Search size={16} color="var(--text-muted)" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
             <input
               type="text"
-              placeholder={mode === 'URL' ? 'Web sitesi adresi girin (örn: summerhomes.com, 23projects.net)...' : 'Anahtar kelime(ler) yazın (örn: antalya emlak, villa kiralama)...'}
+              placeholder={mode === 'URL' ? 'Web sitesi veya Landing Page adresi girin (örn: https://grazhdanstvo.23projects.net/)...' : 'Anahtar kelime(ler) yazın (örn: antalya emlak, villa kiralama)...'}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') handleDiscover(); }}
@@ -397,41 +494,15 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
             />
           </div>
 
-          {/* Country Selector */}
-          <select
-            value={country}
-            onChange={(e) => setCountry(e.target.value)}
-            style={{ width: '150px', fontSize: '0.8rem', cursor: 'pointer' }}
-          >
-            <option value="TR">🇹🇷 Türkiye</option>
-            <option value="US">🇺🇸 Amerika (ABD)</option>
-            <option value="DE">🇩🇪 Almanya</option>
-            <option value="GB">🇬🇧 İngiltere</option>
-            <option value="AE">🇦🇪 BAE / Dubai</option>
-          </select>
-
-          {/* Language Selector */}
-          <select
-            value={language}
-            onChange={(e) => setLanguage(e.target.value)}
-            style={{ width: '130px', fontSize: '0.8rem', cursor: 'pointer' }}
-          >
-            <option value="tr">Türkçe</option>
-            <option value="en">İngilizce</option>
-            <option value="de">Almanca</option>
-            <option value="ru">Rusça</option>
-            <option value="ar">Arapça</option>
-          </select>
-
           {/* Submit Button */}
           <button
             onClick={() => handleDiscover()}
             disabled={isLoading || !query.trim()}
             className="btn-primary"
-            style={{ padding: '0.55rem 1.15rem', fontSize: '0.85rem', whiteSpace: 'nowrap' }}
+            style={{ padding: '0.55rem 1.25rem', fontSize: '0.85rem', whiteSpace: 'nowrap' }}
           >
             <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
-            {isLoading ? 'Analiz Ediliyor...' : 'Analiz Et & Tahmin Çıkar'}
+            {isLoading ? 'Sayfa Kazınıyor & Analiz Ediliyor...' : 'Analiz Et & Keşfet'}
           </button>
         </div>
 
@@ -442,7 +513,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         )}
       </div>
 
-      {/* 3. Aggregate KPI Metric Cards or Empty State */}
+      {/* 3. Empty State OR (Step 1 + Step 2 + KPIs) */}
       {keywords.length === 0 && activeTab !== 'saved-plans' ? (
         <div className="card" style={{ padding: '3.5rem 1.5rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1rem' }}>
           <div style={{ width: '64px', height: '64px', borderRadius: '50%', backgroundColor: 'rgba(37, 99, 235, 0.1)', color: 'var(--brand-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -450,19 +521,19 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           </div>
           <div>
             <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-              Google Ads Tahminleme & Bütçe Planlama
+              Google Ads Akıllı Tahminleme & Bütçe Planlama
             </div>
-            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', maxWidth: '550px', margin: '0.5rem auto 0 auto', lineHeight: 1.5 }}>
-              Yukarıdaki arama kutusuna analiz etmek istediğiniz <strong>web sitesini</strong> (örn: <code>summerhomes.com</code>) veya sektörel <strong>anahtar kelimeleri</strong> yazarak <em>"Analiz Et & Tahmin Çıkar"</em> butonuna tıklayın.
+            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', maxWidth: '580px', margin: '0.5rem auto 0 auto', lineHeight: 1.5 }}>
+              Yukarıdaki arama kutusuna analiz etmek istediğiniz <strong>landing page / web sitesini</strong> (örn: <code>https://grazhdanstvo.23projects.net/</code>) yazın. Sistemimiz sayfanın dilini ve sektörel içeriğini otomatik algılayacaktır.
             </div>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem', flexWrap: 'wrap', justifyContent: 'center' }}>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Hızlı Başlangıç:</span>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Hızlı Başlangıç Örnekleri:</span>
             {[
+              { label: 'https://grazhdanstvo.23projects.net/', mode: 'URL' as const },
               { label: 'summerhomes.com', mode: 'URL' as const },
               { label: 'livanelihotels.com', mode: 'URL' as const },
-              { label: '23projects.net', mode: 'URL' as const },
               { label: 'dijital pazarlama ajansı', mode: 'KEYWORDS' as const },
             ].map(chip => (
               <button
@@ -494,12 +565,118 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         </div>
       ) : (
         <>
+          {/* STEP 1: Auto-Detected Language & Page Summary Card */}
+          <div className="card" style={{ padding: '1rem 1.25rem', backgroundColor: 'var(--bg-surface)', borderLeft: '4px solid var(--brand-primary)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+              <div style={{ padding: '8px', borderRadius: '50%', backgroundColor: 'rgba(37, 99, 235, 0.1)', color: 'var(--brand-primary)' }}>
+                <Languages size={20} />
+              </div>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.5px' }}>1. ADIM: SAYFA DİLİ & BAĞLAM</span>
+                  <span className="badge badge-active" style={{ fontSize: '0.725rem' }}>
+                    <CheckCircle2 size={11} /> {detectedLanguageName} ({detectedLanguage.toUpperCase()}) — Otomatik Algılandı
+                  </span>
+                  {sectorName && (
+                    <span className="badge badge-neutral" style={{ fontSize: '0.725rem' }}>
+                      {sectorName}
+                    </span>
+                  )}
+                </div>
+                <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)', marginTop: '0.2rem' }}>
+                  {pageTitle || query}
+                </div>
+              </div>
+            </div>
+
+            {pageSummary && (
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', maxWidth: '450px', lineHeight: 1.45, backgroundColor: 'var(--bg-surface-elevated)', padding: '0.4rem 0.65rem', borderRadius: 'var(--radius-xs)' }}>
+                💡 {pageSummary}
+              </div>
+            )}
+          </div>
+
+          {/* STEP 2: Multi-Country Target Market Selection */}
+          <div className="card" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <div style={{ padding: '6px', borderRadius: '50%', backgroundColor: 'rgba(37, 99, 235, 0.1)', color: 'var(--brand-primary)' }}>
+                  <Globe size={18} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.925rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                    2. Adım: Hedef Pazar & Ülke Seçimi ({activeCountries.length} Ülke Seçili)
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                    Bu kampanyayı hangi ülkelerde yayınlayacaksınız? Seçtiğiniz pazarlara göre arama hacimleri ve TBM (tıklama maliyetleri) anlık hesaplanır.
+                  </div>
+                </div>
+              </div>
+
+              {/* Quick Region Presets */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Hazır Pazar Paketleri:</span>
+                {[
+                  { label: '🇷🇺 BDT & Rusça', codes: ['RU', 'KZ', 'UZ'] },
+                  { label: '🇦🇪 Körfez / GCC', codes: ['AE', 'SA'] },
+                  { label: '🇹🇷 Türkiye İçi', codes: ['TR'] },
+                  { label: '🇩🇪 Avrupa', codes: ['DE', 'GB', 'NL'] },
+                  { label: '✨ Tümünü Seç', codes: availableCountries.map(c => c.code) },
+                ].map(p => (
+                  <button
+                    key={p.label}
+                    onClick={() => selectRegionPreset(p.codes)}
+                    className="btn-ghost"
+                    style={{ fontSize: '0.7rem', padding: '0.25rem 0.55rem', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-xs)' }}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Country Pills (Multi-Select) */}
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              {availableCountries.map(c => {
+                const isSelected = selectedCountryCodes.has(c.code);
+                return (
+                  <button
+                    key={c.code}
+                    onClick={() => toggleCountry(c.code)}
+                    style={{
+                      padding: '0.45rem 0.75rem',
+                      borderRadius: 'var(--radius-sm)',
+                      border: isSelected ? '1.5px solid var(--brand-primary)' : '1px solid var(--border-default)',
+                      backgroundColor: isSelected ? 'rgba(37, 99, 235, 0.12)' : 'var(--bg-surface-elevated)',
+                      color: isSelected ? 'var(--text-primary)' : 'var(--text-secondary)',
+                      fontSize: '0.78rem',
+                      fontWeight: isSelected ? 600 : 400,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.45rem',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <span style={{ fontSize: '1.05rem' }}>{c.flag}</span>
+                    <span>{c.name}</span>
+                    <span style={{ fontSize: '0.7rem', color: isSelected ? 'var(--brand-primary)' : 'var(--text-muted)' }}>
+                      ({c.cpcMultiplier}x TBM)
+                    </span>
+                    {isSelected && <Check size={13} color="var(--brand-primary)" />}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Aggregate KPI Metric Cards */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
             
             {/* Total Volume */}
             <div className="card" style={{ padding: '1.15rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Toplam Aylık Hacim</span>
+                <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Toplam Aylık Pazar Hacmi</span>
                 <div style={{ padding: '6px', borderRadius: '50%', backgroundColor: 'var(--bg-surface-elevated)', color: 'var(--brand-primary)' }}>
                   <Eye size={15} />
                 </div>
@@ -508,14 +685,14 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                 {totalSearchVolume.toLocaleString('tr-TR')}
               </div>
               <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
-                Seçili {selectedKeywordsPool.length} anahtar kelimenin toplam aylık araması
+                Seçili {activeCountries.length} ülke pazarında toplam aylık arama
               </div>
             </div>
 
             {/* Avg Top of Page CPC */}
             <div className="card" style={{ padding: '1.15rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Ort. Sayfa Üstü TBM (CPC)</span>
+                <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Ağırlıklı Ort. Sayfa Üstü TBM</span>
                 <div style={{ padding: '6px', borderRadius: '50%', backgroundColor: 'var(--bg-surface-elevated)', color: '#34d399' }}>
                   <DollarSign size={15} />
                 </div>
@@ -524,7 +701,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                 ₺{avgTopPageCpc.toFixed(2)}
               </div>
               <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
-                Google 1. sıra hedefi için ortalama tıklama başı maliyet
+                Hedeflenen pazarların ağırlıklı ortalama tıklama maliyeti
               </div>
             </div>
 
@@ -544,19 +721,20 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
               </div>
             </div>
 
-            {/* Opportunity Score */}
+            {/* Active Target Markets */}
             <div className="card" style={{ padding: '1.15rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Sektörel Fırsat Skoru</span>
+                <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Hedeflenen Pazarlar</span>
                 <div style={{ padding: '6px', borderRadius: '50%', backgroundColor: 'var(--bg-surface-elevated)', color: '#facc15' }}>
-                  <Sparkles size={15} />
+                  <Globe size={15} />
                 </div>
               </div>
-              <div style={{ fontSize: '1.65rem', fontWeight: 700, color: '#facc15', marginTop: '0.35rem' }}>
-                {avgOpportunityScore} / 100
+              <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                {activeCountries.slice(0, 5).map(c => c.flag).join(' ')}
+                {activeCountries.length > 5 && <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>+{activeCountries.length - 5}</span>}
               </div>
               <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
-                {sectorName} kategorisindeki kâr ve rekabet avantajı
+                {activeCountries.map(c => c.name).join(', ')}
               </div>
             </div>
 
@@ -969,6 +1147,56 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                 <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Reklam maliyeti düşülmüş</div>
               </div>
             </div>
+
+            {/* Country Breakdown & Market Share Table */}
+            {countryBreakdown.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '1rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <Globe size={15} color="var(--brand-primary)" /> Hedef Ülke Dağılımı ve Tahmin Kırılımı
+                  </div>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                    {countryBreakdown.length} Aktif Pazar
+                  </span>
+                </div>
+
+                {/* Visual Stacked Progress Bar */}
+                <div style={{ height: '8px', borderRadius: '4px', display: 'flex', overflow: 'hidden', backgroundColor: 'var(--border-default)' }}>
+                  {countryBreakdown.map((cm, idx) => {
+                    const colors = ['#2563eb', '#34d399', '#facc15', '#f97316', '#a855f7', '#ec4899'];
+                    return (
+                      <div
+                        key={cm.code}
+                        style={{
+                          width: `${cm.sharePercent}%`,
+                          backgroundColor: colors[idx % colors.length],
+                          height: '100%'
+                        }}
+                        title={`${cm.flag} ${cm.name}: %${cm.sharePercent}`}
+                      />
+                    );
+                  })}
+                </div>
+
+                {/* Country Breakdown Rows */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  {countryBreakdown.map((cm) => (
+                    <div key={cm.code} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.75rem', padding: '0.35rem 0.5rem', backgroundColor: 'var(--bg-surface)', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-subtle)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontWeight: 500 }}>
+                        <span>{cm.flag}</span>
+                        <span>{cm.name}</span>
+                        <span className="badge badge-neutral" style={{ fontSize: '0.65rem', padding: '1px 4px' }}>%{cm.sharePercent}</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', color: 'var(--text-secondary)' }}>
+                        <span>Ort. TBM: <strong style={{ color: 'var(--text-primary)' }}>₺{cm.avgCpc.toFixed(2)}</strong></span>
+                        <span>~{cm.estClicks} Tıklama</span>
+                        <span>~{cm.estConversions} Talep</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
           </div>
 

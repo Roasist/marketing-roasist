@@ -39,24 +39,84 @@ function getApiKeys($pdo) {
     return $keys;
 }
 
+// Helper to scrape Landing Page Content (title, meta description, headings, text)
+function fetchLandingPageDetails($url) {
+    if (!preg_match('/^https?:\/\//i', $url)) {
+        $url = 'https://' . $url;
+    }
+
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($ch, CURLOPT_MAXREDIRS, 5);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 8);
+    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+    $html = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    if (!$html || $httpCode >= 400) {
+        return null;
+    }
+
+    // Extract title
+    $title = '';
+    if (preg_match('/<title[^>]*>(.*?)<\/title>/is', $html, $m)) {
+        $title = trim(html_entity_decode(strip_tags($m[1])));
+    }
+
+    // Extract meta description
+    $description = '';
+    if (preg_match('/<meta[^>]+name=[\'"]description[\'"][^>]+content=[\'"](.*?)[\'"]/is', $html, $m)) {
+        $description = trim(html_entity_decode($m[1]));
+    } elseif (preg_match('/<meta[^>]+content=[\'"](.*?)[\'"][^>]+name=[\'"]description[\'"]/is', $html, $m)) {
+        $description = trim(html_entity_decode($m[1]));
+    }
+
+    // Extract H1 & H2 tags
+    $headings = [];
+    if (preg_match_all('/<h[12][^>]*>(.*?)<\/h[12]>/is', $html, $m)) {
+        foreach ($m[1] as $h) {
+            $hClean = trim(html_entity_decode(strip_tags($h)));
+            if (!empty($hClean) && strlen($hClean) < 150) {
+                $headings[] = $hClean;
+            }
+        }
+    }
+
+    // Clean body text (strip styles, scripts, SVGs)
+    $cleanHtml = preg_replace('/<(style|script|svg|noscript|header|footer|nav)\b[^>]*>.*?<\/\1>/is', ' ', $html);
+    $cleanHtml = preg_replace('/<style\b[^>]*>.*?<\/style>/is', ' ', $cleanHtml);
+    $cleanHtml = preg_replace('/<script\b[^>]*>.*?<\/script>/is', ' ', $cleanHtml);
+    $plainText = trim(preg_replace('/\s+/', ' ', strip_tags($cleanHtml)));
+    $textSnippet = mb_substr($plainText, 0, 2500, 'UTF-8');
+
+    return [
+        'title' => $title,
+        'description' => $description,
+        'headings' => array_slice(array_unique($headings), 0, 8),
+        'textSnippet' => $textSnippet
+    ];
+}
+
 // -------------------------------------------------------------
-// ACTION: DISCOVER & ANALYZE KEYWORDS
+// ACTION: DISCOVER & ANALYZE KEYWORDS (WITH AUTO-LANGUAGE & SCRAPER)
 // -------------------------------------------------------------
 if ($action === 'discover' && $method === 'POST') {
     $input = json_decode(file_get_contents('php://input'), true) ?? [];
     $query = trim($input['query'] ?? '');
-    $mode = trim($input['mode'] ?? 'KEYWORDS'); // 'URL' or 'KEYWORDS'
-    $country = trim($input['country'] ?? 'TR');
-    $language = trim($input['language'] ?? 'tr');
+    $mode = trim($input['mode'] ?? 'URL');
 
     if (empty($query)) {
         echo json_encode(['status' => 'error', 'message' => 'Lütfen analiz edilecek bir web sitesi veya anahtar kelime girin.']);
         exit;
     }
 
-    $cacheKey = md5("forecast_disc_{$mode}_{$query}_{$country}_{$language}");
+    $cacheKey = md5("forecast_v2_{$mode}_{$query}");
 
-    // 1. Check Server-Side Cache (Save API quota & Instant Response)
+    // 1. Check Server-Side Cache
     $stmtCache = $pdo->prepare("SELECT data, created_at FROM keyword_cache WHERE cache_key = ?");
     $stmtCache->execute([$cacheKey]);
     $cached = $stmtCache->fetch();
@@ -74,85 +134,6 @@ if ($action === 'discover' && $method === 'POST') {
     $apiKeys = getApiKeys($pdo);
     $geminiKey = $apiKeys['geminiApiKey'] ?: $apiKeys['googleApiKey'];
 
-    // 2. Fetch Google Suggestions / Autocomplete
-    $googleSuggestions = [];
-    try {
-        $cleanQuery = urlencode(str_replace(['https://', 'http://', 'www.'], '', $query));
-        $autoUrl = "https://suggestqueries.google.com/complete/search?client=chrome&hl={$language}&gl={$country}&q={$cleanQuery}";
-        
-        $ch = curl_init($autoUrl);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)');
-        curl_setopt($ch, CURLOPT_TIMEOUT, 5);
-        $res = curl_exec($ch);
-        curl_close($ch);
-
-        $parsed = json_decode($res, true);
-        if (isset($parsed[1]) && is_array($parsed[1])) {
-            $googleSuggestions = array_slice($parsed[1], 0, 15);
-        }
-    } catch (Exception $e) {}
-
-    // 3. AI Semantic Keyword Expansion & Search Intent Classification via Gemini
-    $keywordsResult = [];
-    $sectorSummary = "Dijital Pazarlama & E-Ticaret";
-
-    if (!empty($geminiKey)) {
-        try {
-            $prompt = "Sen Google Ads ve Performans Pazarlaması konusunda uzman bir SEO & SEM analistisin.\n"
-                . "Hedef: '{$query}' (Mod: {$mode}, Ülke: {$country}, Dil: {$language}).\n"
-                . "Google arama önerileri: " . json_encode($googleSuggestions, JSON_UNESCAPED_UNICODE) . ".\n\n"
-                . "Görev: Bu marka/sektör için yüksek dönüşüm potansiyeline sahip en az 25 adet gerçekçi Google Ads anahtar kelimesi üret ve her biri için Türkiye / hedef pazar Google Ads ortalamalarına uygun tahminler yap.\n"
-                . "Yanıtını SADECE geçerli JSON formatında şu şemayla ver (başka hiçbir metin yazma):\n"
-                . "{\n"
-                . "  \"sector\": \"Sektör Adı\",\n"
-                . "  \"keywords\": [\n"
-                . "    {\n"
-                . "      \"keyword\": \"anahtar kelime\",\n"
-                . "      \"monthlyVolume\": 12500,\n"
-                . "      \"lowCpc\": 4.50,\n"
-                . "      \"highCpc\": 18.20,\n"
-                . "      \"competition\": \"HIGH\", // LOW, MEDIUM, HIGH\n"
-                . "      \"competitionIndex\": 78, // 0-100\n"
-                . "      \"intent\": \"TRANSACTIONAL\", // TRANSACTIONAL (Satın Alma), COMMERCIAL (Araştırma), INFORMATIONAL (Bilgi)\n"
-                . "      \"trendChangePercent\": 15, // Son 3 aylık trend % değişimi (-50 ile +150 arası)\n"
-                . "      \"opportunityScore\": 85 // 1-100 fırsat puanı\n"
-                . "    }\n"
-                . "  ]\n"
-                . "}";
-
-            $geminiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" . urlencode($geminiKey);
-            $payload = [
-                "contents" => [
-                    ["parts" => [["text" => $prompt]]]
-                ],
-                "generationConfig" => [
-                    "temperature" => 0.2,
-                    "responseMimeType" => "application/json"
-                ]
-            ];
-
-            $chGemini = curl_init($geminiUrl);
-            curl_setopt($chGemini, CURLOPT_POST, true);
-            curl_setopt($chGemini, CURLOPT_POSTFIELDS, json_encode($payload));
-            curl_setopt($chGemini, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($chGemini, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-            curl_setopt($chGemini, CURLOPT_TIMEOUT, 20);
-            $resGemini = curl_exec($chGemini);
-            curl_close($chGemini);
-
-            $gJson = json_decode($resGemini, true);
-            if (isset($gJson['candidates'][0]['content']['parts'][0]['text'])) {
-                $rawAiText = $gJson['candidates'][0]['content']['parts'][0]['text'];
-                $parsedAi = json_decode($rawAiText, true);
-                if (isset($parsedAi['keywords']) && is_array($parsedAi['keywords'])) {
-                    $keywordsResult = $parsedAi['keywords'];
-                    $sectorSummary = $parsedAi['sector'] ?? $sectorSummary;
-                }
-            }
-        } catch (Exception $e) {}
-    }
-
     if (empty($geminiKey)) {
         echo json_encode([
             'status' => 'error',
@@ -161,10 +142,108 @@ if ($action === 'discover' && $method === 'POST') {
         exit;
     }
 
+    // 2. Scrape Landing Page if URL mode or query looks like a domain
+    $pageDetails = null;
+    $isUrl = ($mode === 'URL') || preg_match('/^https?:\/\//i', $query) || (strpos($query, '.') !== false && strpos($query, ' ') === false);
+    if ($isUrl) {
+        $pageDetails = fetchLandingPageDetails($query);
+    }
+
+    // 3. Construct AI Prompt with live scraped page content
+    $prompt = "Sen Google Ads, SEM ve Çok Dilli Uluslararası Performans Pazarlaması konusunda kıdemli bir stratejistsin.\n\n";
+
+    if ($pageDetails && (!empty($pageDetails['title']) || !empty($pageDetails['textSnippet']))) {
+        $prompt .= "İNCELENEN LANDING PAGE URL: '{$query}'\n"
+            . "Sayfa Başlığı (Title): {$pageDetails['title']}\n"
+            . "Sayfa Açıklaması (Meta Description): {$pageDetails['description']}\n"
+            . "Sayfa Başlıkları (H1/H2): " . implode(' | ', $pageDetails['headings']) . "\n"
+            . "Sayfa Metin İçeriği: {$pageDetails['textSnippet']}\n\n";
+    } else {
+        $prompt .= "İNCELENEN TOHUM KELİME / MARKA: '{$query}'\n\n";
+    }
+
+    $prompt .= "GÖREVLER:\n"
+        . "1. Sayfanın/içeriğin GERÇEK DİLİNİ otomatik tespit et (Örn: Rusça ise 'ru' / 'Rusça', İngilizce ise 'en' / 'İngilizce', Türkçe ise 'tr' / 'Türkçe', Arapça ise 'ar' / 'Arapça', Almanca ise 'de' / 'Almanca', Farsça ise 'fa' / 'Farsça').\n"
+        . "2. Sayfanın sektörünü ve ana değer önerisini belirle.\n"
+        . "3. Bu sayfaya/ürüne müşteri çekmek için Google Arama'da kullanıcının arayacağı en az 30 adet yüksek dönüşüm potansiyeline sahip Google Ads anahtar kelimesini KESİNLİKLE SAYFANIN KENDİ DİLİNDE üret.\n"
+        . "4. Bu dil ve sektör için Google Ads kampanyasında hedeflenmesi en mantıklı 4-6 hedef ülkeyi (Örn: Rusça için RU, KZ, UZ, AE, TR; Arapça için SA, AE, KW, QA, TR; Almanca için DE, AT, CH; İngilizce için US, GB, AE, CA vb.) belirle.\n\n"
+        . "Yanıtını SADECE geçerli JSON formatında şu şemayla ver (başka metin ekleme):\n"
+        . "{\n"
+        . "  \"detectedLanguage\": \"ru\",\n"
+        . "  \"detectedLanguageName\": \"Rusça\",\n"
+        . "  \"sector\": \"Yatırımla Türk Vatandaşlığı & Gayrimenkul\",\n"
+        . "  \"pageTitle\": \"Sayfa Başlığı\",\n"
+        . "  \"pageSummary\": \"Kısa sayfa özeti\",\n"
+        . "  \"suggestedCountries\": [\n"
+        . "    {\"code\": \"RU\", \"name\": \"Rusya\", \"flag\": \"🇷🇺\", \"region\": \"BDT\", \"cpcMultiplier\": 1.0, \"volumeMultiplier\": 1.0, \"currency\": \"RUB\"},\n"
+        . "    {\"code\": \"KZ\", \"name\": \"Kazakistan\", \"flag\": \"🇰🇿\", \"region\": \"BDT\", \"cpcMultiplier\": 0.75, \"volumeMultiplier\": 0.45, \"currency\": \"KZT\"},\n"
+        . "    {\"code\": \"UZ\", \"name\": \"Özbekistan\", \"flag\": \"🇺🇿\", \"region\": \"BDT\", \"cpcMultiplier\": 0.65, \"volumeMultiplier\": 0.35, \"currency\": \"UZS\"},\n"
+        . "    {\"code\": \"AE\", \"name\": \"BAE / Dubai\", \"flag\": \"🇦🇪\", \"region\": \"Körfez\", \"cpcMultiplier\": 2.2, \"volumeMultiplier\": 0.25, \"currency\": \"AED\"},\n"
+        . "    {\"code\": \"TR\", \"name\": \"Türkiye (Yerleşik Topluluk)\", \"flag\": \"🇹🇷\", \"region\": \"Yerel\", \"cpcMultiplier\": 0.9, \"volumeMultiplier\": 0.35, \"currency\": \"TRY\"}\n"
+        . "  ],\n"
+        . "  \"keywords\": [\n"
+        . "    {\n"
+        . "      \"keyword\": \"гражданство Турции за инвестиции\",\n"
+        . "      \"monthlyVolume\": 14500,\n"
+        . "      \"lowCpc\": 8.50,\n"
+        . "      \"highCpc\": 32.00,\n"
+        . "      \"competition\": \"HIGH\",\n"
+        . "      \"competitionIndex\": 85,\n"
+        . "      \"intent\": \"TRANSACTIONAL\",\n"
+        . "      \"trendChangePercent\": 25,\n"
+        . "      \"opportunityScore\": 92\n"
+        . "    }\n"
+        . "  ]\n"
+        . "}";
+
+    $geminiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" . urlencode($geminiKey);
+    $payload = [
+        "contents" => [
+            ["parts" => [["text" => $prompt]]]
+        ],
+        "generationConfig" => [
+            "temperature" => 0.2,
+            "responseMimeType" => "application/json"
+        ]
+    ];
+
+    $chGemini = curl_init($geminiUrl);
+    curl_setopt($chGemini, CURLOPT_POST, true);
+    curl_setopt($chGemini, CURLOPT_POSTFIELDS, json_encode($payload));
+    curl_setopt($chGemini, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($chGemini, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+    curl_setopt($chGemini, CURLOPT_TIMEOUT, 25);
+    $resGemini = curl_exec($chGemini);
+    curl_close($chGemini);
+
+    $gJson = json_decode($resGemini, true);
+    $keywordsResult = [];
+    $detectedLang = 'tr';
+    $detectedLangName = 'Türkçe';
+    $sectorSummary = 'Dijital Pazarlama & E-Ticaret';
+    $pageTitle = $pageDetails['title'] ?? '';
+    $pageSummary = '';
+    $suggestedCountries = [];
+
+    if (isset($gJson['candidates'][0]['content']['parts'][0]['text'])) {
+        $rawAiText = $gJson['candidates'][0]['content']['parts'][0]['text'];
+        $parsedAi = json_decode($rawAiText, true);
+        if (isset($parsedAi['keywords']) && is_array($parsedAi['keywords'])) {
+            $keywordsResult = $parsedAi['keywords'];
+            $detectedLang = $parsedAi['detectedLanguage'] ?? $detectedLang;
+            $detectedLangName = $parsedAi['detectedLanguageName'] ?? $detectedLangName;
+            $sectorSummary = $parsedAi['sector'] ?? $sectorSummary;
+            $pageTitle = $parsedAi['pageTitle'] ?? $pageTitle;
+            $pageSummary = $parsedAi['pageSummary'] ?? '';
+            $suggestedCountries = $parsedAi['suggestedCountries'] ?? [];
+        }
+    }
+
     if (empty($keywordsResult)) {
+        $errMsg = $gJson['error']['message'] ?? 'Bu web sitesi için anahtar kelime analizi yapılamadı. Lütfen Google API anahtarınızı kontrol edin veya geçerli bir web adresi girin.';
         echo json_encode([
             'status' => 'error',
-            'message' => 'Bu arama terimi için anahtar kelime verisi alınamadı. Lütfen API anahtarınızı doğrulayın veya farklı bir web sitesi / terim deneyin.'
+            'message' => 'Analiz Hatası: ' . $errMsg
         ]);
         exit;
     }
@@ -180,10 +259,13 @@ if ($action === 'discover' && $method === 'POST') {
         'query' => $query,
         'mode' => $mode,
         'sector' => $sectorSummary,
-        'country' => $country,
-        'language' => $language,
+        'detectedLanguage' => $detectedLang,
+        'detectedLanguageName' => $detectedLangName,
+        'pageTitle' => $pageTitle,
+        'pageSummary' => $pageSummary,
         'totalCount' => count($keywordsResult),
         'keywords' => $keywordsResult,
+        'suggestedCountries' => $suggestedCountries,
         'timestamp' => date('Y-m-d H:i:s')
     ];
 
@@ -202,44 +284,29 @@ if ($action === 'discover' && $method === 'POST') {
 }
 
 // -------------------------------------------------------------
-// ACTION: GENERATE AI NEGATIVE KEYWORDS
+// ACTION: GENERATE AI NEGATIVE KEYWORDS (LANGUAGE AWARE)
 // -------------------------------------------------------------
 if ($action === 'negative_keywords' && $method === 'POST') {
     $input = json_decode(file_get_contents('php://input'), true) ?? [];
     $sector = trim($input['sector'] ?? 'Genel');
     $keywords = $input['keywords'] ?? [];
+    $language = trim($input['language'] ?? 'tr');
 
     $apiKeys = getApiKeys($pdo);
     $geminiKey = $apiKeys['geminiApiKey'] ?: $apiKeys['googleApiKey'];
 
-    $negativeCategories = [
-        [
-            'category' => 'İsraf & Alakasız Aramalar',
-            'words' => ['ücretsiz', 'bedava', 'crack', 'full indir', 'torrent', 'apk', 'hile', 'pdf']
-        ],
-        [
-            'category' => 'Kariyer & Eğitim Odaklı',
-            'words' => ['staj', 'iş ilanları', 'maaşları', 'eleman arayanlar', 'kursu', 'nedir', 'nasıl olunur']
-        ],
-        [
-            'category' => 'Şikayet & Destek',
-            'words' => ['şikayet', 'yorumlar', 'dolandırıcılığı', 'müşteri hizmetleri numarası', 'iletişim']
-        ],
-        [
-            'category' => 'İkinci El & Karşılaştırma',
-            'words' => ['sahibinden', 'ikinci el', '2 el', 'letgo', 'dolap', 'gardrops']
-        ]
-    ];
+    $negativeCategories = [];
 
     if (!empty($geminiKey) && !empty($keywords)) {
         try {
             $kwSample = array_slice($keywords, 0, 15);
-            $prompt = "Sen Google Ads negatif anahtar kelime uzmanısın. Sektör: '{$sector}', Anahtar kelimeler: " . implode(', ', $kwSample) . ".\n"
-                . "Bu sektördeki Google Arama kampanyasında bütçe israfını önleyecek, dönüşüm getirmeyen 20-30 adet negatif anahtar kelimeyi 4 mantıksal kategoride gruplayarak JSON formatında listele.\n"
+            $prompt = "Sen Google Ads negatif anahtar kelime uzmanısın.\n"
+                . "Sektör: '{$sector}', Dil: '{$language}', Anahtar Kelime Örnekleri: " . implode(', ', $kwSample) . ".\n"
+                . "Bu dil ve sektördeki Google Arama kampanyasında bütçe israfını önleyecek, dönüşüm getirmeyen 25-35 adet negatif anahtar kelimeyi KESİNLİKLE BU DİLDE ({$language}) 4 mantıksal kategoride gruplayarak JSON formatında listele.\n"
                 . "Format:\n"
                 . "[\n"
                 . "  {\n"
-                . "    \"category\": \"Kategori Başlığı\",\n"
+                . "    \"category\": \"Kategori Başlığı (Örn: İsraf & Ücretsiz Aramalar)\",\n"
                 . "    \"words\": [\"kelime1\", \"kelime2\", \"kelime3\"]\n"
                 . "  }\n"
                 . "]";

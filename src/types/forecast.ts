@@ -15,6 +15,27 @@ export interface KeywordMetric {
   isSelected?: boolean;
 }
 
+export interface CountryOption {
+  code: string;
+  name: string;
+  flag: string;
+  region: string;
+  cpcMultiplier: number;
+  volumeMultiplier: number;
+  currency: string;
+}
+
+export interface CountryMetric {
+  code: string;
+  name: string;
+  flag: string;
+  sharePercent: number;
+  monthlyVolume: number;
+  avgCpc: number;
+  estClicks: number;
+  estConversions: number;
+}
+
 export interface ForecastSimulation {
   monthlyBudget: number;
   dailyBudget: number;
@@ -28,6 +49,8 @@ export interface ForecastSimulation {
   avgOrderValue: number;
   estRevenue: number;
   projectedRoas: number;
+  targetCountries?: string[];
+  countryBreakdown?: CountryMetric[];
 }
 
 export interface NegativeCategory {
@@ -41,10 +64,14 @@ export interface ForecastPlan {
   name: string;
   targetUrl?: string;
   seedKeywords?: string;
+  detectedLanguage?: string;
+  detectedLanguageName?: string;
+  targetCountries?: string[];
   monthlyBudget: number;
   selectedKeywords: KeywordMetric[];
   simulationResult: ForecastSimulation;
   negativeKeywords: NegativeCategory[];
+  countryBreakdown?: CountryMetric[];
   createdAt?: string;
 }
 
@@ -52,9 +79,12 @@ export interface ForecastDiscoveryResult {
   query: string;
   mode: 'URL' | 'KEYWORDS';
   sector: string;
-  country: string;
-  language: string;
+  detectedLanguage: string;
+  detectedLanguageName: string;
+  pageTitle?: string;
+  pageSummary?: string;
   totalCount: number;
   keywords: KeywordMetric[];
+  suggestedCountries?: CountryOption[];
   timestamp: string;
 }
