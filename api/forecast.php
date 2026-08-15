@@ -344,10 +344,8 @@ if ($action === 'discover' && $method === 'POST') {
 
     $endpointsToTry = [
         'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent',
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent',
-        'https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent',
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent',
-        'https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro:generateContent'
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent',
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent'
     ];
 
     $keywordsResult = [];
@@ -386,8 +384,17 @@ if ($action === 'discover' && $method === 'POST') {
 
         if (isset($gJson['candidates'][0]['content']['parts'][0]['text'])) {
             $rawAiText = $gJson['candidates'][0]['content']['parts'][0]['text'];
-            $parsedAi = json_decode($rawAiText, true);
-            if (isset($parsedAi['keywords']) && is_array($parsedAi['keywords'])) {
+            
+            // Clean markdown fences if any
+            $cleanJson = preg_replace('/^```(?:json)?\s*/i', '', trim($rawAiText));
+            $cleanJson = preg_replace('/\s*```$/', '', $cleanJson);
+            
+            $parsedAi = json_decode($cleanJson, true);
+            if (!$parsedAi && preg_match('/\{.*\}/s', $cleanJson, $matches)) {
+                $parsedAi = json_decode($matches[0], true);
+            }
+
+            if (isset($parsedAi['keywords']) && is_array($parsedAi['keywords']) && count($parsedAi['keywords']) > 0) {
                 $keywordsResult = $parsedAi['keywords'];
                 $detectedLang = $parsedAi['detectedLanguage'] ?? $detectedLang;
                 $detectedLangName = $parsedAi['detectedLanguageName'] ?? $detectedLangName;
@@ -396,13 +403,15 @@ if ($action === 'discover' && $method === 'POST') {
                 $pageSummary = $parsedAi['pageSummary'] ?? '';
                 $suggestedCountries = $parsedAi['suggestedCountries'] ?? [];
                 break; // Successfully got live AI keywords!
+            } else {
+                $lastErrorMsg = "AI Yanıtı JSON Şemasına Uymadı: " . mb_substr($rawAiText, 0, 150);
             }
         } elseif (isset($gJson['error']['message'])) {
-            $lastErrorMsg = "HTTP {$httpCode}: " . $gJson['error']['message'];
+            $lastErrorMsg = "Google API (HTTP {$httpCode}): " . $gJson['error']['message'];
         } elseif ($curlErr) {
-            $lastErrorMsg = "cURL Hatası: " . $curlErr;
+            $lastErrorMsg = "cURL Bağlantı Hatası: " . $curlErr;
         } else {
-            $lastErrorMsg = "HTTP {$httpCode}: " . mb_substr($resGemini, 0, 200);
+            $lastErrorMsg = "Google API HTTP {$httpCode}: " . mb_substr($resGemini, 0, 200);
         }
     }
 
