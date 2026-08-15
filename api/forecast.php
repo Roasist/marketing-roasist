@@ -500,9 +500,11 @@ function analyzeLandingPageWithAI($pageDetails, $query, $geminiKey) {
         . "}";
 
     $modelsToTry = [
-        'gemini-2.5-flash',
-        'gemini-3.7-flash',
+        'gemini-3.6-flash',
         'gemini-3.5-flash',
+        'gemini-3.1-flash-lite',
+        'gemini-2.5-flash-lite',
+        'gemini-pro-latest',
         'gemini-flash-latest'
     ];
 
@@ -1289,11 +1291,11 @@ if ($action === 'discover' && $method === 'POST') {
         . "}";
 
     $endpointsToTry = [
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.7-flash:generateContent',
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent',
         'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent',
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent',
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent'
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent',
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent',
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-latest:generateContent'
     ];
 
     $keywordsResult = [];
