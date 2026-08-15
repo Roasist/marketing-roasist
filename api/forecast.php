@@ -268,7 +268,7 @@ if ($action === 'discover' && $method === 'POST') {
         exit;
     }
 
-    $cacheKey = md5("forecast_v2_{$mode}_{$query}");
+    $cacheKey = md5("forecast_v4_{$mode}_{$query}");
 
     // 1. Check Server-Side Cache
     $stmtCache = $pdo->prepare("SELECT data, created_at FROM keyword_cache WHERE cache_key = ?");
@@ -296,7 +296,7 @@ if ($action === 'discover' && $method === 'POST') {
     }
 
     // 3. Construct AI Prompt with live scraped page content
-    $prompt = "Sen Google Ads, SEM ve Çok Dilli Uluslararası Performans Pazarlaması konusunda kıdemli bir stratejistsin.\n\n";
+    $prompt = "Sen dünyanın en iyi Google Ads, SEM ve Çok Dilli Uluslararası Performans Pazarlaması uzmanısın.\n\n";
 
     if ($pageDetails && (!empty($pageDetails['title']) || !empty($pageDetails['textSnippet']))) {
         $prompt .= "İNCELENEN LANDING PAGE URL: '{$query}'\n"
@@ -305,39 +305,42 @@ if ($action === 'discover' && $method === 'POST') {
             . "Sayfa Başlıkları (H1/H2): " . implode(' | ', $pageDetails['headings']) . "\n"
             . "Sayfa Metin İçeriği: {$pageDetails['textSnippet']}\n\n";
     } else {
-        $prompt .= "İNCELENEN TOHUM KELİME / MARKA: '{$query}'\n\n";
+        $prompt .= "İNCELENEN TOHUM KELİME / MARKA / SEKTÖR: '{$query}'\n\n";
     }
 
-    $prompt .= "GÖREVLER:\n"
-        . "1. Sayfanın/içeriğin GERÇEK DİLİNİ otomatik tespit et (Örn: Rusça ise 'ru' / 'Rusça', İngilizce ise 'en' / 'İngilizce', Türkçe ise 'tr' / 'Türkçe', Arapça ise 'ar' / 'Arapça', Almanca ise 'de' / 'Almanca', Farsça ise 'fa' / 'Farsça').\n"
-        . "2. Sayfanın sektörünü ve ana değer önerisini belirle.\n"
-        . "3. Bu sayfaya/ürüne müşteri çekmek için Google Arama'da kullanıcının arayacağı en az 30 adet yüksek dönüşüm potansiyeline sahip Google Ads anahtar kelimesini KESİNLİKLE SAYFANIN KENDİ DİLİNDE üret.\n"
-        . "4. Bu dil ve sektör için Google Ads kampanyasında hedeflenmesi en mantıklı 4-6 hedef ülkeyi (Örn: Rusça için RU, KZ, UZ, AE, TR; Arapça için SA, AE, KW, QA, TR; Almanca için DE, AT, CH; İngilizce için US, GB, AE, CA vb.) belirle.\n\n"
+    $prompt .= "GÖREVLER VE KESİN KURALLAR:\n"
+        . "1. Sayfanın/içeriğin sunduğu GERÇEK HİZMETLERİ, ÇÖZÜMLERİ VE SEKTÖRÜ belirle.\n"
+        . "2. Sayfanın dilini otomatik tespit et ('tr', 'ru', 'en', 'ar', 'de' vb.).\n"
+        . "3. ÇOK ÖNEMLİ KURAL: Domain adını veya marka ismini kopyalayıp sonuna 'satın al', 'fiyatları', 'tavsiye' gibi uydurma ekler KESİNLİKLE EKLEME! (Örn: 'roasist.com satın al' veya 'roasist.com fiyatları' gibi uydurma kelimeler KESİNLİKLE YASAKTIR).\n"
+        . "4. Bunun yerine, bu işletmenin müşterisi olmak isteyen kişilerin Google Arama'da arattığı EN AZ 30 ADET gerçek, sektörel, yüksek niyetli (Transactional/Commercial) Google Ads anahtar kelimesini SAYFANIN KENDİ DİLİNDE üret.\n"
+        . "   - Örnek: Eğer site bir dijital pazarlama / performans ajansı ise (Roasist gibi); 'performans pazarlama ajansı', 'google ads reklam yönetimi', 'meta reklam danışmanlığı', 'e-ticaret roas artırma', 'dijital pazarlama ajansı istanbul', 'sosyal medya reklam ajansı fiyatları', 'dönüşüm oranı optimizasyonu ajansı', 'b2b dijital pazarlama', 'tiktok reklam danışmanlığı' gibi gerçek sektörel kelimeler üret.\n"
+        . "   - Örnek: Eğer site gayrimenkul / vatandaşlık sitesi ise; 'гражданство Турции за инвестиции', 'купить квартиру в Аланье', 'паспорт Турции при покупке недвижимости' gibi sektörel kelimeler üret.\n"
+        . "5. Her kelime için gerçekçi aylık arama hacmi (monthlyVolume), sayfa üstü min TBM (lowCpc ₺), sayfa üstü max TBM (highCpc ₺), rekabet (HIGH/MEDIUM/LOW), niyet (TRANSACTIONAL/COMMERCIAL/INFORMATIONAL) ve alaka puanı (opportunityScore 1-100) üret.\n"
+        . "6. Bu dil ve sektör için Google Ads kampanyasında hedeflenecek en mantıklı 4-6 hedef ülkeyi belirle.\n\n"
         . "Yanıtını SADECE geçerli JSON formatında şu şemayla ver (başka metin ekleme):\n"
         . "{\n"
-        . "  \"detectedLanguage\": \"ru\",\n"
-        . "  \"detectedLanguageName\": \"Rusça\",\n"
-        . "  \"sector\": \"Yatırımla Türk Vatandaşlığı & Gayrimenkul\",\n"
+        . "  \"detectedLanguage\": \"tr\",\n"
+        . "  \"detectedLanguageName\": \"Türkçe\",\n"
+        . "  \"sector\": \"Performans Pazarlaması & Dijital Reklam Ajansı\",\n"
         . "  \"pageTitle\": \"Sayfa Başlığı\",\n"
-        . "  \"pageSummary\": \"Kısa sayfa özeti\",\n"
+        . "  \"pageSummary\": \"Roasist; Meta Ads, Google Ads ve e-ticaret büyüme odaklı performans pazarlama ajansı.\",\n"
         . "  \"suggestedCountries\": [\n"
-        . "    {\"code\": \"RU\", \"name\": \"Rusya\", \"flag\": \"🇷🇺\", \"region\": \"BDT\", \"cpcMultiplier\": 1.0, \"volumeMultiplier\": 1.0, \"currency\": \"RUB\"},\n"
-        . "    {\"code\": \"KZ\", \"name\": \"Kazakistan\", \"flag\": \"🇰🇿\", \"region\": \"BDT\", \"cpcMultiplier\": 0.75, \"volumeMultiplier\": 0.45, \"currency\": \"KZT\"},\n"
-        . "    {\"code\": \"UZ\", \"name\": \"Özbekistan\", \"flag\": \"🇺🇿\", \"region\": \"BDT\", \"cpcMultiplier\": 0.65, \"volumeMultiplier\": 0.35, \"currency\": \"UZS\"},\n"
-        . "    {\"code\": \"AE\", \"name\": \"BAE / Dubai\", \"flag\": \"🇦🇪\", \"region\": \"Körfez\", \"cpcMultiplier\": 2.2, \"volumeMultiplier\": 0.25, \"currency\": \"AED\"},\n"
-        . "    {\"code\": \"TR\", \"name\": \"Türkiye (Yerleşik Topluluk)\", \"flag\": \"🇹🇷\", \"region\": \"Yerel\", \"cpcMultiplier\": 0.9, \"volumeMultiplier\": 0.35, \"currency\": \"TRY\"}\n"
+        . "    {\"code\": \"TR\", \"name\": \"Türkiye\", \"flag\": \"🇹🇷\", \"region\": \"Yerel\", \"cpcMultiplier\": 1.0, \"volumeMultiplier\": 1.0, \"currency\": \"TRY\"},\n"
+        . "    {\"code\": \"DE\", \"name\": \"Almanya (Türk İşletmeleri)\", \"flag\": \"🇩🇪\", \"region\": \"Avrupa\", \"cpcMultiplier\": 2.8, \"volumeMultiplier\": 0.35, \"currency\": \"EUR\"},\n"
+        . "    {\"code\": \"GB\", \"name\": \"İngiltere\", \"flag\": \"🇬🇧\", \"region\": \"Avrupa\", \"cpcMultiplier\": 3.2, \"volumeMultiplier\": 0.3, \"currency\": \"GBP\"},\n"
+        . "    {\"code\": \"AE\", \"name\": \"BAE / Dubai\", \"flag\": \"🇦🇪\", \"region\": \"Körfez\", \"cpcMultiplier\": 2.5, \"volumeMultiplier\": 0.25, \"currency\": \"AED\"}\n"
         . "  ],\n"
         . "  \"keywords\": [\n"
         . "    {\n"
-        . "      \"keyword\": \"гражданство Турции за инвестиции\",\n"
-        . "      \"monthlyVolume\": 14500,\n"
+        . "      \"keyword\": \"performans pazarlama ajansı\",\n"
+        . "      \"monthlyVolume\": 12500,\n"
         . "      \"lowCpc\": 8.50,\n"
-        . "      \"highCpc\": 32.00,\n"
+        . "      \"highCpc\": 38.00,\n"
         . "      \"competition\": \"HIGH\",\n"
-        . "      \"competitionIndex\": 85,\n"
+        . "      \"competitionIndex\": 88,\n"
         . "      \"intent\": \"TRANSACTIONAL\",\n"
-        . "      \"trendChangePercent\": 25,\n"
-        . "      \"opportunityScore\": 92\n"
+        . "      \"trendChangePercent\": 22,\n"
+        . "      \"opportunityScore\": 94\n"
         . "    }\n"
         . "  ]\n"
         . "}";
@@ -588,6 +591,12 @@ if ($action === 'negative_keywords' && $method === 'POST') {
         'status' => 'success',
         'categories' => $negativeCategories
     ]);
+    exit;
+}
+
+if ($action === 'clear_cache') {
+    $pdo->exec("DELETE FROM keyword_cache");
+    echo json_encode(['status' => 'success', 'message' => 'Keyword cache başarıyla temizlendi.']);
     exit;
 }
 
