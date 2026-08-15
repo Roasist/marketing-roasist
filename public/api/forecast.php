@@ -98,25 +98,18 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
     ];
     $geoConst = $geoMap[strtoupper($countryCode)] ?? 'geoTargetConstants/2792';
 
-    // Step 2: Call generateKeywordIdeas
+    // Step 2: Configure payload mirroring official Google Ads Keyword Planner UI
     $payload = [
         "keywordPlanNetwork" => "GOOGLE_SEARCH",
         "language" => $langConst,
         "geoTargetConstants" => [$geoConst]
     ];
 
-    if (!empty($url) && !empty($keywords) && is_array($keywords) && count($keywords) > 0) {
+    if (!empty($url)) {
         if (!preg_match('/^https?:\/\//i', $url)) {
             $url = 'https://' . $url;
         }
-        $payload["keywordAndUrlSeed"] = [
-            "url" => $url,
-            "keywords" => array_slice($keywords, 0, 20)
-        ];
-    } elseif (!empty($url)) {
-        if (!preg_match('/^https?:\/\//i', $url)) {
-            $url = 'https://' . $url;
-        }
+        // Mirror Google Ads Keyword Planner UI: "Start with a website" uses urlSeed
         $payload["urlSeed"] = ["url" => $url];
     } elseif (!empty($keywords)) {
         $payload["keywordSeed"] = ["keywords" => is_array($keywords) ? array_slice($keywords, 0, 20) : [$keywords]];
