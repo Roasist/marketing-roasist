@@ -1,6 +1,10 @@
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /
+
+  # Pass Authorization header to PHP in LiteSpeed/Apache
+  RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
   RewriteRule ^index\.html$ - [L]
 
   # Do NOT rewrite PHP scripts - let them execute directly

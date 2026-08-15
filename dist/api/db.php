@@ -215,10 +215,10 @@ class Database {
 }
 
 function getAuthUser() {
-    $headers = function_exists('getallheaders') ? getallheaders() : [];
+    $headers = function_exists('getallheaders') ? getallheaders() : (function_exists('apache_request_headers') ? apache_request_headers() : []);
     $authHeader = '';
     foreach ($headers as $k => $v) {
-        if (strtolower($k) === 'authorization') {
+        if (strtolower($k) === 'authorization' || strtolower($k) === 'x-authorization') {
             $authHeader = $v;
             break;
         }
@@ -227,8 +227,14 @@ function getAuthUser() {
     if (empty($authHeader) && isset($_SERVER['HTTP_AUTHORIZATION'])) {
         $authHeader = $_SERVER['HTTP_AUTHORIZATION'];
     }
+    if (empty($authHeader) && isset($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
+        $authHeader = $_SERVER['REDIRECT_HTTP_AUTHORIZATION'];
+    }
+    if (empty($authHeader) && isset($_SERVER['HTTP_X_AUTHORIZATION'])) {
+        $authHeader = $_SERVER['HTTP_X_AUTHORIZATION'];
+    }
 
-    if (!preg_match('/Bearer\s(\S+)/', $authHeader, $matches)) {
+    if (!preg_match('/Bearer\s(\S+)/i', $authHeader, $matches)) {
         return null;
     }
 
