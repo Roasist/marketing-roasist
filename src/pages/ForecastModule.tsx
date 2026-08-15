@@ -44,85 +44,110 @@ export interface KeywordCluster {
 export const groupKeywordsSemantically = (kwList: KeywordMetric[]): KeywordCluster[] => {
   if (!kwList || kwList.length === 0) return [];
 
+  const clusters: KeywordCluster[] = [];
+
+  // 0. DEDICATED PINNED CLUSTER: AI Senior Performance SEM Strategist (High-Converting Picks)
+  const strategistKeywords = kwList.filter(k => !!k.isAiStrategistPick || k.id?.startsWith('ai_strat_') || k.id?.startsWith('ai_alt_'));
+  if (strategistKeywords.length > 0) {
+    const vol = strategistKeywords.reduce((s, k) => s + k.monthlyVolume, 0);
+    const cpcSum = strategistKeywords.reduce((s, k) => s + ((k.lowCpc + k.highCpc) / 2), 0);
+    clusters.push({
+      id: 'sem_strategist_picks',
+      name: '🚀 SEM Uzman Stratejisi (High-ROAS)',
+      icon: '⚡',
+      keywords: strategistKeywords,
+      totalVolume: vol,
+      avgCpc: cpcSum / strategistKeywords.length,
+      selectedCount: 0
+    });
+  }
+
   const themeRules = [
-    // 1. Methods, Techniques & Technologies (Medical, Hair, Software, Tech)
+    // 1. Private Schools, Colleges & K-12 Admissions (Multi-lingual)
+    {
+      id: 'schools_education',
+      name: 'Özel Okul, Kolej & Kayıtlar (School & Education)',
+      icon: '🎓',
+      regex: /\b(okul|okulu|okulları|ilkokul|ilkokulu|ortaokul|ortaokulu|lise|lisesi|kolej|koleji|kolejler|özel okul|özel okullar|anaokul|anaokulu|kreş|butik okul|eğitim|eğitimi|eğitim kurumu|bursluluk|bursluluk sınavı|erken kayıt|öğrenci kayıt|lgs|yks|schul|school|kindergarten)\b/i
+    },
+    // 2. Methods, Techniques & Technologies (Medical, Hair, Software, Tech)
     {
       id: 'methods_tech',
       name: 'Yöntemler, Teknikler & Teknolojiler (Methods & Tech)',
       icon: '🔬',
       regex: /\b(technique|techniques|method|methods|technology|technologies|yöntem|yöntemi|yöntemleri|teknik|tekniği|teknikleri|teknoloji|teknolojisi|teknolojileri|fue|dhi|sapphire|safir|procedure|treatment|behandlung|operation|ameliyat|tedavi|cihaz|modül|software|yazılım|app|uygulama)\b/i
     },
-    // 2. Pricing, Costs, Packages & Fees (Global / Multi-lingual)
+    // 3. Pricing, Costs, Packages & Fees (Global / Multi-lingual)
     {
       id: 'pricing_costs',
       name: 'Fiyatlar, Maliyetler & Paketler (Pricing & Cost)',
       icon: '💰',
       regex: /\b(fiyat|fiyatı|fiyatları|fiyat listesi|ücret|ücreti|ücretleri|maliyet|maliyeti|paket|paketleri|price|prices|pricing|cost|costs|fee|fees|package|packages|how much|affordable|cheap|preise|preis|kosten|цена|цены|стоимость|тариф|расход)\b/i
     },
-    // 3. Clinics, Hospitals, Centers & Doctors
+    // 4. Clinics, Hospitals, Centers & Doctors
     {
       id: 'clinics_surgeons',
       name: 'Klinikler, Merkezler & Uzmanlar (Clinics & Specialists)',
       icon: '🏥',
       regex: /\b(clinic|clinics|hospital|hospitals|center|centers|centre|centres|doctor|doctors|surgeon|surgeons|specialist|specialists|physician|klinik|kliniği|klinikleri|hastane|hastanesi|doktor|doktorları|uzman|uzmanları|cerrah|cerrahı|merkez|merkezi)\b/i
     },
-    // 4. Reviews, Results, Before-After & Comparisons
+    // 5. Reviews, Results, Before-After & Comparisons
     {
       id: 'reviews_results',
       name: 'Yorumlar, Karşılaştırma & Sonuçlar (Reviews & Results)',
       icon: '⭐',
       regex: /\b(review|reviews|best|top|before and after|before & after|results|success rate|rating|ratings|yorum|yorumlar|tavsiye|tavsiyeleri|en iyi|sonuçlar|öncesi sonrası|öncesi ve sonrası|başarı oranı|erfahrungen|bewertung|отзывы|лучший|результаты)\b/i
     },
-    // 5. Locations, Destinations & Travel
+    // 6. Locations, Destinations & Travel
     {
       id: 'location_destinations',
       name: 'Lokasyon & Şehir Odaklı Aramalar (Locations)',
       icon: '📍',
-      regex: /\b(turkey|istanbul|antalya|alanya|bodrum|izmir|ankara|cyprus|dubai|germany|deutschland|uk|england|london|türkiye|yurtdışı|abroad|in turkey|in istanbul|in antalya|in alanya)\b/i
+      regex: /\b(kocaeli|izmit|yahya kaptan|başiskele|gölcük|sakarya|bursa|ankara|izmir|antalya|alanya|bodrum|istanbul|adana|gaziantep|konya|trabzon|eskişehir|cyprus|kıbrıs|dubai|germany|deutschland|berlin|frankfurt|münchen|uk|england|london|türkiye|turkey|yurtdışı|abroad)\b/i
     },
-    // 6. Careers, Jobs & Recruitment
+    // 7. Careers, Jobs & Recruitment
     {
       id: 'career_jobs',
       name: 'Kariyer, İş İlanları & Başvuru (Jobs & Karriere)',
       icon: '💼',
       regex: /\b(job|jobs|career|careers|hiring|recruitment|recruiting|vacanc|stellenangebot|stellenanzeig|karriere|bewerbung|iş ilanı|iş ilanları|başvuru|çalışmak|работа|вакансии)\b/i
     },
-    // 7. Team, Personnel & Staffing
+    // 8. Team, Personnel & Staffing
     {
       id: 'hr_personnel',
       name: 'İK, Personel & İstihdam (Personal & Team)',
       icon: '👥',
       regex: /\b(personal|personaldienst|personnel|mitarbeiter|angestellt|staffing|executive search|insan kaynakları|kadro|ekip|персонал|сотрудник)\b/i
     },
-    // 8. Call Center, Support & Customer Service
+    // 9. Call Center, Support & Customer Service
     {
       id: 'callcenter_service',
       name: 'Çağrı Merkezi & Müşteri Hizmetleri (Callcenter & Support)',
       icon: '📞',
       regex: /\b(callcenter|call center|kundenservice|kundenbetreuung|inbound|outbound|telesales|telefonservice|patientenservice|çağrı merkezi|müşteri hizmetleri|müşteri temsilcisi|support|destek)\b/i
     },
-    // 9. Hotel, Resort & Vacation
+    // 10. Hotel, Resort & Vacation
     {
       id: 'hotel_tourism',
       name: 'Otel, Tatil & Konaklama Fırsatları',
       icon: '🏨',
       regex: /\b(hotel|hotels|otel|otelleri|resort|resorts|tatil|konaklama|pansiyon|butik otel|boutique hotel|all inclusive|her şey dahil|rezervasyon|booking|urlaub|ferien|отель|гостиница)\b/i
     },
-    // 10. Real Estate & Property Investments
+    // 11. Real Estate & Property Investments
     {
       id: 'property_realestate',
       name: 'Satılık Daireler & Gayrimenkul Projeleri (Real Estate)',
       icon: '🏢',
-      regex: /\b(satılık daire|satılık konut|satılık villa|satılık mülk|satılık ev|apartment for sale|villas for sale|real estate|wohnung kaufen|immobilien|квартира в турции|гражданство|citizenship|vatandaşlık)\b/i
+      regex: /\b(satılık daire|satılık konut|satılık villa|satılık mülk|satılık ev|apartment for sale|villas for sale|real estate|wohnung kaufen|immobilien|квартиra|гражданство|citizenship|vatandaşlık)\b/i
     },
-    // 11. Automotive, Performance & Tuning
+    // 12. Automotive, Performance & Tuning
     {
       id: 'auto_tuning',
       name: 'Otomotiv, Gaz Pedalı & Performans (Auto & Tuning)',
       icon: '🏎️',
       regex: /\b(pedalbox|chip tuning|chiptuning|gaz pedalı|gaz pedal|gaz tepki|motor güç|araç performans|dte systems)\b/i
     },
-    // 12. Digital Marketing & Agency
+    // 13. Digital Marketing & Agency
     {
       id: 'digital_marketing',
       name: 'Dijital Pazarlama & Ajans Danışmanlığı',
@@ -151,8 +176,6 @@ export const groupKeywordsSemantically = (kwList: KeywordMetric[]): KeywordClust
       unassigned.push(kw);
     }
   }
-
-  const clusters: KeywordCluster[] = [];
 
   for (const rule of themeRules) {
     const list = assigned.get(rule.id) || [];
@@ -353,6 +376,12 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     };
   }, [activeClusterId, keywordClusters, keywords, selectedKeywordIds]);
 
+  // Count of strategist picks in the current view
+  const strategistCountInView = useMemo(() => {
+    const baseList = activeCluster ? activeCluster.keywords : keywords;
+    return baseList.filter(k => !!k.isAiStrategistPick || k.id?.startsWith('ai_strat_') || k.id?.startsWith('ai_alt_')).length;
+  }, [activeCluster, keywords]);
+
   // Filtered & Sorted Keywords for the active right-side data grid
   const activeKeywordsGrid = useMemo(() => {
     const baseList = activeCluster ? activeCluster.keywords : keywords;
@@ -361,9 +390,10 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     return baseList
       .filter(k => {
         const matchesSearch = !searchLower || k.keyword.toLowerCase().includes(searchLower);
+        const isStrategistKw = !!k.isAiStrategistPick || k.id?.startsWith('ai_strat_') || k.id?.startsWith('ai_alt_');
         const matchesIntent = 
           step1IntentFilter === 'ALL' || 
-          (step1IntentFilter === 'STRATEGIST' ? k.isAiStrategistPick : k.intent === step1IntentFilter);
+          (step1IntentFilter === 'STRATEGIST' ? isStrategistKw : k.intent === step1IntentFilter);
         return matchesSearch && matchesIntent;
       })
       .sort((a, b) => {
@@ -1624,7 +1654,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       <div style={{ display: 'flex', gap: '0.2rem', backgroundColor: 'var(--bg-surface-elevated)', padding: '2px', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-default)' }}>
                         {[
                           { key: 'ALL', label: 'Tüm Niyetler' },
-                          { key: 'STRATEGIST', label: '🚀 SEM Uzman Seçimi' },
+                          { key: 'STRATEGIST', label: `🚀 SEM Uzman Seçimi (${strategistCountInView})` },
                           { key: 'TRANSACTIONAL', label: 'Satın Alma' },
                           { key: 'COMMERCIAL', label: 'Araştırma / Ticari' }
                         ].map(tab => (
