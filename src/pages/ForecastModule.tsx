@@ -45,124 +45,124 @@ export const groupKeywordsSemantically = (kwList: KeywordMetric[]): KeywordClust
   if (!kwList || kwList.length === 0) return [];
 
   const themeRules = [
-    // 1. Passport & Visas
-    {
-      id: 'passport_visas',
-      name: 'Pasaport, Vize & Seyahat Hakları',
-      icon: '🛂',
-      regex: /\b(passport|pasaport|паспорт|visa|vize|виза|visa-free|schengen|travel)\b/i
-    },
-    // 2. Costs & Fees
+    // 1. Costs, Fees & 400.000$ Rule
     {
       id: 'costs_fees',
       name: 'Yatırım Tutarları, Fiyatlar & Harçlar',
       icon: '💰',
-      regex: /\b(cost|costs|price|prices|fee|fees|how much|400k|400\.000|250k|fiyat|fiyatı|fiyatları|ücret|maliyet|harç|masraf|цена|стоимость|расходы)\b/i
+      regex: /(400k|400\.000|400\s?тысяч|400\s?bin|250k|тысяч|доллар|цена|стоимост|расход|минимальн|сумм|cost|costs|price|prices|fee|fees|how much|fiyat|fiyatı|fiyatları|ücret|maliyet|harç|masraf)/i
     },
-    // 3. Requirements & Process
-    {
-      id: 'requirements_process',
-      name: 'Şartlar, Başvuru & Belgeler',
-      icon: '📋',
-      regex: /\b(requirements|rules|apply|application|process|eligibility|law|guide|rehber|gerekli|şartlar|şartları|başvuru|prosedür|kanun|документы|требования|оформление|правила)\b/i
-    },
-    // 4. Apartments & Flats
+    // 2. Apartments & Flats
     {
       id: 'apartments_flats',
       name: 'Satılık Daireler & Rezidanslar',
       icon: '🏢',
-      regex: /\b(apartment|apartments|flat|flats|residence|daire|daireler|rezidans|satılık daire|квартира|квартиры|апартаменты)\b/i
+      regex: /(квартир|апартамент|daire|daireler|rezidans|satılık daire|apartment|apartments|flat|flats|residence)/i
     },
-    // 5. Villas & Luxury Homes
+    // 3. Villas & Luxury Homes
     {
       id: 'villas_houses',
       name: 'Lüks Villalar & Müstakil Evler',
       icon: '🌴',
-      regex: /\b(villa|villas|house|houses|home|homes|müstakil|lüks ev|satılık villa|вилла|виллы|дом|дома|коттедж)\b/i
+      regex: /(вилл|коттедж|домик|villa|villas|house|houses|home|homes|müstakil|lüks ev|satılık villa)/i
     },
-    // 6. Property & Real Estate Investment
+    // 4. Cities & Target Regions (Alanya, Antalya, Istanbul, Cyprus, etc.)
     {
-      id: 'property_investment',
-      name: 'Gayrimenkul & Emlak Yatırımı',
-      icon: '🏠',
-      regex: /\b(real estate|property|properties|realty|buy property|invest in property|emlak|gayrimenkul|konut|satılık mülk|недвижимость|покупка недвижимости)\b/i
+      id: 'regions_cities',
+      name: 'Bölgesel Fırsatlar (Alanya, Antalya, İstanbul)',
+      icon: '📍',
+      regex: /(алань|алан|анталь|стамбул|бодрум|alanya|antalya|istanbul|bodrum|fethiye|izmir|ankara|dubai)/i
     },
-    // 7. Residency & Permits
-    {
-      id: 'residency_permits',
-      name: 'Oturum İzni & İkametgah Programları',
-      icon: '💼',
-      regex: /\b(residency|residence|permit|oturum|ikamet|ikametgah|oturma izni|внж|вид на жительство|пмж)\b/i
-    },
-    // 8. Cyprus & Mediterranean Coastal Projects
+    // 5. Cyprus & Mediterranean Coastal Projects
     {
       id: 'cyprus_mediterranean',
       name: 'Kuzey Kıbrıs & Akdeniz Projeleri',
       icon: '🏝️',
-      regex: /\b(cyprus|north cyprus|kıbrıs|kuzey kıbrıs|kktc|esentepe|girne|kyrenia|famagusta|gazimağusa|tatlısu|iskele|lefkosa|nicosia|cordelia|mediterranean|кипр|северный кипр|эсентепе|гирне)\b/i
+      regex: /(кипр|северный кипр|эсентепе|гирне|cyprus|north cyprus|kıbrıs|kuzey kıbrıs|kktc|esentepe|girne|kyrenia|famagusta|gazimağusa|tatlısu|iskele|lefkosa|nicosia|cordelia|mediterranean)/i
     },
-    // 9. Off-plan, Project & Beachfront Developments
+    // 6. Passport & Visas
+    {
+      id: 'passport_visas',
+      name: 'Pasaport, Vize & Seyahat Hakları',
+      icon: '🛂',
+      regex: /(паспорт|виз|visa|passport|pasaport|vize|visa-free|schengen|travel)/i
+    },
+    // 7. Residency & Permits (ВНЖ / ПМЖ)
+    {
+      id: 'residency_permits',
+      name: 'Oturum İzni & İkametgah (ВНЖ / ПМЖ)',
+      icon: '💼',
+      regex: /(внж|вид на жительство|пмж|oturum|ikamet|ikametgah|oturma izni|residency|residence|permit)/i
+    },
+    // 8. Property & Real Estate Investment
+    {
+      id: 'property_investment',
+      name: 'Gayrimenkul & Emlak Yatırımı',
+      icon: '🏠',
+      regex: /(недвижим|жиль|покупк|покупка|gayrimenkul|emlak|konut|satılık mülk|real estate|property|properties|realty|buy property|invest in property)/i
+    },
+    // 9. Direct Citizenship & Investment Programs
+    {
+      id: 'citizenship_direct',
+      name: 'Yatırımla Türk Vatandaşlığı',
+      icon: '🇹🇷',
+      regex: /(гражданств|инвестиц|vatandaşlık|vatandaslik|citizenship|citizen|invest in turkey|turkish citizenship)/i
+    },
+    // 10. Requirements, Law & Process
+    {
+      id: 'requirements_process',
+      name: 'Şartlar, Başvuru & Belgeler',
+      icon: '📋',
+      regex: /(документ|требован|оформлен|правил|закон|услови|requirements|rules|apply|application|process|eligibility|law|guide|rehber|gerekli|şartlar|şartları|başvuru|prosedür|kanun)/i
+    },
+    // 11. Off-plan, Project & Beachfront Developments
     {
       id: 'offplan_developments',
       name: 'Lansman, Proje & Denize Sıfır Konutlar',
       icon: '🏗️',
-      regex: /\b(off plan|off-plan|development|project|beachfront|sea view|seaside|lansman|proje|denize sıfır|manzaralı|новостройка|от застройщика|у моря)\b/i
+      regex: /(новостройк|застройщик|у моря|off plan|off-plan|development|project|beachfront|sea view|seaside|lansman|proje|denize sıfır|manzaralı)/i
     },
-    // 10. Cities & Target Regions
-    {
-      id: 'regions_cities',
-      name: 'Bölgesel Fırsatlar (İstanbul, Antalya, Alanya)',
-      icon: '📍',
-      regex: /\b(istanbul|antalya|alanya|bodrum|fethiye|izmir|ankara|dubai|стамбул|анталья|аланья)\b/i
-    },
-    // 11. Second Passport & Dual Citizenship
+    // 12. Second Passport & Dual Citizenship
     {
       id: 'second_passport_global',
       name: 'Çifte Vatandaşlık & Global Programlar',
       icon: '🌐',
-      regex: /\b(second citizenship|second passport|dual citizenship|çifte vatandaşlık|global|countries where|двойное гражданство|второе гражданство)\b/i
+      regex: /(двойное гражданство|второе гражданство|second citizenship|second passport|dual citizenship|çifte vatandaşlık|global)/i
     },
-    // 12. Direct Citizenship Programs
-    {
-      id: 'citizenship_direct',
-      name: 'Doğrudan Vatandaşlık Programları',
-      icon: '🇹🇷',
-      regex: /\b(citizenship|citizen|гражданство|vatandaşlık|vatandaslik)\b/i
-    },
-    // 11. Digital Marketing & Agency
+    // 13. Digital Marketing & Agency
     {
       id: 'agency_services',
       name: 'Dijital Pazarlama & Ajans Danışmanlığı',
       icon: '🚀',
-      regex: /\b(ajans|ajansı|ajansları|agency|agencies|danışmanlık|danışmanlığı|consulting|pazarlama|marketing)\b/i
+      regex: /(ajans|ajansı|ajansları|agency|agencies|danışmanlık|danışmanlığı|consulting|pazarlama|marketing)/i
     },
-    // 12. Performance Marketing & ROAS
+    // 14. Performance Marketing & ROAS
     {
       id: 'performance_growth',
       name: 'Performans Pazarlaması, Lead & ROAS',
       icon: '📈',
-      regex: /\b(performans|performance|roas|roi|büyüme|growth|lead|dönüşüm|conversion|cro)\b/i
+      regex: /(performans|performance|roas|roi|büyüme|growth|lead|dönüşüm|conversion|cro)/i
     },
-    // 13. Google Ads & Social Ads
+    // 15. Google Ads & Social Ads
     {
       id: 'ads_sem_social',
       name: 'Google Ads & Sosyal Medya Reklamları',
       icon: '🎯',
-      regex: /\b(google ads|adwords|meta|facebook|instagram|tiktok|reklam|reklamları|sem|tbm|cpc)\b/i
+      regex: /(google ads|adwords|meta|facebook|instagram|tiktok|reklam|reklamları|sem|tbm|cpc)/i
     },
-    // 14. SEO & Organic Traffic
+    // 16. SEO & Organic Traffic
     {
       id: 'seo_organic',
       name: 'SEO & Organik Arama Motoru Optimizasyonu',
       icon: '🔍',
-      regex: /\b(seo|arama motoru|backlink|organik|optimizasyon)\b/i
+      regex: /(seo|arama motoru|backlink|organik|optimizasyon)/i
     },
-    // 15. Web Design & Tech
+    // 17. Web Design & Tech
     {
       id: 'web_design_tech',
       name: 'Web Tasarım, Yazılım & E-Ticaret',
       icon: '💻',
-      regex: /\b(web|tasarım|tasarımı|yazılım|e-ticaret|site|sitesi|e-ihracat)\b/i
+      regex: /(web|tasarım|tasarımı|yazılım|e-ticaret|site|sitesi|e-ihracat)/i
     }
   ];
 
@@ -429,10 +429,19 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           setBusinessModel('ECOMMERCE');
         }
 
-        // If AI suggested specific target countries for this language/sector, update them
+        // If AI suggested specific target countries for this language/sector, update them with Turkish localized names
         if (res.suggestedCountries && res.suggestedCountries.length > 0) {
-          setAvailableCountries(res.suggestedCountries);
-          const initialCodes = new Set<string>(res.suggestedCountries.slice(0, 4).map((c: any) => c.code));
+          const turkishNormalized = res.suggestedCountries.map((c: any) => {
+            const def = DEFAULT_GLOBAL_COUNTRIES.find(d => d.code === c.code);
+            return {
+              ...c,
+              name: def ? def.name : c.name,
+              flag: def ? def.flag : (c.flag || '🌐'),
+              region: def ? def.region : (c.region || 'Global')
+            };
+          });
+          setAvailableCountries(turkishNormalized);
+          const initialCodes = new Set<string>(turkishNormalized.slice(0, 4).map((c: any) => c.code));
           setSelectedCountryCodes(initialCodes);
         } else {
           // Default selection based on language
@@ -2274,7 +2283,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <label style={{ fontSize: '0.825rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
-                        Talepten Satışa / Anlaşmaya Kapanış Oranı (%)
+                        Sağlıklı Lead Oranı (% Healthy Lead)
                       </label>
                       <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--brand-primary)' }}>
                         %{leadCloseRate}
@@ -2283,12 +2292,15 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     <input
                       type="range"
                       min={1}
-                      max={30}
+                      max={40}
                       step={1}
                       value={leadCloseRate}
                       onChange={(e) => setLeadCloseRate(Number(e.target.value))}
                       style={{ width: '100%', accentColor: 'var(--brand-primary)', cursor: 'pointer' }}
                     />
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                      Gelen toplam form/taleplerin satışa/fırsata dönüştürülebilecek nitelikli (sağlıklı lead) oranı.
+                    </div>
                   </div>
 
                   <div>
@@ -2448,13 +2460,13 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                 }}>
                   <div>
                     <div style={{ fontSize: '0.75rem', color: '#16a34a', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                      Tahmini Satış & Anlaşma Kapasitesi
+                      Tahmini Sağlıklı Lead (Healthy Leads)
                     </div>
                     <div style={{ fontSize: '2rem', fontWeight: 800, color: '#16a34a', marginTop: '2px' }}>
-                      ~{simulation.estDeals} Anlaşma / Satış
+                      ~{simulation.estDeals} Nitelikli Lead
                     </div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                      %{leadCloseRate} Kapanış Oranı ile • Müşteri Edinme Maliyeti (CAC): <strong>₺{simulation.cac?.toLocaleString('tr-TR') || 0}</strong>
+                      %{leadCloseRate} Sağlıklı Lead Oranı ile • Nitelikli Lead Başı Maliyet (Cost / Healthy Lead): <strong>₺{simulation.cac?.toLocaleString('tr-TR') || 0}</strong>
                     </div>
                   </div>
 

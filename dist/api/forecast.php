@@ -872,7 +872,7 @@ if ($action === 'discover' && $method === 'POST') {
                 $sectorSummary = $parsedAi['sector'] ?? $sectorSummary;
                 $pageTitle = $parsedAi['pageTitle'] ?? $pageTitle;
                 $pageSummary = $parsedAi['pageSummary'] ?? '';
-                $suggestedCountries = $parsedAi['suggestedCountries'] ?? [];
+                $suggestedCountries = getSuggestedCountriesByLang($detectedLang);
                 break; // Successfully got live AI keywords!
             } else {
                 $modelAttempts[] = "{$modelName}: JSON Decode Başarısız (" . mb_substr($rawAiText, 0, 100) . ")";
