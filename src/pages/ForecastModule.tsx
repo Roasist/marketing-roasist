@@ -361,7 +361,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     return baseList
       .filter(k => {
         const matchesSearch = !searchLower || k.keyword.toLowerCase().includes(searchLower);
-        const matchesIntent = step1IntentFilter === 'ALL' || k.intent === step1IntentFilter;
+        const matchesIntent = 
+          step1IntentFilter === 'ALL' || 
+          (step1IntentFilter === 'STRATEGIST' ? k.isAiStrategistPick : k.intent === step1IntentFilter);
         return matchesSearch && matchesIntent;
       })
       .sort((a, b) => {
@@ -1622,6 +1624,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       <div style={{ display: 'flex', gap: '0.2rem', backgroundColor: 'var(--bg-surface-elevated)', padding: '2px', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-default)' }}>
                         {[
                           { key: 'ALL', label: 'Tüm Niyetler' },
+                          { key: 'STRATEGIST', label: '🚀 SEM Uzman Seçimi' },
                           { key: 'TRANSACTIONAL', label: 'Satın Alma' },
                           { key: 'COMMERCIAL', label: 'Araştırma / Ticari' }
                         ].map(tab => (
@@ -1636,7 +1639,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                               borderRadius: 'var(--radius-xs)',
                               border: 'none',
                               cursor: 'pointer',
-                              backgroundColor: step1IntentFilter === tab.key ? 'var(--brand-primary)' : 'transparent',
+                              backgroundColor: step1IntentFilter === tab.key 
+                                ? (tab.key === 'STRATEGIST' ? '#9333ea' : 'var(--brand-primary)') 
+                                : 'transparent',
                               color: step1IntentFilter === tab.key ? '#ffffff' : 'var(--text-secondary)',
                               transition: 'all 0.15s ease'
                             }}
@@ -1749,8 +1754,28 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
                                   {/* Keyword */}
                                   <td style={{ padding: '0.5rem 0.75rem' }}>
-                                    <div style={{ fontWeight: isSelected ? 600 : 500, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                    <div style={{ fontWeight: isSelected ? 600 : 500, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
                                       <span>{kw.keyword}</span>
+                                      {kw.isAiStrategistPick && (
+                                        <span
+                                          style={{
+                                            fontSize: '0.62rem',
+                                            padding: '1px 5px',
+                                            borderRadius: '3px',
+                                            fontWeight: 700,
+                                            backgroundColor: 'rgba(147, 51, 234, 0.12)',
+                                            color: '#9333ea',
+                                            border: '1px solid rgba(147, 51, 234, 0.25)',
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '2px',
+                                            letterSpacing: '0.02em'
+                                          }}
+                                          title="Yapay Zeka Kıdemli SEM Direktörü tarafından doğrudan satış/kayıt getirecek şekilde üretildi"
+                                        >
+                                          ⚡ SEM UZMANI
+                                        </span>
+                                      )}
                                     </div>
                                   </td>
 

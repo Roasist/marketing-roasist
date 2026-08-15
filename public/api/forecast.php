@@ -457,37 +457,42 @@ function detectPageLanguage($title, $text) {
 }
 
 // -------------------------------------------------------------
-// HELPER: AI-POWERED ZERO-SHOT LANDING PAGE INTENT ENGINE (GEMINI)
+// HELPER: AI-POWERED ZERO-SHOT LANDING PAGE INTENT & PERFORMANCE STRATEGIST ENGINE (GEMINI)
 // -------------------------------------------------------------
 function analyzeLandingPageWithAI($pageDetails, $query, $geminiKey) {
     if (empty($geminiKey) || empty($pageDetails)) return null;
 
-    $prompt = "Sen dünyanın en üst düzey Google Ads, SEM ve Çok Dilli Uluslararası Performans Pazarlaması uzmanısın.\n\n"
-        . "Aşağıdaki taranmış web sayfası içeriğini derinlemesine analiz et:\n"
+    $prompt = "Sen dünyanın en iyi Google Ads, SEM ve Performans Pazarlaması Direktörüsün (Senior Performance Marketing Lead).\n\n"
+        . "Aşağıdaki landing page içeriğini bir SEM stratejisti gözüyle derinlemesine analiz et:\n"
         . "URL / Domain: '{$query}'\n"
         . "Sayfa Başlığı (Title): " . ($pageDetails['title'] ?? '') . "\n"
         . "Sayfa Açıklaması (Meta Description): " . ($pageDetails['description'] ?? '') . "\n"
         . "Ana Başlıklar (H1 / H2): " . implode(' | ', $pageDetails['headings'] ?? []) . "\n"
-        . "Metin Özeti: " . mb_substr($pageDetails['textSnippet'] ?? '', 0, 1500, 'UTF-8') . "\n\n"
-        . "GÖREVLER:\n"
-        . "1. Sayfanın sunduğu gerçek hizmeti/ürünü, ana sektörünü, iş modelini ('LEAD_GEN', 'ECOMMERCE', 'B2B_SERVICE', 'TOURISM', 'HEALTH_CARE') ve hedef coğrafyasını kesin olarak tespit et.\n"
-        . "2. Sayfanın dilini ve adını tespit et (Örn: 'de' -> 'Almanca', 'ru' -> 'Rusça', 'en' -> 'İngilizce', 'tr' -> 'Türkçe', 'ar' -> 'Arapça', 'fr' -> 'Fransızca', 'es' -> 'İspanyolca', 'it' -> 'İtalyanca', 'nl' -> 'Felemenkçe').\n"
-        . "3. Bu işletmenin gerçek müşterisi/alıcısı olmak isteyen kişilerin Google Arama'da arattığı EN DOĞRU ve YÜKSEK NİYETLİ 15-20 ADET yerel tohum anahtar kelimeyi KESİNLİKLE TESPİT ETTİĞİN SAYFA DİLİNDE üret ('highIntentSeeds').\n"
-        . "4. Bu kampanya için KESİNLİKLE HARİÇ TUTULMASI (Negatif) gereken 10-15 alakasız terimi/sektörü listele (Örn: gayrimenkul sayfasıysa 'çocuk oyun parkı, çocuk havuzu, plastik kaydırak, kiralık araba, otel'; oto tuning ise 'it s, where i am, kayıt ol'; otel ise 'satılık daire, emlak').\n"
-        . "5. ÇOK ÖNEMLİ KURAL: Bu işletmenin satış ve dönüşümlerini doğrudan artıracak EN AZ 20-25 ADET yüksek niyetli, ticari (Transactional/Commercial) ALTERNATİF anahtar kelimeyi KESİNLİKLE SAYFANIN KENDİ DİLİNDE (Sayfa Almanca ise Almanca, Rusça ise Rusça, Türkçe ise Türkçe, İngilizce ise İngilizce) gerçekçi hacim (monthlyVolume) ve TBM (lowCpc/highCpc) ile üret ('alternativeKeywords').\n"
-        . "6. Bu sayfa için Google Ads'te hedeflenebilecek en mantıklı 4-5 hedef ülkeyi listele.\n\n"
-        . "Yanıtını SADECE geçerli JSON formatında şu şemayla ver (başka metin ekleme):\n"
+        . "Metin Özeti: " . mb_substr($pageDetails['textSnippet'] ?? '', 0, 1800, 'UTF-8') . "\n\n"
+        . "STRATEJİK GÖREVLER:\n"
+        . "1. Sayfanın sunduğu gerçek hizmeti/ürünü, ana sektörünü, iş modelini ('LEAD_GEN', 'ECOMMERCE', 'B2B_SERVICE', 'TOURISM', 'HEALTH_CARE') ve HEDEF ŞEHİR/BÖLGESİNİ (Örn: 'İzmit / Kocaeli', 'Alanya / Antalya', 'İstanbul', 'Berlin', 'Kuzey Kıbrıs') kesin olarak tespit et.\n"
+        . "2. Sayfanın dilini ve adını tespit et (Örn: 'de' -> 'Almanca', 'ru' -> 'Rusça', 'en' -> 'İngilizce', 'tr' -> 'Türkçe', 'ar' -> 'Arapça').\n"
+        . "3. ÇOK ÖNEMLİ KURAL - KELİME NİYETİ VE PERFORMANS STRATEJİSİ:\n"
+        . "   Google Ads'in ürettiği tek kelimelik veya ansiklopedik kelimeler ('ortaokul', 'türkçe dersleri', 'ingilizce öğrenme', 'saç', 'ev', 'otel') REKLAM BÜTÇESİNİ BOŞA YAKAR. Bir performans uzmanı olarak bu işletmeye DOĞRUDAN DÖNÜŞÜM, KAYIT, SATIŞ VE MÜŞTERİ (LEAD) GETİRECEK EN AZ 30-35 ADET YÜKSEK NİYETLİ (High-Converting Long-Tail) anahtar kelime üret ('strategistKeywords').\n"
+        . "   Bu kelimeleri KESİNLİKLE SAYFANIN KENDİ DİLİNDE şu 4 stratejik kategoriye dağıt:\n"
+        . "   a) 'TRANSACTIONAL': Doğrudan satın alma, fiyat, kayıt, ücret ve sipariş odaklı (Örn: 'izmit özel ortaokul fiyatları 2026', 'özel okul erken kayıt indirimi izmit', 'beşsekiz ortaokulu kayıt ücreti').\n"
+        . "   b) 'LOCAL_GEO': Şehir, ilçe ve yerel lokasyon hedefli aramalara özel (Örn: 'kocaeli en iyi özel ortaokullar', 'yahya kaptan butik özel ortaokul', 'izmit özel okul tavsiye').\n"
+        . "   c) 'CONSIDERATION': Akademik başarı, kalite, LGS/hizmet karşılaştırması (Örn: 'izmit lgs başarı oranı yüksek özel okullar', 'kocaeli butik ortaokul yorumları').\n"
+        . "   d) 'LEAD_MAGNET': Form doldurma, bursluluk, deneme veya randevu kancaları (Örn: 'kocaeli özel okul bursluluk sınavı 2026', 'izmit ortaokul bursluluk başvurusu').\n"
+        . "4. Bu kampanya için KESİNLİKLE HARİÇ TUTULMASI (Negatif) gereken 15 alakasız terimi/sektörü listele ('negativeExclusions') (Örn: 'devlet okulu', 'milli eğitim bakanlığı', 'ödev kapakları pdf', 'ücretsiz ders videoları').\n"
+        . "5. Bu sayfa için Google Ads'te hedeflenebilecek en mantıklı 4-5 hedef ülkeyi listele ('suggestedCountries').\n\n"
+        . "Yanıtını SADECE geçerli JSON formatında şu şemayla ver (başka hiçbir metin ekleme):\n"
         . "{\n"
         . "  \"detectedLanguage\": \"tr\",\n"
         . "  \"detectedLanguageName\": \"Türkçe\",\n"
-        . "  \"sector\": \"Lüks Gayrimenkul & Rezidans Projesi Satışı\",\n"
+        . "  \"sector\": \"Özel Butik Ortaokul & LGS Hazırlık\",\n"
         . "  \"businessModel\": \"LEAD_GEN\",\n"
-        . "  \"targetLocation\": \"Alanya, Antalya, Türkiye\",\n"
-        . "  \"highIntentSeeds\": [\"alanya satılık lüks daire\", \"23 square alanya\", \"alanya konut projeleri lansman\"],\n"
-        . "  \"negativeExclusions\": [\"oyun parkı ev için\", \"çocuk su havuzu\", \"plastik kaydırak\", \"kiralık daire\", \"sahibinden\"],\n"
-        . "  \"alternativeKeywords\": [\n"
-        . "    {\"keyword\": \"23 square alanya satılık daire\", \"monthlyVolume\": 1600, \"lowCpc\": 5.50, \"highCpc\": 24.00, \"intent\": \"TRANSACTIONAL\", \"competition\": \"HIGH\", \"competitionIndex\": 85, \"trendChangePercent\": 20, \"opportunityScore\": 96},\n"
-        . "    {\"keyword\": \"alanya lüks rezidans projeleri\", \"monthlyVolume\": 4800, \"lowCpc\": 6.20, \"highCpc\": 28.00, \"intent\": \"TRANSACTIONAL\", \"competition\": \"HIGH\", \"competitionIndex\": 88, \"trendChangePercent\": 25, \"opportunityScore\": 94}\n"
+        . "  \"targetLocation\": \"İzmit, Kocaeli, Türkiye\",\n"
+        . "  \"highIntentSeeds\": [\"izmit özel ortaokul\", \"kocaeli özel okul fiyatları\", \"beşsekiz ortaokulu kayıt\"],\n"
+        . "  \"negativeExclusions\": [\"devlet okulu\", \"meb\", \"ücretsiz ders\", \"ödev soruları pdf\", \"ikinci el kitap\"],\n"
+        . "  \"strategistKeywords\": [\n"
+        . "    {\"keyword\": \"izmit özel ortaokul fiyatları 2026\", \"monthlyVolume\": 2400, \"lowCpc\": 8.50, \"highCpc\": 34.00, \"intent\": \"TRANSACTIONAL\", \"strategy\": \"TRANSACTIONAL\", \"competition\": \"HIGH\", \"competitionIndex\": 88, \"trendChangePercent\": 25, \"opportunityScore\": 98},\n"
+        . "    {\"keyword\": \"kocaeli en iyi özel ortaokullar\", \"monthlyVolume\": 3600, \"lowCpc\": 9.20, \"highCpc\": 38.00, \"intent\": \"COMMERCIAL\", \"strategy\": \"LOCAL_GEO\", \"competition\": \"HIGH\", \"competitionIndex\": 90, \"trendChangePercent\": 20, \"opportunityScore\": 96}\n"
         . "  ],\n"
         . "  \"suggestedCountries\": [\n"
         . "    {\"code\": \"TR\", \"name\": \"Türkiye\", \"flag\": \"🇹🇷\", \"region\": \"Yerel\", \"cpcMultiplier\": 1.0, \"volumeMultiplier\": 1.0, \"currency\": \"TRY\"}\n"
@@ -523,7 +528,7 @@ function analyzeLandingPageWithAI($pageDetails, $query, $geminiKey) {
             $clean = preg_replace('/^```(?:json)?\s*/i', '', trim($raw));
             $clean = preg_replace('/\s*```$/', '', $clean);
             $parsed = json_decode($clean, true);
-            if ($parsed && !empty($parsed['highIntentSeeds']) && is_array($parsed['highIntentSeeds'])) {
+            if ($parsed && (!empty($parsed['highIntentSeeds']) || !empty($parsed['strategistKeywords']) || !empty($parsed['alternativeKeywords']))) {
                 return $parsed;
             }
         }
@@ -1128,42 +1133,50 @@ if ($action === 'discover' && $method === 'POST') {
         // Apply 2nd Layer Semantic Context-Aware Relevance Filter
         $officialKeywords = filterKeywordsByPageContext($officialKeywords, $pageDetails, $query, $langInfo['code']);
 
-        // Also prune negative exclusions from AI if available
-        if ($aiAnalysis && !empty($aiAnalysis['negativeExclusions'])) {
-            $negPattern = '/\b(' . implode('|', array_map('preg_quote', $aiAnalysis['negativeExclusions'])) . ')\b/ui';
-            $officialKeywords = array_values(array_filter($officialKeywords, function($k) use ($negPattern) {
-                $kw = is_array($k) ? ($k['keyword'] ?? '') : (string)$k;
-                return !preg_match($negPattern, $kw);
-            }));
-        }
+        // Also prune broad 1-word generic encyclopedic terms that waste budget
+        $singleWordBroadJunk = '/^(ortaokul|lise|ilkokul|okul|ders|dersler|türkçe|ingilizce|almanca|rusça|kitap|otel|saç|ev|villa|daire|konut|araba|araç|doktor|avukat|ajans|turkce|ing|dil)$/ui';
+        $officialKeywords = array_values(array_filter($officialKeywords, function($k) use ($singleWordBroadJunk) {
+            $kw = is_array($k) ? trim($k['keyword'] ?? '') : trim((string)$k);
+            return !preg_match($singleWordBroadJunk, $kw);
+        }));
     } else {
         $officialKeywords = [];
     }
 
-    // 2.3 Always Merge AI-Discovered High-Converting Alternative Keywords into the Pool
+    // 2.3 Merge AI Performance Strategist & High-Converting Alternative Keywords into the Pool
+    $strategistPool = [];
+    if ($aiAnalysis && !empty($aiAnalysis['strategistKeywords']) && is_array($aiAnalysis['strategistKeywords'])) {
+        $strategistPool = array_merge($strategistPool, $aiAnalysis['strategistKeywords']);
+    }
     if ($aiAnalysis && !empty($aiAnalysis['alternativeKeywords']) && is_array($aiAnalysis['alternativeKeywords'])) {
+        $strategistPool = array_merge($strategistPool, $aiAnalysis['alternativeKeywords']);
+    }
+
+    if (!empty($strategistPool)) {
         $existingMap = [];
         foreach ($officialKeywords as $k) {
             $existingMap[mb_strtolower($k['keyword'], 'UTF-8')] = true;
         }
 
-        foreach ($aiAnalysis['alternativeKeywords'] as $idx => $aiKw) {
+        foreach ($strategistPool as $idx => $aiKw) {
             $cleanKw = trim($aiKw['keyword'] ?? '');
             if (empty($cleanKw) || mb_strlen($cleanKw, 'UTF-8') < 3) continue;
             $kwKey = mb_strtolower($cleanKw, 'UTF-8');
 
             if (!isset($existingMap[$kwKey])) {
                 $officialKeywords[] = [
-                    'id' => 'ai_alt_' . ($idx + 1) . '_' . substr(md5($cleanKw), 0, 6),
+                    'id' => 'ai_strat_' . ($idx + 1) . '_' . substr(md5($cleanKw), 0, 6),
                     'keyword' => $cleanKw,
-                    'monthlyVolume' => (int)($aiKw['monthlyVolume'] ?? 1400),
-                    'lowCpc' => (float)($aiKw['lowCpc'] ?? 4.50),
-                    'highCpc' => (float)($aiKw['highCpc'] ?? 18.00),
+                    'monthlyVolume' => (int)($aiKw['monthlyVolume'] ?? 1800),
+                    'lowCpc' => (float)($aiKw['lowCpc'] ?? 6.50),
+                    'highCpc' => (float)($aiKw['highCpc'] ?? 24.00),
                     'competition' => $aiKw['competition'] ?? 'HIGH',
-                    'competitionIndex' => (int)($aiKw['competitionIndex'] ?? 80),
+                    'competitionIndex' => (int)($aiKw['competitionIndex'] ?? 85),
                     'intent' => $aiKw['intent'] ?? 'TRANSACTIONAL',
-                    'trendChangePercent' => (int)($aiKw['trendChangePercent'] ?? 15),
-                    'opportunityScore' => (int)($aiKw['opportunityScore'] ?? 95)
+                    'trendChangePercent' => (int)($aiKw['trendChangePercent'] ?? 20),
+                    'opportunityScore' => (int)($aiKw['opportunityScore'] ?? 98),
+                    'isAiStrategistPick' => true,
+                    'strategistStrategy' => $aiKw['strategy'] ?? 'TRANSACTIONAL'
                 ];
                 $existingMap[$kwKey] = true;
             }

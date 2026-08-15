@@ -13,6 +13,8 @@ export interface KeywordMetric {
   trendChangePercent: number;
   opportunityScore: number;
   isSelected?: boolean;
+  isAiStrategistPick?: boolean;
+  strategistStrategy?: 'TRANSACTIONAL' | 'LOCAL_GEO' | 'CONSIDERATION' | 'LEAD_MAGNET';
 }
 
 export interface CountryOption {
