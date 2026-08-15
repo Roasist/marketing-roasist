@@ -36,16 +36,28 @@ export interface CountryMetric {
   estConversions: number;
 }
 
+export type BusinessModel = 'LEAD_GEN' | 'ECOMMERCE' | 'BRAND_REACH';
+
 export interface ForecastSimulation {
+  businessModel: BusinessModel;
   monthlyBudget: number;
   dailyBudget: number;
-  estClicks: number;
+  actualSpend: number;
+  marketCapacitySpend: number;
+  isMarketSaturated: boolean;
+  targetImpressionShare: number; // e.g. 70 (%)
   estImpressions: number;
+  estClicks: number;
   avgCpc: number;
-  avgCtr: number;
-  conversionRate: number;
-  estConversions: number;
-  cpa: number;
+  avgCtr: number; // e.g. 7.5 (%)
+  conversionRate: number; // e.g. 3.0 (%)
+  estConversions: number; // or estLeads
+  cpa: number; // CPA or CPL
+  // Lead Generation specific
+  leadCloseRate?: number; // e.g. 10 (%)
+  estDeals?: number;
+  cac?: number;
+  // E-Commerce specific
   avgOrderValue: number;
   estRevenue: number;
   projectedRoas: number;

@@ -28,7 +28,7 @@ import {
   BarChart3,
   ArrowUpDown
 } from 'lucide-react';
-import { KeywordMetric, ForecastSimulation, NegativeCategory, ForecastPlan, CountryOption, CountryMetric } from '../types/forecast';
+import { KeywordMetric, ForecastSimulation, NegativeCategory, ForecastPlan, CountryOption, CountryMetric, BusinessModel } from '../types/forecast';
 import { ApiService } from '../services/apiService';
 
 export interface KeywordCluster {
@@ -361,10 +361,17 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   const [intentFilter, setIntentFilter] = useState<string>('ALL');
   const [sortBy, setSortBy] = useState<'VOLUME' | 'CPC_LOW' | 'CPC_HIGH' | 'OPPORTUNITY' | 'TREND'>('OPPORTUNITY');
 
-  // Simulation Parameters
+  // Simulation & Business Model Parameters
+  const [businessModel, setBusinessModel] = useState<BusinessModel>('LEAD_GEN');
+  const [budgetMode, setBudgetMode] = useState<'BY_BUDGET' | 'BY_IMPRESSION_SHARE'>('BY_BUDGET');
   const [monthlyBudget, setMonthlyBudget] = useState<number>(35000);
-  const [conversionRate, setConversionRate] = useState<number>(2.4); // 2.4%
+  const [targetImpressionShare, setTargetImpressionShare] = useState<number>(70); // %70 IS
+  const [expectedCtr, setExpectedCtr] = useState<number>(7.5); // %7.5 CTR
+  const [leadConversionRate, setLeadConversionRate] = useState<number>(3.5); // %3.5 Lead CR
+  const [leadCloseRate, setLeadCloseRate] = useState<number>(10.0); // %10 Close rate
+  const [ecommerceConversionRate, setEcommerceConversionRate] = useState<number>(2.2); // %2.2 E-com CR
   const [avgOrderValue, setAvgOrderValue] = useState<number>(3500); // 3500 ₺
+  const [avgDealValue, setAvgDealValue] = useState<number>(0); // Opsiyonel anlaşma değeri
 
   // Negative Keywords State
   const [negativeCategories, setNegativeCategories] = useState<NegativeCategory[]>([]);
@@ -412,6 +419,14 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         setPageSummary(res.pageSummary || '');
         if (res.source) {
           setDataSource(res.source);
+        }
+
+        // Intelligently default business model based on detected landing page / sector
+        const lowerContext = ((res.sector || '') + ' ' + (res.pageTitle || '') + ' ' + (res.pageSummary || '')).toLowerCase();
+        if (/emlak|gayrimenkul|citizenship|vatanda|villa|residence|apartments|property|real estate|agency|ajans|consult|danışman|hizmet|b2b|klinik|health|law|avukat|turizm/.test(lowerContext)) {
+          setBusinessModel('LEAD_GEN');
+        } else if (/e-ticaret|eticaret|shop|store|mağaza|ürün|giyim|ayakkabı|kozmetik|parfüm/.test(lowerContext)) {
+          setBusinessModel('ECOMMERCE');
         }
 
         // If AI suggested specific target countries for this language/sector, update them
@@ -601,36 +616,104 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     return Math.round((transactionalCount / selectedKeywordsPool.length) * 100);
   }, [selectedKeywordsPool]);
 
-  // 🎛️ Real-Time Dynamic Simulation Calculation
+  // 🎛️ Real-Time Dynamic Simulation Calculation (Strictly Capped by Total Market Search Volume & Impression Share)
   const simulation: ForecastSimulation = useMemo(() => {
     const activeCpc = avgTopPageCpc > 0 ? avgTopPageCpc : 6.50;
-    const dailyBudget = monthlyBudget / 30.4;
-    const rawClicks = Math.floor(monthlyBudget / activeCpc);
-    const estClicks = Math.max(10, rawClicks);
-    const avgCtr = 4.8;
-    const estImpressions = Math.round(estClicks / (avgCtr / 100));
-    const convPct = conversionRate / 100;
-    const estConversions = Math.round(estClicks * convPct);
-    const cpa = estConversions > 0 ? Math.round(monthlyBudget / estConversions) : monthlyBudget;
-    const estRevenue = estConversions * avgOrderValue;
-    const projectedRoas = monthlyBudget > 0 ? Math.round((estRevenue / monthlyBudget) * 10) / 10 : 0;
+    const availableMarketVolume = totalSearchVolume; // Total searches in selected target markets
+    
+    // 1. Calculate Maximum Market Capacity (95% Impression Share)
+    const maxPossibleImpressions = Math.max(1, availableMarketVolume);
+    const maxPossibleClicks = Math.max(1, Math.round(maxPossibleImpressions * (expectedCtr / 100)));
+    const marketCapacitySpend = Math.round(maxPossibleClicks * activeCpc);
+
+    // 2. Calculate Effective Impression Share and Actual Spend based on Budget Mode
+    let effectiveIS = targetImpressionShare;
+    let actualSpend = monthlyBudget;
+    let isMarketSaturated = false;
+
+    if (budgetMode === 'BY_BUDGET') {
+      // Calculate what Impression Share this budget can buy
+      const theoreticalClicks = monthlyBudget / activeCpc;
+      const theoreticalImpressions = theoreticalClicks / (expectedCtr / 100);
+      const calculatedIS = availableMarketVolume > 0 ? (theoreticalImpressions / availableMarketVolume) * 100 : 100;
+      
+      if (calculatedIS >= 95) {
+        effectiveIS = 95; // Capped at 95% IS (market maximum)
+        isMarketSaturated = true;
+        actualSpend = marketCapacitySpend;
+      } else {
+        effectiveIS = Math.max(5, Math.min(95, Math.round(calculatedIS)));
+        actualSpend = monthlyBudget;
+      }
+    } else {
+      // User specifies target Impression Share (%)
+      effectiveIS = Math.max(5, Math.min(95, targetImpressionShare));
+      const estImpressionsFromIS = Math.round(availableMarketVolume * (effectiveIS / 100));
+      const estClicksFromIS = Math.round(estImpressionsFromIS * (expectedCtr / 100));
+      actualSpend = Math.round(estClicksFromIS * activeCpc);
+    }
+
+    // 3. Realistic Impressions & Clicks (Strictly bounded by available searches in market)
+    const estImpressions = Math.min(availableMarketVolume, Math.round(availableMarketVolume * (effectiveIS / 100)));
+    const estClicks = Math.max(1, Math.round(estImpressions * (expectedCtr / 100)));
+    const dailyBudget = Math.round(actualSpend / 30.4);
+
+    // 4. Conversions based on Business Model
+    const activeConvRate = businessModel === 'LEAD_GEN' ? leadConversionRate : ecommerceConversionRate;
+    const estConversions = Math.max(0, Math.round(estClicks * (activeConvRate / 100)));
+    const cpa = estConversions > 0 ? Math.round(actualSpend / estConversions) : actualSpend;
+
+    // 5. Deals & CAC (For Lead Gen)
+    const estDeals = businessModel === 'LEAD_GEN' ? Math.round(estConversions * (leadCloseRate / 100)) : 0;
+    const cac = estDeals > 0 ? Math.round(actualSpend / estDeals) : actualSpend;
+
+    // 6. Revenue & ROAS (For E-Commerce or Deal Value)
+    let estRevenue = 0;
+    if (businessModel === 'ECOMMERCE') {
+      estRevenue = estConversions * avgOrderValue;
+    } else if (businessModel === 'LEAD_GEN' && avgDealValue > 0) {
+      estRevenue = estDeals * avgDealValue;
+    }
+    const projectedRoas = actualSpend > 0 ? Math.round((estRevenue / actualSpend) * 10) / 10 : 0;
 
     return {
+      businessModel,
       monthlyBudget,
-      dailyBudget: Math.round(dailyBudget),
-      estClicks,
+      dailyBudget,
+      actualSpend,
+      marketCapacitySpend,
+      isMarketSaturated,
+      targetImpressionShare: effectiveIS,
       estImpressions,
+      estClicks,
       avgCpc: activeCpc,
-      avgCtr,
-      conversionRate,
+      avgCtr: expectedCtr,
+      conversionRate: activeConvRate,
       estConversions,
       cpa,
+      leadCloseRate,
+      estDeals,
+      cac,
       avgOrderValue,
       estRevenue,
       projectedRoas,
       targetCountries: Array.from(selectedCountryCodes)
     };
-  }, [monthlyBudget, avgTopPageCpc, conversionRate, avgOrderValue, selectedCountryCodes]);
+  }, [
+    businessModel,
+    budgetMode,
+    monthlyBudget,
+    targetImpressionShare,
+    expectedCtr,
+    avgTopPageCpc,
+    totalSearchVolume,
+    leadConversionRate,
+    leadCloseRate,
+    ecommerceConversionRate,
+    avgOrderValue,
+    avgDealValue,
+    selectedCountryCodes
+  ]);
 
   // Country Breakdown Metrics
   const countryBreakdown: CountryMetric[] = useMemo(() => {
@@ -1995,226 +2078,518 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       {/* TAB 2: INTERACTIVE BUDGET SIMULATOR & ROI PLAYGROUND */}
       {/* ------------------------------------------------------------- */}
       {activeTab === 'simulator' && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '1.25rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           
-          {/* Controls Column */}
-          <div className="card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          {/* Top Business Model & Goal Selector */}
+          <div className="card" style={{ padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', backgroundColor: 'var(--bg-surface-elevated)' }}>
             <div>
-              <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                Bütçe & Dönüşüm Değişkenleri
+              <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                🏢 İş Modeli & Kampanya Dönüşüm Hedefi
               </div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
-                Bütçenizi kaydırarak anlık tıklama, satış ve tahmini ciro simülasyonunu test edin.
-              </div>
-            </div>
-
-            {/* Monthly Budget Slider */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <label style={{ fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                  Aylık Hedef Reklam Bütçesi
-                </label>
-                <div style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--brand-primary)' }}>
-                  ₺{monthlyBudget.toLocaleString('tr-TR')}
-                </div>
-              </div>
-              <input
-                type="range"
-                min={5000}
-                max={300000}
-                step={5000}
-                value={monthlyBudget}
-                onChange={(e) => setMonthlyBudget(Number(e.target.value))}
-                style={{ width: '100%', accentColor: 'var(--brand-primary)', cursor: 'pointer' }}
-              />
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                <span>₺5.000 (Giriş)</span>
-                <span>₺75.000 (Ölçek)</span>
-                <span>₺300.000 (Agresif Büyüme)</span>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
+                İşletmenizin türüne uygun performans metriklerini ve projeksiyon modelini seçin.
               </div>
             </div>
 
-            {/* Conversion Rate (%) */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <label style={{ fontSize: '0.825rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
-                  Tahmini Web Sitesi Dönüşüm Oranı (%)
-                </label>
-                <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                  %{conversionRate}
-                </span>
-              </div>
-              <input
-                type="range"
-                min={0.5}
-                max={8.0}
-                step={0.1}
-                value={conversionRate}
-                onChange={(e) => setConversionRate(Number(e.target.value))}
-                style={{ width: '100%', accentColor: 'var(--info)', cursor: 'pointer' }}
-              />
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              {[
+                { id: 'LEAD_GEN', label: '🎯 Potansiyel Müşteri & Talep (B2B, Gayrimenkul, Hizmet)' },
+                { id: 'ECOMMERCE', label: '🛒 E-Ticaret & Online Sipariş' },
+                { id: 'BRAND_REACH', label: '👁️ Pazar Hakimiyeti & Trafik' },
+              ].map(bm => (
+                <button
+                  key={bm.id}
+                  onClick={() => setBusinessModel(bm.id as BusinessModel)}
+                  style={{
+                    padding: '0.45rem 0.85rem',
+                    fontSize: '0.8rem',
+                    borderRadius: 'var(--radius-xs)',
+                    border: businessModel === bm.id ? '1.5px solid var(--brand-primary)' : '1px solid var(--border-default)',
+                    backgroundColor: businessModel === bm.id ? 'rgba(37, 99, 235, 0.15)' : 'var(--bg-surface)',
+                    color: businessModel === bm.id ? 'var(--brand-primary)' : 'var(--text-secondary)',
+                    fontWeight: businessModel === bm.id ? 700 : 500,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  {bm.label}
+                </button>
+              ))}
             </div>
-
-            {/* Average Order Value (AOV ₺) */}
-            <div>
-              <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
-                Ortalama Sipariş / Talep Değeri (AOV ₺)
-              </label>
-              <input
-                type="number"
-                value={avgOrderValue}
-                onChange={(e) => setAvgOrderValue(Math.max(1, Number(e.target.value)))}
-                style={{ width: '100%', fontSize: '0.85rem' }}
-              />
-            </div>
-
-            {/* Campaign Summary Badge */}
-            <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)', fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
-              💡 <strong>Model Açıklaması:</strong> Seçili {selectedKeywordsPool.length} anahtar kelimenin ortalama sayfa üstü TBM'si (<strong>₺{avgTopPageCpc.toFixed(2)}</strong>) ve Google Arama TO (%4.85) referans alınarak hesaplanmıştır.
-            </div>
-
-            <button
-              onClick={handleSavePlan}
-              className="btn-primary"
-              style={{ width: '100%', justifyContent: 'center', padding: '0.65rem', fontSize: '0.85rem' }}
-            >
-              {planSaveSuccess ? <Check size={16} /> : <Save size={16} />}
-              {planSaveSuccess ? 'Plan Başarıyla Kaydedildi!' : 'Bu Simülasyonu Çalışma Alanına Kaydet'}
-            </button>
-
           </div>
 
-          {/* Projected Outcomes Column */}
-          <div className="card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            <div>
-              <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                🎯 Tahmini Kampanya Performans Projeksiyonu
-              </div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
-                Aylık ₺{monthlyBudget.toLocaleString('tr-TR')} bütçe ile beklenen tahmini sonuçlar.
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '1.25rem' }}>
+            
+            {/* Controls Column */}
+            <div className="card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
               
-              {/* Clicks */}
-              <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
-                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Tahmini Tıklama (Aylık)</div>
-                <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--brand-primary)', marginTop: '2px' }}>
-                  {simulation.estClicks.toLocaleString('tr-TR')}
-                </div>
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Günlük ~{Math.round(simulation.estClicks / 30.4)} Tıklama</div>
-              </div>
-
-              {/* Impressions */}
-              <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
-                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Tahmini Gösterim</div>
-                <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
-                  {simulation.estImpressions.toLocaleString('tr-TR')}
-                </div>
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>%4.85 Tahmini TO</div>
-              </div>
-
-              {/* Conversions */}
-              <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
-                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Tahmini Satış / Talep</div>
-                <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#34d399', marginTop: '2px' }}>
-                  {simulation.estConversions.toLocaleString('tr-TR')} Adet
-                </div>
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>CPA: ₺{simulation.cpa.toLocaleString('tr-TR')} / sipariş</div>
-              </div>
-
-              {/* Revenue */}
-              <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
-                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Tahmini Toplam Ciro</div>
-                <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#34d399', marginTop: '2px' }}>
-                  ₺{simulation.estRevenue.toLocaleString('tr-TR')}
-                </div>
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>AOV: ₺{avgOrderValue.toLocaleString('tr-TR')}</div>
-              </div>
-
-            </div>
-
-            {/* Huge ROAS Metric Box */}
-            <div style={{
-              padding: '1.25rem',
-              backgroundColor: 'rgba(37, 99, 235, 0.06)',
-              borderRadius: 'var(--radius-sm)',
-              border: '1px solid rgba(37, 99, 235, 0.25)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between'
-            }}>
-              <div>
-                <div style={{ fontSize: '0.78rem', color: 'var(--brand-primary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                  Projeksiyon ROAS (Getiri Oranı)
-                </div>
-                <div style={{ fontSize: '2.2rem', fontWeight: 800, color: 'var(--brand-primary)', marginTop: '2px' }}>
-                  {simulation.projectedRoas}x
-                </div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                  Her <strong>1 ₺</strong> reklam harcaması için <strong>₺{simulation.projectedRoas}</strong> ciro projeksiyonu
-                </div>
-              </div>
-
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Tahmini Net Kâr</div>
-                <div style={{ fontSize: '1.25rem', fontWeight: 700, color: simulation.estRevenue - monthlyBudget >= 0 ? '#34d399' : 'var(--danger)', marginTop: '2px' }}>
-                  ₺{(simulation.estRevenue - monthlyBudget).toLocaleString('tr-TR')}
-                </div>
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Reklam maliyeti düşülmüş</div>
-              </div>
-            </div>
-
-            {/* Country Breakdown & Market Share Table */}
-            {countryBreakdown.length > 0 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '1rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                    <Globe size={15} color="var(--brand-primary)" /> Hedef Ülke Dağılımı ve Tahmin Kırılımı
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                    Bütçe & Gösterim Payı (IS) Değişkenleri
                   </div>
-                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                    {countryBreakdown.length} Aktif Pazar
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                    Pazar hacmine bağlı gerçekçi tıklama ve dönüşüm projeksiyonu.
+                  </div>
+                </div>
+
+                {/* Budget Mode Selector */}
+                <div style={{ display: 'flex', backgroundColor: 'var(--bg-surface-elevated)', padding: '2px', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-default)' }}>
+                  <button
+                    onClick={() => setBudgetMode('BY_BUDGET')}
+                    style={{
+                      padding: '3px 8px',
+                      fontSize: '0.72rem',
+                      borderRadius: 'var(--radius-xs)',
+                      border: 'none',
+                      backgroundColor: budgetMode === 'BY_BUDGET' ? 'var(--brand-primary)' : 'transparent',
+                      color: budgetMode === 'BY_BUDGET' ? '#ffffff' : 'var(--text-secondary)',
+                      cursor: 'pointer',
+                      fontWeight: budgetMode === 'BY_BUDGET' ? 600 : 400
+                    }}
+                  >
+                    Bütçeye Göre
+                  </button>
+                  <button
+                    onClick={() => setBudgetMode('BY_IMPRESSION_SHARE')}
+                    style={{
+                      padding: '3px 8px',
+                      fontSize: '0.72rem',
+                      borderRadius: 'var(--radius-xs)',
+                      border: 'none',
+                      backgroundColor: budgetMode === 'BY_IMPRESSION_SHARE' ? 'var(--brand-primary)' : 'transparent',
+                      color: budgetMode === 'BY_IMPRESSION_SHARE' ? '#ffffff' : 'var(--text-secondary)',
+                      cursor: 'pointer',
+                      fontWeight: budgetMode === 'BY_IMPRESSION_SHARE' ? 600 : 400
+                    }}
+                  >
+                    Gösterim Payına Göre
+                  </button>
+                </div>
+              </div>
+
+              {/* Monthly Budget Slider (when BY_BUDGET) */}
+              {budgetMode === 'BY_BUDGET' ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label style={{ fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                      Hedef Aylık Reklam Bütçesi
+                    </label>
+                    <div style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--brand-primary)' }}>
+                      ₺{monthlyBudget.toLocaleString('tr-TR')}
+                    </div>
+                  </div>
+                  <input
+                    type="range"
+                    min={1000}
+                    max={150000}
+                    step={1000}
+                    value={monthlyBudget}
+                    onChange={(e) => setMonthlyBudget(Number(e.target.value))}
+                    style={{ width: '100%', accentColor: 'var(--brand-primary)', cursor: 'pointer' }}
+                  />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                    <span>₺1.000</span>
+                    <span>₺25.000</span>
+                    <span>₺75.000</span>
+                    <span>₺150.000</span>
+                  </div>
+                </div>
+              ) : (
+                /* Target Impression Share Slider (when BY_IMPRESSION_SHARE) */
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label style={{ fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                      Hedef Pazar Gösterim Payı (Impression Share - IS)
+                    </label>
+                    <div style={{ fontSize: '1.15rem', fontWeight: 700, color: '#34d399' }}>
+                      %{targetImpressionShare}
+                    </div>
+                  </div>
+                  <input
+                    type="range"
+                    min={10}
+                    max={95}
+                    step={5}
+                    value={targetImpressionShare}
+                    onChange={(e) => setTargetImpressionShare(Number(e.target.value))}
+                    style={{ width: '100%', accentColor: '#34d399', cursor: 'pointer' }}
+                  />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                    <span>%10 (Giriş)</span>
+                    <span>%50 (Orta Rekabet)</span>
+                    <span>%75 (Pazar Lideri)</span>
+                    <span>%95 (Maksimum Doygunluk)</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Expected CTR (TO %) Slider */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={{ fontSize: '0.825rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
+                    Tahmini Arama Ağı Tıklama Oranı (CTR / TO %)
+                  </label>
+                  <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                    %{expectedCtr}
                   </span>
                 </div>
-
-                {/* Visual Stacked Progress Bar */}
-                <div style={{ height: '8px', borderRadius: '4px', display: 'flex', overflow: 'hidden', backgroundColor: 'var(--border-default)' }}>
-                  {countryBreakdown.map((cm, idx) => {
-                    const colors = ['#2563eb', '#34d399', '#facc15', '#f97316', '#a855f7', '#ec4899'];
-                    return (
-                      <div
-                        key={cm.code}
-                        style={{
-                          width: `${cm.sharePercent}%`,
-                          backgroundColor: colors[idx % colors.length],
-                          height: '100%'
-                        }}
-                        title={`${cm.flag} ${cm.name}: %${cm.sharePercent}`}
-                      />
-                    );
-                  })}
-                </div>
-
-                {/* Country Breakdown Rows */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                  {countryBreakdown.map((cm) => (
-                    <div key={cm.code} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.75rem', padding: '0.35rem 0.5rem', backgroundColor: 'var(--bg-surface)', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-subtle)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontWeight: 500 }}>
-                        <span>{cm.flag}</span>
-                        <span>{cm.name}</span>
-                        <span className="badge badge-neutral" style={{ fontSize: '0.65rem', padding: '1px 4px' }}>%{cm.sharePercent}</span>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', color: 'var(--text-secondary)' }}>
-                        <span>Ort. TBM: <strong style={{ color: 'var(--text-primary)' }}>₺{cm.avgCpc.toFixed(2)}</strong></span>
-                        <span>~{cm.estClicks} Tıklama</span>
-                        <span>~{cm.estConversions} Talep</span>
-                      </div>
-                    </div>
-                  ))}
+                <input
+                  type="range"
+                  min={3.0}
+                  max={15.0}
+                  step={0.5}
+                  value={expectedCtr}
+                  onChange={(e) => setExpectedCtr(Number(e.target.value))}
+                  style={{ width: '100%', accentColor: 'var(--info)', cursor: 'pointer' }}
+                />
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                  Arama Ağı sektör standardı ortalama %5.0 - %10.0 aralığındadır.
                 </div>
               </div>
-            )}
+
+              {/* Model-Specific Conversion Controls */}
+              {businessModel === 'LEAD_GEN' && (
+                <>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <label style={{ fontSize: '0.825rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
+                        Form & Talep Dönüşüm Oranı (Lead CR %)
+                      </label>
+                      <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#34d399' }}>
+                        %{leadConversionRate}
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min={0.5}
+                      max={12.0}
+                      step={0.5}
+                      value={leadConversionRate}
+                      onChange={(e) => setLeadConversionRate(Number(e.target.value))}
+                      style={{ width: '100%', accentColor: '#34d399', cursor: 'pointer' }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <label style={{ fontSize: '0.825rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
+                        Talepten Satışa / Anlaşmaya Kapanış Oranı (%)
+                      </label>
+                      <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--brand-primary)' }}>
+                        %{leadCloseRate}
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min={1}
+                      max={30}
+                      step={1}
+                      value={leadCloseRate}
+                      onChange={(e) => setLeadCloseRate(Number(e.target.value))}
+                      style={{ width: '100%', accentColor: 'var(--brand-primary)', cursor: 'pointer' }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
+                      Ortalama Anlaşma / Satış / Komisyon Tutarı (₺ - İsteğe Bağlı)
+                    </label>
+                    <input
+                      type="number"
+                      placeholder="Örn: 50000"
+                      value={avgDealValue || ''}
+                      onChange={(e) => setAvgDealValue(Number(e.target.value) || 0)}
+                      style={{ width: '100%', fontSize: '0.85rem' }}
+                    />
+                  </div>
+                </>
+              )}
+
+              {businessModel === 'ECOMMERCE' && (
+                <>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <label style={{ fontSize: '0.825rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
+                        Web Sitesi Sipariş Dönüşüm Oranı (%)
+                      </label>
+                      <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                        %{ecommerceConversionRate}
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min={0.5}
+                      max={8.0}
+                      step={0.1}
+                      value={ecommerceConversionRate}
+                      onChange={(e) => setEcommerceConversionRate(Number(e.target.value))}
+                      style={{ width: '100%', accentColor: 'var(--info)', cursor: 'pointer' }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
+                      Ortalama Sepet Tutarı (AOV ₺)
+                    </label>
+                    <input
+                      type="number"
+                      value={avgOrderValue}
+                      onChange={(e) => setAvgOrderValue(Math.max(1, Number(e.target.value)))}
+                      style={{ width: '100%', fontSize: '0.85rem' }}
+                    />
+                  </div>
+                </>
+              )}
+
+              {/* Campaign Model Info Badge */}
+              <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)', fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                💡 <strong>Matematiksel Model:</strong> Seçili {selectedKeywordsPool.length} anahtar kelimenin toplam aylık pazar hacmi (<strong>{totalSearchVolume.toLocaleString('tr-TR')} arama</strong>), ağırlıklı sayfa üstü TBM (<strong>₺{avgTopPageCpc.toFixed(2)}</strong>) ve <strong>%{simulation.targetImpressionShare} Hedef Gösterim Payı (IS)</strong> esas alınarak hesaplanmıştır.
+              </div>
+
+              <button
+                onClick={handleSavePlan}
+                className="btn-primary"
+                style={{ width: '100%', justifyContent: 'center', padding: '0.65rem', fontSize: '0.85rem' }}
+              >
+                {planSaveSuccess ? <Check size={16} /> : <Save size={16} />}
+                {planSaveSuccess ? 'Plan Başarıyla Kaydedildi!' : 'Bu Simülasyonu Çalışma Alanına Kaydet'}
+              </button>
+
+            </div>
+
+            {/* Projected Outcomes Column */}
+            <div className="card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                    🎯 Tahmini Kampanya Performans Projeksiyonu
+                  </div>
+                  <div className="badge" style={{ backgroundColor: 'rgba(37, 99, 235, 0.1)', color: 'var(--brand-primary)', fontWeight: 600, fontSize: '0.75rem' }}>
+                    %{simulation.targetImpressionShare} Gösterim Payı (IS)
+                  </div>
+                </div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                  Aylık <strong>₺{simulation.actualSpend.toLocaleString('tr-TR')}</strong> harcama ile beklenen gerçekçi pazar sonuçları.
+                </div>
+              </div>
+
+              {/* Market Saturation Warning if Budget exceeds Market Capacity */}
+              {simulation.isMarketSaturated && (
+                <div style={{ padding: '0.85rem 1rem', backgroundColor: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.35)', borderRadius: 'var(--radius-sm)', fontSize: '0.78rem', color: '#d97706', lineHeight: 1.45 }}>
+                  ⚠️ <strong>Pazar Kapasite Tavanı Uyarısı:</strong> Hedeflediğiniz pazarda bu anahtar kelimelerin toplam aylık arama hacmi <strong>{totalSearchVolume.toLocaleString('tr-TR')}</strong> adettir. %95 maksimum gösterim payında bile aylık harcanabilecek tutar <strong>₺{simulation.marketCapacitySpend.toLocaleString('tr-TR')}</strong> ile sınırlıdır. ₺{monthlyBudget.toLocaleString('tr-TR')} bütçenizi tüketmek için lütfen yeni anahtar kelimeler ekleyin veya 2. Adımdan yeni hedef ülkeler seçin.
+                </div>
+              )}
+
+              {/* Core Search Metric Cards */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' }}>
+                
+                {/* Impressions (Strictly bounded by search volume) */}
+                <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Tahmini Gösterim (Impressions)</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
+                    {simulation.estImpressions.toLocaleString('tr-TR')}
+                  </div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                    Pazar Payı: %{simulation.targetImpressionShare} / {totalSearchVolume.toLocaleString('tr-TR')} Hacim
+                  </div>
+                </div>
+
+                {/* Clicks */}
+                <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Tahmini Tıklama (Aylık Ziyaret)</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--brand-primary)', marginTop: '2px' }}>
+                    {simulation.estClicks.toLocaleString('tr-TR')}
+                  </div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                    %{expectedCtr} Tahmini TO • Günlük ~{Math.max(1, Math.round(simulation.estClicks / 30.4))} Tık
+                  </div>
+                </div>
+
+                {/* Actual Spend */}
+                <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Gerçekleşecek Aylık Harcama</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
+                    ₺{simulation.actualSpend.toLocaleString('tr-TR')}
+                  </div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                    Günlük: ~₺{simulation.dailyBudget.toLocaleString('tr-TR')} • Ort. TBM: ₺{simulation.avgCpc.toFixed(2)}
+                  </div>
+                </div>
+
+                {/* Conversions or Leads */}
+                <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                    {businessModel === 'LEAD_GEN' ? 'Tahmini Form & Talep (Leads)' : businessModel === 'ECOMMERCE' ? 'Tahmini Sipariş' : 'Toplam Etkileşim'}
+                  </div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#34d399', marginTop: '2px' }}>
+                    {simulation.estConversions.toLocaleString('tr-TR')} Adet
+                  </div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                    {businessModel === 'LEAD_GEN' ? `CPL: ₺${simulation.cpa.toLocaleString('tr-TR')} / talep` : `CPA: ₺${simulation.cpa.toLocaleString('tr-TR')} / sipariş`}
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Business Model Specific Outcome Box */}
+              {businessModel === 'LEAD_GEN' && (
+                <div style={{
+                  padding: '1.25rem',
+                  backgroundColor: 'rgba(16, 185, 129, 0.06)',
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px solid rgba(16, 185, 129, 0.25)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '1rem'
+                }}>
+                  <div>
+                    <div style={{ fontSize: '0.75rem', color: '#16a34a', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      Tahmini Satış & Anlaşma Kapasitesi
+                    </div>
+                    <div style={{ fontSize: '2rem', fontWeight: 800, color: '#16a34a', marginTop: '2px' }}>
+                      ~{simulation.estDeals} Anlaşma / Satış
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                      %{leadCloseRate} Kapanış Oranı ile • Müşteri Edinme Maliyeti (CAC): <strong>₺{simulation.cac?.toLocaleString('tr-TR') || 0}</strong>
+                    </div>
+                  </div>
+
+                  {avgDealValue > 0 && (
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Tahmini Proje Geliri</div>
+                      <div style={{ fontSize: '1.35rem', fontWeight: 700, color: '#16a34a', marginTop: '2px' }}>
+                        ₺{simulation.estRevenue.toLocaleString('tr-TR')}
+                      </div>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>ROAS: {simulation.projectedRoas}x</div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {businessModel === 'ECOMMERCE' && (
+                <div style={{
+                  padding: '1.25rem',
+                  backgroundColor: 'rgba(37, 99, 235, 0.06)',
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px solid rgba(37, 99, 235, 0.25)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '1rem'
+                }}>
+                  <div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--brand-primary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      Projeksiyon ROAS (Getiri Oranı)
+                    </div>
+                    <div style={{ fontSize: '2.2rem', fontWeight: 800, color: 'var(--brand-primary)', marginTop: '2px' }}>
+                      {simulation.projectedRoas}x
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                      Her <strong>1 ₺</strong> reklam harcaması için <strong>₺{simulation.projectedRoas}</strong> ciro projeksiyonu
+                    </div>
+                  </div>
+
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Tahmini Net Kâr / Ciro</div>
+                    <div style={{ fontSize: '1.25rem', fontWeight: 700, color: simulation.estRevenue - simulation.actualSpend >= 0 ? '#34d399' : 'var(--danger)', marginTop: '2px' }}>
+                      ₺{simulation.estRevenue.toLocaleString('tr-TR')}
+                    </div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Net Kâr: ₺{(simulation.estRevenue - simulation.actualSpend).toLocaleString('tr-TR')}</div>
+                  </div>
+                </div>
+              )}
+
+              {businessModel === 'BRAND_REACH' && (
+                <div style={{
+                  padding: '1.25rem',
+                  backgroundColor: 'rgba(245, 158, 11, 0.06)',
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px solid rgba(245, 158, 11, 0.25)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '1rem'
+                }}>
+                  <div>
+                    <div style={{ fontSize: '0.75rem', color: '#d97706', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      Pazar Hakimiyeti & Erişim
+                    </div>
+                    <div style={{ fontSize: '2rem', fontWeight: 800, color: '#d97706', marginTop: '2px' }}>
+                      %{simulation.targetImpressionShare} Pazar Payı
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                      Hedeflenen ülkedeki her 100 aramanın <strong>{simulation.targetImpressionShare}</strong> tanesinde reklamınız ilk sayfada görünecektir.
+                    </div>
+                  </div>
+
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Aylık Trafik Kazanımı</div>
+                    <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
+                      ~{simulation.estClicks.toLocaleString('tr-TR')} Ziyaretçi
+                    </div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Ortalama TBM: ₺{simulation.avgCpc.toFixed(2)}</div>
+                  </div>
+                </div>
+              )}
+
+              {/* Country Breakdown & Market Share Table */}
+              {countryBreakdown.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '1rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <Globe size={15} color="var(--brand-primary)" /> Hedef Ülke Dağılımı ve Tahmin Kırılımı
+                    </div>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                      {countryBreakdown.length} Aktif Pazar
+                    </span>
+                  </div>
+
+                  {/* Visual Stacked Progress Bar */}
+                  <div style={{ height: '8px', borderRadius: '4px', display: 'flex', overflow: 'hidden', backgroundColor: 'var(--border-default)' }}>
+                    {countryBreakdown.map((cm, idx) => {
+                      const colors = ['#2563eb', '#34d399', '#facc15', '#f97316', '#a855f7', '#ec4899'];
+                      return (
+                        <div
+                          key={cm.code}
+                          style={{
+                            width: `${cm.sharePercent}%`,
+                            backgroundColor: colors[idx % colors.length],
+                            height: '100%'
+                          }}
+                          title={`${cm.flag} ${cm.name}: %${cm.sharePercent}`}
+                        />
+                      );
+                    })}
+                  </div>
+
+                  {/* Country Breakdown Rows */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                    {countryBreakdown.map((cm) => (
+                      <div key={cm.code} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.75rem', padding: '0.35rem 0.5rem', backgroundColor: 'var(--bg-surface)', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-subtle)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontWeight: 500 }}>
+                          <span>{cm.flag}</span>
+                          <span>{cm.name}</span>
+                          <span className="badge badge-neutral" style={{ fontSize: '0.65rem', padding: '1px 4px' }}>%{cm.sharePercent}</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', color: 'var(--text-secondary)' }}>
+                          <span>Pazar Hacmi: <strong style={{ color: 'var(--text-primary)' }}>{cm.monthlyVolume.toLocaleString('tr-TR')}</strong></span>
+                          <span>Ort. TBM: <strong style={{ color: 'var(--text-primary)' }}>₺{cm.avgCpc.toFixed(2)}</strong></span>
+                          <span>~{cm.estClicks} Tıklama</span>
+                          <span>~{cm.estConversions} {businessModel === 'LEAD_GEN' ? 'Talep' : 'Sipariş'}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+            </div>
 
           </div>
 
