@@ -256,7 +256,26 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   const [query, setQuery] = useState('');
   const [mode, setMode] = useState<'URL' | 'KEYWORDS'>('URL');
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingStage, setLoadingStage] = useState(0);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // Dynamic Loading Animation Stages
+  useEffect(() => {
+    let t1: any, t2: any, t3: any;
+    if (isLoading) {
+      setLoadingStage(0);
+      t1 = setTimeout(() => setLoadingStage(1), 1300);
+      t2 = setTimeout(() => setLoadingStage(2), 2700);
+      t3 = setTimeout(() => setLoadingStage(3), 4300);
+    } else {
+      setLoadingStage(0);
+    }
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+    };
+  }, [isLoading]);
 
   // Step 1 Output: Auto-Detected Language & Page Details
   const [sectorName, setSectorName] = useState<string>('');
@@ -948,21 +967,6 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           </button>
         </div>
 
-        {/* Loading Progress State */}
-        {isLoading && (
-          <div style={{ backgroundColor: 'rgba(37, 99, 235, 0.08)', border: '1px solid var(--brand-primary)', color: 'var(--text-primary)', padding: '1.25rem', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <RefreshCw size={24} className="animate-spin" color="var(--brand-primary)" />
-            <div>
-              <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--brand-primary)' }}>
-                Google AI ve Sayfa Kazıyıcı Çalışıyor...
-              </div>
-              <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
-                Hedef açılış sayfası taranıyor, sayfa dili tespit ediliyor ve 30+ yüksek potansiyelli Google Ads anahtar kelimesi ile TBM projeksiyonları çıkarılıyor (ortalama 3-6 sn).
-              </div>
-            </div>
-          </div>
-        )}
-
         {errorMsg && (
           <div style={{ background: 'var(--danger-bg)', color: 'var(--danger)', padding: '0.65rem 0.85rem', borderRadius: 'var(--radius-xs)', fontSize: '0.8rem' }}>
             {errorMsg}
@@ -970,8 +974,138 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         )}
       </div>
 
-      {/* 3. Empty State OR 3-Step Stepper Wizard */}
-      {keywords.length === 0 && !isLoading && activeTab !== 'saved-plans' ? (
+      {/* 3. SCENARIO A: DYNAMIC ANIMATED LOADING SCREEN (When Loading, ONLY this screen is visible) */}
+      {isLoading ? (
+        <div className="card" style={{
+          padding: '2.5rem 2rem',
+          backgroundColor: 'var(--bg-surface)',
+          border: '1.5px solid var(--brand-primary)',
+          borderRadius: 'var(--radius-md)',
+          boxShadow: '0 8px 30px rgba(37, 99, 235, 0.12)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '1.75rem',
+          position: 'relative',
+          overflow: 'hidden'
+        }}>
+          {/* Top Live Stage Info */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+              <div style={{
+                width: '56px',
+                height: '56px',
+                borderRadius: '50%',
+                backgroundColor: 'rgba(37, 99, 235, 0.12)',
+                border: '2px solid var(--brand-primary)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '1.6rem',
+                position: 'relative'
+              }}>
+                <span>
+                  {loadingStage === 0 && '🌐'}
+                  {loadingStage === 1 && '🔍'}
+                  {loadingStage === 2 && '⚡'}
+                  {loadingStage === 3 && '🎯'}
+                </span>
+                <div className="animate-ping" style={{
+                  position: 'absolute',
+                  width: '100%',
+                  height: '100%',
+                  borderRadius: '50%',
+                  backgroundColor: 'var(--brand-primary)',
+                  opacity: 0.25
+                }} />
+              </div>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--brand-primary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    ADIM {loadingStage + 1} / 4
+                  </span>
+                  <span className="badge badge-active" style={{ fontSize: '0.7rem', padding: '2px 8px' }}>
+                    <RefreshCw size={10} className="animate-spin" /> Canlı İşleniyor...
+                  </span>
+                </div>
+                <div style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '0.2rem' }}>
+                  {loadingStage === 0 && 'Açılış Sayfası Taranıyor & İçerik Kazınıyor'}
+                  {loadingStage === 1 && 'Dil, Sektör & Coğrafi Lokasyon Analizi'}
+                  {loadingStage === 2 && 'Google Ads Keyword Planner Verileri Çekiliyor'}
+                  {loadingStage === 3 && 'Semantik Reklam Grupları & Bütçe Projeksiyonu'}
+                </div>
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.25rem', maxWidth: '650px', lineHeight: 1.45 }}>
+                  {loadingStage === 0 && 'Hedef web sitesi ve SPA bileşenleri taranıyor, ana başlıklar ve metin blokları çözümleniyor...'}
+                  {loadingStage === 1 && 'Sayfanın dili, hedef coğrafi pazarlar ve iş modeli sektörel olarak sınıflandırılıyor...'}
+                  {loadingStage === 2 && 'Resmi Google arama hacimleri, rekabet indeksleri ve sayfa üstü TBM teklifleri alınıyor...'}
+                  {loadingStage === 3 && 'Anahtar kelimeler Ad Group temalarına kümeleniyor ve bütçe simülasyonu oluşturuluyor...'}
+                </div>
+              </div>
+            </div>
+
+            <div style={{ textAlign: 'right', minWidth: '120px' }}>
+              <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--brand-primary)' }}>
+                %{loadingStage === 0 ? 25 : (loadingStage === 1 ? 50 : (loadingStage === 2 ? 75 : 95))}
+              </div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Ortalama 3-5 saniye</div>
+            </div>
+          </div>
+
+          {/* Animated Smooth Progress Bar */}
+          <div style={{ width: '100%', height: '8px', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-full)', overflow: 'hidden', border: '1px solid var(--border-default)' }}>
+            <div style={{
+              width: `${loadingStage === 0 ? 25 : (loadingStage === 1 ? 50 : (loadingStage === 2 ? 75 : 95))}%`,
+              height: '100%',
+              backgroundColor: 'var(--brand-primary)',
+              borderRadius: 'var(--radius-full)',
+              transition: 'width 0.6s cubic-bezier(0.4, 0, 0.2, 1)'
+            }} />
+          </div>
+
+          {/* 4 Step Horizontal Indicator Pills */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem', paddingTop: '0.5rem', borderTop: '1px solid var(--border-default)' }}>
+            {[
+              { title: 'Sayfa Taraması', stage: 0 },
+              { title: 'Dil & Sektör Analizi', stage: 1 },
+              { title: 'Google Ads Hacimleri', stage: 2 },
+              { title: 'Gruplama & Projeksiyon', stage: 3 }
+            ].map((st) => {
+              const isPast = st.stage < loadingStage;
+              const isCurrent = st.stage === loadingStage;
+              return (
+                <div key={st.stage} style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  padding: '0.5rem 0.65rem',
+                  borderRadius: 'var(--radius-xs)',
+                  backgroundColor: isCurrent ? 'rgba(37, 99, 235, 0.08)' : (isPast ? 'rgba(16, 185, 129, 0.06)' : 'transparent'),
+                  border: isCurrent ? '1px solid var(--brand-primary)' : '1px solid transparent',
+                  opacity: isCurrent || isPast ? 1 : 0.45
+                }}>
+                  <div style={{
+                    width: '20px',
+                    height: '20px',
+                    borderRadius: '50%',
+                    backgroundColor: isPast ? '#10b981' : (isCurrent ? 'var(--brand-primary)' : 'var(--border-default)'),
+                    color: '#ffffff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '0.7rem',
+                    fontWeight: 700
+                  }}>
+                    {isPast ? <Check size={12} /> : (st.stage + 1)}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', fontWeight: isCurrent ? 700 : 500, color: isCurrent ? 'var(--brand-primary)' : 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {st.title}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : keywords.length === 0 && activeTab !== 'saved-plans' ? (
+        /* SCENARIO B: EMPTY STATE */
         <div className="card" style={{ padding: '3.5rem 1.5rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1rem' }}>
           <div style={{ width: '64px', height: '64px', borderRadius: '50%', backgroundColor: 'rgba(37, 99, 235, 0.1)', color: 'var(--brand-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Search size={32} />
@@ -1021,67 +1155,124 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           )}
         </div>
       ) : (
+        /* SCENARIO C: RESULTS LOADED (Clean & Bold 3-Step Wizard) */
         <>
           {/* 3-Step Wizard Navigation Bar */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', backgroundColor: 'var(--bg-surface)', padding: '0.65rem 1rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)', overflowX: 'auto' }}>
+          <div className="card" style={{ padding: '0.6rem 0.85rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0.65rem', backgroundColor: 'var(--bg-surface)' }}>
             
-            {/* Step 1 Pill */}
-            <div 
+            {/* Step 1 */}
+            <button
+              type="button"
               onClick={() => setCurrentStep(1)}
-              style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer', opacity: currentStep === 1 ? 1 : 0.6, transition: 'all 0.15s ease' }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.75rem',
+                padding: '0.85rem 1.25rem',
+                borderRadius: 'var(--radius-sm)',
+                border: currentStep === 1 ? '2px solid var(--brand-primary)' : '1px solid var(--border-default)',
+                backgroundColor: currentStep === 1 ? 'rgba(37, 99, 235, 0.12)' : 'var(--bg-surface-elevated)',
+                color: currentStep === 1 ? 'var(--brand-primary)' : 'var(--text-secondary)',
+                cursor: 'pointer',
+                fontWeight: currentStep === 1 ? 700 : 500,
+                fontSize: '0.9rem',
+                transition: 'all 0.15s ease',
+                boxShadow: currentStep === 1 ? '0 0 0 1px var(--brand-primary)' : 'none'
+              }}
             >
-              <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: currentStep === 1 ? 'var(--brand-primary)' : 'var(--bg-surface-elevated)', color: currentStep === 1 ? '#ffffff' : 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.82rem', fontWeight: 700 }}>
-                1
+              <div style={{
+                width: '26px',
+                height: '26px',
+                borderRadius: '50%',
+                backgroundColor: currentStep === 1 ? 'var(--brand-primary)' : (currentStep > 1 ? '#10b981' : 'var(--border-default)'),
+                color: '#ffffff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '0.8rem',
+                fontWeight: 700
+              }}>
+                {currentStep > 1 ? <Check size={15} /> : '1'}
               </div>
-              <div>
-                <div style={{ fontSize: '0.82rem', fontWeight: 600, color: currentStep === 1 ? 'var(--brand-primary)' : 'var(--text-primary)' }}>
-                  1. Sayfa Analizi & Kelimeler
-                </div>
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                  {detectedLanguageName} • {selectedKeywordIds.size} / {keywords.length} Kelime Seçili
-                </div>
-              </div>
-            </div>
+              <span>1. Adım: Anahtar Kelime Analizi & Gruplar</span>
+            </button>
 
-            <ArrowRight size={16} color="var(--border-default)" />
-
-            {/* Step 2 Pill */}
-            <div 
+            {/* Step 2 */}
+            <button
+              type="button"
               onClick={() => setCurrentStep(2)}
-              style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer', opacity: currentStep === 2 ? 1 : 0.6, transition: 'all 0.15s ease' }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.75rem',
+                padding: '0.85rem 1.25rem',
+                borderRadius: 'var(--radius-sm)',
+                border: currentStep === 2 ? '2px solid var(--brand-primary)' : '1px solid var(--border-default)',
+                backgroundColor: currentStep === 2 ? 'rgba(37, 99, 235, 0.12)' : 'var(--bg-surface-elevated)',
+                color: currentStep === 2 ? 'var(--brand-primary)' : 'var(--text-secondary)',
+                cursor: 'pointer',
+                fontWeight: currentStep === 2 ? 700 : 500,
+                fontSize: '0.9rem',
+                transition: 'all 0.15s ease',
+                boxShadow: currentStep === 2 ? '0 0 0 1px var(--brand-primary)' : 'none'
+              }}
             >
-              <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: currentStep === 2 ? 'var(--brand-primary)' : 'var(--bg-surface-elevated)', color: currentStep === 2 ? '#ffffff' : 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.82rem', fontWeight: 700 }}>
-                2
+              <div style={{
+                width: '26px',
+                height: '26px',
+                borderRadius: '50%',
+                backgroundColor: currentStep === 2 ? 'var(--brand-primary)' : (currentStep > 2 ? '#10b981' : 'var(--border-default)'),
+                color: '#ffffff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '0.8rem',
+                fontWeight: 700
+              }}>
+                {currentStep > 2 ? <Check size={15} /> : '2'}
               </div>
-              <div>
-                <div style={{ fontSize: '0.82rem', fontWeight: 600, color: currentStep === 2 ? 'var(--brand-primary)' : 'var(--text-primary)' }}>
-                  2. Hedef Pazar & Ülkeler
-                </div>
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                  {activeCountries.length} Ülke Aktif ({activeCountries.map(c => c.flag).join(' ')})
-                </div>
-              </div>
-            </div>
+              <span>2. Adım: Hedef Pazar & Ülke Seçimi</span>
+            </button>
 
-            <ArrowRight size={16} color="var(--border-default)" />
-
-            {/* Step 3 Pill */}
-            <div 
+            {/* Step 3 */}
+            <button
+              type="button"
               onClick={() => setCurrentStep(3)}
-              style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer', opacity: currentStep === 3 ? 1 : 0.6, transition: 'all 0.15s ease' }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.75rem',
+                padding: '0.85rem 1.25rem',
+                borderRadius: 'var(--radius-sm)',
+                border: currentStep === 3 ? '2px solid var(--brand-primary)' : '1px solid var(--border-default)',
+                backgroundColor: currentStep === 3 ? 'rgba(37, 99, 235, 0.12)' : 'var(--bg-surface-elevated)',
+                color: currentStep === 3 ? 'var(--brand-primary)' : 'var(--text-secondary)',
+                cursor: 'pointer',
+                fontWeight: currentStep === 3 ? 700 : 500,
+                fontSize: '0.9rem',
+                transition: 'all 0.15s ease',
+                boxShadow: currentStep === 3 ? '0 0 0 1px var(--brand-primary)' : 'none'
+              }}
             >
-              <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: currentStep === 3 ? 'var(--brand-primary)' : 'var(--bg-surface-elevated)', color: currentStep === 3 ? '#ffffff' : 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.82rem', fontWeight: 700 }}>
+              <div style={{
+                width: '26px',
+                height: '26px',
+                borderRadius: '50%',
+                backgroundColor: currentStep === 3 ? 'var(--brand-primary)' : 'var(--border-default)',
+                color: '#ffffff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '0.8rem',
+                fontWeight: 700
+              }}>
                 3
               </div>
-              <div>
-                <div style={{ fontSize: '0.82rem', fontWeight: 600, color: currentStep === 3 ? 'var(--brand-primary)' : 'var(--text-primary)' }}>
-                  3. Hacim & Bütçe Tahmini
-                </div>
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                  {totalSearchVolume.toLocaleString('tr-TR')} Aylık Hacim • ₺{avgTopPageCpc.toFixed(2)} TBM
-                </div>
-              </div>
-            </div>
+              <span>3. Adım: Hacim, Bütçe & ROI Simülasyonu</span>
+            </button>
 
           </div>
 
