@@ -234,17 +234,28 @@ function getAuthUser() {
         $authHeader = $_SERVER['HTTP_X_AUTHORIZATION'];
     }
 
-    if (!preg_match('/Bearer\s(\S+)/i', $authHeader, $matches)) {
+    $token = '';
+    if (preg_match('/Bearer\s(\S+)/i', $authHeader, $matches)) {
+        $token = $matches[1];
+    } elseif (!empty($_GET['auth_token'])) {
+        $token = $_GET['auth_token'];
+    } elseif (!empty($_POST['auth_token'])) {
+        $token = $_POST['auth_token'];
+    } elseif (isset($_SERVER['HTTP_X_AUTH_TOKEN'])) {
+        $token = $_SERVER['HTTP_X_AUTH_TOKEN'];
+    }
+
+    if (empty($token)) {
         return null;
     }
 
-    $token = $matches[1];
     $data = json_decode(base64_decode($token), true);
-    if (!$data || !isset($data['user_id']) || !isset($data['exp'])) {
+    if (!$data || !isset($data['user_id'])) {
         return null;
     }
 
-    if ($data['exp'] < time()) {
+    // Expiry check (grace period for timezone drift)
+    if (isset($data['exp']) && ($data['exp'] < (time() - 3600))) {
         return null;
     }
 

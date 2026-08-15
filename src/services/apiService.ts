@@ -25,6 +25,7 @@ export class ApiService {
 
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
+      headers['X-Auth-Token'] = token;
     }
 
     try {
