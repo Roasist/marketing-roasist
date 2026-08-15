@@ -45,143 +45,171 @@ export const groupKeywordsSemantically = (kwList: KeywordMetric[]): KeywordClust
   if (!kwList || kwList.length === 0) return [];
 
   const themeRules = [
-    // 1. Hotel, Resort, Vacation & Tourism
+    // 1. Call Center & Customer Service (DE, TR, EN, RU)
+    {
+      id: 'callcenter_service',
+      name: 'Çağrı Merkezi & Müşteri Hizmetleri (Callcenter & Support)',
+      icon: '📞',
+      regex: /(callcenter|call center|kundenservice|kundenbetreuung|inbound|outbound|telesales|telefon|çağrı merkezi|müşteri hizmetleri|contact center|telefonservice|patientenservice|support)/i
+    },
+    // 2. Careers, Jobs & Applications (DE, TR, EN, RU)
+    {
+      id: 'career_jobs',
+      name: 'Kariyer, İş İlanları & Başvuru (Jobs & Karriere)',
+      icon: '💼',
+      regex: /(job|jobs|jobangebot|stellenangebot|stellenanzeig|stellenausschreib|karriere|bewerbung|arbeitgeber|arbeitnehmer|kariyer|iş ilanı|hiring|recruiting|vacanc|career|berufseinstieg|arbeitsplatz|iş fırsat|ваканси|работа)/i
+    },
+    // 3. HR, Personnel & Staffing (DE, TR, EN, RU)
+    {
+      id: 'hr_personnel',
+      name: 'İK, Personel & İstihdam (Personal & Mitarbeiter)',
+      icon: '👥',
+      regex: /(personal|personaldienst|personalwesen|personalentwicklung|mitarbeiter|angestellt|recruitment|headhunting|staffing|executive search|insan kaynak|yetenek|zeitarbeit|arbeitsvermittlung|персонал|сотрудник)/i
+    },
+    // 4. Hotel, Resort, Vacation & Tourism
     {
       id: 'hotel_tourism',
       name: 'Otel, Tatil & Konaklama Fırsatları',
       icon: '🏨',
-      regex: /(hotel|hotels|otel|otelleri|resort|resorts|tatil|konaklama|pansiyon|butik otel|boutique|all inclusive|her şey dahil|rezervasyon|booking)/i
+      regex: /(hotel|hotels|otel|otelleri|resort|resorts|tatil|konaklama|pansiyon|butik otel|boutique|all inclusive|her şey dahil|rezervasyon|booking|urlaub|ferien|отель|гостиниц)/i
     },
-    // 2. Costs, Fees & 400.000$ Rule
+    // 5. Costs, Fees & 400.000$ Rule
     {
       id: 'costs_fees',
       name: 'Yatırım Tutarları, Fiyatlar & Harçlar',
       icon: '💰',
-      regex: /(400k|400\.000|400\s?тысяч|400\s?bin|250k|тысяч|доллар|цена|стоимост|расход|минимальн|сумм|cost|costs|price|prices|fee|fees|how much|fiyat|fiyatı|fiyatları|ücret|maliyet|harç|masraf)/i
+      regex: /(400k|400\.000|400\s?тысяч|400\s?bin|250k|тысяч|доллар|цена|стоимост|расход|минимальн|сумм|cost|costs|price|prices|fee|fees|how much|fiyat|fiyatı|fiyatları|ücret|maliyet|harç|masraf|kosten|preis|gehalt|lohn)/i
     },
-    // 3. Apartments & Flats
+    // 6. Apartments & Flats
     {
       id: 'apartments_flats',
       name: 'Satılık Daireler & Rezidanslar',
       icon: '🏢',
-      regex: /(квартир|апартамент|daire|daireler|rezidans|satılık daire|apartment|apartments|flat|flats|residence)/i
+      regex: /(квартир|апартамент|daire|daireler|rezidans|satılık daire|apartment|apartments|flat|flats|residence|wohnung|wohnungen)/i
     },
-    // 3. Villas & Luxury Homes
+    // 7. Villas & Luxury Homes
     {
       id: 'villas_houses',
       name: 'Lüks Villalar & Müstakil Evler',
       icon: '🌴',
-      regex: /(вилл|коттедж|домик|villa|villas|house|houses|home|homes|müstakil|lüks ev|satılık villa)/i
+      regex: /(вилл|коттедж|домик|villa|villas|house|houses|home|homes|müstakil|lüks ev|satılık villa|haus|häuser)/i
     },
-    // 4. Cities & Target Regions (Alanya, Antalya, Istanbul, Cyprus, etc.)
+    // 8. Cities & Target Regions (Alanya, Antalya, Istanbul, Cyprus, etc.)
     {
       id: 'regions_cities',
-      name: 'Bölgesel Fırsatlar (Alanya, Antalya, İstanbul)',
+      name: 'Bölgesel Fırsatlar (Alanya, Antalya, İstanbul, Kıbrıs)',
       icon: '📍',
-      regex: /(алань|алан|анталь|стамбул|бодрум|alanya|antalya|istanbul|bodrum|fethiye|izmir|ankara|dubai)/i
+      regex: /(алань|алан|анталь|стамбул|бодрум|alanya|antalya|istanbul|bodrum|fethiye|izmir|ankara|dubai|türkei|deutschland|berlin|münchen|köln)/i
     },
-    // 5. Cyprus & Mediterranean Coastal Projects
+    // 9. Cyprus & Mediterranean Coastal Projects
     {
       id: 'cyprus_mediterranean',
       name: 'Kuzey Kıbrıs & Akdeniz Projeleri',
       icon: '🏝️',
-      regex: /(кипр|северный кипр|эсентепе|гирне|cyprus|north cyprus|kıbrıs|kuzey kıbrıs|kktc|esentepe|girne|kyrenia|famagusta|gazimağusa|tatlısu|iskele|lefkosa|nicosia|cordelia|mediterranean)/i
+      regex: /(кипр|северный кипр|эsentepe|гирне|cyprus|north cyprus|kıbrıs|kuzey kıbrıs|kktc|esentepe|girne|kyrenia|famagusta|gazimağusa|tatlısu|iskele|lefkosa|nicosia|cordelia|mediterranean)/i
     },
-    // 6. Passport & Visas
+    // 10. Passport & Visas
     {
       id: 'passport_visas',
       name: 'Pasaport, Vize & Seyahat Hakları',
       icon: '🛂',
-      regex: /(паспорт|виз|visa|passport|pasaport|vize|visa-free|schengen|travel)/i
+      regex: /(паспорт|виз|visa|passport|pasaport|vize|visa-free|schengen|travel|pass|visum)/i
     },
-    // 7. Residency & Permits (ВНЖ / ПМЖ)
+    // 11. Residency & Permits (ВНЖ / ПМЖ)
     {
       id: 'residency_permits',
       name: 'Oturum İzni & İkametgah (ВНЖ / ПМЖ)',
       icon: '💼',
-      regex: /(внж|вид на жительство|пмж|oturum|ikamet|ikametgah|oturma izni|residency|residence|permit)/i
+      regex: /(внж|вид на жительство|пмж|oturum|ikamet|ikametgah|oturma izni|residency|residence|permit|aufenthalt)/i
     },
-    // 8. Property & Real Estate Investment
+    // 12. Property & Real Estate Investment
     {
       id: 'property_investment',
       name: 'Gayrimenkul & Emlak Yatırımı',
       icon: '🏠',
-      regex: /(недвижим|жиль|покупк|покупка|gayrimenkul|emlak|konut|satılık mülk|real estate|property|properties|realty|buy property|invest in property)/i
+      regex: /(недвижим|жиль|покупк|покупка|gayrimenkul|emlak|konut|satılık mülk|real estate|property|properties|realty|buy property|invest in property|immobilien)/i
     },
-    // 9. Direct Citizenship & Investment Programs
+    // 13. Direct Citizenship & Investment Programs
     {
       id: 'citizenship_direct',
       name: 'Yatırımla Türk Vatandaşlığı',
       icon: '🇹🇷',
-      regex: /(гражданств|инвестиц|vatandaşlık|vatandaslik|citizenship|citizen|invest in turkey|turkish citizenship)/i
+      regex: /(гражданств|инвестиц|vatandaşlık|vatandaslik|citizenship|citizen|invest in turkey|turkish citizenship|staatsbürgerschaft)/i
     },
-    // 10. Requirements, Law & Process
+    // 14. Requirements, Law & Process
     {
       id: 'requirements_process',
       name: 'Şartlar, Başvuru & Belgeler',
       icon: '📋',
       regex: /(документ|требован|оформлен|правил|закон|услови|requirements|rules|apply|application|process|eligibility|law|guide|rehber|gerekli|şartlar|şartları|başvuru|prosedür|kanun)/i
     },
-    // 11. Off-plan, Project & Beachfront Developments
+    // 15. Off-plan, Project & Beachfront Developments
     {
       id: 'offplan_developments',
       name: 'Lansman, Proje & Denize Sıfır Konutlar',
       icon: '🏗️',
       regex: /(новостройк|застройщик|у моря|off plan|off-plan|development|project|beachfront|sea view|seaside|lansman|proje|denize sıfır|manzaralı)/i
     },
-    // 12. Second Passport & Dual Citizenship
+    // 16. Services, Consulting & B2B Solutions
     {
-      id: 'second_passport_global',
-      name: 'Çifte Vatandaşlık & Global Programlar',
+      id: 'services_b2b',
+      name: 'Kurumsal Hizmetler & Çözümler (Dienstleistungen)',
+      icon: '🏢',
+      regex: /(dienstleistung|dienstleister|kurumsal|danışmanlık|consulting|agency|unternehmer|unternehmen|b2b)/i
+    },
+    // 17. Team, Culture & Value Proposition
+    {
+      id: 'team_culture',
+      name: 'Ekip, Takım & Kurumsal Değerler',
+      icon: '🤝',
+      regex: /(team|ansprechpartner|das bieten wir|wir bieten|über uns|hakkımızda|ekibimiz|about us)/i
+    },
+    // 18. Language & Skills
+    {
+      id: 'language_skills',
+      name: 'Almanca / Dil & Yetkinlikler',
       icon: '🌐',
-      regex: /(двойное гражданство|второе гражданство|second citizenship|second passport|dual citizenship|çifte vatandaşlık|global)/i
+      regex: /(deutschkenntnisse|deutschsprach|language|dil|almanca|english|ingilizce|skills)/i
     },
-    // 13. HR, Talent Acquisition & Recruitment Consulting
-    {
-      id: 'hr_recruitment',
-      name: 'İşe Alım, İK & Yetenek Danışmanlığı',
-      icon: '👥',
-      regex: /(talent|recruit|headhunt|hiring|staffing|executive search|human resource|insan kaynak|işe alım|kariyer|yetenek|headhunter)/i
-    },
-    // 14. Digital Marketing & Agency
+    // 19. Digital Marketing & Agency
     {
       id: 'agency_services',
       name: 'Dijital Pazarlama & Ajans Danışmanlığı',
       icon: '🚀',
       regex: /(ajans|ajansı|ajansları|agency|agencies|danışmanlık|danışmanlığı|consulting|pazarlama|marketing)/i
     },
-    // 14. Performance Marketing & ROAS
+    // 20. Performance Marketing & ROAS
     {
       id: 'performance_growth',
       name: 'Performans Pazarlaması, Lead & ROAS',
       icon: '📈',
       regex: /(performans|performance|roas|roi|büyüme|growth|lead|dönüşüm|conversion|cro)/i
     },
-    // 15. Google Ads & Social Ads
+    // 21. Google Ads & Social Ads
     {
       id: 'ads_sem_social',
       name: 'Google Ads & Sosyal Medya Reklamları',
       icon: '🎯',
       regex: /(google ads|adwords|meta|facebook|instagram|tiktok|reklam|reklamları|sem|tbm|cpc)/i
     },
-    // 16. SEO & Organic Traffic
+    // 22. SEO & Organic Traffic
     {
       id: 'seo_organic',
       name: 'SEO & Organik Arama Motoru Optimizasyonu',
       icon: '🔍',
       regex: /(seo|arama motoru|backlink|organik|optimizasyon)/i
     },
-    // 17. Web Design & Tech
+    // 23. Web Design & Tech
     {
       id: 'web_design_tech',
       name: 'Web Tasarım, Yazılım & E-Ticaret',
       icon: '💻',
-      regex: /(web|tasarım|tasarımı|yazılım|e-ticaret|site|sitesi|e-ihracat)/i
+      regex: /(web|tasarım|tasarımı|yazılım|e-ticaret|site|sitesi|e-ihracat|software|cloud|tech)/i
     }
   ];
 
   const assigned = new Map<string, KeywordMetric[]>();
-  const unassigned: KeywordMetric[] = [];
+  let unassigned: KeywordMetric[] = [];
 
   for (const rule of themeRules) {
     assigned.set(rule.id, []);
@@ -220,18 +248,66 @@ export const groupKeywordsSemantically = (kwList: KeywordMetric[]): KeywordClust
     }
   }
 
+  // 🚀 UNIVERSAL DYNAMIC SUB-CLUSTERING FOR UNASSIGNED KEYWORDS (ANY LANGUAGE / ANY NICHE)
   if (unassigned.length > 0) {
-    const vol = unassigned.reduce((s, k) => s + k.monthlyVolume, 0);
-    const cpcSum = unassigned.reduce((s, k) => s + ((k.lowCpc + k.highCpc) / 2), 0);
-    clusters.push({
-      id: 'other_related',
-      name: 'Diğer Özel & Niş Arama Fikirleri',
-      icon: '💡',
-      keywords: unassigned,
-      totalVolume: vol,
-      avgCpc: unassigned.length > 0 ? cpcSum / unassigned.length : 0,
-      selectedCount: 0
-    });
+    const stopWords = new Set([
+      'und', 'der', 'die', 'das', 'ein', 'eine', 'für', 'mit', 'von', 'bei', 'aus', 'nach', 'über', 'unter', 'vor',
+      'bir', 've', 'ile', 'için', 'de', 'da', 'bu', 'şu', 'gibi', 'kadar',
+      'the', 'and', 'for', 'with', 'from', 'to', 'in', 'on', 'of', 'is', 'are', 'at', 'by', 'an', 'a',
+      'als', 'im', 'den', 'dem', 'des', 'zur', 'zum', 'am', 'zurück'
+    ]);
+
+    // Count token frequencies among unassigned keywords
+    const tokenMap = new Map<string, KeywordMetric[]>();
+    for (const kw of unassigned) {
+      const words = kw.keyword.toLowerCase().split(/\s+/).filter(w => w.length >= 4 && !stopWords.has(w));
+      for (const w of words) {
+        if (!tokenMap.has(w)) tokenMap.set(w, []);
+        tokenMap.get(w)!.push(kw);
+      }
+    }
+
+    // Sort tokens by occurrence (highest first)
+    const sortedTokens = Array.from(tokenMap.entries())
+      .filter(([_, list]) => list.length >= 2)
+      .sort((a, b) => b[1].length - a[1].length);
+
+    const claimedKeywordIds = new Set<string>();
+
+    for (const [token, kws] of sortedTokens) {
+      const unclaimed = kws.filter(k => !claimedKeywordIds.has(k.id));
+      if (unclaimed.length >= 2) {
+        unclaimed.forEach(k => claimedKeywordIds.add(k.id));
+        const vol = unclaimed.reduce((s, k) => s + k.monthlyVolume, 0);
+        const cpcSum = unclaimed.reduce((s, k) => s + ((k.lowCpc + k.highCpc) / 2), 0);
+        const capToken = token.charAt(0).toUpperCase() + token.slice(1);
+        clusters.push({
+          id: `dyn_${token}`,
+          name: `${capToken} Temalı Aramalar`,
+          icon: '💡',
+          keywords: unclaimed,
+          totalVolume: vol,
+          avgCpc: unclaimed.length > 0 ? cpcSum / unclaimed.length : 0,
+          selectedCount: 0
+        });
+      }
+    }
+
+    // Final leftovers (only true 1-off singletons)
+    const remainingLeftovers = unassigned.filter(k => !claimedKeywordIds.has(k.id));
+    if (remainingLeftovers.length > 0) {
+      const vol = remainingLeftovers.reduce((s, k) => s + k.monthlyVolume, 0);
+      const cpcSum = remainingLeftovers.reduce((s, k) => s + ((k.lowCpc + k.highCpc) / 2), 0);
+      clusters.push({
+        id: 'other_related',
+        name: 'Diğer Özel & Niş Arama Fikirleri',
+        icon: '💡',
+        keywords: remainingLeftovers,
+        totalVolume: vol,
+        avgCpc: remainingLeftovers.length > 0 ? cpcSum / remainingLeftovers.length : 0,
+        selectedCount: 0
+      });
+    }
   }
 
   return clusters.sort((a, b) => b.totalVolume - a.totalVolume);
