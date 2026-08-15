@@ -160,34 +160,47 @@ if ($action === 'test_google') {
         exit;
     }
 
-    $testUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" . urlencode($googleKey);
-    $payload = [
-        "contents" => [["parts" => [["text" => "Ping test. Respond with OK"]]]],
-        "generationConfig" => ["maxOutputTokens" => 5]
-    ];
+    $testModels = ['gemini-3.7-flash', 'gemini-3.5-flash', 'gemini-3.1-flash-lite', 'gemini-flash-lite-latest'];
+    $success = false;
+    $activeModel = '';
+    $lastError = '';
 
-    $ch = curl_init($testUrl);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-    $res = curl_exec($ch);
-    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
+    foreach ($testModels as $model) {
+        $testUrl = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key=" . urlencode($googleKey);
+        $payload = [
+            "contents" => [["parts" => [["text" => "Ping test. Respond with OK"]]]],
+            "generationConfig" => ["maxOutputTokens" => 5]
+        ];
 
-    $json = json_decode($res, true);
+        $ch = curl_init($testUrl);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 8);
+        $res = curl_exec($ch);
+        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
 
-    if ($code === 200 && isset($json['candidates'])) {
+        $json = json_decode($res, true);
+        if ($code === 200 && isset($json['candidates'])) {
+            $success = true;
+            $activeModel = $model;
+            break;
+        } else {
+            $lastError = $json['error']['message'] ?? "HTTP $code";
+        }
+    }
+
+    if ($success) {
         echo json_encode([
             'status' => 'success',
-            'message' => '✓ Google & Gemini API Bağlantısı Başarılı! Sunucu taraflı güvenli bağlantı aktif.'
+            'message' => "✓ Google Gemini AI Bağlantısı Başarılı! Aktif Model: {$activeModel}"
         ]);
     } else {
-        $errMsg = $json['error']['message'] ?? 'API Anahtarı geçersiz veya yetkisiz.';
         echo json_encode([
             'status' => 'error',
-            'message' => 'Google API Doğrulama Hatası: ' . $errMsg
+            'message' => 'Google API Doğrulama Hatası: ' . $lastError
         ]);
     }
     exit;
