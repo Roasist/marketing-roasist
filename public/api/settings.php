@@ -193,6 +193,97 @@ if ($action === 'test_google') {
     exit;
 }
 
+// Test Official Google Ads API & Keyword Planner Connection
+if ($action === 'test_google_ads') {
+    requireAuth('ADMIN');
+    $stmt = $pdo->query("SELECT setting_key, setting_value FROM app_settings WHERE setting_key IN ('googleAdsDevToken', 'googleAdsCustomerId', 'googleClientId', 'googleClientSecret', 'googleRefreshToken')");
+    $rows = $stmt->fetchAll();
+    $keys = [
+        'googleAdsDevToken' => '',
+        'googleAdsCustomerId' => '',
+        'googleClientId' => '',
+        'googleClientSecret' => '',
+        'googleRefreshToken' => ''
+    ];
+    foreach ($rows as $r) {
+        $keys[$r['setting_key']] = trim($r['setting_value'] ?? '');
+    }
+
+    if (empty($keys['googleClientId']) || empty($keys['googleClientSecret']) || empty($keys['googleRefreshToken'])) {
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'Eksik Bilgi: OAuth Client ID, Client Secret ve Refresh Token alanlarının tümü doldurulmalıdır.'
+        ]);
+        exit;
+    }
+
+    if (empty($keys['googleAdsDevToken'])) {
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'Eksik Bilgi: Google Ads Developer Token alanı doldurulmalıdır.'
+        ]);
+        exit;
+    }
+
+    // Step 1: Exchange Refresh Token for Access Token
+    $chOAuth = curl_init('https://oauth2.googleapis.com/token');
+    curl_setopt($chOAuth, CURLOPT_POST, true);
+    curl_setopt($chOAuth, CURLOPT_POSTFIELDS, http_build_query([
+        'client_id' => $keys['googleClientId'],
+        'client_secret' => $keys['googleClientSecret'],
+        'refresh_token' => $keys['googleRefreshToken'],
+        'grant_type' => 'refresh_token'
+    ]));
+    curl_setopt($chOAuth, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($chOAuth, CURLOPT_TIMEOUT, 10);
+    $oauthRes = curl_exec($chOAuth);
+    $oauthCode = curl_getinfo($chOAuth, CURLINFO_HTTP_CODE);
+    curl_close($chOAuth);
+
+    $oauthJson = json_decode($oauthRes, true);
+    if ($oauthCode !== 200 || empty($oauthJson['access_token'])) {
+        $errDesc = $oauthJson['error_description'] ?? $oauthJson['error'] ?? 'OAuth token alınamadı.';
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'Google OAuth Kimlik Doğrulama Hatası: ' . $errDesc
+        ]);
+        exit;
+    }
+
+    $accessToken = $oauthJson['access_token'];
+
+    // Step 2: Test Google Ads API access by listing accessible customer accounts
+    $chAds = curl_init('https://googleads.googleapis.com/v18/customers:listAccessibleCustomers');
+    curl_setopt($chAds, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($chAds, CURLOPT_HTTPHEADER, [
+        'Authorization: Bearer ' . $accessToken,
+        'developer-token: ' . $keys['googleAdsDevToken'],
+        'Content-Type: application/json'
+    ]);
+    curl_setopt($chAds, CURLOPT_TIMEOUT, 12);
+    $adsRes = curl_exec($chAds);
+    $adsCode = curl_getinfo($chAds, CURLINFO_HTTP_CODE);
+    curl_close($chAds);
+
+    $adsJson = json_decode($adsRes, true);
+
+    if ($adsCode === 200 && isset($adsJson['resourceNames'])) {
+        $customers = array_map(function($r) { return str_replace('customers/', '', $r); }, $adsJson['resourceNames']);
+        echo json_encode([
+            'status' => 'success',
+            'message' => '✓ Google Ads API & Keyword Planner Bağlantısı Başarılı! Toplam ' . count($customers) . ' adet yetkili hesap bulundu.',
+            'accessibleCustomers' => $customers
+        ]);
+    } else {
+        $errMsg = $adsJson['error']['message'] ?? $adsJson['error']['details'][0]['errors'][0]['message'] ?? 'Google Ads API erişim reddedildi.';
+        echo json_encode([
+            'status' => 'error',
+            'message' => "Google Ads API (HTTP {$adsCode}): " . $errMsg
+        ]);
+    }
+    exit;
+}
+
 // Get settings
 if ($method === 'GET') {
     $stmt = $pdo->query("SELECT setting_key, setting_value FROM app_settings");

@@ -25,18 +25,161 @@ $method = $_SERVER['REQUEST_METHOD'];
 
 // Helper to retrieve encrypted/stored API keys from server database
 function getApiKeys($pdo) {
-    $stmt = $pdo->query("SELECT setting_key, setting_value FROM app_settings WHERE setting_key IN ('geminiApiKey', 'googleApiKey', 'googleAdsCustomerId', 'googleAdsDevToken')");
+    $stmt = $pdo->query("SELECT setting_key, setting_value FROM app_settings WHERE setting_key IN ('geminiApiKey', 'googleApiKey', 'googleAdsCustomerId', 'googleAdsDevToken', 'googleClientId', 'googleClientSecret', 'googleRefreshToken')");
     $rows = $stmt->fetchAll();
     $keys = [
         'geminiApiKey' => '',
         'googleApiKey' => '',
         'googleAdsCustomerId' => '',
         'googleAdsDevToken' => '',
+        'googleClientId' => '',
+        'googleClientSecret' => '',
+        'googleRefreshToken' => ''
     ];
     foreach ($rows as $r) {
         $keys[$r['setting_key']] = trim($r['setting_value'] ?? '');
     }
     return $keys;
+}
+
+// -------------------------------------------------------------
+// HELPER: OFFICIAL GOOGLE ADS API KEYWORD PLANNER SERVICE
+// -------------------------------------------------------------
+function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode = 'tr', $countryCode = 'TR') {
+    $clientId = $apiKeys['googleClientId'];
+    $clientSecret = $apiKeys['googleClientSecret'];
+    $refreshToken = $apiKeys['googleRefreshToken'];
+    $devToken = $apiKeys['googleAdsDevToken'];
+    $customerId = preg_replace('/[^0-9]/', '', $apiKeys['googleAdsCustomerId']);
+
+    if (empty($clientId) || empty($clientSecret) || empty($refreshToken) || empty($devToken) || empty($customerId)) {
+        return null; // Not fully configured for official Google Ads API
+    }
+
+    // Step 1: Get Access Token
+    $ch = curl_init('https://oauth2.googleapis.com/token');
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query([
+        'client_id' => $clientId,
+        'client_secret' => $clientSecret,
+        'refresh_token' => $refreshToken,
+        'grant_type' => 'refresh_token'
+    ]));
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+    $res = curl_exec($ch);
+    curl_close($ch);
+
+    $json = json_decode($res, true);
+    if (empty($json['access_token'])) {
+        return null;
+    }
+    $accessToken = $json['access_token'];
+
+    // Map language to Google Ads criteria
+    $langMap = [
+        'tr' => 'languageConstants/1037',
+        'ru' => 'languageConstants/1031',
+        'en' => 'languageConstants/1000',
+        'ar' => 'languageConstants/1019',
+        'de' => 'languageConstants/1001'
+    ];
+    $langConst = $langMap[$langCode] ?? 'languageConstants/1037';
+
+    // Map country to Google Ads criteria
+    $geoMap = [
+        'TR' => 'geoTargetConstants/2792',
+        'RU' => 'geoTargetConstants/2643',
+        'DE' => 'geoTargetConstants/2276',
+        'AE' => 'geoTargetConstants/2784',
+        'GB' => 'geoTargetConstants/2826',
+        'US' => 'geoTargetConstants/2840',
+        'KZ' => 'geoTargetConstants/2398'
+    ];
+    $geoConst = $geoMap[strtoupper($countryCode)] ?? 'geoTargetConstants/2792';
+
+    // Step 2: Call generateKeywordIdeas
+    $payload = [
+        "keywordPlanNetwork" => "GOOGLE_SEARCH",
+        "language" => $langConst,
+        "geoTargetConstants" => [$geoConst]
+    ];
+
+    if (!empty($url)) {
+        $payload["urlSeed"] = ["url" => $url];
+    } elseif (!empty($keywords)) {
+        $payload["keywordSeed"] = ["keywords" => is_array($keywords) ? array_slice($keywords, 0, 20) : [$keywords]];
+    }
+
+    $chAds = curl_init("https://googleads.googleapis.com/v18/customers/{$customerId}:generateKeywordIdeas");
+    curl_setopt($chAds, CURLOPT_POST, true);
+    curl_setopt($chAds, CURLOPT_POSTFIELDS, json_encode($payload));
+    curl_setopt($chAds, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($chAds, CURLOPT_HTTPHEADER, [
+        'Authorization: Bearer ' . $accessToken,
+        'developer-token: ' . $devToken,
+        'Content-Type: application/json'
+    ]);
+    curl_setopt($chAds, CURLOPT_TIMEOUT, 25);
+    $adsRes = curl_exec($chAds);
+    $adsCode = curl_getinfo($chAds, CURLINFO_HTTP_CODE);
+    curl_close($chAds);
+
+    $adsJson = json_decode($adsRes, true);
+    if ($adsCode === 200 && !empty($adsJson['results'])) {
+        $parsedKeywords = [];
+        foreach ($adsJson['results'] as $idx => $r) {
+            $kwText = $r['text'] ?? '';
+            if (empty($kwText)) continue;
+
+            $metrics = $r['keywordIdeaMetrics'] ?? [];
+            $avgVol = (int)($metrics['avgMonthlySearches'] ?? 0);
+            $lowBid = isset($metrics['lowTopOfPageBidMicros']) ? round($metrics['lowTopOfPageBidMicros'] / 1000000, 2) : 0;
+            $highBid = isset($metrics['highTopOfPageBidMicros']) ? round($metrics['highTopOfPageBidMicros'] / 1000000, 2) : 0;
+            $comp = $metrics['competition'] ?? 'MEDIUM';
+            $compIdx = (int)($metrics['competitionIndex'] ?? 50);
+
+            // Compute search intent
+            $intent = 'COMMERCIAL';
+            if (preg_match('/\b(fiyat|satın al|ücret|ajans|hizmet|paket|danışmanlık|al|fiyatları|fiyatı|sipariş|rezervasyon)\b/ui', $kwText)) {
+                $intent = 'TRANSACTIONAL';
+            } elseif (preg_match('/\b(nedir|nasıl|rehber|örnek|yorum|tavsiye|forum)\b/ui', $kwText)) {
+                $intent = 'INFORMATIONAL';
+            }
+
+            // Calculate 3-month trend if available
+            $monthlyVols = $metrics['monthlySearchVolumes'] ?? [];
+            $trendChange = 0;
+            if (count($monthlyVols) >= 3) {
+                $latest = (int)($monthlyVols[0]['monthlySearches'] ?? 0);
+                $prev = (int)($monthlyVols[2]['monthlySearches'] ?? 0);
+                if ($prev > 0) {
+                    $trendChange = round((($latest - $prev) / $prev) * 100);
+                }
+            }
+
+            $oppScore = min(99, max(50, 95 - round($compIdx * 0.3) + ($avgVol > 5000 ? 10 : 5)));
+
+            $parsedKeywords[] = [
+                'id' => 'ads_kw_' . ($idx + 1) . '_' . substr(md5($kwText), 0, 6),
+                'keyword' => $kwText,
+                'monthlyVolume' => $avgVol,
+                'lowCpc' => $lowBid,
+                'highCpc' => $highBid,
+                'competition' => $comp,
+                'competitionIndex' => $compIdx,
+                'intent' => $intent,
+                'trendChangePercent' => $trendChange,
+                'opportunityScore' => $oppScore
+            ];
+        }
+
+        if (count($parsedKeywords) > 0) {
+            return $parsedKeywords;
+        }
+    }
+
+    return null;
 }
 
 // Helper to scrape Landing Page Content (title, meta description, headings, text)
@@ -295,7 +438,50 @@ if ($action === 'discover' && $method === 'POST') {
         $pageDetails = fetchLandingPageDetails($query);
     }
 
-    // 3. Construct AI Prompt with live scraped page content
+    // Detect language
+    $langInfo = detectPageLanguage($pageDetails['title'] ?? '', $pageDetails['textSnippet'] ?? '');
+    $suggestedCountries = getSuggestedCountriesByLang($langInfo['code']);
+
+    // 2.1 Check if Official Google Ads API (Keyword Planner) is configured & callable
+    $officialKeywords = fetchGoogleAdsOfficialKeywordIdeas(
+        $apiKeys,
+        $isUrl ? $query : null,
+        !$isUrl ? $query : null,
+        $langInfo['code'],
+        $suggestedCountries[0]['code'] ?? 'TR'
+    );
+
+    if (!empty($officialKeywords) && count($officialKeywords) > 0) {
+        $result = [
+            'query' => $query,
+            'mode' => $mode,
+            'source' => 'google_ads_official',
+            'sector' => $pageDetails['title'] ?? 'Google Ads Kampanyası',
+            'detectedLanguage' => $langInfo['code'],
+            'detectedLanguageName' => $langInfo['name'],
+            'pageTitle' => $pageDetails['title'] ?? $query,
+            'pageSummary' => 'Resmi Google Ads Keyword Planner servisinden canlı çekilen resmi arama hacmi ve sayfa üstü TBM teklifleri.',
+            'suggestedCountries' => $suggestedCountries,
+            'totalCount' => count($officialKeywords),
+            'keywords' => $officialKeywords,
+            'timestamp' => date('c')
+        ];
+
+        // Cache result
+        try {
+            $stmtSave = $pdo->prepare("INSERT OR REPLACE INTO keyword_cache (cache_key, query, mode, data, created_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)");
+            $stmtSave->execute([$cacheKey, $query, $mode, json_encode($result)]);
+        } catch (Exception $e) {}
+
+        echo json_encode([
+            'status' => 'success',
+            'source' => 'google_ads_official',
+            'data' => $result
+        ]);
+        exit;
+    }
+
+    // 3. Fallback to Google Gemini AI Engine with live scraped page content
     $prompt = "Sen dünyanın en iyi Google Ads, SEM ve Çok Dilli Uluslararası Performans Pazarlaması uzmanısın.\n\n";
 
     if ($pageDetails && (!empty($pageDetails['title']) || !empty($pageDetails['textSnippet']))) {

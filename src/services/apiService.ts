@@ -242,6 +242,10 @@ export class ApiService {
     return await this.request<{ status: string; message: string }>('/settings.php?action=test_google');
   }
 
+  public static async testGoogleAdsConnection(): Promise<{ status: string; message: string; accessibleCustomers?: string[] }> {
+    return await this.request<{ status: string; message: string; accessibleCustomers?: string[] }>('/settings.php?action=test_google_ads');
+  }
+
   public static async getAuditLogs(): Promise<any[]> {
     const res = await this.request<{ status: string; logs: any[] }>('/settings.php?action=logs');
     return res.logs || [];

@@ -81,14 +81,23 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [googleApiKey, setGoogleApiKey] = useState(() => localStorage.getItem('roasist_google_api_key') || '');
   const [googleAdsDevToken, setGoogleAdsDevToken] = useState(() => localStorage.getItem('roasist_google_dev_token') || '');
   const [googleAdsCustomerId, setGoogleAdsCustomerId] = useState(() => localStorage.getItem('roasist_google_customer_id') || '');
+  const [googleClientId, setGoogleClientId] = useState(() => localStorage.getItem('roasist_google_client_id') || '');
+  const [googleClientSecret, setGoogleClientSecret] = useState(() => localStorage.getItem('roasist_google_client_secret') || '');
+  const [googleRefreshToken, setGoogleRefreshToken] = useState(() => localStorage.getItem('roasist_google_refresh_token') || '');
+  
   const [showMetaToken, setShowMetaToken] = useState(false);
   const [showGoogleKey, setShowGoogleKey] = useState(false);
   const [showDevToken, setShowDevToken] = useState(false);
+  const [showClientSecret, setShowClientSecret] = useState(false);
+  const [showRefreshToken, setShowRefreshToken] = useState(false);
+  
   const [isSaved, setIsSaved] = useState(false);
   const [isTestingMeta, setIsTestingMeta] = useState(false);
   const [isTestingGoogle, setIsTestingGoogle] = useState(false);
+  const [isTestingGoogleAds, setIsTestingGoogleAds] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [googleTestResult, setGoogleTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [googleAdsTestResult, setGoogleAdsTestResult] = useState<{ success: boolean; message: string; accessibleCustomers?: string[] } | null>(null);
 
   // Feature Flags
   const [flags, setFlags] = useState({
@@ -151,6 +160,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           setGoogleAdsCustomerId(res.settings.googleAdsCustomerId);
           localStorage.setItem('roasist_google_customer_id', res.settings.googleAdsCustomerId);
         }
+        if (res.settings.googleClientId) {
+          setGoogleClientId(res.settings.googleClientId);
+          localStorage.setItem('roasist_google_client_id', res.settings.googleClientId);
+        }
+        if (res.settings.googleClientSecret) {
+          setGoogleClientSecret(res.settings.googleClientSecret);
+          localStorage.setItem('roasist_google_client_secret', res.settings.googleClientSecret);
+        }
+        if (res.settings.googleRefreshToken) {
+          setGoogleRefreshToken(res.settings.googleRefreshToken);
+          localStorage.setItem('roasist_google_refresh_token', res.settings.googleRefreshToken);
+        }
         if (res.settings.flags) {
           try {
             setFlags(JSON.parse(res.settings.flags));
@@ -175,12 +196,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       localStorage.setItem('roasist_google_api_key', googleApiKey);
       localStorage.setItem('roasist_google_dev_token', googleAdsDevToken);
       localStorage.setItem('roasist_google_customer_id', googleAdsCustomerId);
+      localStorage.setItem('roasist_google_client_id', googleClientId);
+      localStorage.setItem('roasist_google_client_secret', googleClientSecret);
+      localStorage.setItem('roasist_google_refresh_token', googleRefreshToken);
+
       await ApiService.updateSettings({
         metaToken,
         geminiApiKey,
         googleApiKey,
         googleAdsDevToken,
         googleAdsCustomerId,
+        googleClientId,
+        googleClientSecret,
+        googleRefreshToken,
         flags: JSON.stringify(flags),
       });
       setIsSaved(true);
@@ -195,16 +223,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     setIsTestingMeta(true);
     setTestResult(null);
     try {
-      localStorage.setItem('roasist_meta_token', metaToken);
-      await ApiService.updateSettings({
-        metaToken,
-        geminiApiKey,
-        googleApiKey,
-        googleAdsDevToken,
-        googleAdsCustomerId,
-        flags: JSON.stringify(flags),
-      });
-
+      await handleSaveSettings();
       const res = await ApiService.testMetaToken();
       if (res.status === 'success') {
         setTestResult({ success: true, message: res.message });
@@ -224,17 +243,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     setIsTestingGoogle(true);
     setGoogleTestResult(null);
     try {
-      localStorage.setItem('roasist_google_api_key', googleApiKey);
-      localStorage.setItem('roasist_google_dev_token', googleAdsDevToken);
-      await ApiService.updateSettings({
-        metaToken,
-        geminiApiKey,
-        googleApiKey,
-        googleAdsDevToken,
-        googleAdsCustomerId,
-        flags: JSON.stringify(flags),
-      });
-
+      await handleSaveSettings();
       const res = await ApiService.testGoogleApiKey();
       if (res.status === 'success') {
         setGoogleTestResult({ success: true, message: res.message });
@@ -245,6 +254,24 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       setGoogleTestResult({ success: false, message: err.message || 'Bağlantı testi başarısız oldu.' });
     } finally {
       setIsTestingGoogle(false);
+    }
+  };
+
+  const handleTestGoogleAdsConnection = async () => {
+    setIsTestingGoogleAds(true);
+    setGoogleAdsTestResult(null);
+    try {
+      await handleSaveSettings();
+      const res = await ApiService.testGoogleAdsConnection();
+      if (res.status === 'success') {
+        setGoogleAdsTestResult({ success: true, message: res.message, accessibleCustomers: res.accessibleCustomers });
+      } else {
+        setGoogleAdsTestResult({ success: false, message: res.message });
+      }
+    } catch (err: any) {
+      setGoogleAdsTestResult({ success: false, message: err.message || 'Google Ads API testi başarısız oldu.' });
+    } finally {
+      setIsTestingGoogleAds(false);
     }
   };
 
@@ -665,7 +692,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
               <div>
                 <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
-                  1. Google Gemini API Anahtarı (AI & Semantik Analiz)
+                  Google Gemini API Anahtarı
                 </label>
                 <div style={{ position: 'relative', width: '100%' }}>
                   <input
@@ -699,18 +726,68 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   </button>
                 </div>
                 <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-                  Google AI Studio'dan alınan yapay zeka motoru anahtarı.
+                  Google AI Studio'dan alınan yapay zeka motoru anahtarı (Gemini 3.7 & 3.5 Flash).
                 </div>
               </div>
 
+              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
+                <button
+                  type="button"
+                  onClick={handleTestGoogleConnection}
+                  disabled={isTestingGoogle || !(googleApiKey || geminiApiKey).trim()}
+                  className="btn-secondary"
+                  style={{ fontSize: '0.75rem', padding: '0.4rem 0.75rem' }}
+                >
+                  <Sparkles size={13} className={isTestingGoogle ? 'animate-spin' : ''} />
+                  {isTestingGoogle ? 'Doğrulanıyor...' : 'Gemini AI Bağlantısını Test Et'}
+                </button>
+              </div>
+
+              {googleTestResult && (
+                <div style={{
+                  padding: '0.65rem 0.85rem',
+                  borderRadius: 'var(--radius-xs)',
+                  fontSize: '0.8rem',
+                  backgroundColor: googleTestResult.success ? 'var(--success-bg)' : 'var(--danger-bg)',
+                  color: googleTestResult.success ? 'var(--success)' : 'var(--danger)',
+                  border: `1px solid ${googleTestResult.success ? 'rgba(34, 197, 94, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+                }}>
+                  {googleTestResult.message}
+                </div>
+              )}
+            </div>
+
+            {/* Official Google Ads API & Keyword Planner Card */}
+            <div className="card" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', borderLeft: '4px solid #f59e0b' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <Sparkles size={16} color="#f59e0b" />
+                  Resmi Google Ads API (Keyword Planner Live Metrics)
+                </div>
+                {googleRefreshToken.trim().length > 10 ? (
+                  <span className="badge badge-active" style={{ fontSize: '0.7rem' }}>
+                    <CheckCircle2 size={11} /> Ads API Bağlı
+                  </span>
+                ) : (
+                  <span className="badge badge-neutral" style={{ fontSize: '0.7rem' }}>
+                    Kimlik Bilgisi Bekleniyor
+                  </span>
+                )}
+              </div>
+
+              <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                Google Keyword Planner'daki <strong>birebir resmi geçmiş arama hacimleri ve sayfa üstü kuruşu kuruşuna TBM açık artırma tekliflerini</strong> çekmek için resmi Ads API kimlikleri.
+              </p>
+
+              {/* Developer Token */}
               <div>
                 <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
-                  2. Google Ads Developer Token (Resmi Ads API - İsteğe Bağlı)
+                  1. Google Ads Developer Token
                 </label>
                 <div style={{ position: 'relative', width: '100%' }}>
                   <input
                     type={showDevToken ? 'text' : 'password'}
-                    placeholder="Google Ads API Center'dan aldığınız Developer Token"
+                    placeholder="Google Ads MCC > API Center'dan aldığınız Developer Token"
                     value={googleAdsDevToken}
                     onChange={(e) => setGoogleAdsDevToken(e.target.value)}
                     style={{ width: '100%', paddingRight: '2.5rem', fontFamily: showDevToken ? 'var(--font-mono)' : 'inherit', fontSize: '0.8rem' }}
@@ -735,36 +812,136 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     {showDevToken ? <EyeOff size={15} /> : <Eye size={15} />}
                   </button>
                 </div>
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-                  Google Ads API Center ekranınızdaki <em>Developer token</em> (Basic Access).
-                </div>
               </div>
 
+              {/* Customer ID */}
               <div>
                 <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
-                  3. Google Ads Müşteri Kimliği (Customer ID - İsteğe Bağlı)
+                  2. Google Ads Müşteri Kimliği (Customer ID)
                 </label>
                 <input
                   type="text"
-                  placeholder="örn: 123-456-7890"
+                  placeholder="örn: 123-456-7890 (tireli veya tiresiz)"
                   value={googleAdsCustomerId}
                   onChange={(e) => setGoogleAdsCustomerId(e.target.value)}
                   style={{ width: '100%', fontSize: '0.8rem' }}
                 />
               </div>
 
+              {/* OAuth Client ID */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
+                  3. Google Cloud OAuth Client ID
+                </label>
+                <input
+                  type="text"
+                  placeholder="örn: 123456789-xxx.apps.googleusercontent.com"
+                  value={googleClientId}
+                  onChange={(e) => setGoogleClientId(e.target.value)}
+                  style={{ width: '100%', fontSize: '0.8rem' }}
+                />
+              </div>
+
+              {/* OAuth Client Secret */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
+                  4. Google Cloud OAuth Client Secret
+                </label>
+                <div style={{ position: 'relative', width: '100%' }}>
+                  <input
+                    type={showClientSecret ? 'text' : 'password'}
+                    placeholder="örn: GOCSPX-xxxx..."
+                    value={googleClientSecret}
+                    onChange={(e) => setGoogleClientSecret(e.target.value)}
+                    style={{ width: '100%', paddingRight: '2.5rem', fontFamily: showClientSecret ? 'var(--font-mono)' : 'inherit', fontSize: '0.8rem' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowClientSecret(!showClientSecret)}
+                    style={{
+                      position: 'absolute',
+                      right: '10px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--text-muted)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                    }}
+                    title={showClientSecret ? 'Gizle' : 'Göster'}
+                  >
+                    {showClientSecret ? <EyeOff size={15} /> : <Eye size={15} />}
+                  </button>
+                </div>
+              </div>
+
+              {/* OAuth Refresh Token */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
+                  5. Google Ads OAuth Refresh Token
+                </label>
+                <div style={{ position: 'relative', width: '100%' }}>
+                  <input
+                    type={showRefreshToken ? 'text' : 'password'}
+                    placeholder="örn: 1//04xxxx... (OAuth Playground veya yetkilendirmeden alınan token)"
+                    value={googleRefreshToken}
+                    onChange={(e) => setGoogleRefreshToken(e.target.value)}
+                    style={{ width: '100%', paddingRight: '2.5rem', fontFamily: showRefreshToken ? 'var(--font-mono)' : 'inherit', fontSize: '0.8rem' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowRefreshToken(!showRefreshToken)}
+                    style={{
+                      position: 'absolute',
+                      right: '10px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--text-muted)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                    }}
+                    title={showRefreshToken ? 'Gizle' : 'Göster'}
+                  >
+                    {showRefreshToken ? <EyeOff size={15} /> : <Eye size={15} />}
+                  </button>
+                </div>
+              </div>
+
               <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
                 <button
                   type="button"
-                  onClick={handleTestGoogleConnection}
-                  disabled={isTestingGoogle || !(googleApiKey || geminiApiKey).trim()}
-                  className="btn-secondary"
-                  style={{ fontSize: '0.75rem', padding: '0.4rem 0.75rem' }}
+                  onClick={handleTestGoogleAdsConnection}
+                  disabled={isTestingGoogleAds || !googleAdsDevToken.trim() || !googleClientId.trim() || !googleClientSecret.trim() || !googleRefreshToken.trim()}
+                  className="btn-primary"
+                  style={{ fontSize: '0.75rem', padding: '0.4rem 0.85rem' }}
                 >
-                  <Sparkles size={13} className={isTestingGoogle ? 'animate-spin' : ''} />
-                  {isTestingGoogle ? 'Doğrulanıyor...' : 'Google Bağlantısını Doğrula & Test Et'}
+                  <Sparkles size={13} className={isTestingGoogleAds ? 'animate-spin' : ''} />
+                  {isTestingGoogleAds ? 'Google Ads Hesabı Doğrulanıyor...' : 'Google Ads API & Keyword Planner Bağlantısını Test Et'}
                 </button>
               </div>
+
+              {googleAdsTestResult && (
+                <div style={{
+                  padding: '0.65rem 0.85rem',
+                  borderRadius: 'var(--radius-xs)',
+                  fontSize: '0.8rem',
+                  backgroundColor: googleAdsTestResult.success ? 'var(--success-bg)' : 'var(--danger-bg)',
+                  color: googleAdsTestResult.success ? 'var(--success)' : 'var(--danger)',
+                  border: `1px solid ${googleAdsTestResult.success ? 'rgba(34, 197, 94, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+                }}>
+                  <div>{googleAdsTestResult.message}</div>
+                  {googleAdsTestResult.accessibleCustomers && googleAdsTestResult.accessibleCustomers.length > 0 && (
+                    <div style={{ fontSize: '0.72rem', marginTop: '0.35rem', opacity: 0.85 }}>
+                      Yetkili Hesaplar: {googleAdsTestResult.accessibleCustomers.join(', ')}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Meta Ad Library Card */}
