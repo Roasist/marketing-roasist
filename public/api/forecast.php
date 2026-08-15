@@ -878,7 +878,16 @@ function filterKeywordsByPageContext($keywords, $pageDetails, $query, $langCode)
             }
         }
 
-        // 10. Prune meaningless broken filler phrases and generic UI words (e.g. from English scripts/reviews)
+        // 10. If page is Private School / K-12 / Education (e.g. Beşsekiz Ortaokulları, Özel Kolejler)
+        $isSchoolEducation = preg_match('/\b(ortaokul|ortaokulu|ilkokul|lise|kolej|özel okul|butik okul|anaokulu|eğitim kurumu|lgs|bursluluk|kayıt|bessekiz)\b/ui', $fullContext);
+        if ($isSchoolEducation) {
+            // Drop pure dictionary translation / language course / homework phrase queries
+            if (preg_match('/(ders|kurs|öğren|ogren|saat|yemek|sınıf|sinif|öğret|ogret|sayı|sayi|çevir|cevir|anlam|kelime|cümle|cumle|20|ingilizce|ingiliz|dil)/ui', $kwLower) && !preg_match('/(özel|ozel|kolej|bursluluk|lgs|kayıt|kayit|fiyat|ücret|ucret|beşsekiz|bessekiz|izmit|kocaeli|ortaokul fiyat|ortaokul kayıt|ortaokul bursluluk)/ui', $kwLower)) {
+                continue; // ❌ REJECT dictionary / homework translation search noise
+            }
+        }
+
+        // 11. Prune meaningless broken filler phrases and generic UI words (e.g. from English scripts/reviews)
         if (preg_match('/^(it s|o my got|where i am|kayıt olmak|kayit olmak|bir ara|ara toplam|i am from|ı am from|i get it|ı get it|if i was you|if ı was you|takip edin|bizi takip edin|üye ol|giriş yap|devamını oku|sepetim|iletişim|hakkımızda|olmak|your|it|am|from|if|you|where|my your|it iş|it is|hesap ödeme|my good|if i would|it out|in way out|since now)$/ui', $kwLower)) {
             continue; // ❌ REJECT meaningless broken filler noise
         }
@@ -1183,8 +1192,12 @@ if ($action === 'discover' && $method === 'POST') {
         }
     }
 
-    // Sort: prioritize highest contextual relevance score first, then search volume
+    // Sort: prioritize AI Performance Strategist keywords first, then highest contextual relevance score, then search volume
     usort($officialKeywords, function($a, $b) {
+        $isStratA = !empty($a['isAiStrategistPick']) ? 1 : 0;
+        $isStratB = !empty($b['isAiStrategistPick']) ? 1 : 0;
+        if ($isStratA !== $isStratB) return $isStratB - $isStratA;
+
         $scoreA = is_array($a) ? ($a['opportunityScore'] ?? 50) : 50;
         $scoreB = is_array($b) ? ($b['opportunityScore'] ?? 50) : 50;
         if ($scoreA !== $scoreB) return $scoreB - $scoreA;
