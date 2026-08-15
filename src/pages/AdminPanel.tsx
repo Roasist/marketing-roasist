@@ -78,11 +78,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   // Settings state
   const [metaToken, setMetaToken] = useState(() => localStorage.getItem('roasist_meta_token') || '');
   const [geminiApiKey, setGeminiApiKey] = useState(() => localStorage.getItem('roasist_gemini_api_key') || '');
+  const [googleApiKey, setGoogleApiKey] = useState(() => localStorage.getItem('roasist_google_api_key') || '');
+  const [googleAdsCustomerId, setGoogleAdsCustomerId] = useState(() => localStorage.getItem('roasist_google_customer_id') || '');
   const [showMetaToken, setShowMetaToken] = useState(false);
-  const [showGeminiKey, setShowGeminiKey] = useState(false);
+  const [showGoogleKey, setShowGoogleKey] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [isTestingMeta, setIsTestingMeta] = useState(false);
+  const [isTestingGoogle, setIsTestingGoogle] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [googleTestResult, setGoogleTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
   // Feature Flags
   const [flags, setFlags] = useState({
@@ -133,6 +137,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           setGeminiApiKey(res.settings.geminiApiKey);
           localStorage.setItem('roasist_gemini_api_key', res.settings.geminiApiKey);
         }
+        if (res.settings.googleApiKey) {
+          setGoogleApiKey(res.settings.googleApiKey);
+          localStorage.setItem('roasist_google_api_key', res.settings.googleApiKey);
+        }
+        if (res.settings.googleAdsCustomerId) {
+          setGoogleAdsCustomerId(res.settings.googleAdsCustomerId);
+          localStorage.setItem('roasist_google_customer_id', res.settings.googleAdsCustomerId);
+        }
         if (res.settings.flags) {
           try {
             setFlags(JSON.parse(res.settings.flags));
@@ -154,9 +166,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     try {
       localStorage.setItem('roasist_meta_token', metaToken);
       localStorage.setItem('roasist_gemini_api_key', geminiApiKey);
+      localStorage.setItem('roasist_google_api_key', googleApiKey);
+      localStorage.setItem('roasist_google_customer_id', googleAdsCustomerId);
       await ApiService.updateSettings({
         metaToken,
         geminiApiKey,
+        googleApiKey,
+        googleAdsCustomerId,
         flags: JSON.stringify(flags),
       });
       setIsSaved(true);
@@ -175,6 +191,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       await ApiService.updateSettings({
         metaToken,
         geminiApiKey,
+        googleApiKey,
+        googleAdsCustomerId,
         flags: JSON.stringify(flags),
       });
 
@@ -190,6 +208,32 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       setTestResult({ success: false, message: err.message || 'Bağlantı testi başarısız oldu.' });
     } finally {
       setIsTestingMeta(false);
+    }
+  };
+
+  const handleTestGoogleConnection = async () => {
+    setIsTestingGoogle(true);
+    setGoogleTestResult(null);
+    try {
+      localStorage.setItem('roasist_google_api_key', googleApiKey);
+      await ApiService.updateSettings({
+        metaToken,
+        geminiApiKey,
+        googleApiKey,
+        googleAdsCustomerId,
+        flags: JSON.stringify(flags),
+      });
+
+      const res = await ApiService.testGoogleApiKey();
+      if (res.status === 'success') {
+        setGoogleTestResult({ success: true, message: res.message });
+      } else {
+        setGoogleTestResult({ success: false, message: res.message });
+      }
+    } catch (err: any) {
+      setGoogleTestResult({ success: false, message: err.message || 'Bağlantı testi başarısız oldu.' });
+    } finally {
+      setIsTestingGoogle(false);
     }
   };
 
@@ -543,6 +587,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             </div>
           </div>
 
+          {/* Test Alerts */}
           {testResult && (
             <div style={{
               background: testResult.success ? 'var(--success-bg)' : ((testResult as any).isWarning ? 'rgba(234, 179, 8, 0.12)' : 'var(--danger-bg)'),
@@ -561,8 +606,116 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             </div>
           )}
 
+          {googleTestResult && (
+            <div style={{
+              background: googleTestResult.success ? 'var(--success-bg)' : 'var(--danger-bg)',
+              border: `1px solid ${googleTestResult.success ? 'var(--success-border)' : 'var(--danger-border)'}`,
+              color: googleTestResult.success ? '#34d399' : 'var(--danger)',
+              padding: '0.85rem 1rem',
+              borderRadius: 'var(--radius-sm)',
+              fontSize: '0.825rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.65rem',
+              lineHeight: 1.45,
+            }}>
+              {googleTestResult.success ? <CheckCircle2 size={18} style={{ flexShrink: 0 }} /> : <AlertCircle size={18} style={{ flexShrink: 0 }} />}
+              <span>{googleTestResult.message}</span>
+            </div>
+          )}
+
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '1rem' }}>
             
+            {/* Google Ads & Forecast AI Engine Card */}
+            <div className="card" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                  Google Ads & Forecast Motoru
+                </div>
+                {(googleApiKey || geminiApiKey).trim().length > 10 ? (
+                  <span className="badge badge-active" style={{ fontSize: '0.7rem' }}>
+                    <CheckCircle2 size={11} /> Anahtar Aktif
+                  </span>
+                ) : (
+                  <span className="badge badge-inactive" style={{ fontSize: '0.7rem' }}>
+                    Anahtar Bekleniyor
+                  </span>
+                )}
+              </div>
+
+              <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                Google Ads arama hacimleri, TBM tahminleri, AI metin yazarı ve bütçe simülasyonu için <strong>Google / Gemini API Anahtarı</strong>.
+              </p>
+
+              {/* Zero-Exposure Badge */}
+              <div style={{ padding: '0.45rem 0.65rem', backgroundColor: 'rgba(52, 211, 153, 0.08)', borderRadius: 'var(--radius-xs)', border: '1px solid rgba(52, 211, 153, 0.25)', fontSize: '0.7rem', color: '#34d399', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                🔒 <strong>Sıfır Sızıntı Güvenliği:</strong> Bu anahtar tarayıcıya asla sızdırılmaz; sadece korumalı sunucumuz üzerinden çalışır.
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
+                  Google / Gemini API Anahtarı
+                </label>
+                <div style={{ position: 'relative', width: '100%' }}>
+                  <input
+                    type={showGoogleKey ? 'text' : 'password'}
+                    placeholder="AIzaSy... ile başlayan Google API Anahtarı"
+                    value={googleApiKey || geminiApiKey}
+                    onChange={(e) => {
+                      setGoogleApiKey(e.target.value);
+                      setGeminiApiKey(e.target.value);
+                    }}
+                    style={{ width: '100%', paddingRight: '2.5rem', fontFamily: showGoogleKey ? 'var(--font-mono)' : 'inherit', fontSize: '0.8rem' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowGoogleKey(!showGoogleKey)}
+                    style={{
+                      position: 'absolute',
+                      right: '10px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--text-muted)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                    }}
+                    title={showGoogleKey ? 'Gizle' : 'Göster'}
+                  >
+                    {showGoogleKey ? <EyeOff size={15} /> : <Eye size={15} />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
+                  Google Ads Müşteri Kimliği (Customer ID - İsteğe Bağlı)
+                </label>
+                <input
+                  type="text"
+                  placeholder="örn: 123-456-7890"
+                  value={googleAdsCustomerId}
+                  onChange={(e) => setGoogleAdsCustomerId(e.target.value)}
+                  style={{ width: '100%', fontSize: '0.8rem' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
+                <button
+                  type="button"
+                  onClick={handleTestGoogleConnection}
+                  disabled={isTestingGoogle || !(googleApiKey || geminiApiKey).trim()}
+                  className="btn-secondary"
+                  style={{ fontSize: '0.75rem', padding: '0.4rem 0.75rem' }}
+                >
+                  <Sparkles size={13} className={isTestingGoogle ? 'animate-spin' : ''} />
+                  {isTestingGoogle ? 'Doğrulanıyor...' : 'Google Bağlantısını Doğrula & Test Et'}
+                </button>
+              </div>
+            </div>
+
             {/* Meta Ad Library Card */}
             <div className="card" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -584,33 +737,38 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 Meta Reklam Kütüphanesinden Türkiye ve globaldeki rakiplerin aktif kampanyalarını otomatik çekmek için <strong>Access Token</strong>.
               </p>
 
-              <div style={{ position: 'relative', width: '100%' }}>
-                <input
-                  type={showMetaToken ? 'text' : 'password'}
-                  placeholder="EAA... ile başlayan Meta Access Token'ınızı buraya yapıştırın"
-                  value={metaToken}
-                  onChange={(e) => setMetaToken(e.target.value)}
-                  style={{ width: '100%', paddingRight: '2.5rem', fontFamily: showMetaToken ? 'var(--font-mono)' : 'inherit', fontSize: '0.8rem' }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowMetaToken(!showMetaToken)}
-                  style={{
-                    position: 'absolute',
-                    right: '10px',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--text-muted)',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                  }}
-                  title={showMetaToken ? 'Gizle' : 'Göster'}
-                >
-                  {showMetaToken ? <EyeOff size={15} /> : <Eye size={15} />}
-                </button>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
+                  Meta User Access Token
+                </label>
+                <div style={{ position: 'relative', width: '100%' }}>
+                  <input
+                    type={showMetaToken ? 'text' : 'password'}
+                    placeholder="EAA... ile başlayan Meta Access Token'ınızı buraya yapıştırın"
+                    value={metaToken}
+                    onChange={(e) => setMetaToken(e.target.value)}
+                    style={{ width: '100%', paddingRight: '2.5rem', fontFamily: showMetaToken ? 'var(--font-mono)' : 'inherit', fontSize: '0.8rem' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowMetaToken(!showMetaToken)}
+                    style={{
+                      position: 'absolute',
+                      right: '10px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--text-muted)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                    }}
+                    title={showMetaToken ? 'Gizle' : 'Göster'}
+                  >
+                    {showMetaToken ? <EyeOff size={15} /> : <Eye size={15} />}
+                  </button>
+                </div>
               </div>
 
               <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
@@ -622,58 +780,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   style={{ fontSize: '0.75rem', padding: '0.4rem 0.75rem' }}
                 >
                   <Sparkles size={13} className={isTestingMeta ? 'animate-spin' : ''} />
-                  {isTestingMeta ? 'Doğrulanıyor...' : 'Bağlantıyı Doğrula & Test Et'}
-                </button>
-              </div>
-            </div>
-
-            {/* AI Engine Card */}
-            <div className="card" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                  AI Metin & Strateji Motoru
-                </div>
-                {geminiApiKey.trim().length > 10 ? (
-                  <span className="badge badge-active" style={{ fontSize: '0.7rem' }}>
-                    <CheckCircle2 size={11} /> Anahtar Aktif
-                  </span>
-                ) : (
-                  <span className="badge badge-neutral" style={{ fontSize: '0.7rem' }}>
-                    Sistem Varsayılanı
-                  </span>
-                )}
-              </div>
-
-              <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
-                Rakip reklam metinleri analizi, SWOT stratejisi ve yeni reklam açısı üretimi için AI API Anahtarı.
-              </p>
-
-              <div style={{ position: 'relative', width: '100%' }}>
-                <input
-                  type={showGeminiKey ? 'text' : 'password'}
-                  placeholder="AIzaSy... ile başlayan API Anahtarı (İsteğe bağlı)"
-                  value={geminiApiKey}
-                  onChange={(e) => setGeminiApiKey(e.target.value)}
-                  style={{ width: '100%', paddingRight: '2.5rem', fontFamily: showGeminiKey ? 'var(--font-mono)' : 'inherit', fontSize: '0.8rem' }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowGeminiKey(!showGeminiKey)}
-                  style={{
-                    position: 'absolute',
-                    right: '10px',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--text-muted)',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                  }}
-                  title={showGeminiKey ? 'Gizle' : 'Göster'}
-                >
-                  {showGeminiKey ? <EyeOff size={15} /> : <Eye size={15} />}
+                  {isTestingMeta ? 'Doğrulanıyor...' : 'Meta Bağlantısını Doğrula & Test Et'}
                 </button>
               </div>
             </div>

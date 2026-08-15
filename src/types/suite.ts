@@ -1,6 +1,7 @@
 export type MarketingRoute = 
   | 'dashboard'
   | 'competitors'
+  | 'forecast'
   | 'ai-copywriter'
   | 'roas-optimizer'
   | 'admin';

@@ -14,7 +14,8 @@ import {
   Users,
   Key,
   SlidersHorizontal,
-  Activity
+  Activity,
+  LineChart
 } from 'lucide-react';
 
 import { Workspace } from '../types/workspace';
@@ -63,6 +64,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
       id: 'competitors' as MarketingRoute,
       name: 'Rakip İstihbaratı',
       icon: Target,
+    },
+    {
+      id: 'forecast' as MarketingRoute,
+      name: 'Tahminleme (Forecast)',
+      icon: LineChart,
+      badge: 'Yeni',
     },
     {
       id: 'ai-copywriter' as MarketingRoute,

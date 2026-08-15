@@ -14,6 +14,7 @@ import { WorkspaceModal } from './components/WorkspaceModal';
 
 import { DashboardOverview } from './pages/DashboardOverview';
 import { CompetitorsModule } from './pages/CompetitorsModule';
+import { ForecastModule } from './pages/ForecastModule';
 import { AiCopywriterModule } from './pages/AiCopywriterModule';
 import { RoasOptimizerModule } from './pages/RoasOptimizerModule';
 import { AdminPanel } from './pages/AdminPanel';
@@ -92,6 +93,8 @@ function AppContent() {
     const path = window.location.pathname.replace('/', '').toLowerCase();
     if (path === 'competitors' || path === 'ad-intelligence') {
       setCurrentRoute('competitors');
+    } else if (path === 'forecast') {
+      setCurrentRoute('forecast');
     } else if (path === 'admin') {
       setCurrentRoute('admin');
     } else if (path === 'ai-copywriter') {
@@ -105,6 +108,7 @@ function AppContent() {
     const handlePopState = () => {
       const p = window.location.pathname.replace('/', '').toLowerCase();
       if (p === 'competitors') setCurrentRoute('competitors');
+      else if (p === 'forecast') setCurrentRoute('forecast');
       else if (p === 'admin') setCurrentRoute('admin');
       else if (p === 'ai-copywriter') setCurrentRoute('ai-copywriter');
       else if (p === 'roas-optimizer') setCurrentRoute('roas-optimizer');
@@ -273,6 +277,10 @@ function AppContent() {
               onRemoveCompetitor={handleRemoveCompetitor}
               onExportCsv={handleExportCsv}
             />
+          )}
+
+          {currentRoute === 'forecast' && (
+            <ForecastModule workspaceId={activeWorkspaceId} />
           )}
 
           {currentRoute === 'ai-copywriter' && (

@@ -230,8 +230,55 @@ export class ApiService {
     return await this.request<{ status: string; message: string }>('/settings.php?action=test_meta');
   }
 
+  public static async testGoogleApiKey(): Promise<{ status: string; message: string }> {
+    return await this.request<{ status: string; message: string }>('/settings.php?action=test_google');
+  }
+
   public static async getAuditLogs(): Promise<any[]> {
     const res = await this.request<{ status: string; logs: any[] }>('/settings.php?action=logs');
     return res.logs || [];
+  }
+
+  // --- Google Ads Forecast & Keyword Budget Planner ---
+  public static async discoverKeywords(payload: {
+    query: string;
+    mode: 'URL' | 'KEYWORDS';
+    country?: string;
+    language?: string;
+  }): Promise<any> {
+    const res = await this.request<{ status: string; data: any }>('/forecast.php?action=discover', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    return res.data;
+  }
+
+  public static async generateNegativeKeywords(payload: {
+    sector: string;
+    keywords: string[];
+  }): Promise<any[]> {
+    const res = await this.request<{ status: string; categories: any[] }>('/forecast.php?action=negative_keywords', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    return res.categories || [];
+  }
+
+  public static async getForecastPlans(workspaceId?: string): Promise<any[]> {
+    const res = await this.request<{ status: string; plans: any[] }>(`/forecast.php?action=plans&workspace_id=${encodeURIComponent(workspaceId || '')}`);
+    return res.plans || [];
+  }
+
+  public static async saveForecastPlan(plan: any): Promise<any> {
+    return await this.request('/forecast.php?action=plans', {
+      method: 'POST',
+      body: JSON.stringify(plan),
+    });
+  }
+
+  public static async deleteForecastPlan(id: string): Promise<void> {
+    await this.request(`/forecast.php?action=plans&id=${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
   }
 }

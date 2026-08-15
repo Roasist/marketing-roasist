@@ -127,8 +127,56 @@ if ($action === 'test_meta') {
             'adLibraryApproved' => false,
             'message' => '⚠️ Token Geçerli (' . $devName . ') ancak Meta Kimlik Onayı / Ad Library İzni Bekleniyor. (Meta Yanıtı: ' . $adError . ')',
             'details' => $adError,
-            'errorCode' => $adCode,
-            'user' => $jsonMe
+    exit;
+}
+
+// Test Google / Gemini API Connection
+if ($action === 'test_google') {
+    requireAuth('ADMIN');
+    $stmt = $pdo->query("SELECT setting_key, setting_value FROM app_settings WHERE setting_key IN ('googleApiKey', 'geminiApiKey')");
+    $rows = $stmt->fetchAll();
+    $keys = [];
+    foreach ($rows as $r) {
+        $keys[$r['setting_key']] = trim($r['setting_value'] ?? '');
+    }
+    $googleKey = $keys['googleApiKey'] ?: $keys['geminiApiKey'] ?: '';
+
+    if (empty($googleKey)) {
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'Henüz kayıtlı bir Google / Gemini API Anahtarı bulunamadı. Lütfen anahtarınızı girip "Değişiklikleri Kaydet"e basın.'
+        ]);
+        exit;
+    }
+
+    $testUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" . urlencode($googleKey);
+    $payload = [
+        "contents" => [["parts" => [["text" => "Ping test. Respond with OK"]]]],
+        "generationConfig" => ["maxOutputTokens" => 5]
+    ];
+
+    $ch = curl_init($testUrl);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+    $res = curl_exec($ch);
+    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    $json = json_decode($res, true);
+
+    if ($code === 200 && isset($json['candidates'])) {
+        echo json_encode([
+            'status' => 'success',
+            'message' => '✓ Google & Gemini API Bağlantısı Başarılı! Sunucu taraflı güvenli bağlantı aktif.'
+        ]);
+    } else {
+        $errMsg = $json['error']['message'] ?? 'API Anahtarı geçersiz veya yetkisiz.';
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'Google API Doğrulama Hatası: ' . $errMsg
         ]);
     }
     exit;

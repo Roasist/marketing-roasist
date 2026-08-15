@@ -137,6 +137,32 @@ class Database {
             )
         ");
 
+        // 8. Forecast Plans Table
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS forecast_plans (
+                id TEXT PRIMARY KEY,
+                workspace_id TEXT,
+                name TEXT NOT NULL,
+                target_url TEXT,
+                seed_keywords TEXT,
+                monthly_budget REAL DEFAULT 0,
+                selected_keywords TEXT,
+                simulation_result TEXT,
+                negative_keywords TEXT,
+                created_by INTEGER,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        ");
+
+        // 9. Keyword Cache Table (For saving API quota and fast load)
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS keyword_cache (
+                cache_key TEXT PRIMARY KEY,
+                data TEXT NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        ");
+
         // Migrations: workspace_id columns
         try {
             $pdo->exec("ALTER TABLE competitors ADD COLUMN workspace_id TEXT");
