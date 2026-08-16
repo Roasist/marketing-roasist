@@ -74,6 +74,60 @@ export const formatReachNumber = (reach?: number | null): string => {
   return `${reach.toLocaleString('tr-TR')} erişim`;
 };
 
+export interface GoogleAdsLanguageOption {
+  code: string;
+  name: string;
+  nativeName: string;
+  flag: string;
+}
+
+export const GOOGLE_ADS_LANGUAGES: GoogleAdsLanguageOption[] = [
+  { code: 'auto', name: 'Otomatik (Sayfa Dili)', nativeName: 'Otomatik', flag: '🌐' },
+  { code: 'tr', name: 'Türkçe', nativeName: 'Türkçe', flag: '🇹🇷' },
+  { code: 'en', name: 'İngilizce', nativeName: 'English', flag: '🇬🇧' },
+  { code: 'de', name: 'Almanca', nativeName: 'Deutsch', flag: '🇩🇪' },
+  { code: 'ru', name: 'Rusça', nativeName: 'Русский', flag: '🇷🇺' },
+  { code: 'ar', name: 'Arapça', nativeName: 'العربية', flag: '🇸🇦' },
+  { code: 'fr', name: 'Fransızca', nativeName: 'Français', flag: '🇫🇷' },
+  { code: 'es', name: 'İspanyolca', nativeName: 'Español', flag: '🇪🇸' },
+  { code: 'it', name: 'İtalyanca', nativeName: 'Italiano', flag: '🇮🇹' },
+  { code: 'nl', name: 'Felemenkçe / Hollandaca', nativeName: 'Nederlands', flag: '🇳🇱' },
+  { code: 'pt', name: 'Portekizce', nativeName: 'Português', flag: '🇵🇹' },
+  { code: 'pl', name: 'Lehçe / Polonyaca', nativeName: 'Polski', flag: '🇵🇱' },
+  { code: 'sv', name: 'İsveççe', nativeName: 'Svenska', flag: '🇸🇪' },
+  { code: 'no', name: 'Norveççe', nativeName: 'Norsk', flag: '🇳🇴' },
+  { code: 'da', name: 'Danca', nativeName: 'Dansk', flag: '🇩🇰' },
+  { code: 'fi', name: 'Fince', nativeName: 'Suomi', flag: '🇫🇮' },
+  { code: 'el', name: 'Yunanca', nativeName: 'Ελληνικά', flag: '🇬🇷' },
+  { code: 'cs', name: 'Çekçe', nativeName: 'Čeština', flag: '🇨🇿' },
+  { code: 'hu', name: 'Macarca', nativeName: 'Magyar', flag: '🇭🇺' },
+  { code: 'ro', name: 'Romence', nativeName: 'Română', flag: '🇷🇴' },
+  { code: 'bg', name: 'Bulgarca', nativeName: 'Български', flag: '🇧🇬' },
+  { code: 'uk', name: 'Ukraynaca', nativeName: 'Українська', flag: '🇺🇦' },
+  { code: 'iw', name: 'İbranice', nativeName: 'עברית', flag: '🇮🇱' },
+  { code: 'fa', name: 'Farsça', nativeName: 'فارسی', flag: '🇮🇷' },
+  { code: 'az', name: 'Azerbaycanca', nativeName: 'Azərbaycan', flag: '🇦🇿' },
+  { code: 'kk', name: 'Kazakça', nativeName: 'Қазақша', flag: '🇰🇿' },
+  { code: 'uz', name: 'Özbekçe', nativeName: 'Oʻzbekcha', flag: '🇺🇿' },
+  { code: 'ka', name: 'Gürcüce', nativeName: 'ქართული', flag: '🇬🇪' },
+  { code: 'ja', name: 'Japonca', nativeName: '日本語', flag: '🇯🇵' },
+  { code: 'zh_cn', name: 'Çince (Basitleştirilmiş)', nativeName: '简体中文', flag: '🇨🇳' },
+  { code: 'zh_tw', name: 'Çince (Geleneksel)', nativeName: '繁體中文', flag: '🇹🇼' },
+  { code: 'ko', name: 'Korece', nativeName: '한국어', flag: '🇰🇷' },
+  { code: 'hi', name: 'Hintçe', nativeName: 'हिन्दी', flag: '🇮🇳' },
+  { code: 'th', name: 'Tayca', nativeName: 'ไทย', flag: '🇹🇭' },
+  { code: 'vi', name: 'Vietnamca', nativeName: 'Tiếng Việt', flag: '🇻🇳' },
+  { code: 'id', name: 'Endonezce', nativeName: 'Bahasa Indonesia', flag: '🇮🇩' },
+  { code: 'ms', name: 'Malayca', nativeName: 'Bahasa Melayu', flag: '🇲🇾' },
+  { code: 'hr', name: 'Hırvatça', nativeName: 'Hrvatski', flag: '🇭🇷' },
+  { code: 'sr', name: 'Sırpça', nativeName: 'Српски', flag: '🇷🇸' },
+  { code: 'sk', name: 'Slovakça', nativeName: 'Slovenčina', flag: '🇸🇰' },
+  { code: 'sl', name: 'Slovence', nativeName: 'Slovenščina', flag: '🇸🇮' },
+  { code: 'et', name: 'Estonca', nativeName: 'Eesti', flag: '🇪🇪' },
+  { code: 'lv', name: 'Letonca', nativeName: 'Latviešu', flag: '🇱🇻' },
+  { code: 'lt', name: 'Litvanca', nativeName: 'Lietuvių', flag: '🇱🇹' }
+];
+
 // Official Brand SVG Icons
 export const GoogleIcon: React.FC<{ size?: number }> = ({ size = 15 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" style={{ flexShrink: 0, verticalAlign: 'middle', display: 'inline-block' }}>
@@ -1218,7 +1272,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
             </span>
           </button>
 
-          {/* 🌐 Target Language Selector */}
+          {/* 🌐 Target Language Selector (Google Keyword Planner Style) */}
           <select
             value={targetLanguage}
             onChange={(e) => setTargetLanguage(e.target.value)}
@@ -1229,15 +1283,26 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
               border: '1px solid var(--border-default)',
               borderRadius: 'var(--radius-xs)',
               color: 'var(--text-primary)',
-              fontWeight: 500
+              fontWeight: 500,
+              maxWidth: '230px',
+              cursor: 'pointer'
             }}
           >
             <option value="auto">🌐 Dil: Otomatik (Sayfa Dili)</option>
-            <option value="tr">🇹🇷 Dil: Türkçe (TR)</option>
-            <option value="en">🇬🇧 Dil: İngilizce (EN)</option>
-            <option value="de">🇩🇪 Dil: Almanca (DE)</option>
-            <option value="ru">🇷🇺 Dil: Rusça (RU)</option>
-            <option value="ar">🇸🇦 Dil: Arapça (AR)</option>
+            <optgroup label="── Popüler Hedef Diller ──">
+              {GOOGLE_ADS_LANGUAGES.slice(1, 6).map(lang => (
+                <option key={lang.code} value={lang.code}>
+                  {lang.flag} {lang.name} ({lang.nativeName})
+                </option>
+              ))}
+            </optgroup>
+            <optgroup label="── Tüm Google Ads Dilleri ──">
+              {GOOGLE_ADS_LANGUAGES.slice(6).map(lang => (
+                <option key={lang.code} value={lang.code}>
+                  {lang.flag} {lang.name} ({lang.nativeName})
+                </option>
+              ))}
+            </optgroup>
           </select>
 
           {/* Action Button */}

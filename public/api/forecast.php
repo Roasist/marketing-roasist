@@ -324,13 +324,53 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
 
     // Map language to Google Ads criteria
     $langMap = [
-        'tr' => 'languageConstants/1037',
-        'ru' => 'languageConstants/1031',
-        'en' => 'languageConstants/1000',
-        'ar' => 'languageConstants/1019',
-        'de' => 'languageConstants/1001'
+        'tr' => 'languageConstants/1037', // Turkish
+        'en' => 'languageConstants/1000', // English
+        'de' => 'languageConstants/1001', // German
+        'ru' => 'languageConstants/1031', // Russian
+        'ar' => 'languageConstants/1019', // Arabic
+        'fr' => 'languageConstants/1002', // French
+        'es' => 'languageConstants/1003', // Spanish
+        'it' => 'languageConstants/1004', // Italian
+        'nl' => 'languageConstants/1010', // Dutch
+        'pt' => 'languageConstants/1014', // Portuguese
+        'pl' => 'languageConstants/1030', // Polish
+        'sv' => 'languageConstants/1015', // Swedish
+        'no' => 'languageConstants/1013', // Norwegian
+        'da' => 'languageConstants/1009', // Danish
+        'fi' => 'languageConstants/1011', // Finnish
+        'el' => 'languageConstants/1022', // Greek
+        'cs' => 'languageConstants/1021', // Czech
+        'hu' => 'languageConstants/1027', // Hungarian
+        'ro' => 'languageConstants/1032', // Romanian
+        'bg' => 'languageConstants/1020', // Bulgarian
+        'uk' => 'languageConstants/1036', // Ukrainian
+        'iw' => 'languageConstants/1025', // Hebrew
+        'he' => 'languageConstants/1025', // Hebrew
+        'fa' => 'languageConstants/1064', // Persian
+        'az' => 'languageConstants/1067', // Azerbaijani
+        'kk' => 'languageConstants/1069', // Kazakh
+        'uz' => 'languageConstants/1070', // Uzbek
+        'ka' => 'languageConstants/1056', // Georgian
+        'ja' => 'languageConstants/1005', // Japanese
+        'zh_cn' => 'languageConstants/1017', // Chinese Simplified
+        'zh_tw' => 'languageConstants/1018', // Chinese Traditional
+        'ko' => 'languageConstants/1012', // Korean
+        'hi' => 'languageConstants/1023', // Hindi
+        'th' => 'languageConstants/1044', // Thai
+        'vi' => 'languageConstants/1040', // Vietnamese
+        'id' => 'languageConstants/1024', // Indonesian
+        'ms' => 'languageConstants/1028', // Malay
+        'hr' => 'languageConstants/1039', // Croatian
+        'sr' => 'languageConstants/1035', // Serbian
+        'sk' => 'languageConstants/1033', // Slovak
+        'sl' => 'languageConstants/1034', // Slovenian
+        'et' => 'languageConstants/1043', // Estonian
+        'lv' => 'languageConstants/1029', // Latvian
+        'lt' => 'languageConstants/1026'  // Lithuanian
     ];
-    $langConst = $langMap[$langCode] ?? 'languageConstants/1037';
+    $normLangCode = strtolower(trim($langCode));
+    $langConst = $langMap[$normLangCode] ?? 'languageConstants/1037';
 
     // Map country to Google Ads criteria
     $geoMap = [
