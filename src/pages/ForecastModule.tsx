@@ -2319,13 +2319,13 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                         padding: '0.45rem 0.85rem',
                         fontSize: '0.8rem',
                         borderRadius: 'var(--radius-xs)',
-                        border: growthScenario === sc.id ? `1.5px solid ${sc.color}` : '1px solid var(--border-default)',
-                        backgroundColor: growthScenario === sc.id ? (sc.id === 'CONSERVATIVE' ? 'rgba(100, 116, 139, 0.15)' : (sc.id === 'AGGRESSIVE' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(37, 99, 235, 0.15)')) : 'var(--bg-surface-elevated)',
-                        color: growthScenario === sc.id ? (sc.id === 'CONSERVATIVE' ? '#475569' : (sc.id === 'AGGRESSIVE' ? '#10b981' : 'var(--brand-primary)')) : 'var(--text-secondary)',
+                        border: growthScenario === sc.id ? '1px solid #1d4ed8' : '1px solid var(--border-default)',
+                        background: growthScenario === sc.id ? 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)' : 'var(--bg-surface-elevated)',
+                        color: growthScenario === sc.id ? '#ffffff' : 'var(--text-secondary)',
                         fontWeight: growthScenario === sc.id ? 700 : 500,
                         cursor: 'pointer',
                         transition: 'all 0.15s ease',
-                        boxShadow: growthScenario === sc.id ? `0 0 0 1px ${sc.color}` : 'none'
+                        boxShadow: growthScenario === sc.id ? '0 2px 6px rgba(37, 99, 235, 0.25)' : 'none'
                       }}
                     >
                       {sc.label}
@@ -2360,8 +2360,8 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
               <div style={{
                 padding: '0.65rem 1rem',
                 borderRadius: 'var(--radius-xs)',
-                backgroundColor: growthScenario === 'CONSERVATIVE' ? 'rgba(100, 116, 139, 0.08)' : (growthScenario === 'AGGRESSIVE' ? 'rgba(16, 185, 129, 0.08)' : 'rgba(37, 99, 235, 0.06)'),
-                border: `1px solid ${growthScenario === 'CONSERVATIVE' ? 'rgba(100, 116, 139, 0.2)' : (growthScenario === 'AGGRESSIVE' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(37, 99, 235, 0.2)')}`,
+                backgroundColor: 'var(--bg-surface-elevated)',
+                border: '1px solid var(--border-default)',
                 fontSize: '0.78rem',
                 color: 'var(--text-secondary)',
                 display: 'flex',
@@ -2383,7 +2383,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     }
                   </span>
                 </div>
-                <span style={{ fontSize: '0.72rem', fontWeight: 600, color: growthScenario === 'AGGRESSIVE' ? '#10b981' : (growthScenario === 'CONSERVATIVE' ? '#64748b' : 'var(--brand-primary)') }}>
+                <span style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                   {growthScenario === 'CONSERVATIVE' ? 'Temkinli Bütçe' : (growthScenario === 'AGGRESSIVE' ? 'Yüksek Ölçek' : 'Standart')}
                 </span>
               </div>
@@ -2413,12 +2413,13 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                         padding: '0.45rem 0.85rem',
                         fontSize: '0.8rem',
                         borderRadius: 'var(--radius-xs)',
-                        border: businessModel === bm.id ? '1.5px solid var(--brand-primary)' : '1px solid var(--border-default)',
-                        backgroundColor: businessModel === bm.id ? 'rgba(37, 99, 235, 0.15)' : 'var(--bg-surface)',
-                        color: businessModel === bm.id ? 'var(--brand-primary)' : 'var(--text-secondary)',
+                        border: businessModel === bm.id ? '1px solid #1d4ed8' : '1px solid var(--border-default)',
+                        background: businessModel === bm.id ? 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)' : 'var(--bg-surface)',
+                        color: businessModel === bm.id ? '#ffffff' : 'var(--text-secondary)',
                         fontWeight: businessModel === bm.id ? 700 : 500,
                         cursor: 'pointer',
-                        transition: 'all 0.15s ease'
+                        transition: 'all 0.15s ease',
+                        boxShadow: businessModel === bm.id ? '0 2px 6px rgba(37, 99, 235, 0.25)' : 'none'
                       }}
                     >
                       {bm.label}
@@ -2449,16 +2450,17 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       padding: '0.5rem 0.95rem',
                       fontSize: '0.825rem',
                       borderRadius: 'var(--radius-xs)',
-                      border: activeChannelTab === tab.id ? '1.5px solid var(--brand-primary)' : '1px solid var(--border-default)',
-                      backgroundColor: activeChannelTab === tab.id ? 'rgba(37, 99, 235, 0.12)' : 'var(--bg-surface)',
-                      color: activeChannelTab === tab.id ? 'var(--brand-primary)' : 'var(--text-secondary)',
+                      border: activeChannelTab === tab.id ? '1px solid #1d4ed8' : '1px solid var(--border-default)',
+                      background: activeChannelTab === tab.id ? 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)' : 'var(--bg-surface)',
+                      color: activeChannelTab === tab.id ? '#ffffff' : 'var(--text-secondary)',
                       fontWeight: activeChannelTab === tab.id ? 700 : 500,
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: '0.45rem',
                       cursor: 'pointer',
                       transition: 'all 0.15s ease',
-                      whiteSpace: 'nowrap'
+                      whiteSpace: 'nowrap',
+                      boxShadow: activeChannelTab === tab.id ? '0 2px 6px rgba(37, 99, 235, 0.25)' : 'none'
                     }}
                   >
                     {tab.icon} {tab.label}
@@ -2489,7 +2491,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     <label style={{ fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                       Toplam Aylık Medya Bütçesi
                     </label>
-                    <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--brand-primary)' }}>
+                    <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)' }}>
                       ₺{monthlyBudget.toLocaleString('tr-TR')}
                     </div>
                   </div>
@@ -2500,7 +2502,14 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     step={2500}
                     value={monthlyBudget}
                     onChange={(e) => setMonthlyBudget(Number(e.target.value))}
-                    style={{ width: '100%', accentColor: 'var(--brand-primary)', cursor: 'pointer' }}
+                    style={{
+                      width: '100%',
+                      accentColor: '#2563eb',
+                      cursor: 'pointer',
+                      background: `linear-gradient(to right, #2563eb ${Math.round((monthlyBudget / 250000) * 100)}%, var(--border-default) ${Math.round((monthlyBudget / 250000) * 100)}%)`,
+                      height: '6px',
+                      borderRadius: 'var(--radius-full)'
+                    }}
                   />
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
                     <span>₺5.000</span>
@@ -2549,16 +2558,16 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem' }}>
                     <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>Bütçe Dağılım Dengesi:</span>
-                    <span style={{ fontWeight: 700, color: (allocGoogleSearch + allocMetaAds + allocYouTube + allocGdn) === 100 ? '#10b981' : '#f59e0b', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <span style={{ fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
                       {(allocGoogleSearch + allocMetaAds + allocYouTube + allocGdn) === 100 ? '✓ Tam Dengeli (%100)' : `⚠️ Toplam: %${allocGoogleSearch + allocMetaAds + allocYouTube + allocGdn}`}
                     </span>
                   </div>
-                  {/* Segmented 100% Bar */}
+                  {/* Unified Progress Bar */}
                   <div style={{ height: '8px', width: '100%', display: 'flex', borderRadius: 'var(--radius-full)', overflow: 'hidden', backgroundColor: 'var(--border-default)' }}>
-                    <div style={{ width: `${allocGoogleSearch}%`, backgroundColor: '#ef4444', transition: 'width 0.15s ease' }} title={`Google Search: %${allocGoogleSearch}`} />
+                    <div style={{ width: `${allocGoogleSearch}%`, backgroundColor: '#1d4ed8', transition: 'width 0.15s ease' }} title={`Google Search: %${allocGoogleSearch}`} />
                     <div style={{ width: `${allocMetaAds}%`, backgroundColor: '#2563eb', transition: 'width 0.15s ease' }} title={`Meta Ads: %${allocMetaAds}`} />
-                    <div style={{ width: `${allocYouTube}%`, backgroundColor: '#dc2626', transition: 'width 0.15s ease' }} title={`YouTube Video: %${allocYouTube}`} />
-                    <div style={{ width: `${allocGdn}%`, backgroundColor: '#10b981', transition: 'width 0.15s ease' }} title={`Google GDN: %${allocGdn}`} />
+                    <div style={{ width: `${allocYouTube}%`, backgroundColor: '#3b82f6', transition: 'width 0.15s ease' }} title={`YouTube Video: %${allocYouTube}`} />
+                    <div style={{ width: `${allocGdn}%`, backgroundColor: '#60a5fa', transition: 'width 0.15s ease' }} title={`Google GDN: %${allocGdn}`} />
                   </div>
                 </div>
 
@@ -2568,7 +2577,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                   {/* Google Search Allocation */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.78rem' }}>
-                      <span style={{ fontWeight: 600, color: '#ef4444', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                      <span style={{ fontWeight: 600, color: 'var(--text-primary)', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
                         <GoogleIcon size={15} /> Google Search (%{allocGoogleSearch})
                       </span>
                       <strong>₺{omnichannelMix.googleSearchSpend.toLocaleString('tr-TR')}</strong>
@@ -2582,9 +2591,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       onChange={(e) => updateChannelAllocation('google', Number(e.target.value))}
                       style={{
                         width: '100%',
-                        accentColor: '#ef4444',
+                        accentColor: '#2563eb',
                         cursor: 'pointer',
-                        background: `linear-gradient(to right, #ef4444 ${allocGoogleSearch}%, var(--border-default) ${allocGoogleSearch}%)`,
+                        background: `linear-gradient(to right, #2563eb ${allocGoogleSearch}%, var(--border-default) ${allocGoogleSearch}%)`,
                         height: '6px',
                         borderRadius: 'var(--radius-full)'
                       }}
@@ -2594,7 +2603,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                   {/* Meta Ads Allocation */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.78rem' }}>
-                      <span style={{ fontWeight: 600, color: '#2563eb', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                      <span style={{ fontWeight: 600, color: 'var(--text-primary)', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
                         <MetaIcon size={15} /> Meta Ads (FB & IG) (%{allocMetaAds})
                       </span>
                       <strong>₺{omnichannelMix.metaAdsSpend.toLocaleString('tr-TR')}</strong>
@@ -2620,7 +2629,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                   {/* YouTube Allocation */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.78rem' }}>
-                      <span style={{ fontWeight: 600, color: '#dc2626', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                      <span style={{ fontWeight: 600, color: 'var(--text-primary)', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
                         <YouTubeIcon size={15} /> YouTube Video (%{allocYouTube})
                       </span>
                       <strong>₺{omnichannelMix.youtubeSpend.toLocaleString('tr-TR')}</strong>
@@ -2634,9 +2643,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       onChange={(e) => updateChannelAllocation('youtube', Number(e.target.value))}
                       style={{
                         width: '100%',
-                        accentColor: '#dc2626',
+                        accentColor: '#2563eb',
                         cursor: 'pointer',
-                        background: `linear-gradient(to right, #dc2626 ${allocYouTube}%, var(--border-default) ${allocYouTube}%)`,
+                        background: `linear-gradient(to right, #2563eb ${allocYouTube}%, var(--border-default) ${allocYouTube}%)`,
                         height: '6px',
                         borderRadius: 'var(--radius-full)'
                       }}
@@ -2646,7 +2655,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                   {/* GDN Allocation */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.78rem' }}>
-                      <span style={{ fontWeight: 600, color: '#10b981', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                      <span style={{ fontWeight: 600, color: 'var(--text-primary)', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
                         <GdnIcon size={15} /> Google GDN (%{allocGdn})
                       </span>
                       <strong>₺{omnichannelMix.gdnSpend.toLocaleString('tr-TR')}</strong>
@@ -2660,9 +2669,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       onChange={(e) => updateChannelAllocation('gdn', Number(e.target.value))}
                       style={{
                         width: '100%',
-                        accentColor: '#10b981',
+                        accentColor: '#2563eb',
                         cursor: 'pointer',
-                        background: `linear-gradient(to right, #10b981 ${allocGdn}%, var(--border-default) ${allocGdn}%)`,
+                        background: `linear-gradient(to right, #2563eb ${allocGdn}%, var(--border-default) ${allocGdn}%)`,
                         height: '6px',
                         borderRadius: 'var(--radius-full)'
                       }}
@@ -2674,7 +2683,16 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                 <button
                   onClick={handleSavePlan}
                   className="btn-primary"
-                  style={{ width: '100%', justifyContent: 'center', padding: '0.65rem', fontSize: '0.85rem' }}
+                  style={{
+                    width: '100%',
+                    justifyContent: 'center',
+                    padding: '0.65rem',
+                    fontSize: '0.85rem',
+                    background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                    color: '#ffffff',
+                    border: 'none',
+                    boxShadow: '0 2px 8px rgba(37, 99, 235, 0.3)'
+                  }}
                 >
                   {planSaveSuccess ? <Check size={16} /> : <Save size={16} />}
                   {planSaveSuccess ? '360° Medya Planı Kaydedildi!' : '360° Medya Planını Çalışma Alanına Kaydet'}
@@ -2694,7 +2712,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       Tüm kanalların birleşimiyle elde edilecek toplam erişim, lead ve gelir simülasyonu.
                     </div>
                   </div>
-                  <span className="badge badge-active" style={{ fontSize: '0.75rem' }}>
+                  <span className="badge" style={{ fontSize: '0.75rem' }}>
                     4 Kanal Entegre
                   </span>
                 </div>
@@ -2716,7 +2734,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                   {/* Total Clicks & Web Traffic */}
                   <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
                     <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Toplam Tıklama & Ziyaretçi</div>
-                    <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--brand-primary)', marginTop: '2px' }}>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
                       {omnichannelMix.totalClicks.toLocaleString('tr-TR')}
                     </div>
                     <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
@@ -2727,7 +2745,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                   {/* Total Gross Leads */}
                   <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
                     <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Toplam Brüt Form & Talep</div>
-                    <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#f59e0b', marginTop: '2px' }}>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
                       {omnichannelMix.totalGrossLeads.toLocaleString('tr-TR')} Lead
                     </div>
                     <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
@@ -2736,9 +2754,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                   </div>
 
                   {/* Total Healthy / Qualified Leads */}
-                  <div style={{ padding: '0.85rem', backgroundColor: 'rgba(16, 185, 129, 0.08)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
-                    <div style={{ fontSize: '0.72rem', color: '#16a34a', fontWeight: 600 }}>🎯 NET SAĞLIKLI LEAD (MQL)</div>
-                    <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#16a34a', marginTop: '2px' }}>
+                  <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 600 }}>SAĞLIKLI LEAD (MQL)</div>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
                       {omnichannelMix.totalHealthyLeads.toLocaleString('tr-TR')} Nitelikli
                     </div>
                     <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
@@ -2752,9 +2770,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                 {businessModel === 'ECOMMERCE' && (
                   <div style={{
                     padding: '1.15rem',
-                    backgroundColor: 'rgba(37, 99, 235, 0.06)',
+                    backgroundColor: 'var(--bg-surface-elevated)',
                     borderRadius: 'var(--radius-sm)',
-                    border: '1px solid rgba(37, 99, 235, 0.25)',
+                    border: '1px solid var(--border-default)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
@@ -2762,10 +2780,10 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     gap: '1rem'
                   }}>
                     <div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--brand-primary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                         Konsolide Projeksiyon ROAS
                       </div>
-                      <div style={{ fontSize: '2.1rem', fontWeight: 800, color: 'var(--brand-primary)', marginTop: '2px' }}>
+                      <div style={{ fontSize: '2.1rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '2px' }}>
                         {omnichannelMix.blendedRoas}x
                       </div>
                       <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
@@ -2775,7 +2793,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
                     <div style={{ textAlign: 'right' }}>
                       <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Toplam Beklenen Ciro</div>
-                      <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#16a34a', marginTop: '2px' }}>
+                      <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '2px' }}>
                         ₺{omnichannelMix.totalRevenue.toLocaleString('tr-TR')}
                       </div>
                       <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Net Kâr: ₺{(omnichannelMix.totalRevenue - monthlyBudget).toLocaleString('tr-TR')}</div>
@@ -2882,7 +2900,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     <label style={{ fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                       Sektörel Ortalama CPM (1.000 Gösterim Maliyeti ₺)
                     </label>
-                    <div style={{ fontSize: '1.15rem', fontWeight: 700, color: '#2563eb' }}>
+                    <div style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                       ₺{metaCpm}
                     </div>
                   </div>
@@ -2893,7 +2911,14 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     step={5}
                     value={metaCpm}
                     onChange={(e) => setMetaCpm(Number(e.target.value))}
-                    style={{ width: '100%', accentColor: '#2563eb', cursor: 'pointer' }}
+                    style={{
+                      width: '100%',
+                      accentColor: '#2563eb',
+                      cursor: 'pointer',
+                      background: `linear-gradient(to right, #2563eb ${Math.round((metaCpm / 600) * 100)}%, var(--border-default) ${Math.round((metaCpm / 600) * 100)}%)`,
+                      height: '6px',
+                      borderRadius: 'var(--radius-full)'
+                    }}
                   />
                   <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', marginTop: '0.2rem' }}>
                     <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Hızlı Sektör Benchmarkları:</span>
@@ -2921,7 +2946,14 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     step={0.1}
                     value={metaCtr}
                     onChange={(e) => setMetaCtr(Number(e.target.value))}
-                    style={{ width: '100%', accentColor: '#2563eb', cursor: 'pointer' }}
+                    style={{
+                      width: '100%',
+                      accentColor: '#2563eb',
+                      cursor: 'pointer',
+                      background: `linear-gradient(to right, #2563eb ${Math.round(((metaCtr - 0.5) / 3.5) * 100)}%, var(--border-default) ${Math.round(((metaCtr - 0.5) / 3.5) * 100)}%)`,
+                      height: '6px',
+                      borderRadius: 'var(--radius-full)'
+                    }}
                   />
                   <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
                     Meta akış ve hikaye reklamlarında ortalama CTR %1.2 - %2.2 aralığındadır.
@@ -2934,7 +2966,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     <label style={{ fontSize: '0.825rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
                       Form & Talep Dönüşüm Oranı (Lead CR %)
                     </label>
-                    <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#f59e0b' }}>
+                    <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                       %{metaLeadCr}
                     </span>
                   </div>
@@ -2945,7 +2977,14 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     step={0.5}
                     value={metaLeadCr}
                     onChange={(e) => setMetaLeadCr(Number(e.target.value))}
-                    style={{ width: '100%', accentColor: '#f59e0b', cursor: 'pointer' }}
+                    style={{
+                      width: '100%',
+                      accentColor: '#2563eb',
+                      cursor: 'pointer',
+                      background: `linear-gradient(to right, #2563eb ${Math.round(((metaLeadCr - 1) / 14) * 100)}%, var(--border-default) ${Math.round(((metaLeadCr - 1) / 14) * 100)}%)`,
+                      height: '6px',
+                      borderRadius: 'var(--radius-full)'
+                    }}
                   />
                   <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
                     Instant Lead Formlarında %5-%10, Web Sitesi Landing Page'lerinde %2.5-%5.0 arasındadır.
@@ -2953,12 +2992,12 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                 </div>
 
                 {/* 🎯 SAĞLIKLI LEAD ORANI (%) */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', padding: '0.85rem', backgroundColor: 'rgba(16, 185, 129, 0.06)', borderRadius: 'var(--radius-xs)', border: '1px solid rgba(16, 185, 129, 0.25)' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-default)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <label style={{ fontSize: '0.825rem', fontWeight: 700, color: '#16a34a' }}>
-                      🎯 Sağlıklı & Nitelikli Lead Oranı (Healthy Lead %)
+                    <label style={{ fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                      Sağlıklı & Nitelikli Lead Oranı (Healthy Lead %)
                     </label>
-                    <span style={{ fontSize: '1.05rem', fontWeight: 800, color: '#16a34a' }}>
+                    <span style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                       %{metaHealthyLeadRate}
                     </span>
                   </div>
@@ -2969,7 +3008,14 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     step={5}
                     value={metaHealthyLeadRate}
                     onChange={(e) => setMetaHealthyLeadRate(Number(e.target.value))}
-                    style={{ width: '100%', accentColor: '#16a34a', cursor: 'pointer' }}
+                    style={{
+                      width: '100%',
+                      accentColor: '#2563eb',
+                      cursor: 'pointer',
+                      background: `linear-gradient(to right, #2563eb ${Math.round(((metaHealthyLeadRate - 10) / 80) * 100)}%, var(--border-default) ${Math.round(((metaHealthyLeadRate - 10) / 80) * 100)}%)`,
+                      height: '6px',
+                      borderRadius: 'var(--radius-full)'
+                    }}
                   />
                   <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
                     Gelen ham formların bütçesi olan, telefona bakan ve gerçek alıcı potansiyeline sahip nitelikli lead oranı.
@@ -2993,7 +3039,14 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     step={1}
                     value={metaCloseRate}
                     onChange={(e) => setMetaCloseRate(Number(e.target.value))}
-                    style={{ width: '100%', accentColor: 'var(--brand-primary)', cursor: 'pointer' }}
+                    style={{
+                      width: '100%',
+                      accentColor: '#2563eb',
+                      cursor: 'pointer',
+                      background: `linear-gradient(to right, #2563eb ${Math.round(((metaCloseRate - 2) / 38) * 100)}%, var(--border-default) ${Math.round(((metaCloseRate - 2) / 38) * 100)}%)`,
+                      height: '6px',
+                      borderRadius: 'var(--radius-full)'
+                    }}
                   />
                 </div>
 
@@ -3028,7 +3081,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                   {/* Clicks */}
                   <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
                     <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Link Tıklaması (Trafik)</div>
-                    <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#2563eb', marginTop: '2px' }}>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
                       {metaSimulation.clicks.toLocaleString('tr-TR')}
                     </div>
                     <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
@@ -3039,7 +3092,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                   {/* Gross Leads & CPL */}
                   <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
                     <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Toplam Brüt Form (Lead)</div>
-                    <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#f59e0b', marginTop: '2px' }}>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
                       {metaSimulation.grossLeads.toLocaleString('tr-TR')} Form
                     </div>
                     <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
@@ -3048,9 +3101,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                   </div>
 
                   {/* Healthy Qualified Leads & CPQL */}
-                  <div style={{ padding: '0.85rem', backgroundColor: 'rgba(16, 185, 129, 0.08)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
-                    <div style={{ fontSize: '0.72rem', color: '#16a34a', fontWeight: 700 }}>🎯 SAĞLIKLI LEAD (MQL)</div>
-                    <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#16a34a', marginTop: '2px' }}>
+                  <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 600 }}>SAĞLIKLI LEAD (MQL)</div>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
                       {metaSimulation.healthyLeads.toLocaleString('tr-TR')} Nitelikli
                     </div>
                     <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
@@ -3063,7 +3116,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                 {/* Visual Lead Funnel Progress */}
                 <div style={{ padding: '1rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)', display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
                   <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                    🎯 Meta Ads Huni Düşüş Akışı (Lead Funnel):
+                    Meta Ads Huni Düşüş Akışı (Lead Funnel):
                   </span>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.75rem', textAlign: 'center' }}>
                     <div style={{ flex: 1, padding: '0.4rem', backgroundColor: 'var(--bg-surface)', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-subtle)' }}>
@@ -3078,47 +3131,49 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     <span style={{ padding: '0 0.3rem', color: 'var(--text-muted)' }}>➔</span>
                     <div style={{ flex: 1, padding: '0.4rem', backgroundColor: 'var(--bg-surface)', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-subtle)' }}>
                       <div style={{ color: 'var(--text-muted)', fontSize: '0.68rem' }}>3. Brüt Form</div>
-                      <strong style={{ fontSize: '0.85rem', color: '#f59e0b' }}>{metaSimulation.grossLeads}</strong>
+                      <strong style={{ fontSize: '0.85rem' }}>{metaSimulation.grossLeads}</strong>
                     </div>
                     <span style={{ padding: '0 0.3rem', color: 'var(--text-muted)' }}>➔</span>
-                    <div style={{ flex: 1, padding: '0.4rem', backgroundColor: 'rgba(16, 185, 129, 0.1)', borderRadius: 'var(--radius-xs)', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
-                      <div style={{ color: '#16a34a', fontSize: '0.68rem', fontWeight: 600 }}>4. Sağlıklı Lead</div>
-                      <strong style={{ fontSize: '0.85rem', color: '#16a34a' }}>{metaSimulation.healthyLeads}</strong>
+                    <div style={{ flex: 1, padding: '0.4rem', backgroundColor: 'var(--bg-surface)', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-subtle)' }}>
+                      <div style={{ color: 'var(--text-muted)', fontSize: '0.68rem', fontWeight: 600 }}>4. Sağlıklı Lead</div>
+                      <strong style={{ fontSize: '0.85rem' }}>{metaSimulation.healthyLeads}</strong>
                     </div>
                   </div>
                 </div>
 
-                {/* ROAS & Deals Box */}
-                <div style={{
-                  padding: '1.15rem',
-                  backgroundColor: 'rgba(37, 99, 235, 0.06)',
-                  borderRadius: 'var(--radius-sm)',
-                  border: '1px solid rgba(37, 99, 235, 0.25)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  flexWrap: 'wrap',
-                  gap: '1rem'
-                }}>
-                  <div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--brand-primary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                      Meta Kampanyası Projeksiyon ROAS
+                {/* ROAS & Deals Box - Only displayed for ECOMMERCE */}
+                {businessModel === 'ECOMMERCE' && (
+                  <div style={{
+                    padding: '1.15rem',
+                    backgroundColor: 'var(--bg-surface-elevated)',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--border-default)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: '1rem'
+                  }}>
+                    <div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        Meta Kampanyası Projeksiyon ROAS
+                      </div>
+                      <div style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '2px' }}>
+                        {metaSimulation.roas}x
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                        Tahmini Satış: <strong>~{metaSimulation.deals} Adet</strong> • CAC: <strong>₺{metaSimulation.cac}</strong>
+                      </div>
                     </div>
-                    <div style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--brand-primary)', marginTop: '2px' }}>
-                      {metaSimulation.roas}x
-                    </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                      Tahmini Satış: <strong>~{metaSimulation.deals} Adet</strong> • CAC: <strong>₺{metaSimulation.cac}</strong>
-                    </div>
-                  </div>
 
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Meta Kaynaklı Gelir</div>
-                    <div style={{ fontSize: '1.35rem', fontWeight: 700, color: '#16a34a', marginTop: '2px' }}>
-                      ₺{metaSimulation.revenue.toLocaleString('tr-TR')}
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Meta Kaynaklı Gelir</div>
+                      <div style={{ fontSize: '1.35rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
+                        ₺{metaSimulation.revenue.toLocaleString('tr-TR')}
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
 
               </div>
 
@@ -3149,14 +3204,15 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     <button
                       onClick={() => setBudgetMode('BY_BUDGET')}
                       style={{
-                        padding: '3px 8px',
+                        padding: '4px 10px',
                         fontSize: '0.72rem',
                         borderRadius: 'var(--radius-xs)',
-                        border: 'none',
-                        backgroundColor: budgetMode === 'BY_BUDGET' ? 'var(--brand-primary)' : 'transparent',
+                        border: budgetMode === 'BY_BUDGET' ? '1px solid #1d4ed8' : 'none',
+                        background: budgetMode === 'BY_BUDGET' ? 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)' : 'transparent',
                         color: budgetMode === 'BY_BUDGET' ? '#ffffff' : 'var(--text-secondary)',
                         cursor: 'pointer',
-                        fontWeight: budgetMode === 'BY_BUDGET' ? 600 : 400
+                        fontWeight: budgetMode === 'BY_BUDGET' ? 700 : 400,
+                        boxShadow: budgetMode === 'BY_BUDGET' ? '0 2px 6px rgba(37, 99, 235, 0.25)' : 'none'
                       }}
                     >
                       Bütçeye Göre
@@ -3164,14 +3220,15 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     <button
                       onClick={() => setBudgetMode('BY_IMPRESSION_SHARE')}
                       style={{
-                        padding: '3px 8px',
+                        padding: '4px 10px',
                         fontSize: '0.72rem',
                         borderRadius: 'var(--radius-xs)',
-                        border: 'none',
-                        backgroundColor: budgetMode === 'BY_IMPRESSION_SHARE' ? 'var(--brand-primary)' : 'transparent',
+                        border: budgetMode === 'BY_IMPRESSION_SHARE' ? '1px solid #1d4ed8' : 'none',
+                        background: budgetMode === 'BY_IMPRESSION_SHARE' ? 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)' : 'transparent',
                         color: budgetMode === 'BY_IMPRESSION_SHARE' ? '#ffffff' : 'var(--text-secondary)',
                         cursor: 'pointer',
-                        fontWeight: budgetMode === 'BY_IMPRESSION_SHARE' ? 600 : 400
+                        fontWeight: budgetMode === 'BY_IMPRESSION_SHARE' ? 700 : 400,
+                        boxShadow: budgetMode === 'BY_IMPRESSION_SHARE' ? '0 2px 6px rgba(37, 99, 235, 0.25)' : 'none'
                       }}
                     >
                       Gösterim Payına Göre
@@ -3191,7 +3248,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                           Toplam ₺{monthlyBudget.toLocaleString('tr-TR')} medya bütçesinin %{allocGoogleSearch}'i
                         </div>
                       </div>
-                      <div style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--brand-primary)' }}>
+                      <div style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                         ₺{Math.round((monthlyBudget * allocGoogleSearch) / 100).toLocaleString('tr-TR')}
                       </div>
                     </div>
@@ -3210,9 +3267,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       }}
                       style={{
                         width: '100%',
-                        accentColor: 'var(--brand-primary)',
+                        accentColor: '#2563eb',
                         cursor: 'pointer',
-                        background: `linear-gradient(to right, var(--brand-primary) ${allocGoogleSearch}%, var(--border-default) ${allocGoogleSearch}%)`,
+                        background: `linear-gradient(to right, #2563eb ${allocGoogleSearch}%, var(--border-default) ${allocGoogleSearch}%)`,
                         height: '6px',
                         borderRadius: 'var(--radius-full)'
                       }}
@@ -3224,7 +3281,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       <label style={{ fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                         Hedef Pazar Gösterim Payı (IS %)
                       </label>
-                      <div style={{ fontSize: '1.15rem', fontWeight: 700, color: '#34d399' }}>
+                      <div style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                         %{targetImpressionShare}
                       </div>
                     </div>
@@ -3237,18 +3294,18 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       onChange={(e) => setTargetImpressionShare(Number(e.target.value))}
                       style={{
                         width: '100%',
-                        accentColor: '#34d399',
+                        accentColor: '#2563eb',
                         cursor: 'pointer',
-                        background: `linear-gradient(to right, #34d399 ${targetImpressionShare}%, var(--border-default) ${targetImpressionShare}%)`,
+                        background: `linear-gradient(to right, #2563eb ${targetImpressionShare}%, var(--border-default) ${targetImpressionShare}%)`,
                         height: '6px',
                         borderRadius: 'var(--radius-full)'
                       }}
                     />
                     <div style={{
                       padding: '0.55rem 0.75rem',
-                      backgroundColor: 'rgba(16, 185, 129, 0.08)',
+                      backgroundColor: 'var(--bg-surface-elevated)',
                       borderRadius: 'var(--radius-xs)',
-                      border: '1px solid rgba(16, 185, 129, 0.25)',
+                      border: '1px solid var(--border-default)',
                       fontSize: '0.73rem',
                       color: 'var(--text-secondary)',
                       display: 'flex',
@@ -3267,14 +3324,15 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                         }}
                         style={{
                           fontSize: '0.7rem',
-                          padding: '0.25rem 0.5rem',
-                          backgroundColor: '#10b981',
+                          padding: '0.25rem 0.55rem',
+                          background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
                           color: '#ffffff',
                           border: 'none',
                           borderRadius: 'var(--radius-xs)',
                           cursor: 'pointer',
                           fontWeight: 600,
-                          whiteSpace: 'nowrap'
+                          whiteSpace: 'nowrap',
+                          boxShadow: '0 2px 6px rgba(37, 99, 235, 0.25)'
                         }}
                       >
                         Bütçeyi Eşitle
@@ -3300,7 +3358,14 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     step={0.5}
                     value={expectedCtr}
                     onChange={(e) => setExpectedCtr(Number(e.target.value))}
-                    style={{ width: '100%', accentColor: 'var(--info)', cursor: 'pointer' }}
+                    style={{
+                      width: '100%',
+                      accentColor: '#2563eb',
+                      cursor: 'pointer',
+                      background: `linear-gradient(to right, #2563eb ${Math.round(((expectedCtr - 3) / 12) * 100)}%, var(--border-default) ${Math.round(((expectedCtr - 3) / 12) * 100)}%)`,
+                      height: '6px',
+                      borderRadius: 'var(--radius-full)'
+                    }}
                   />
                 </div>
 
@@ -3310,7 +3375,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     <label style={{ fontSize: '0.825rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
                       Form & Talep Dönüşüm Oranı (Lead CR %)
                     </label>
-                    <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#34d399' }}>
+                    <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                       %{leadConversionRate}
                     </span>
                   </div>
@@ -3321,7 +3386,14 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     step={0.5}
                     value={leadConversionRate}
                     onChange={(e) => setLeadConversionRate(Number(e.target.value))}
-                    style={{ width: '100%', accentColor: '#34d399', cursor: 'pointer' }}
+                    style={{
+                      width: '100%',
+                      accentColor: '#2563eb',
+                      cursor: 'pointer',
+                      background: `linear-gradient(to right, #2563eb ${Math.round(((leadConversionRate - 0.5) / 11.5) * 100)}%, var(--border-default) ${Math.round(((leadConversionRate - 0.5) / 11.5) * 100)}%)`,
+                      height: '6px',
+                      borderRadius: 'var(--radius-full)'
+                    }}
                   />
                 </div>
 
@@ -3333,7 +3405,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                         <label style={{ fontSize: '0.825rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
                           Sağlıklı Lead Oranı (% Healthy Lead)
                         </label>
-                        <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--brand-primary)' }}>
+                        <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                           %{leadCloseRate}
                         </span>
                       </div>
@@ -3344,7 +3416,14 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                         step={1}
                         value={leadCloseRate}
                         onChange={(e) => setLeadCloseRate(Number(e.target.value))}
-                        style={{ width: '100%', accentColor: 'var(--brand-primary)', cursor: 'pointer' }}
+                        style={{
+                          width: '100%',
+                          accentColor: '#2563eb',
+                          cursor: 'pointer',
+                          background: `linear-gradient(to right, #2563eb ${Math.round(((leadCloseRate - 1) / 39) * 100)}%, var(--border-default) ${Math.round(((leadCloseRate - 1) / 39) * 100)}%)`,
+                          height: '6px',
+                          borderRadius: 'var(--radius-full)'
+                        }}
                       />
                     </div>
 
@@ -3381,7 +3460,14 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                         step={0.25}
                         value={ecommerceConversionRate}
                         onChange={(e) => setEcommerceConversionRate(Number(e.target.value))}
-                        style={{ width: '100%', accentColor: 'var(--brand-primary)', cursor: 'pointer' }}
+                        style={{
+                          width: '100%',
+                          accentColor: '#2563eb',
+                          cursor: 'pointer',
+                          background: `linear-gradient(to right, #2563eb ${Math.round(((ecommerceConversionRate - 0.5) / 7.5) * 100)}%, var(--border-default) ${Math.round(((ecommerceConversionRate - 0.5) / 7.5) * 100)}%)`,
+                          height: '6px',
+                          borderRadius: 'var(--radius-full)'
+                        }}
                       />
                     </div>
 
@@ -3417,16 +3503,16 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                 {simulation.isMarketSaturated && (
                   <div style={{
                     padding: '0.75rem 0.9rem',
-                    backgroundColor: 'rgba(245, 158, 11, 0.08)',
+                    backgroundColor: 'var(--bg-surface-elevated)',
                     borderRadius: 'var(--radius-sm)',
-                    border: '1px solid rgba(245, 158, 11, 0.3)',
+                    border: '1px solid var(--border-default)',
                     display: 'flex',
                     flexDirection: 'column',
                     gap: '0.3rem',
                     fontSize: '0.75rem',
                     color: 'var(--text-secondary)'
                   }}>
-                    <div style={{ fontWeight: 700, color: '#d97706', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <div style={{ fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '5px' }}>
                       <span>💡</span> Pazar Hacmi Tavanı Ulaşıldı (%95 Gösterim Payı)
                     </div>
                     <div>
@@ -3441,12 +3527,12 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                   <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)', gridColumn: 'span 2' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Tahmini Pazar Gösterim Payı (IS)</div>
-                      <span style={{ fontSize: '0.75rem', fontWeight: 600, color: simulation.targetImpressionShare >= 80 ? '#10b981' : (simulation.targetImpressionShare >= 40 ? 'var(--brand-primary)' : '#f59e0b') }}>
-                        {simulation.targetImpressionShare >= 80 ? '🟢 Yüksek Pazar Hakimiyeti' : (simulation.targetImpressionShare >= 40 ? '🔵 Rekabetçi Pay' : '🟡 Büyüme Fırsatı')}
+                      <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                        {simulation.targetImpressionShare >= 80 ? 'Yüksek Pazar Hakimiyeti' : (simulation.targetImpressionShare >= 40 ? 'Rekabetçi Pay' : 'Büyüme Fırsatı')}
                       </span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem', marginTop: '3px' }}>
-                      <div style={{ fontSize: '1.6rem', fontWeight: 800, color: simulation.targetImpressionShare >= 80 ? '#10b981' : 'var(--brand-primary)' }}>
+                      <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--text-primary)' }}>
                         %{simulation.targetImpressionShare}
                       </div>
                       <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
@@ -3455,7 +3541,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     </div>
                     {/* Mini Progress Bar */}
                     <div style={{ height: '6px', width: '100%', backgroundColor: 'var(--border-default)', borderRadius: 'var(--radius-full)', overflow: 'hidden', marginTop: '6px' }}>
-                      <div style={{ height: '100%', width: `${simulation.targetImpressionShare}%`, backgroundColor: simulation.targetImpressionShare >= 80 ? '#10b981' : 'var(--brand-primary)', transition: 'width 0.2s ease' }} />
+                      <div style={{ height: '100%', width: `${simulation.targetImpressionShare}%`, backgroundColor: '#2563eb', transition: 'width 0.2s ease' }} />
                     </div>
                   </div>
 
@@ -3468,21 +3554,21 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
                   <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
                     <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Tahmini Tıklama</div>
-                    <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--brand-primary)', marginTop: '2px' }}>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
                       {simulation.estClicks.toLocaleString('tr-TR')}
                     </div>
                   </div>
 
                   <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
                     <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Arama Başı Talep (Lead)</div>
-                    <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#34d399', marginTop: '2px' }}>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
                       {simulation.estConversions.toLocaleString('tr-TR')} Adet
                     </div>
                   </div>
 
-                  <div style={{ padding: '0.85rem', backgroundColor: 'rgba(16, 185, 129, 0.08)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
-                    <div style={{ fontSize: '0.72rem', color: '#16a34a', fontWeight: 600 }}>SAĞLIKLI LEAD</div>
-                    <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#16a34a', marginTop: '2px' }}>
+                  <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 600 }}>SAĞLIKLI LEAD</div>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
                       ~{simulation.estDeals} Nitelikli
                     </div>
                   </div>
@@ -3526,7 +3612,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     <label style={{ fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                       Ortalama CPV (Görüntüleme Başı Maliyet ₺)
                     </label>
-                    <span style={{ fontSize: '1.1rem', fontWeight: 700, color: '#dc2626' }}>
+                    <span style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                       ₺{youtubeCpv.toFixed(2)}
                     </span>
                   </div>
@@ -3537,7 +3623,14 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     step={0.05}
                     value={youtubeCpv}
                     onChange={(e) => setYoutubeCpv(Number(e.target.value))}
-                    style={{ width: '100%', accentColor: '#dc2626', cursor: 'pointer' }}
+                    style={{
+                      width: '100%',
+                      accentColor: '#2563eb',
+                      cursor: 'pointer',
+                      background: `linear-gradient(to right, #2563eb ${Math.round(((youtubeCpv - 0.1) / 1.4) * 100)}%, var(--border-default) ${Math.round(((youtubeCpv - 0.1) / 1.4) * 100)}%)`,
+                      height: '6px',
+                      borderRadius: 'var(--radius-full)'
+                    }}
                   />
                 </div>
 
@@ -3557,7 +3650,14 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     step={1}
                     value={youtubeVtr}
                     onChange={(e) => setYoutubeVtr(Number(e.target.value))}
-                    style={{ width: '100%', accentColor: '#dc2626', cursor: 'pointer' }}
+                    style={{
+                      width: '100%',
+                      accentColor: '#2563eb',
+                      cursor: 'pointer',
+                      background: `linear-gradient(to right, #2563eb ${Math.round(((youtubeVtr - 15) / 40) * 100)}%, var(--border-default) ${Math.round(((youtubeVtr - 15) / 40) * 100)}%)`,
+                      height: '6px',
+                      borderRadius: 'var(--radius-full)'
+                    }}
                   />
                 </div>
 
@@ -3577,7 +3677,14 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     step={0.1}
                     value={youtubeActionRate}
                     onChange={(e) => setYoutubeActionRate(Number(e.target.value))}
-                    style={{ width: '100%', accentColor: '#dc2626', cursor: 'pointer' }}
+                    style={{
+                      width: '100%',
+                      accentColor: '#2563eb',
+                      cursor: 'pointer',
+                      background: `linear-gradient(to right, #2563eb ${Math.round(((youtubeActionRate - 0.2) / 2.8) * 100)}%, var(--border-default) ${Math.round(((youtubeActionRate - 0.2) / 2.8) * 100)}%)`,
+                      height: '6px',
+                      borderRadius: 'var(--radius-full)'
+                    }}
                   />
                 </div>
               </div>
@@ -3595,13 +3702,13 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                   </div>
                   <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
                     <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Tamamlanan İzlenmeler</div>
-                    <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#dc2626', marginTop: '2px' }}>
+                    <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
                       {youtubeSimulation.videoViews.toLocaleString('tr-TR')}
                     </div>
                   </div>
                   <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
                     <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Kazanılan Eylemler (Tıklama/Form)</div>
-                    <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#34d399', marginTop: '2px' }}>
+                    <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
                       ~{youtubeSimulation.actions}
                     </div>
                   </div>
@@ -3630,25 +3737,32 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     <label style={{ fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                       GDN Ortalama CPM (1.000 Banner Gösterimi ₺)
                     </label>
-                    <span style={{ fontSize: '1.1rem', fontWeight: 700, color: '#10b981' }}>
+                    <span style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                       ₺{gdnCpm}
                     </span>
                   </div>
                   <input
                     type="range"
-                    min={5}
-                    max={60}
-                    step={1}
+                    min={8}
+                    max={90}
+                    step={2}
                     value={gdnCpm}
                     onChange={(e) => setGdnCpm(Number(e.target.value))}
-                    style={{ width: '100%', accentColor: '#10b981', cursor: 'pointer' }}
+                    style={{
+                      width: '100%',
+                      accentColor: '#2563eb',
+                      cursor: 'pointer',
+                      background: `linear-gradient(to right, #2563eb ${Math.round(((gdnCpm - 8) / 82) * 100)}%, var(--border-default) ${Math.round(((gdnCpm - 8) / 82) * 100)}%)`,
+                      height: '6px',
+                      borderRadius: 'var(--radius-full)'
+                    }}
                   />
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <label style={{ fontSize: '0.825rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
-                      Banner Tıklama Oranı (CTR %)
+                      GDN Tıklama Oranı (CTR / TO %)
                     </label>
                     <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                       %{gdnCtr}
@@ -3658,37 +3772,51 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     type="range"
                     min={0.2}
                     max={2.0}
-                    step={0.05}
+                    step={0.1}
                     value={gdnCtr}
                     onChange={(e) => setGdnCtr(Number(e.target.value))}
-                    style={{ width: '100%', accentColor: '#10b981', cursor: 'pointer' }}
+                    style={{
+                      width: '100%',
+                      accentColor: '#2563eb',
+                      cursor: 'pointer',
+                      background: `linear-gradient(to right, #2563eb ${Math.round(((gdnCtr - 0.2) / 1.8) * 100)}%, var(--border-default) ${Math.round(((gdnCtr - 0.2) / 1.8) * 100)}%)`,
+                      height: '6px',
+                      borderRadius: 'var(--radius-full)'
+                    }}
                   />
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <label style={{ fontSize: '0.825rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
-                      Asist Edilen Dönüşüm Oranı (%)
+                      GDN Destekli Dönüşüm Katkısı (%)
                     </label>
                     <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                      %{gdnAssistedCr}
+                      +{gdnAssistedCr}%
                     </span>
                   </div>
                   <input
                     type="range"
                     min={0.2}
-                    max={5.0}
+                    max={3.0}
                     step={0.1}
                     value={gdnAssistedCr}
                     onChange={(e) => setGdnAssistedCr(Number(e.target.value))}
-                    style={{ width: '100%', accentColor: '#10b981', cursor: 'pointer' }}
+                    style={{
+                      width: '100%',
+                      accentColor: '#2563eb',
+                      cursor: 'pointer',
+                      background: `linear-gradient(to right, #2563eb ${Math.round(((gdnAssistedCr - 0.2) / 2.8) * 100)}%, var(--border-default) ${Math.round(((gdnAssistedCr - 0.2) / 2.8) * 100)}%)`,
+                      height: '6px',
+                      borderRadius: 'var(--radius-full)'
+                    }}
                   />
                 </div>
               </div>
 
               <div className="card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                  🖼️ GDN Görünürlük Çıktıları
+                <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                  <GdnIcon size={18} /> GDN Kampanya Çıktıları
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' }}>
                   <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
