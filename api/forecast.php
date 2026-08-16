@@ -516,12 +516,10 @@ function analyzeLandingPageWithAI($pageDetails, $query, $geminiKey) {
         . "}";
 
     $modelsToTry = [
-        'gemini-3.6-flash',
-        'gemini-3.5-flash',
-        'gemini-3.1-flash-lite',
-        'gemini-2.5-flash-lite',
-        'gemini-pro-latest',
-        'gemini-flash-latest'
+        'gemini-2.0-flash',
+        'gemini-1.5-flash',
+        'gemini-2.5-flash',
+        'gemini-1.5-pro'
     ];
 
     foreach ($modelsToTry as $model) {
@@ -536,7 +534,7 @@ function analyzeLandingPageWithAI($pageDetails, $query, $geminiKey) {
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload, JSON_INVALID_UTF8_SUBSTITUTE | JSON_UNESCAPED_UNICODE));
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 6);
         $res = curl_exec($ch);
         curl_close($ch);
 
