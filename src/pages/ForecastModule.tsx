@@ -3208,11 +3208,18 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                           updateChannelAllocation('google', newAlloc);
                         }
                       }}
-                      style={{ width: '100%', accentColor: 'var(--brand-primary)', cursor: 'pointer' }}
+                      style={{
+                        width: '100%',
+                        accentColor: 'var(--brand-primary)',
+                        cursor: 'pointer',
+                        background: `linear-gradient(to right, var(--brand-primary) ${allocGoogleSearch}%, var(--border-default) ${allocGoogleSearch}%)`,
+                        height: '6px',
+                        borderRadius: 'var(--radius-full)'
+                      }}
                     />
                   </div>
                 ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <label style={{ fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                         Hedef Pazar Gösterim Payı (IS %)
@@ -3228,8 +3235,51 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       step={5}
                       value={targetImpressionShare}
                       onChange={(e) => setTargetImpressionShare(Number(e.target.value))}
-                      style={{ width: '100%', accentColor: '#34d399', cursor: 'pointer' }}
+                      style={{
+                        width: '100%',
+                        accentColor: '#34d399',
+                        cursor: 'pointer',
+                        background: `linear-gradient(to right, #34d399 ${targetImpressionShare}%, var(--border-default) ${targetImpressionShare}%)`,
+                        height: '6px',
+                        borderRadius: 'var(--radius-full)'
+                      }}
                     />
+                    <div style={{
+                      padding: '0.55rem 0.75rem',
+                      backgroundColor: 'rgba(16, 185, 129, 0.08)',
+                      borderRadius: 'var(--radius-xs)',
+                      border: '1px solid rgba(16, 185, 129, 0.25)',
+                      fontSize: '0.73rem',
+                      color: 'var(--text-secondary)',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      gap: '0.5rem'
+                    }}>
+                      <span>Bu pay için gereken bütçe: <strong>₺{simulation.actualSpend.toLocaleString('tr-TR')}</strong>/ay</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (monthlyBudget > 0) {
+                            const newAlloc = Math.max(1, Math.min(100, Math.round((simulation.actualSpend / monthlyBudget) * 100)));
+                            updateChannelAllocation('google', newAlloc);
+                          }
+                        }}
+                        style={{
+                          fontSize: '0.7rem',
+                          padding: '0.25rem 0.5rem',
+                          backgroundColor: '#10b981',
+                          color: '#ffffff',
+                          border: 'none',
+                          borderRadius: 'var(--radius-xs)',
+                          cursor: 'pointer',
+                          fontWeight: 600,
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        Bütçeyi Eşitle
+                      </button>
+                    </div>
                   </div>
                 )}
 
@@ -3328,10 +3378,10 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                         type="range"
                         min={0.5}
                         max={8.0}
-                        step={0.1}
+                        step={0.25}
                         value={ecommerceConversionRate}
                         onChange={(e) => setEcommerceConversionRate(Number(e.target.value))}
-                        style={{ width: '100%', accentColor: 'var(--info)', cursor: 'pointer' }}
+                        style={{ width: '100%', accentColor: 'var(--brand-primary)', cursor: 'pointer' }}
                       />
                     </div>
 
@@ -3363,7 +3413,52 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                   </div>
                 </div>
 
+                {/* Market Saturation Alert */}
+                {simulation.isMarketSaturated && (
+                  <div style={{
+                    padding: '0.75rem 0.9rem',
+                    backgroundColor: 'rgba(245, 158, 11, 0.08)',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid rgba(245, 158, 11, 0.3)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.3rem',
+                    fontSize: '0.75rem',
+                    color: 'var(--text-secondary)'
+                  }}>
+                    <div style={{ fontWeight: 700, color: '#d97706', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <span>💡</span> Pazar Hacmi Tavanı Ulaşıldı (%95 Gösterim Payı)
+                    </div>
+                    <div>
+                      Seçili lokasyondaki toplam arama talebini yakalamak için aylık maksimum <strong>₺{simulation.actualSpend.toLocaleString('tr-TR')}</strong> arama ağı harcaması yeterlidir. Artan bütçenizi <strong>Meta Ads</strong> veya <strong>Google GDN</strong> gibi talep yaratma kanallarına aktararak genel dönüşümünüzü katlayabilirsiniz.
+                    </div>
+                  </div>
+                )}
+
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' }}>
+                  
+                  {/* Impression Share KPI Card */}
+                  <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)', gridColumn: 'span 2' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Tahmini Pazar Gösterim Payı (IS)</div>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 600, color: simulation.targetImpressionShare >= 80 ? '#10b981' : (simulation.targetImpressionShare >= 40 ? 'var(--brand-primary)' : '#f59e0b') }}>
+                        {simulation.targetImpressionShare >= 80 ? '🟢 Yüksek Pazar Hakimiyeti' : (simulation.targetImpressionShare >= 40 ? '🔵 Rekabetçi Pay' : '🟡 Büyüme Fırsatı')}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem', marginTop: '3px' }}>
+                      <div style={{ fontSize: '1.6rem', fontWeight: 800, color: simulation.targetImpressionShare >= 80 ? '#10b981' : 'var(--brand-primary)' }}>
+                        %{simulation.targetImpressionShare}
+                      </div>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                        Toplam {totalSearchVolume.toLocaleString('tr-TR')} aylık arama hacminin
+                      </span>
+                    </div>
+                    {/* Mini Progress Bar */}
+                    <div style={{ height: '6px', width: '100%', backgroundColor: 'var(--border-default)', borderRadius: 'var(--radius-full)', overflow: 'hidden', marginTop: '6px' }}>
+                      <div style={{ height: '100%', width: `${simulation.targetImpressionShare}%`, backgroundColor: simulation.targetImpressionShare >= 80 ? '#10b981' : 'var(--brand-primary)', transition: 'width 0.2s ease' }} />
+                    </div>
+                  </div>
+
                   <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
                     <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Tahmini Gösterim</div>
                     <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
