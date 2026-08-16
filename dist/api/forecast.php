@@ -1328,7 +1328,7 @@ if ($action === 'discover' && $method === 'POST') {
         exit;
     }
 
-    $cacheKey = md5("forecast_v6_{$mode}_{$query}");
+    $cacheKey = md5("forecast_v7_{$mode}_{$query}");
 
     // 1. Check Server-Side Cache
     $stmtCache = $pdo->prepare("SELECT data, created_at FROM keyword_cache WHERE cache_key = ?");
@@ -1354,11 +1354,13 @@ if ($action === 'discover' && $method === 'POST') {
     if ($isUrl) {
         $pageDetails = fetchLandingPageDetails($query);
     } else {
+        $userSeeds = preg_split('/[,;\n\r]+/', $query);
+        $cleanUserSeeds = array_values(array_filter(array_map('trim', $userSeeds)));
         $pageDetails = [
-            'title' => $query,
-            'description' => "Google Ads SEM Search: {$query}",
-            'headings' => [$query],
-            'textSnippet' => "Google Ads search intent and campaign targeting for: {$query}"
+            'title' => implode(', ', $cleanUserSeeds),
+            'description' => "Google Ads SEM Keyword Targeting: {$query}",
+            'headings' => $cleanUserSeeds,
+            'textSnippet' => "Google Ads search intent and keyword planning for seeds: " . implode(' | ', $cleanUserSeeds)
         ];
     }
 
@@ -1370,6 +1372,10 @@ if ($action === 'discover' && $method === 'POST') {
 
     // Determine Language, Sector and Seeds
     $aiSeeds = [];
+    if (!$isUrl && !empty($cleanUserSeeds)) {
+        $aiSeeds = array_merge($aiSeeds, $cleanUserSeeds);
+    }
+
     if ($aiAnalysis && !empty($aiAnalysis['detectedLanguage'])) {
         $langInfo = [
             'code' => $aiAnalysis['detectedLanguage'],
@@ -1451,8 +1457,8 @@ if ($action === 'discover' && $method === 'POST') {
 
         // Cache result
         try {
-            $stmtSave = $pdo->prepare("INSERT OR REPLACE INTO keyword_cache (cache_key, query, mode, data, created_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)");
-            $stmtSave->execute([$cacheKey, $query, $mode, json_encode($result, JSON_INVALID_UTF8_SUBSTITUTE | JSON_UNESCAPED_UNICODE)]);
+            $stmtSave = $pdo->prepare("INSERT OR REPLACE INTO keyword_cache (cache_key, data, created_at) VALUES (?, ?, CURRENT_TIMESTAMP)");
+            $stmtSave->execute([$cacheKey, json_encode($result, JSON_INVALID_UTF8_SUBSTITUTE | JSON_UNESCAPED_UNICODE)]);
         } catch (Exception $e) {}
 
         echo json_encode([

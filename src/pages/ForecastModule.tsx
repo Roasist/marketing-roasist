@@ -1032,7 +1032,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
           <div style={{ display: 'flex', gap: '0.4rem', backgroundColor: 'var(--bg-surface-elevated)', padding: '0.25rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
             <button
-              onClick={() => setMode('URL')}
+              onClick={() => { setMode('URL'); }}
               style={{
                 background: mode === 'URL' ? 'var(--brand-primary)' : 'transparent',
                 color: mode === 'URL' ? '#ffffff' : 'var(--text-secondary)',
@@ -1050,7 +1050,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
               🌐 Web Sitesi / Rakip URL ile Keşfet
             </button>
             <button
-              onClick={() => setMode('KEYWORDS')}
+              onClick={() => { setMode('KEYWORDS'); }}
               style={{
                 background: mode === 'KEYWORDS' ? 'var(--brand-primary)' : 'transparent',
                 color: mode === 'KEYWORDS' ? '#ffffff' : 'var(--text-secondary)',
@@ -1070,20 +1070,29 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           </div>
 
           {/* Quick Examples */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', color: 'var(--text-muted)', flexWrap: 'wrap' }}>
             <span>Örnekler:</span>
-            {['https://grazhdanstvo.23projects.net/', 'summerhomes.com', 'roasist.com', 'dijital pazarlama ajansı'].map((ex) => (
+            {(mode === 'URL' ? [
+              { text: 'summerhomes.com', mode: 'URL' as const },
+              { text: 'dusbahcesiilkokulu.com', mode: 'URL' as const },
+              { text: 'roasist.com', mode: 'URL' as const }
+            ] : [
+              { text: 'buy apartment alanya', mode: 'KEYWORDS' as const },
+              { text: 'diksiyon kursu istanbul', mode: 'KEYWORDS' as const },
+              { text: 'bbl surgery turkey', mode: 'KEYWORDS' as const },
+              { text: 'solaranlage münchen', mode: 'KEYWORDS' as const }
+            ]).map((ex) => (
               <button
-                key={ex}
+                key={ex.text}
                 onClick={() => {
-                  setQuery(ex);
-                  setMode(ex.includes('.') ? 'URL' : 'KEYWORDS');
-                  handleDiscover(ex, ex.includes('.') ? 'URL' : 'KEYWORDS');
+                  setQuery(ex.text);
+                  setMode(ex.mode);
+                  handleDiscover(ex.text, ex.mode);
                 }}
                 className="btn-ghost"
                 style={{ padding: '2px 6px', fontSize: '0.72rem' }}
               >
-                {ex}
+                {ex.text}
               </button>
             ))}
           </div>
@@ -1095,7 +1104,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
             <Search size={16} color="var(--text-muted)" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
             <input
               type="text"
-              placeholder={mode === 'URL' ? 'Web sitesi veya Landing Page adresi girin (örn: https://grazhdanstvo.23projects.net/)...' : 'Anahtar kelime(ler) yazın (örn: antalya emlak, villa kiralama)...'}
+              placeholder={mode === 'URL' ? 'Web sitesi veya Landing Page adresi girin (örn: https://summerhomes.com)...' : 'Tohum kelime(ler) yazın (virgülle birden çok yazabilirsiniz. Örn: buy apartment alanya, alanya villas)...'}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') handleDiscover(); }}
@@ -1111,7 +1120,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
             style={{ padding: '0.55rem 1.25rem', fontSize: '0.85rem', whiteSpace: 'nowrap' }}
           >
             <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
-            {isLoading ? 'Sayfayı Tara & Kelimeleri Çıkar...' : 'Sayfayı Tara & Kelimeleri Çıkar'}
+            {isLoading ? (mode === 'URL' ? 'Sayfa Kazınıyor & Kelimeler Çıkarılıyor...' : 'Kelimeler Analiz Ediliyor & Genişletiliyor...') : (mode === 'URL' ? '🚀 Sayfayı Tara & Kelimeleri Çıkar' : '🔍 Kelimeleri Analiz Et & Resmi Havuz Çıkar')}
           </button>
         </div>
 
@@ -1447,7 +1456,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                   </div>
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.5px' }}>AÇILIŞ SAYFASI ANALİZİ</span>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.5px' }}>
+                        {mode === 'URL' ? 'AÇILIŞ SAYFASI ANALİZİ' : 'TOHUM ANAHTAR KELİME ANALİZİ'}
+                      </span>
                       <span className="badge badge-active" style={{ fontSize: '0.725rem' }}>
                         <CheckCircle2 size={11} /> {detectedLanguageName} ({detectedLanguage.toUpperCase()}) — Otomatik Algılandı
                       </span>
