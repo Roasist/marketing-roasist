@@ -2319,13 +2319,13 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                         padding: '0.45rem 0.85rem',
                         fontSize: '0.8rem',
                         borderRadius: 'var(--radius-xs)',
-                        border: growthScenario === sc.id ? '1px solid #1d4ed8' : '1px solid var(--border-default)',
-                        background: growthScenario === sc.id ? 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)' : 'var(--bg-surface-elevated)',
-                        color: growthScenario === sc.id ? '#ffffff' : 'var(--text-secondary)',
+                        border: growthScenario === sc.id ? `1.5px solid ${sc.color}` : '1px solid var(--border-default)',
+                        backgroundColor: growthScenario === sc.id ? (sc.id === 'CONSERVATIVE' ? 'rgba(100, 116, 139, 0.15)' : (sc.id === 'AGGRESSIVE' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(37, 99, 235, 0.15)')) : 'var(--bg-surface-elevated)',
+                        color: growthScenario === sc.id ? (sc.id === 'CONSERVATIVE' ? '#475569' : (sc.id === 'AGGRESSIVE' ? '#10b981' : 'var(--brand-primary)')) : 'var(--text-secondary)',
                         fontWeight: growthScenario === sc.id ? 700 : 500,
                         cursor: 'pointer',
                         transition: 'all 0.15s ease',
-                        boxShadow: growthScenario === sc.id ? '0 2px 6px rgba(37, 99, 235, 0.25)' : 'none'
+                        boxShadow: growthScenario === sc.id ? `0 0 0 1px ${sc.color}` : 'none'
                       }}
                     >
                       {sc.label}
@@ -2413,13 +2413,12 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                         padding: '0.45rem 0.85rem',
                         fontSize: '0.8rem',
                         borderRadius: 'var(--radius-xs)',
-                        border: businessModel === bm.id ? '1px solid #1d4ed8' : '1px solid var(--border-default)',
-                        background: businessModel === bm.id ? 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)' : 'var(--bg-surface)',
-                        color: businessModel === bm.id ? '#ffffff' : 'var(--text-secondary)',
+                        border: businessModel === bm.id ? '1.5px solid var(--brand-primary)' : '1px solid var(--border-default)',
+                        backgroundColor: businessModel === bm.id ? 'rgba(37, 99, 235, 0.15)' : 'var(--bg-surface)',
+                        color: businessModel === bm.id ? 'var(--brand-primary)' : 'var(--text-secondary)',
                         fontWeight: businessModel === bm.id ? 700 : 500,
                         cursor: 'pointer',
-                        transition: 'all 0.15s ease',
-                        boxShadow: businessModel === bm.id ? '0 2px 6px rgba(37, 99, 235, 0.25)' : 'none'
+                        transition: 'all 0.15s ease'
                       }}
                     >
                       {bm.label}
@@ -2450,17 +2449,16 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       padding: '0.5rem 0.95rem',
                       fontSize: '0.825rem',
                       borderRadius: 'var(--radius-xs)',
-                      border: activeChannelTab === tab.id ? '1px solid #1d4ed8' : '1px solid var(--border-default)',
-                      background: activeChannelTab === tab.id ? 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)' : 'var(--bg-surface)',
-                      color: activeChannelTab === tab.id ? '#ffffff' : 'var(--text-secondary)',
+                      border: activeChannelTab === tab.id ? '1.5px solid var(--brand-primary)' : '1px solid var(--border-default)',
+                      backgroundColor: activeChannelTab === tab.id ? 'rgba(37, 99, 235, 0.12)' : 'var(--bg-surface)',
+                      color: activeChannelTab === tab.id ? 'var(--brand-primary)' : 'var(--text-secondary)',
                       fontWeight: activeChannelTab === tab.id ? 700 : 500,
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: '0.45rem',
                       cursor: 'pointer',
                       transition: 'all 0.15s ease',
-                      whiteSpace: 'nowrap',
-                      boxShadow: activeChannelTab === tab.id ? '0 2px 6px rgba(37, 99, 235, 0.25)' : 'none'
+                      whiteSpace: 'nowrap'
                     }}
                   >
                     {tab.icon} {tab.label}
@@ -2506,7 +2504,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       width: '100%',
                       accentColor: '#2563eb',
                       cursor: 'pointer',
-                      background: `linear-gradient(to right, #2563eb ${Math.round((monthlyBudget / 250000) * 100)}%, var(--border-default) ${Math.round((monthlyBudget / 250000) * 100)}%)`,
+                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.round((monthlyBudget / 250000) * 100)}%, var(--border-default) ${Math.round((monthlyBudget / 250000) * 100)}%, var(--border-default) 100%)`,
                       height: '6px',
                       borderRadius: 'var(--radius-full)'
                     }}
@@ -2562,13 +2560,8 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       {(allocGoogleSearch + allocMetaAds + allocYouTube + allocGdn) === 100 ? '✓ Tam Dengeli (%100)' : `⚠️ Toplam: %${allocGoogleSearch + allocMetaAds + allocYouTube + allocGdn}`}
                     </span>
                   </div>
-                  {/* Unified Progress Bar */}
-                  <div style={{ height: '8px', width: '100%', display: 'flex', borderRadius: 'var(--radius-full)', overflow: 'hidden', backgroundColor: 'var(--border-default)' }}>
-                    <div style={{ width: `${allocGoogleSearch}%`, backgroundColor: '#1d4ed8', transition: 'width 0.15s ease' }} title={`Google Search: %${allocGoogleSearch}`} />
-                    <div style={{ width: `${allocMetaAds}%`, backgroundColor: '#2563eb', transition: 'width 0.15s ease' }} title={`Meta Ads: %${allocMetaAds}`} />
-                    <div style={{ width: `${allocYouTube}%`, backgroundColor: '#3b82f6', transition: 'width 0.15s ease' }} title={`YouTube Video: %${allocYouTube}`} />
-                    <div style={{ width: `${allocGdn}%`, backgroundColor: '#60a5fa', transition: 'width 0.15s ease' }} title={`Google GDN: %${allocGdn}`} />
-                  </div>
+                  {/* Gradient Progress Bar */}
+                  <div style={{ height: '8px', width: '100%', borderRadius: 'var(--radius-full)', overflow: 'hidden', background: 'linear-gradient(90deg, #93c5fd 0%, #60a5fa 25%, #3b82f6 50%, #2563eb 75%, #1d4ed8 100%)' }} />
                 </div>
 
                 {/* Individual Channel Sliders */}
@@ -2593,7 +2586,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                         width: '100%',
                         accentColor: '#2563eb',
                         cursor: 'pointer',
-                        background: `linear-gradient(to right, #2563eb ${allocGoogleSearch}%, var(--border-default) ${allocGoogleSearch}%)`,
+                        background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${allocGoogleSearch}%, var(--border-default) ${allocGoogleSearch}%, var(--border-default) 100%)`,
                         height: '6px',
                         borderRadius: 'var(--radius-full)'
                       }}
@@ -2619,7 +2612,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                         width: '100%',
                         accentColor: '#2563eb',
                         cursor: 'pointer',
-                        background: `linear-gradient(to right, #2563eb ${allocMetaAds}%, var(--border-default) ${allocMetaAds}%)`,
+                        background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${allocMetaAds}%, var(--border-default) ${allocMetaAds}%, var(--border-default) 100%)`,
                         height: '6px',
                         borderRadius: 'var(--radius-full)'
                       }}
@@ -2645,7 +2638,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                         width: '100%',
                         accentColor: '#2563eb',
                         cursor: 'pointer',
-                        background: `linear-gradient(to right, #2563eb ${allocYouTube}%, var(--border-default) ${allocYouTube}%)`,
+                        background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${allocYouTube}%, var(--border-default) ${allocYouTube}%, var(--border-default) 100%)`,
                         height: '6px',
                         borderRadius: 'var(--radius-full)'
                       }}
@@ -2671,7 +2664,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                         width: '100%',
                         accentColor: '#2563eb',
                         cursor: 'pointer',
-                        background: `linear-gradient(to right, #2563eb ${allocGdn}%, var(--border-default) ${allocGdn}%)`,
+                        background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${allocGdn}%, var(--border-default) ${allocGdn}%, var(--border-default) 100%)`,
                         height: '6px',
                         borderRadius: 'var(--radius-full)'
                       }}
@@ -2687,11 +2680,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     width: '100%',
                     justifyContent: 'center',
                     padding: '0.65rem',
-                    fontSize: '0.85rem',
-                    background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
-                    color: '#ffffff',
-                    border: 'none',
-                    boxShadow: '0 2px 8px rgba(37, 99, 235, 0.3)'
+                    fontSize: '0.85rem'
                   }}
                 >
                   {planSaveSuccess ? <Check size={16} /> : <Save size={16} />}
@@ -2915,7 +2904,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       width: '100%',
                       accentColor: '#2563eb',
                       cursor: 'pointer',
-                      background: `linear-gradient(to right, #2563eb ${Math.round((metaCpm / 600) * 100)}%, var(--border-default) ${Math.round((metaCpm / 600) * 100)}%)`,
+                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.round((metaCpm / 600) * 100)}%, var(--border-default) ${Math.round((metaCpm / 600) * 100)}%, var(--border-default) 100%)`,
                       height: '6px',
                       borderRadius: 'var(--radius-full)'
                     }}
@@ -2950,7 +2939,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       width: '100%',
                       accentColor: '#2563eb',
                       cursor: 'pointer',
-                      background: `linear-gradient(to right, #2563eb ${Math.round(((metaCtr - 0.5) / 3.5) * 100)}%, var(--border-default) ${Math.round(((metaCtr - 0.5) / 3.5) * 100)}%)`,
+                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.round(((metaCtr - 0.5) / 3.5) * 100)}%, var(--border-default) ${Math.round(((metaCtr - 0.5) / 3.5) * 100)}%, var(--border-default) 100%)`,
                       height: '6px',
                       borderRadius: 'var(--radius-full)'
                     }}
@@ -2981,7 +2970,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       width: '100%',
                       accentColor: '#2563eb',
                       cursor: 'pointer',
-                      background: `linear-gradient(to right, #2563eb ${Math.round(((metaLeadCr - 1) / 14) * 100)}%, var(--border-default) ${Math.round(((metaLeadCr - 1) / 14) * 100)}%)`,
+                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.round(((metaLeadCr - 1) / 14) * 100)}%, var(--border-default) ${Math.round(((metaLeadCr - 1) / 14) * 100)}%, var(--border-default) 100%)`,
                       height: '6px',
                       borderRadius: 'var(--radius-full)'
                     }}
@@ -3012,7 +3001,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       width: '100%',
                       accentColor: '#2563eb',
                       cursor: 'pointer',
-                      background: `linear-gradient(to right, #2563eb ${Math.round(((metaHealthyLeadRate - 10) / 80) * 100)}%, var(--border-default) ${Math.round(((metaHealthyLeadRate - 10) / 80) * 100)}%)`,
+                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.round(((metaHealthyLeadRate - 10) / 80) * 100)}%, var(--border-default) ${Math.round(((metaHealthyLeadRate - 10) / 80) * 100)}%, var(--border-default) 100%)`,
                       height: '6px',
                       borderRadius: 'var(--radius-full)'
                     }}
@@ -3043,7 +3032,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       width: '100%',
                       accentColor: '#2563eb',
                       cursor: 'pointer',
-                      background: `linear-gradient(to right, #2563eb ${Math.round(((metaCloseRate - 2) / 38) * 100)}%, var(--border-default) ${Math.round(((metaCloseRate - 2) / 38) * 100)}%)`,
+                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.round(((metaCloseRate - 2) / 38) * 100)}%, var(--border-default) ${Math.round(((metaCloseRate - 2) / 38) * 100)}%, var(--border-default) 100%)`,
                       height: '6px',
                       borderRadius: 'var(--radius-full)'
                     }}
@@ -3207,12 +3196,11 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                         padding: '4px 10px',
                         fontSize: '0.72rem',
                         borderRadius: 'var(--radius-xs)',
-                        border: budgetMode === 'BY_BUDGET' ? '1px solid #1d4ed8' : 'none',
-                        background: budgetMode === 'BY_BUDGET' ? 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)' : 'transparent',
+                        border: 'none',
+                        backgroundColor: budgetMode === 'BY_BUDGET' ? 'var(--brand-primary)' : 'transparent',
                         color: budgetMode === 'BY_BUDGET' ? '#ffffff' : 'var(--text-secondary)',
                         cursor: 'pointer',
-                        fontWeight: budgetMode === 'BY_BUDGET' ? 700 : 400,
-                        boxShadow: budgetMode === 'BY_BUDGET' ? '0 2px 6px rgba(37, 99, 235, 0.25)' : 'none'
+                        fontWeight: budgetMode === 'BY_BUDGET' ? 600 : 400
                       }}
                     >
                       Bütçeye Göre
@@ -3223,12 +3211,11 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                         padding: '4px 10px',
                         fontSize: '0.72rem',
                         borderRadius: 'var(--radius-xs)',
-                        border: budgetMode === 'BY_IMPRESSION_SHARE' ? '1px solid #1d4ed8' : 'none',
-                        background: budgetMode === 'BY_IMPRESSION_SHARE' ? 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)' : 'transparent',
+                        border: 'none',
+                        backgroundColor: budgetMode === 'BY_IMPRESSION_SHARE' ? 'var(--brand-primary)' : 'transparent',
                         color: budgetMode === 'BY_IMPRESSION_SHARE' ? '#ffffff' : 'var(--text-secondary)',
                         cursor: 'pointer',
-                        fontWeight: budgetMode === 'BY_IMPRESSION_SHARE' ? 700 : 400,
-                        boxShadow: budgetMode === 'BY_IMPRESSION_SHARE' ? '0 2px 6px rgba(37, 99, 235, 0.25)' : 'none'
+                        fontWeight: budgetMode === 'BY_IMPRESSION_SHARE' ? 600 : 400
                       }}
                     >
                       Gösterim Payına Göre
@@ -3269,7 +3256,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                         width: '100%',
                         accentColor: '#2563eb',
                         cursor: 'pointer',
-                        background: `linear-gradient(to right, #2563eb ${allocGoogleSearch}%, var(--border-default) ${allocGoogleSearch}%)`,
+                        background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${allocGoogleSearch}%, var(--border-default) ${allocGoogleSearch}%, var(--border-default) 100%)`,
                         height: '6px',
                         borderRadius: 'var(--radius-full)'
                       }}
@@ -3296,7 +3283,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                         width: '100%',
                         accentColor: '#2563eb',
                         cursor: 'pointer',
-                        background: `linear-gradient(to right, #2563eb ${targetImpressionShare}%, var(--border-default) ${targetImpressionShare}%)`,
+                        background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${targetImpressionShare}%, var(--border-default) ${targetImpressionShare}%, var(--border-default) 100%)`,
                         height: '6px',
                         borderRadius: 'var(--radius-full)'
                       }}
@@ -3325,14 +3312,13 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                         style={{
                           fontSize: '0.7rem',
                           padding: '0.25rem 0.55rem',
-                          background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                          backgroundColor: 'var(--brand-primary)',
                           color: '#ffffff',
                           border: 'none',
                           borderRadius: 'var(--radius-xs)',
                           cursor: 'pointer',
                           fontWeight: 600,
-                          whiteSpace: 'nowrap',
-                          boxShadow: '0 2px 6px rgba(37, 99, 235, 0.25)'
+                          whiteSpace: 'nowrap'
                         }}
                       >
                         Bütçeyi Eşitle
@@ -3362,7 +3348,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       width: '100%',
                       accentColor: '#2563eb',
                       cursor: 'pointer',
-                      background: `linear-gradient(to right, #2563eb ${Math.round(((expectedCtr - 3) / 12) * 100)}%, var(--border-default) ${Math.round(((expectedCtr - 3) / 12) * 100)}%)`,
+                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.round(((expectedCtr - 3) / 12) * 100)}%, var(--border-default) ${Math.round(((expectedCtr - 3) / 12) * 100)}%, var(--border-default) 100%)`,
                       height: '6px',
                       borderRadius: 'var(--radius-full)'
                     }}
@@ -3390,7 +3376,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       width: '100%',
                       accentColor: '#2563eb',
                       cursor: 'pointer',
-                      background: `linear-gradient(to right, #2563eb ${Math.round(((leadConversionRate - 0.5) / 11.5) * 100)}%, var(--border-default) ${Math.round(((leadConversionRate - 0.5) / 11.5) * 100)}%)`,
+                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.round(((leadConversionRate - 0.5) / 11.5) * 100)}%, var(--border-default) ${Math.round(((leadConversionRate - 0.5) / 11.5) * 100)}%, var(--border-default) 100%)`,
                       height: '6px',
                       borderRadius: 'var(--radius-full)'
                     }}
@@ -3420,7 +3406,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                           width: '100%',
                           accentColor: '#2563eb',
                           cursor: 'pointer',
-                          background: `linear-gradient(to right, #2563eb ${Math.round(((leadCloseRate - 1) / 39) * 100)}%, var(--border-default) ${Math.round(((leadCloseRate - 1) / 39) * 100)}%)`,
+                          background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.round(((leadCloseRate - 1) / 39) * 100)}%, var(--border-default) ${Math.round(((leadCloseRate - 1) / 39) * 100)}%, var(--border-default) 100%)`,
                           height: '6px',
                           borderRadius: 'var(--radius-full)'
                         }}
@@ -3464,7 +3450,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                           width: '100%',
                           accentColor: '#2563eb',
                           cursor: 'pointer',
-                          background: `linear-gradient(to right, #2563eb ${Math.round(((ecommerceConversionRate - 0.5) / 7.5) * 100)}%, var(--border-default) ${Math.round(((ecommerceConversionRate - 0.5) / 7.5) * 100)}%)`,
+                          background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.round(((ecommerceConversionRate - 0.5) / 7.5) * 100)}%, var(--border-default) ${Math.round(((ecommerceConversionRate - 0.5) / 7.5) * 100)}%, var(--border-default) 100%)`,
                           height: '6px',
                           borderRadius: 'var(--radius-full)'
                         }}
@@ -3627,7 +3613,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       width: '100%',
                       accentColor: '#2563eb',
                       cursor: 'pointer',
-                      background: `linear-gradient(to right, #2563eb ${Math.round(((youtubeCpv - 0.1) / 1.4) * 100)}%, var(--border-default) ${Math.round(((youtubeCpv - 0.1) / 1.4) * 100)}%)`,
+                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.round(((youtubeCpv - 0.1) / 1.4) * 100)}%, var(--border-default) ${Math.round(((youtubeCpv - 0.1) / 1.4) * 100)}%, var(--border-default) 100%)`,
                       height: '6px',
                       borderRadius: 'var(--radius-full)'
                     }}
@@ -3654,7 +3640,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       width: '100%',
                       accentColor: '#2563eb',
                       cursor: 'pointer',
-                      background: `linear-gradient(to right, #2563eb ${Math.round(((youtubeVtr - 15) / 40) * 100)}%, var(--border-default) ${Math.round(((youtubeVtr - 15) / 40) * 100)}%)`,
+                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.round(((youtubeVtr - 15) / 40) * 100)}%, var(--border-default) ${Math.round(((youtubeVtr - 15) / 40) * 100)}%, var(--border-default) 100%)`,
                       height: '6px',
                       borderRadius: 'var(--radius-full)'
                     }}
@@ -3681,7 +3667,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       width: '100%',
                       accentColor: '#2563eb',
                       cursor: 'pointer',
-                      background: `linear-gradient(to right, #2563eb ${Math.round(((youtubeActionRate - 0.2) / 2.8) * 100)}%, var(--border-default) ${Math.round(((youtubeActionRate - 0.2) / 2.8) * 100)}%)`,
+                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.round(((youtubeActionRate - 0.2) / 2.8) * 100)}%, var(--border-default) ${Math.round(((youtubeActionRate - 0.2) / 2.8) * 100)}%, var(--border-default) 100%)`,
                       height: '6px',
                       borderRadius: 'var(--radius-full)'
                     }}
@@ -3752,7 +3738,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       width: '100%',
                       accentColor: '#2563eb',
                       cursor: 'pointer',
-                      background: `linear-gradient(to right, #2563eb ${Math.round(((gdnCpm - 8) / 82) * 100)}%, var(--border-default) ${Math.round(((gdnCpm - 8) / 82) * 100)}%)`,
+                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.round(((gdnCpm - 8) / 82) * 100)}%, var(--border-default) ${Math.round(((gdnCpm - 8) / 82) * 100)}%, var(--border-default) 100%)`,
                       height: '6px',
                       borderRadius: 'var(--radius-full)'
                     }}
@@ -3779,7 +3765,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       width: '100%',
                       accentColor: '#2563eb',
                       cursor: 'pointer',
-                      background: `linear-gradient(to right, #2563eb ${Math.round(((gdnCtr - 0.2) / 1.8) * 100)}%, var(--border-default) ${Math.round(((gdnCtr - 0.2) / 1.8) * 100)}%)`,
+                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.round(((gdnCtr - 0.2) / 1.8) * 100)}%, var(--border-default) ${Math.round(((gdnCtr - 0.2) / 1.8) * 100)}%, var(--border-default) 100%)`,
                       height: '6px',
                       borderRadius: 'var(--radius-full)'
                     }}
@@ -3806,7 +3792,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       width: '100%',
                       accentColor: '#2563eb',
                       cursor: 'pointer',
-                      background: `linear-gradient(to right, #2563eb ${Math.round(((gdnAssistedCr - 0.2) / 2.8) * 100)}%, var(--border-default) ${Math.round(((gdnAssistedCr - 0.2) / 2.8) * 100)}%)`,
+                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.round(((gdnAssistedCr - 0.2) / 2.8) * 100)}%, var(--border-default) ${Math.round(((gdnAssistedCr - 0.2) / 2.8) * 100)}%, var(--border-default) 100%)`,
                       height: '6px',
                       borderRadius: 'var(--radius-full)'
                     }}
@@ -3826,8 +3812,8 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     </div>
                   </div>
                   <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
-                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Kazanılan Banner Trafiği</div>
-                    <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#10b981', marginTop: '2px' }}>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Banner Tıklamaları</div>
+                    <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
                       {gdnSimulation.clicks.toLocaleString('tr-TR')}
                     </div>
                   </div>
