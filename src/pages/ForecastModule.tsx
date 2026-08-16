@@ -2601,7 +2601,14 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       step={1}
                       value={allocGoogleSearch}
                       onChange={(e) => updateChannelAllocation('google', Number(e.target.value))}
-                      style={{ width: '100%', accentColor: '#ef4444', cursor: 'pointer' }}
+                      style={{
+                        width: '100%',
+                        accentColor: '#ef4444',
+                        cursor: 'pointer',
+                        background: `linear-gradient(to right, #ef4444 ${allocGoogleSearch}%, var(--border-default) ${allocGoogleSearch}%)`,
+                        height: '6px',
+                        borderRadius: 'var(--radius-full)'
+                      }}
                     />
                   </div>
 
@@ -2620,7 +2627,14 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       step={1}
                       value={allocMetaAds}
                       onChange={(e) => updateChannelAllocation('meta', Number(e.target.value))}
-                      style={{ width: '100%', accentColor: '#2563eb', cursor: 'pointer' }}
+                      style={{
+                        width: '100%',
+                        accentColor: '#2563eb',
+                        cursor: 'pointer',
+                        background: `linear-gradient(to right, #2563eb ${allocMetaAds}%, var(--border-default) ${allocMetaAds}%)`,
+                        height: '6px',
+                        borderRadius: 'var(--radius-full)'
+                      }}
                     />
                   </div>
 
@@ -2639,7 +2653,14 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       step={1}
                       value={allocYouTube}
                       onChange={(e) => updateChannelAllocation('youtube', Number(e.target.value))}
-                      style={{ width: '100%', accentColor: '#dc2626', cursor: 'pointer' }}
+                      style={{
+                        width: '100%',
+                        accentColor: '#dc2626',
+                        cursor: 'pointer',
+                        background: `linear-gradient(to right, #dc2626 ${allocYouTube}%, var(--border-default) ${allocYouTube}%)`,
+                        height: '6px',
+                        borderRadius: 'var(--radius-full)'
+                      }}
                     />
                   </div>
 
@@ -2658,7 +2679,14 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       step={1}
                       value={allocGdn}
                       onChange={(e) => updateChannelAllocation('gdn', Number(e.target.value))}
-                      style={{ width: '100%', accentColor: '#10b981', cursor: 'pointer' }}
+                      style={{
+                        width: '100%',
+                        accentColor: '#10b981',
+                        cursor: 'pointer',
+                        background: `linear-gradient(to right, #10b981 ${allocGdn}%, var(--border-default) ${allocGdn}%)`,
+                        height: '6px',
+                        borderRadius: 'var(--radius-full)'
+                      }}
                     />
                   </div>
 
@@ -2741,38 +2769,40 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
                 </div>
 
-                {/* Consolidated ROAS & Revenue Box */}
-                <div style={{
-                  padding: '1.15rem',
-                  backgroundColor: 'rgba(37, 99, 235, 0.06)',
-                  borderRadius: 'var(--radius-sm)',
-                  border: '1px solid rgba(37, 99, 235, 0.25)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  flexWrap: 'wrap',
-                  gap: '1rem'
-                }}>
-                  <div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--brand-primary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                      Konsolide Projeksiyon ROAS
+                {/* Consolidated ROAS & Revenue Box - Only displayed for ECOMMERCE */}
+                {businessModel === 'ECOMMERCE' && (
+                  <div style={{
+                    padding: '1.15rem',
+                    backgroundColor: 'rgba(37, 99, 235, 0.06)',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid rgba(37, 99, 235, 0.25)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: '1rem'
+                  }}>
+                    <div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--brand-primary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        Konsolide Projeksiyon ROAS
+                      </div>
+                      <div style={{ fontSize: '2.1rem', fontWeight: 800, color: 'var(--brand-primary)', marginTop: '2px' }}>
+                        {omnichannelMix.blendedRoas}x
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                        Tahmini Satış: <strong>~{omnichannelMix.totalDeals} Sipariş</strong> • CPA / CAC: <strong>₺{omnichannelMix.blendedCac}</strong>
+                      </div>
                     </div>
-                    <div style={{ fontSize: '2.1rem', fontWeight: 800, color: 'var(--brand-primary)', marginTop: '2px' }}>
-                      {omnichannelMix.blendedRoas}x
-                    </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                      Tahmini Satış / Müşteri: <strong>~{omnichannelMix.totalDeals} Adet</strong> • CAC: <strong>₺{omnichannelMix.blendedCac}</strong>
-                    </div>
-                  </div>
 
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Toplam Beklenen Ciro</div>
-                    <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#16a34a', marginTop: '2px' }}>
-                      ₺{omnichannelMix.totalRevenue.toLocaleString('tr-TR')}
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Toplam Beklenen Ciro</div>
+                      <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#16a34a', marginTop: '2px' }}>
+                        ₺{omnichannelMix.totalRevenue.toLocaleString('tr-TR')}
+                      </div>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Net Kâr: ₺{(omnichannelMix.totalRevenue - monthlyBudget).toLocaleString('tr-TR')}</div>
                     </div>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Net Kâr: ₺{(omnichannelMix.totalRevenue - monthlyBudget).toLocaleString('tr-TR')}</div>
                   </div>
-                </div>
+                )}
 
                 {/* Channel-by-Channel Breakdown Table */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
