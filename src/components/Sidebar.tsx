@@ -15,7 +15,8 @@ import {
   Key,
   SlidersHorizontal,
   Activity,
-  LineChart
+  LineChart,
+  BookOpen
 } from 'lucide-react';
 
 import { Workspace } from '../types/workspace';
@@ -106,6 +107,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
       id: 'logs' as AdminTab,
       name: 'Denetim Günlüğü',
       icon: Activity,
+    },
+    {
+      id: 'guide' as AdminTab,
+      name: 'Kullanım Kılavuzu',
+      icon: BookOpen,
     },
   ];
 

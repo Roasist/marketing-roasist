@@ -23,8 +23,10 @@ import {
   Eye,
   EyeOff,
   AlertCircle,
-  Sparkles
+  Sparkles,
+  BookOpen
 } from 'lucide-react';
+import { SystemGuide } from '../components/admin/SystemGuide';
 
 interface AdminPanelProps {
   onNavigate: (route: MarketingRoute) => void;
@@ -468,6 +470,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           style={{ padding: '0.45rem 0.85rem', fontSize: '0.825rem' }}
         >
           <Activity size={14} /> Denetim Günlüğü ({logs.length})
+        </button>
+
+        <button
+          onClick={() => setActiveTab('guide')}
+          className={activeTab === 'guide' ? 'btn-primary' : 'btn-ghost'}
+          style={{ padding: '0.45rem 0.85rem', fontSize: '0.825rem' }}
+        >
+          <BookOpen size={14} /> Kullanım Kılavuzu & Sistem Mimarisi
         </button>
 
       </div>
@@ -1222,6 +1232,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           </div>
 
         </div>
+      )}
+
+      {/* Tab 5: System Guide & Architecture */}
+      {activeTab === 'guide' && (
+        <SystemGuide />
       )}
 
       {/* Modal: Add User */}

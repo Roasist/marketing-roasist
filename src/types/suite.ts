@@ -6,7 +6,7 @@ export type MarketingRoute =
   | 'roas-optimizer'
   | 'admin';
 
-export type AdminTab = 'users' | 'keys' | 'flags' | 'logs';
+export type AdminTab = 'users' | 'keys' | 'flags' | 'logs' | 'guide';
 
 export interface MarketingModuleInfo {
   id: MarketingRoute;
