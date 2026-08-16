@@ -1327,7 +1327,7 @@ function generateSemanticKeywordsFallback($query, $pageDetails, $langCode) {
                 ['keyword' => 'alanya emlak projeleri lansman', 'monthlyVolume' => 8900, 'lowCpc' => 4.50, 'highCpc' => 19.00, 'competition' => 'MEDIUM', 'competitionIndex' => 74, 'intent' => 'COMMERCIAL', 'trendChangePercent' => 25, 'opportunityScore' => 89],
                 ['keyword' => 'yabancıya konut satışı vatandaşlık', 'monthlyVolume' => 11400, 'lowCpc' => 7.50, 'highCpc' => 31.00, 'competition' => 'HIGH', 'competitionIndex' => 84, 'intent' => 'TRANSACTIONAL', 'trendChangePercent' => 22, 'opportunityScore' => 91],
                 ['keyword' => 'alanya mahmutlar satılık daire', 'monthlyVolume' => 12800, 'lowCpc' => 4.10, 'highCpc' => 17.50, 'competition' => 'HIGH', 'competitionIndex' => 80, 'intent' => 'TRANSACTIONAL', 'trendChangePercent' => 15, 'opportunityScore' => 88],
-                ['keyword' => 'türkiye gayrimenkul yatırım getirisi', 'monthlyVolume' => 6800, 'lowCpc' => 5.60, 'highCpc' => 23.00, 'competition' => 'MEDIUM', 'competitionIndex' => 68, 'intent' => 'COMMERCIAL', 'trendChangePercent' => 14, 'opportunityScore' => 85]
+            ['keyword' => 'türkiye gayrimenkul yatırım getirisi', 'monthlyVolume' => 6800, 'lowCpc' => 5.60, 'highCpc' => 23.00, 'competition' => 'MEDIUM', 'competitionIndex' => 68, 'intent' => 'COMMERCIAL', 'trendChangePercent' => 14, 'opportunityScore' => 85]
             ]
         ];
     }
@@ -1349,7 +1349,7 @@ function generateSemanticKeywordsFallback($query, $pageDetails, $langCode) {
 }
 
 // -------------------------------------------------------------
-// ACTION: DISCOVER & ANALYZE KEYWORDS (WITH AUTO-LANGUAGE & SCRAPER)
+// ACTION: DISCOVER & ANALYZE KEYWORDS (WITH AUTO-LANGUAGE & SMART AUTO-ROUTING)
 // -------------------------------------------------------------
 if ($action === 'discover' && $method === 'POST') {
     $input = json_decode(file_get_contents('php://input'), true) ?? [];
@@ -1361,7 +1361,7 @@ if ($action === 'discover' && $method === 'POST') {
         exit;
     }
 
-    $cacheKey = md5("forecast_v9_{$mode}_{$query}");
+    $cacheKey = md5("forecast_v10_{$mode}_{$query}");
 
     // 1. Check Server-Side Cache
     $stmtCache = $pdo->prepare("SELECT data, created_at FROM keyword_cache WHERE cache_key = ?");
@@ -1381,12 +1381,16 @@ if ($action === 'discover' && $method === 'POST') {
     $apiKeys = getApiKeys($pdo);
     $geminiKey = $apiKeys['geminiApiKey'] ?: $apiKeys['googleApiKey'];
 
-    // 2. Scrape Landing Page if URL mode or query looks like a domain
+    // 2. Smart Auto-Routing: Detect whether input is an actual URL/Domain or Keyword/Phrase
+    $isActualUrl = preg_match('/^https?:\/\//i', $query) || (strpos($query, '.') !== false && strpos($query, ' ') === false && !preg_match('/\s/', $query));
+
     $pageDetails = null;
-    $isUrl = ($mode === 'URL') || preg_match('/^https?:\/\//i', $query) || (strpos($query, '.') !== false && strpos($query, ' ') === false);
-    if ($isUrl) {
+    $cleanUserSeeds = [];
+    if ($isActualUrl) {
+        $actualMode = 'URL';
         $pageDetails = fetchLandingPageDetails($query);
     } else {
+        $actualMode = 'KEYWORDS';
         $userSeeds = preg_split('/[,;\n\r]+/', $query);
         $cleanUserSeeds = array_values(array_filter(array_map('trim', $userSeeds)));
         $pageDetails = [
@@ -1405,7 +1409,7 @@ if ($action === 'discover' && $method === 'POST') {
 
     // Determine Language, Sector and Seeds
     $aiSeeds = [];
-    if (!$isUrl && !empty($cleanUserSeeds)) {
+    if (!$isActualUrl && !empty($cleanUserSeeds)) {
         $aiSeeds = array_merge($aiSeeds, $cleanUserSeeds);
     }
 
@@ -1436,8 +1440,8 @@ if ($action === 'discover' && $method === 'POST') {
     // 2.2 Call Official Google Ads API with Dual Seeding (URL + AI High-Intent Seeds)
     $officialKeywords = fetchGoogleAdsOfficialKeywordIdeas(
         $apiKeys,
-        $isUrl ? $query : null,
-        $smartSeeds ?: (!$isUrl ? $query : null),
+        $isActualUrl ? $query : null,
+        $smartSeeds ?: (!$isActualUrl ? $cleanUserSeeds : null),
         $langInfo['code'],
         $suggestedCountries[0]['code'] ?? 'TR'
     );
@@ -1471,221 +1475,42 @@ if ($action === 'discover' && $method === 'POST') {
         return $volB - $volA;
     });
 
-    if (count($officialKeywords) >= 1) {
-        $result = [
-            'query' => $query,
-            'mode' => $mode,
-            'source' => 'google_ads_official',
-            'sector' => $sectorTitle,
-            'businessModel' => $aiAnalysis['businessModel'] ?? 'LEAD_GEN',
-            'detectedLanguage' => $langInfo['code'],
-            'detectedLanguageName' => $langInfo['name'],
-            'pageTitle' => $pageDetails['title'] ?? $query,
-            'pageSummary' => 'Resmi Google Ads Keyword Planner servisinden çekilen, 2. kontrol yapay zeka süzgecinden geçmiş ve ek fırsat kelimeleriyle zenginleştirilmiş resmi veriler.',
-            'suggestedCountries' => $suggestedCountries,
-            'totalCount' => count($officialKeywords),
-            'keywords' => $officialKeywords,
-            'timestamp' => date('c')
-        ];
-
-        // Cache result
-        try {
-            $stmtSave = $pdo->prepare("INSERT OR REPLACE INTO keyword_cache (cache_key, data, created_at) VALUES (?, ?, CURRENT_TIMESTAMP)");
-            $stmtSave->execute([$cacheKey, json_encode($result, JSON_INVALID_UTF8_SUBSTITUTE | JSON_UNESCAPED_UNICODE)]);
-        } catch (Exception $e) {}
-
-        echo json_encode([
-            'status' => 'success',
-            'source' => 'google_ads_official',
-            'data' => $result
-        ], JSON_INVALID_UTF8_SUBSTITUTE | JSON_UNESCAPED_UNICODE);
-        exit;
-    }
-
-    // 3. Fallback to Google Gemini AI Engine with live scraped page content
-    $prompt = "Sen dünyanın en iyi Google Ads, SEM ve Çok Dilli Uluslararası Performans Pazarlaması uzmanısın.\n\n";
-
-    if ($pageDetails && (!empty($pageDetails['title']) || !empty($pageDetails['textSnippet']))) {
-        $prompt .= "İNCELENEN LANDING PAGE URL: '{$query}'\n"
-            . "Sayfa Başlığı (Title): {$pageDetails['title']}\n"
-            . "Sayfa Açıklaması (Meta Description): {$pageDetails['description']}\n"
-            . "Sayfa Başlıkları (H1/H2): " . implode(' | ', $pageDetails['headings']) . "\n"
-            . "Sayfa Metin İçeriği: {$pageDetails['textSnippet']}\n\n";
-    } else {
-        $prompt .= "İNCELENEN TOHUM KELİME / MARKA / SEKTÖR: '{$query}'\n\n";
-    }
-
-    $prompt .= "GÖREVLER VE KESİN KURALLAR:\n"
-        . "1. Sayfanın/içeriğin sunduğu GERÇEK HİZMETLERİ, LOKASYONU VE SEKTÖRÜ belirle.\n"
-        . "2. Sayfanın dilini otomatik tespit et ('tr', 'ru', 'en', 'ar', 'de' vb.).\n"
-        . "3. ÇOK ÖNEMLİ KURAL: Domain adını veya marka ismini kopyalayıp sonuna 'satın al', 'fiyatları', 'tavsiye' gibi uydurma ekler KESİNLİKLE EKLEME! (Örn: 'roasist.com satın al' gibi uydurma kelimeler KESİNLİKLE YASAKTIR).\n"
-        . "4. LOKASYON & BAĞLAM KURALI: Eğer sayfa belirli bir lokasyondaki konut/gayrimenkul/otel projesi ise (Örn: Kuzey Kıbrıs / Esentepe / Girne / KKTC veya Alanya / İstanbul / Dubai); üreteceğin anahtar kelimelerin tamamına yakını BU LOKASYONU ve PROJE ADINI içermelidir (Örn: 'cordelia cyprus', 'north cyprus property for sale', 'luxury villas in north cyprus', 'esentepe cyprus apartments', 'buy apartment in north cyprus', 'kuzey kıbrıs satılık villa', 'kktc lüks konut projeleri', 'cyprus holiday homes for sale'). ASLA 'homes for rent', 'house for sale' gibi lokasyonsuz veya zıt niyetli genel kelimeler üretme!\n"
-        . "5. NİYET KURALI: Sayfa satılık lüks konut/villa/yatırım projesi ise; 'rent', 'rental', 'for rent', 'kiralık', 'sahibinden' gibi zıt kiralık kelimeleri KESİNLİKLE ÜRETME!\n"
-        . "6. Bunun yerine, bu işletmenin müşterisi/alıcısı olmak isteyen kişilerin Google Arama'da arattığı EN AZ 30 ADET gerçek, sektörel, yüksek niyetli (Transactional/Commercial) Google Ads anahtar kelimesini üret.\n"
-        . "7. Her kelime için gerçekçi aylık arama hacmi (monthlyVolume), sayfa üstü min TBM (lowCpc ₺), sayfa üstü max TBM (highCpc ₺), rekabet (HIGH/MEDIUM/LOW), niyet (TRANSACTIONAL/COMMERCIAL/INFORMATIONAL) ve alaka puanı (opportunityScore 1-100) üret.\n"
-        . "8. Bu dil ve sektör için Google Ads kampanyasında hedeflenecek en mantıklı 4-6 hedef ülkeyi belirle.\n\n"
-        . "Yanıtını SADECE geçerli JSON formatında şu şemayla ver (başka metin ekleme):\n"
-        . "{\n"
-        . "  \"detectedLanguage\": \"tr\",\n"
-        . "  \"detectedLanguageName\": \"Türkçe\",\n"
-        . "  \"sector\": \"Performans Pazarlaması & Dijital Reklam Ajansı\",\n"
-        . "  \"pageTitle\": \"Sayfa Başlığı\",\n"
-        . "  \"pageSummary\": \"Roasist; Meta Ads, Google Ads ve e-ticaret büyüme odaklı performans pazarlama ajansı.\",\n"
-        . "  \"suggestedCountries\": [\n"
-        . "    {\"code\": \"TR\", \"name\": \"Türkiye\", \"flag\": \"🇹🇷\", \"region\": \"Yerel\", \"cpcMultiplier\": 1.0, \"volumeMultiplier\": 1.0, \"currency\": \"TRY\"},\n"
-        . "    {\"code\": \"DE\", \"name\": \"Almanya (Türk İşletmeleri)\", \"flag\": \"🇩🇪\", \"region\": \"Avrupa\", \"cpcMultiplier\": 2.8, \"volumeMultiplier\": 0.35, \"currency\": \"EUR\"},\n"
-        . "    {\"code\": \"GB\", \"name\": \"İngiltere\", \"flag\": \"🇬🇧\", \"region\": \"Avrupa\", \"cpcMultiplier\": 3.2, \"volumeMultiplier\": 0.3, \"currency\": \"GBP\"},\n"
-        . "    {\"code\": \"AE\", \"name\": \"BAE / Dubai\", \"flag\": \"🇦🇪\", \"region\": \"Körfez\", \"cpcMultiplier\": 2.5, \"volumeMultiplier\": 0.25, \"currency\": \"AED\"}\n"
-        . "  ],\n"
-        . "  \"keywords\": [\n"
-        . "    {\n"
-        . "      \"keyword\": \"performans pazarlama ajansı\",\n"
-        . "      \"monthlyVolume\": 12500,\n"
-        . "      \"lowCpc\": 8.50,\n"
-        . "      \"highCpc\": 38.00,\n"
-        . "      \"competition\": \"HIGH\",\n"
-        . "      \"competitionIndex\": 88,\n"
-        . "      \"intent\": \"TRANSACTIONAL\",\n"
-        . "      \"trendChangePercent\": 22,\n"
-        . "      \"opportunityScore\": 94\n"
-        . "    }\n"
-        . "  ]\n"
-        . "}";
-
-    $endpointsToTry = [
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent',
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent',
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent',
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent',
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-latest:generateContent'
-    ];
-
-    $keywordsResult = [];
-    $detectedLang = 'tr';
-    $detectedLangName = 'Türkçe';
-    $sectorSummary = 'Dijital Pazarlama & E-Ticaret';
-    $pageTitle = $pageDetails['title'] ?? '';
-    $pageSummary = '';
-    $suggestedCountries = [];
-    $modelAttempts = [];
-
-    foreach ($endpointsToTry as $endpointUrl) {
-        $geminiUrl = $endpointUrl . "?key=" . urlencode($geminiKey);
-        $payload = [
-            "contents" => [
-                ["parts" => [["text" => $prompt]]]
-            ],
-            "generationConfig" => [
-                "temperature" => 0.2,
-                "responseMimeType" => "application/json"
-            ]
-        ];
-
-        $chGemini = curl_init($geminiUrl);
-        curl_setopt($chGemini, CURLOPT_POST, true);
-        curl_setopt($chGemini, CURLOPT_POSTFIELDS, json_encode($payload, JSON_INVALID_UTF8_SUBSTITUTE | JSON_UNESCAPED_UNICODE));
-        curl_setopt($chGemini, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($chGemini, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-        curl_setopt($chGemini, CURLOPT_TIMEOUT, 25);
-        $resGemini = curl_exec($chGemini);
-        $curlErr = curl_error($chGemini);
-        $httpCode = curl_getinfo($chGemini, CURLINFO_HTTP_CODE);
-        curl_close($chGemini);
-
-        $gJson = json_decode($resGemini, true);
-        $modelName = basename(parse_url($endpointUrl, PHP_URL_PATH));
-
-        if (isset($gJson['candidates'][0]['content']['parts'][0]['text'])) {
-            $rawAiText = $gJson['candidates'][0]['content']['parts'][0]['text'];
-            
-            // Clean markdown fences if any
-            $cleanJson = preg_replace('/^```(?:json)?\s*/i', '', trim($rawAiText));
-            $cleanJson = preg_replace('/\s*```$/', '', $cleanJson);
-            
-            $parsedAi = json_decode($cleanJson, true);
-            if (!$parsedAi && preg_match('/\{.*\}/s', $cleanJson, $matches)) {
-                $parsedAi = json_decode($matches[0], true);
-            }
-
-            if (isset($parsedAi['keywords']) && is_array($parsedAi['keywords']) && count($parsedAi['keywords']) > 0) {
-                $keywordsResult = $parsedAi['keywords'];
-                $detectedLang = $parsedAi['detectedLanguage'] ?? $detectedLang;
-                $detectedLangName = $parsedAi['detectedLanguageName'] ?? $detectedLangName;
-                $sectorSummary = $parsedAi['sector'] ?? $sectorSummary;
-                $pageTitle = $parsedAi['pageTitle'] ?? $pageTitle;
-                $pageSummary = $parsedAi['pageSummary'] ?? '';
-                $suggestedCountries = getSuggestedCountriesByLang($detectedLang);
-                break; // Successfully got live AI keywords!
-            } else {
-                $modelAttempts[] = "{$modelName}: JSON Decode Başarısız (" . mb_substr($rawAiText, 0, 100) . ")";
-            }
-        } elseif (isset($gJson['error']['message'])) {
-            $modelAttempts[] = "{$modelName} (HTTP {$httpCode}): " . $gJson['error']['message'];
-        } elseif ($curlErr) {
-            $modelAttempts[] = "{$modelName} (cURL Hatası): " . $curlErr;
-        } else {
-            $modelAttempts[] = "{$modelName} (HTTP {$httpCode}): " . mb_substr($resGemini, 0, 150);
-        }
-    }
-
-    if (empty($keywordsResult)) {
-        // ZERO FAKE DATA - Return exact Google API error & debug info
+    if (empty($officialKeywords) || count($officialKeywords) === 0) {
+        // STRICT ZERO FAKE DATA: Show clean transparent error instead of fake Gemini estimates!
         echo json_encode([
             'status' => 'error',
-            'message' => 'Google Gemini API Yanıt Veremedi: ' . implode(' | ', $modelAttempts),
-            'diagnostics' => [
-                'geminiKeyConfigured' => !empty($geminiKey),
-                'geminiKeyMasked' => $geminiKey ? substr($geminiKey, 0, 6) . '...' . substr($geminiKey, -4) : 'YOK',
-                'modelAttempts' => $modelAttempts,
-                'scrapedPage' => [
-                    'url' => $query,
-                    'title' => $pageDetails['title'] ?? '(Başlık Çekilemedi)',
-                    'headingsCount' => count($pageDetails['headings'] ?? []),
-                    'textLength' => strlen($pageDetails['textSnippet'] ?? '')
-                ]
-            ]
-        ]);
+            'message' => 'Google Ads Keyword Planner servisinden resmi veri alınamadı: Girilen web sitesi veya anahtar kelimeye ait resmi arama hacmi bulunamadı. Lütfen geçerli bir web sitesi veya farklı tohum kelimeler deneyin.'
+        ], JSON_UNESCAPED_UNICODE);
         exit;
     }
 
-    // Apply Semantic Context-Aware Relevance Filter
-    $filteredAi = filterKeywordsByPageContext($keywordsResult, $pageDetails, $query, $detectedLang);
-    if (!empty($filteredAi) && count($filteredAi) > 0) {
-        $keywordsResult = $filteredAi;
-    }
-
-    // Add unique IDs
-    foreach ($keywordsResult as $idx => &$item) {
-        if (!isset($item['id'])) {
-            $item['id'] = 'kw_' . ($idx + 1) . '_' . substr(md5($item['keyword']), 0, 6);
-        }
-    }
-
-    $finalPayload = [
+    $result = [
         'query' => $query,
-        'mode' => $mode,
-        'sector' => $sectorSummary,
-        'detectedLanguage' => $detectedLang,
-        'detectedLanguageName' => $detectedLangName,
-        'pageTitle' => $pageTitle,
-        'pageSummary' => $pageSummary,
-        'totalCount' => count($keywordsResult),
-        'keywords' => $keywordsResult,
+        'mode' => $actualMode,
+        'source' => 'google_ads_official',
+        'sector' => $sectorTitle,
+        'businessModel' => $aiAnalysis['businessModel'] ?? 'LEAD_GEN',
+        'detectedLanguage' => $langInfo['code'],
+        'detectedLanguageName' => $langInfo['name'],
+        'pageTitle' => $pageDetails['title'] ?? $query,
+        'pageSummary' => 'Resmi Google Ads Keyword Planner servisinden çekilen, 2. kontrol yapay zeka süzgecinden geçmiş ve ek fırsat kelimeleriyle zenginleştirilmiş resmi veriler.',
         'suggestedCountries' => $suggestedCountries,
-        'timestamp' => date('Y-m-d H:i:s')
+        'totalCount' => count($officialKeywords),
+        'keywords' => $officialKeywords,
+        'timestamp' => date('c')
     ];
 
-    // Save to server-side cache
+    // Cache result
     try {
         $stmtSave = $pdo->prepare("INSERT OR REPLACE INTO keyword_cache (cache_key, data, created_at) VALUES (?, ?, CURRENT_TIMESTAMP)");
-        $stmtSave->execute([$cacheKey, json_encode($finalPayload, JSON_UNESCAPED_UNICODE)]);
+        $stmtSave->execute([$cacheKey, json_encode($result, JSON_INVALID_UTF8_SUBSTITUTE | JSON_UNESCAPED_UNICODE)]);
     } catch (Exception $e) {}
 
     echo json_encode([
         'status' => 'success',
-        'source' => 'live',
-        'data' => $finalPayload
-    ]);
+        'source' => 'google_ads_official',
+        'data' => $result
+    ], JSON_INVALID_UTF8_SUBSTITUTE | JSON_UNESCAPED_UNICODE);
     exit;
 }
 

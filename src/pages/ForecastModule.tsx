@@ -401,7 +401,6 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   const [detectedLanguageName, setDetectedLanguageName] = useState<string>('Türkçe');
   const [pageTitle, setPageTitle] = useState<string>('');
   const [pageSummary, setPageSummary] = useState<string>('');
-  const [dataSource, setDataSource] = useState<string>('google_gemini_ai');
   const [keywords, setKeywords] = useState<KeywordMetric[]>([]);
   const [selectedKeywordIds, setSelectedKeywordIds] = useState<Set<string>>(new Set());
   const [newKeywordInput, setNewKeywordInput] = useState<string>('');
@@ -589,9 +588,6 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         setDetectedLanguageName(res.detectedLanguageName || 'Türkçe');
         setPageTitle(res.pageTitle || '');
         setPageSummary(res.pageSummary || '');
-        if (res.source) {
-          setDataSource(res.source);
-        }
 
         // Intelligently default business model based on detected landing page / sector
         const lowerContext = ((res.sector || '') + ' ' + (res.pageTitle || '') + ' ' + (res.pageSummary || '')).toLowerCase();
@@ -1467,15 +1463,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                           {sectorName}
                         </span>
                       )}
-                      {dataSource === 'google_ads_official' ? (
-                        <span className="badge badge-active" style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#d97706', border: '1px solid rgba(245, 158, 11, 0.3)', fontSize: '0.725rem', fontWeight: 600 }}>
-                          <Sparkles size={11} /> 🟢 Resmi Google Ads Keyword Planner Verisi
-                        </span>
-                      ) : (
-                        <span className="badge badge-neutral" style={{ fontSize: '0.725rem' }}>
-                          🤖 Gemini AI Tahminleme
-                        </span>
-                      )}
+                      <span className="badge badge-active" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#059669', border: '1px solid rgba(16, 185, 129, 0.3)', fontSize: '0.725rem', fontWeight: 600 }}>
+                        <Sparkles size={11} /> 🟢 Resmi Google Ads Keyword Planner Verisi
+                      </span>
                     </div>
                     <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)', marginTop: '0.2rem' }}>
                       {pageTitle || query}
