@@ -57,10 +57,10 @@ export const DEFAULT_LOCATIONS: GeoTargetLocation[] = [
 export const getLocationTypeLabel = (type?: string): string => {
   switch (type?.toLowerCase()) {
     case 'country': return 'Ülke';
-    case 'city': return 'Şehir';
-    case 'region':
+    case 'province': return 'İl / Bölge';
     case 'state':
-    case 'province': return 'Bölge';
+    case 'region': return 'Bölge / Eyalet';
+    case 'city': return 'Şehir';
     case 'district':
     case 'county':
     case 'borough': return 'İlçe';
@@ -71,9 +71,6 @@ export const getLocationTypeLabel = (type?: string): string => {
 
 export const formatReachNumber = (reach?: number | null): string => {
   if (!reach) return '— Sınırlı erişim';
-  if (reach >= 1000000) {
-    return `${(reach / 1000000).toLocaleString('tr-TR', { maximumFractionDigits: 1 })}M erişim`;
-  }
   return `${reach.toLocaleString('tr-TR')} erişim`;
 };
 

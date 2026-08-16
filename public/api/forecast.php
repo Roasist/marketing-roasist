@@ -111,12 +111,17 @@ function fetchGoogleAdsGeoTargetConstants($apiKeys, $query, $locale = 'tr') {
         'AT' => '🇦🇹', 'SE' => '🇸🇪', 'NO' => '🇳🇴', 'CA' => '🇨🇦'
     ];
 
-    // 1. Sort suggestions so that City and Country take precedence over District/County
+    // 1. Sort suggestions by reach DESCENDING so that larger coverage (e.g. Province 5.98M vs City center 4.7M) is chosen first
     usort($suggestions, function($a, $b) {
+        $reachA = (int)($a['reach'] ?? 0);
+        $reachB = (int)($b['reach'] ?? 0);
+        if ($reachB !== $reachA) {
+            return $reachB <=> $reachA;
+        }
         $typeA = $a['geoTargetConstant']['targetType'] ?? '';
         $typeB = $b['geoTargetConstant']['targetType'] ?? '';
-        $scoreA = ($typeA === 'Country') ? 4 : (($typeA === 'City') ? 3 : (($typeA === 'State' || $typeA === 'Region' || $typeA === 'Province') ? 2 : 1));
-        $scoreB = ($typeB === 'Country') ? 4 : (($typeB === 'City') ? 3 : (($typeB === 'State' || $typeB === 'Region' || $typeB === 'Province') ? 2 : 1));
+        $scoreA = ($typeA === 'Country') ? 4 : (($typeA === 'Province' || $typeA === 'State' || $typeA === 'Region') ? 3 : (($typeA === 'City') ? 2 : 1));
+        $scoreB = ($typeB === 'Country') ? 4 : (($typeB === 'Province' || $typeB === 'State' || $typeB === 'Region') ? 3 : (($typeB === 'City') ? 2 : 1));
         return $scoreB <=> $scoreA;
     });
 
@@ -139,12 +144,13 @@ function fetchGoogleAdsGeoTargetConstants($apiKeys, $query, $locale = 'tr') {
         $cleanCanonical = !empty($cleanParts) ? implode(', ', $cleanParts) : $rawName;
         $cleanName = !empty($cleanParts[0]) ? $cleanParts[0] : $rawName;
 
-        // Deduplication key: Normalized Name + Country + Parent Region
-        $parentRegion = count($cleanParts) > 1 ? $cleanParts[1] : '';
-        $dedupKey = mb_strtolower($cleanName . '_' . $parentRegion . '_' . $cc, 'UTF-8');
+        // Deduplication key: Normalized Name + Country
+        // When there are multiple entries for the same location name (e.g. Antalya Province vs Antalya City Center),
+        // the one with higher reach (Province 5.98M) was sorted first and is kept!
+        $dedupKey = mb_strtolower($cleanName . '_' . $cc, 'UTF-8');
 
         if (isset($seen[$dedupKey])) {
-            continue; // Skip duplicate district / sub-locality when city is already captured
+            continue; // Skip smaller sub-area / duplicate
         }
         $seen[$dedupKey] = true;
 
