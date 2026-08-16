@@ -111,15 +111,48 @@ function fetchGoogleAdsGeoTargetConstants($apiKeys, $query, $locale = 'tr') {
         'AT' => '🇦🇹', 'SE' => '🇸🇪', 'NO' => '🇳🇴', 'CA' => '🇨🇦'
     ];
 
+    // 1. Sort suggestions so that City and Country take precedence over District/County
+    usort($suggestions, function($a, $b) {
+        $typeA = $a['geoTargetConstant']['targetType'] ?? '';
+        $typeB = $b['geoTargetConstant']['targetType'] ?? '';
+        $scoreA = ($typeA === 'Country') ? 4 : (($typeA === 'City') ? 3 : (($typeA === 'State' || $typeA === 'Region' || $typeA === 'Province') ? 2 : 1));
+        $scoreB = ($typeB === 'Country') ? 4 : (($typeB === 'City') ? 3 : (($typeB === 'State' || $typeB === 'Region' || $typeB === 'Province') ? 2 : 1));
+        return $scoreB <=> $scoreA;
+    });
+
+    $seen = [];
     foreach ($suggestions as $s) {
         $c = $s['geoTargetConstant'] ?? [];
         if (empty($c['id']) || ($c['status'] ?? '') !== 'ENABLED') continue;
         $cc = strtoupper($c['countryCode'] ?? 'TR');
+        $rawName = trim($c['name'] ?? $query);
+        $rawCanonical = $c['canonicalName'] ?? $rawName;
+
+        // Clean repeated tokens e.g. "Alanya,Alanya,Antalya,Turkiye" -> "Alanya, Antalya, Turkiye"
+        $rawParts = array_values(array_filter(array_map('trim', explode(',', $rawCanonical))));
+        $cleanParts = [];
+        foreach ($rawParts as $p) {
+            if (empty($cleanParts) || mb_strtolower(end($cleanParts), 'UTF-8') !== mb_strtolower($p, 'UTF-8')) {
+                $cleanParts[] = $p;
+            }
+        }
+        $cleanCanonical = !empty($cleanParts) ? implode(', ', $cleanParts) : $rawName;
+        $cleanName = !empty($cleanParts[0]) ? $cleanParts[0] : $rawName;
+
+        // Deduplication key: Normalized Name + Country + Parent Region
+        $parentRegion = count($cleanParts) > 1 ? $cleanParts[1] : '';
+        $dedupKey = mb_strtolower($cleanName . '_' . $parentRegion . '_' . $cc, 'UTF-8');
+
+        if (isset($seen[$dedupKey])) {
+            continue; // Skip duplicate district / sub-locality when city is already captured
+        }
+        $seen[$dedupKey] = true;
+
         $results[] = [
             'id' => (string)$c['id'],
             'resourceName' => $c['resourceName'] ?? ("geoTargetConstants/" . $c['id']),
-            'name' => $c['name'] ?? $query,
-            'canonicalName' => $c['canonicalName'] ?? ($c['name'] ?? $query),
+            'name' => $cleanName,
+            'canonicalName' => $cleanCanonical,
             'countryCode' => $cc,
             'targetType' => $c['targetType'] ?? 'City',
             'reach' => isset($s['reach']) ? (int)$s['reach'] : null,
@@ -133,7 +166,7 @@ function fetchGoogleAdsGeoTargetConstants($apiKeys, $query, $locale = 'tr') {
 function searchGoogleAdsLocations($apiKeys, $query, $locale = 'tr') {
     $catalog = [
         ['id' => '2792', 'name' => 'Türkiye', 'canonicalName' => 'Türkiye', 'countryCode' => 'TR', 'targetType' => 'Country', 'reach' => 85000000, 'flag' => '🇹🇷'],
-        ['id' => '1012782', 'name' => 'Alanya', 'canonicalName' => 'Alanya, Antalya, Türkiye', 'countryCode' => 'TR', 'targetType' => 'City', 'reach' => 350000, 'flag' => '🇹🇷'],
+        ['id' => '1012782', 'name' => 'Alanya', 'canonicalName' => 'Alanya, Antalya, Türkiye', 'countryCode' => 'TR', 'targetType' => 'City', 'reach' => 391000, 'flag' => '🇹🇷'],
         ['id' => '1012783', 'name' => 'Antalya', 'canonicalName' => 'Antalya, Türkiye', 'countryCode' => 'TR', 'targetType' => 'City', 'reach' => 2600000, 'flag' => '🇹🇷'],
         ['id' => '1012764', 'name' => 'İstanbul', 'canonicalName' => 'İstanbul, Türkiye', 'countryCode' => 'TR', 'targetType' => 'City', 'reach' => 16000000, 'flag' => '🇹🇷'],
         ['id' => '1012763', 'name' => 'Ankara', 'canonicalName' => 'Ankara, Türkiye', 'countryCode' => 'TR', 'targetType' => 'City', 'reach' => 5800000, 'flag' => '🇹🇷'],

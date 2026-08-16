@@ -54,6 +54,29 @@ export const DEFAULT_LOCATIONS: GeoTargetLocation[] = [
   }
 ];
 
+export const getLocationTypeLabel = (type?: string): string => {
+  switch (type?.toLowerCase()) {
+    case 'country': return 'Ülke';
+    case 'city': return 'Şehir';
+    case 'region':
+    case 'state':
+    case 'province': return 'Bölge';
+    case 'district':
+    case 'county':
+    case 'borough': return 'İlçe';
+    case 'postal code': return 'Posta Kodu';
+    default: return type || 'Bölge';
+  }
+};
+
+export const formatReachNumber = (reach?: number | null): string => {
+  if (!reach) return '— Sınırlı erişim';
+  if (reach >= 1000000) {
+    return `${(reach / 1000000).toLocaleString('tr-TR', { maximumFractionDigits: 1 })}M erişim`;
+  }
+  return `${reach.toLocaleString('tr-TR')} erişim`;
+};
+
 // Official Brand SVG Icons
 export const GoogleIcon: React.FC<{ size?: number }> = ({ size = 15 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" style={{ flexShrink: 0, verticalAlign: 'middle', display: 'inline-block' }}>
@@ -1571,7 +1594,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       <span key={loc.id} className="badge badge-active" style={{ fontSize: '0.75rem', padding: '3px 8px', display: 'flex', alignItems: 'center', gap: '5px' }}>
                         <span>{loc.flag || '📍'}</span>
                         <strong>{loc.name}</strong>
-                        <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>({loc.targetType === 'City' ? 'Şehir' : (loc.targetType === 'District' ? 'İlçe' : 'Ülke')})</span>
+                        <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>({getLocationTypeLabel(loc.targetType)})</span>
                         {selectedLocations.length > 1 && (
                           <button
                             type="button"
@@ -3756,13 +3779,11 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                             <span className="badge badge-neutral" style={{ fontSize: '0.68rem', padding: '2px 6px' }}>
-                              {loc.targetType === 'City' ? 'Şehir' : (loc.targetType === 'District' ? 'İlçe' : (loc.targetType === 'State' ? 'Eyalet' : 'Ülke'))}
+                              {getLocationTypeLabel(loc.targetType)}
                             </span>
-                            {loc.reach ? (
-                              <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
-                                {(loc.reach / 1000000).toFixed(1)}M erişim
-                              </span>
-                            ) : null}
+                            <span style={{ fontSize: '0.72rem', color: loc.reach ? 'var(--text-secondary)' : 'var(--text-muted)' }}>
+                              {formatReachNumber(loc.reach)}
+                            </span>
                             <button
                               type="button"
                               style={{
@@ -3820,7 +3841,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     <span>{loc.flag || '📍'}</span>
                     <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{loc.name}</span>
                     <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
-                      ({loc.targetType === 'City' ? 'Şehir' : (loc.targetType === 'District' ? 'İlçe' : 'Ülke')})
+                      ({getLocationTypeLabel(loc.targetType)})
                     </span>
                     {selectedLocations.length > 1 && (
                       <button
