@@ -2429,62 +2429,41 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
               {/* Channel Selector Sub-Tabs with Official SVG Brand Icons */}
               <div style={{ display: 'flex', gap: '0.4rem', borderBottom: '1px solid var(--border-default)', paddingBottom: '0.65rem', overflowX: 'auto' }}>
-                <button
-                  type="button"
-                  onClick={() => setActiveChannelTab('OMNICHANNEL')}
-                  className={activeChannelTab === 'OMNICHANNEL' ? 'btn-primary' : 'btn-ghost'}
-                  style={{ padding: '0.5rem 0.95rem', fontSize: '0.825rem', fontWeight: activeChannelTab === 'OMNICHANNEL' ? 700 : 500, display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}
-                >
-                  <OmnichannelIcon size={16} /> 360° Medya Karması (Omnichannel)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveChannelTab('GOOGLE_SEARCH')}
-                  className={activeChannelTab === 'GOOGLE_SEARCH' ? 'btn-primary' : 'btn-ghost'}
-                  style={{ padding: '0.5rem 0.95rem', fontSize: '0.825rem', fontWeight: activeChannelTab === 'GOOGLE_SEARCH' ? 700 : 500, display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}
-                >
-                  <GoogleIcon size={16} /> Google Search (Arama Ağı)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveChannelTab('META_ADS')}
-                  className={activeChannelTab === 'META_ADS' ? 'btn-primary' : 'btn-ghost'}
-                  style={{ padding: '0.5rem 0.95rem', fontSize: '0.825rem', fontWeight: activeChannelTab === 'META_ADS' ? 700 : 500, display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}
-                >
-                  <MetaIcon size={16} /> Meta Ads (Facebook & Instagram)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveChannelTab('YOUTUBE')}
-                  className={activeChannelTab === 'YOUTUBE' ? 'btn-primary' : 'btn-ghost'}
-                  style={{ padding: '0.5rem 0.95rem', fontSize: '0.825rem', fontWeight: activeChannelTab === 'YOUTUBE' ? 700 : 500, display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}
-                >
-                  <YouTubeIcon size={16} /> YouTube Video (Action & Shorts)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveChannelTab('GDN')}
-                  className={activeChannelTab === 'GDN' ? 'btn-primary' : 'btn-ghost'}
-                  style={{ padding: '0.5rem 0.95rem', fontSize: '0.825rem', fontWeight: activeChannelTab === 'GDN' ? 700 : 500, display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}
-                >
-                  <GdnIcon size={16} /> Google GDN (Display & Retargeting)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveChannelTab('NEGATIVES')}
-                  className={activeChannelTab === 'NEGATIVES' ? 'btn-primary' : 'btn-ghost'}
-                  style={{ padding: '0.5rem 0.95rem', fontSize: '0.825rem', fontWeight: activeChannelTab === 'NEGATIVES' ? 700 : 500, display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}
-                >
-                  <ShieldAlert size={15} /> AI Negatif Kalkanı ({negativeCategories.reduce((a, c) => a + c.words.length, 0)})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setActiveChannelTab('SAVED_PLANS'); loadSavedPlans(); }}
-                  className={activeChannelTab === 'SAVED_PLANS' ? 'btn-primary' : 'btn-ghost'}
-                  style={{ padding: '0.5rem 0.95rem', fontSize: '0.825rem', fontWeight: activeChannelTab === 'SAVED_PLANS' ? 700 : 500, display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}
-                >
-                  <FolderDown size={15} /> Kayıtlı Planlar ({savedPlans.length})
-                </button>
+                {[
+                  { id: 'OMNICHANNEL', label: '360° Medya Karması (Omnichannel)', icon: <OmnichannelIcon size={16} /> },
+                  { id: 'GOOGLE_SEARCH', label: 'Google Search (Arama Ağı)', icon: <GoogleIcon size={16} /> },
+                  { id: 'META_ADS', label: 'Meta Ads (Facebook & Instagram)', icon: <MetaIcon size={16} /> },
+                  { id: 'YOUTUBE', label: 'YouTube Video (Action & Shorts)', icon: <YouTubeIcon size={16} /> },
+                  { id: 'GDN', label: 'Google GDN (Display & Retargeting)', icon: <GdnIcon size={16} /> },
+                  { id: 'NEGATIVES', label: `AI Negatif Kalkanı (${negativeCategories.reduce((a, c) => a + c.words.length, 0)})`, icon: <ShieldAlert size={15} /> },
+                  { id: 'SAVED_PLANS', label: `Kayıtlı Planlar (${savedPlans.length})`, icon: <FolderDown size={15} /> },
+                ].map(tab => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => {
+                      setActiveChannelTab(tab.id as ChannelType);
+                      if (tab.id === 'SAVED_PLANS') loadSavedPlans();
+                    }}
+                    style={{
+                      padding: '0.5rem 0.95rem',
+                      fontSize: '0.825rem',
+                      borderRadius: 'var(--radius-xs)',
+                      border: activeChannelTab === tab.id ? '1.5px solid var(--brand-primary)' : '1px solid var(--border-default)',
+                      backgroundColor: activeChannelTab === tab.id ? 'rgba(37, 99, 235, 0.12)' : 'var(--bg-surface)',
+                      color: activeChannelTab === tab.id ? 'var(--brand-primary)' : 'var(--text-secondary)',
+                      fontWeight: activeChannelTab === tab.id ? 700 : 500,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.45rem',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    {tab.icon} {tab.label}
+                  </button>
+                ))}
               </div>
 
           {/* ========================================================================= */}
@@ -2497,7 +2476,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
               <div className="card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                 <div>
                   <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                    🎯 Çok Kanallı Bütçe Dağılımı & Medya Karması
+                    Çok Kanallı Bütçe Dağılımı & Medya Karması
                   </div>
                   <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
                     Toplam bütçeyi reklam kanallarına paylaştırın ve konsolide sağlıklı lead hacmini simüle edin.
@@ -2709,7 +2688,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
                   <div>
                     <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                      📊 360° Konsolide Kampanya Çıktıları
+                      360° Konsolide Kampanya Çıktıları
                     </div>
                     <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
                       Tüm kanalların birleşimiyle elde edilecek toplam erişim, lead ve gelir simülasyonu.
