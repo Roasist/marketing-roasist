@@ -111,25 +111,22 @@ function fetchGoogleAdsGeoTargetConstants($apiKeys, $query, $locale = 'tr') {
         'AT' => '🇦🇹', 'SE' => '🇸🇪', 'NO' => '🇳🇴', 'CA' => '🇨🇦'
     ];
 
-    // 1. Sort suggestions by reach DESCENDING so that larger coverage (e.g. Province 5.98M vs City center 4.7M) is chosen first
-    usort($suggestions, function($a, $b) {
-        $reachA = (int)($a['reach'] ?? 0);
-        $reachB = (int)($b['reach'] ?? 0);
-        if ($reachB !== $reachA) {
-            return $reachB <=> $reachA;
-        }
-        $typeA = $a['geoTargetConstant']['targetType'] ?? '';
-        $typeB = $b['geoTargetConstant']['targetType'] ?? '';
-        $scoreA = ($typeA === 'Country') ? 4 : (($typeA === 'Province' || $typeA === 'State' || $typeA === 'Region') ? 3 : (($typeA === 'City') ? 2 : 1));
-        $scoreB = ($typeB === 'Country') ? 4 : (($typeB === 'Province' || $typeB === 'State' || $typeB === 'Region') ? 3 : (($typeB === 'City') ? 2 : 1));
-        return $scoreB <=> $scoreA;
-    });
+    $validSuggestions = [];
+    $normQ = mb_strtolower(trim($query), 'UTF-8');
 
-    $seen = [];
     foreach ($suggestions as $s) {
         $c = $s['geoTargetConstant'] ?? [];
         if (empty($c['id']) || ($c['status'] ?? '') !== 'ENABLED') continue;
-        $cc = strtoupper($c['countryCode'] ?? 'TR');
+        
+        $type = $c['targetType'] ?? 'City';
+        $typeLower = strtolower($type);
+        
+        // Google Keyword Planner only allows Country, Province/State/Region, and City
+        // It excludes legacy administrative sub-district boundaries (District/County) so Alanya City 391K is kept instead of District 807K
+        if (in_array($typeLower, ['district', 'county', 'borough', 'neighborhood', 'sublocality', 'postal code'])) {
+            continue;
+        }
+
         $rawName = trim($c['name'] ?? $query);
         $rawCanonical = $c['canonicalName'] ?? $rawName;
 
@@ -144,24 +141,63 @@ function fetchGoogleAdsGeoTargetConstants($apiKeys, $query, $locale = 'tr') {
         $cleanCanonical = !empty($cleanParts) ? implode(', ', $cleanParts) : $rawName;
         $cleanName = !empty($cleanParts[0]) ? $cleanParts[0] : $rawName;
 
-        // Deduplication key: Normalized Name + Country
-        // When there are multiple entries for the same location name (e.g. Antalya Province vs Antalya City Center),
-        // the one with higher reach (Province 5.98M) was sorted first and is kept!
-        $dedupKey = mb_strtolower($cleanName . '_' . $cc, 'UTF-8');
+        $nameLower = mb_strtolower($cleanName, 'UTF-8');
+        $canonicalLower = mb_strtolower($cleanCanonical, 'UTF-8');
+
+        // Calculate Query Relevance Score (Results MUST be related to search query string)
+        $relevanceScore = 0;
+        if ($nameLower === $normQ) {
+            $relevanceScore = 10000; // Exact Match (e.g. "Alanya" === "alanya")
+        } else if (mb_strpos($nameLower, $normQ) === 0) {
+            $relevanceScore = 8000;  // Starts with search query
+        } else if (mb_strpos($nameLower, $normQ) !== false) {
+            $relevanceScore = 6000;  // Contains in name (e.g. "North Ossetia-Alania")
+        } else if (mb_strpos($canonicalLower, $normQ) !== false) {
+            $relevanceScore = 4000;  // Contains in canonical path (e.g. "Payallar, Alanya, Antalya")
+        } else {
+            // Unrelated fuzzy suggestion from Google Ads API (e.g. Samsun for "alanya") -> skip!
+            continue;
+        }
+
+        $validSuggestions[] = [
+            'constant' => $c,
+            'cleanName' => $cleanName,
+            'cleanCanonical' => $cleanCanonical,
+            'relevanceScore' => $relevanceScore,
+            'reach' => isset($s['reach']) ? (int)$s['reach'] : null
+        ];
+    }
+
+    // Sort by Relevance Score DESC, then Reach DESC (e.g. Antalya Province 5.98M > City 4.7M)
+    usort($validSuggestions, function($a, $b) {
+        if ($b['relevanceScore'] !== $a['relevanceScore']) {
+            return $b['relevanceScore'] <=> $a['relevanceScore'];
+        }
+        $reachA = (int)($a['reach'] ?? 0);
+        $reachB = (int)($b['reach'] ?? 0);
+        return $reachB <=> $reachA;
+    });
+
+    // Deduplicate by cleanName + countryCode
+    $seen = [];
+    foreach ($validSuggestions as $item) {
+        $c = $item['constant'];
+        $cc = strtoupper($c['countryCode'] ?? 'TR');
+        $dedupKey = mb_strtolower($item['cleanName'] . '_' . $cc, 'UTF-8');
 
         if (isset($seen[$dedupKey])) {
-            continue; // Skip smaller sub-area / duplicate
+            continue;
         }
         $seen[$dedupKey] = true;
 
         $results[] = [
             'id' => (string)$c['id'],
             'resourceName' => $c['resourceName'] ?? ("geoTargetConstants/" . $c['id']),
-            'name' => $cleanName,
-            'canonicalName' => $cleanCanonical,
+            'name' => $item['cleanName'],
+            'canonicalName' => $item['cleanCanonical'],
             'countryCode' => $cc,
             'targetType' => $c['targetType'] ?? 'City',
-            'reach' => isset($s['reach']) ? (int)$s['reach'] : null,
+            'reach' => $item['reach'],
             'flag' => $flagMap[$cc] ?? '🌍'
         ];
     }
