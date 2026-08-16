@@ -44,198 +44,105 @@ export interface KeywordCluster {
 export const groupKeywordsSemantically = (kwList: KeywordMetric[]): KeywordCluster[] => {
   if (!kwList || kwList.length === 0) return [];
 
-  const clusters: KeywordCluster[] = [];
-
-  // 0. DEDICATED PINNED CLUSTERS: AI Senior Performance SEM Strategist STAG Sub-Groups
-  const strategistKeywords = kwList.filter(k => !!k.isAiStrategistPick || k.id?.startsWith('ai_strat_') || k.id?.startsWith('ai_alt_'));
-  if (strategistKeywords.length > 0) {
-    const semStagRules = [
-      {
-        id: 'sem_pricing',
-        name: '💰 🚀 SEM: Fiyat, Paket & Maliyetler',
-        icon: '💰',
-        regex: /\b(fiyat|fiyatı|fiyatları|ücret|ücreti|ücretleri|maliyet|paket|paketleri|price|prices|pricing|cost|costs|package|packages|all inclusive|kosten|preise|preis|angebot)\b/i
-      },
-      {
-        id: 'sem_reviews',
-        name: '⭐ 🚀 SEM: En İyi, Tavsiye & Yorumlar',
-        icon: '⭐',
-        regex: /\b(best|top|top rated|reviews|review|before and after|before & after|en iyi|tavsiye|yorum|yorumları|yorumlar|erfahrungen|bewertung|erfahrung)\b/i
-      },
-      {
-        id: 'sem_lead_hooks',
-        name: '🪝 🚀 SEM: Randevu & Lead Kancaları',
-        icon: '🪝',
-        regex: /\b(free consultation|consultation|book|book online|quote|appointment|bursluluk|bursluluk sınavı|ön kayıt|randevu|randevu al|beratung|kostenlose beratung|anfordern|einholen)\b/i
-      },
-      {
-        id: 'sem_geo',
-        name: '📍 🚀 SEM: Lokasyon & Şehir Odaklı',
-        icon: '📍',
-        regex: /\b(istanbul|turkey|türkiye|izmit|kocaeli|yahya kaptan|başiskele|antalya|alanya|bodrum|çeşme|ankara|izmir|bursa|münchen|bayern|deutschland|berlin|london|uk|cyprus|girne|kyrenia)\b/i
-      }
-    ];
-
-    const assignedSem = new Map<string, KeywordMetric[]>();
-    semStagRules.forEach(r => assignedSem.set(r.id, []));
-    const unassignedSem: KeywordMetric[] = [];
-
-    for (const kw of strategistKeywords) {
-      let matched = false;
-      for (const rule of semStagRules) {
-        if (rule.regex.test(kw.keyword)) {
-          assignedSem.get(rule.id)!.push(kw);
-          matched = true;
-          break;
-        }
-      }
-      if (!matched) {
-        unassignedSem.push(kw);
-      }
-    }
-
-    // Add populated SEM STAG groups
-    for (const rule of semStagRules) {
-      const list = assignedSem.get(rule.id) || [];
-      if (list.length > 0) {
-        const vol = list.reduce((s, k) => s + k.monthlyVolume, 0);
-        const cpcSum = list.reduce((s, k) => s + ((k.lowCpc + k.highCpc) / 2), 0);
-        clusters.push({
-          id: rule.id,
-          name: rule.name,
-          icon: rule.icon,
-          keywords: list,
-          totalVolume: vol,
-          avgCpc: list.length > 0 ? cpcSum / list.length : 0,
-          selectedCount: 0
-        });
-      }
-    }
-
-    // Remaining core service variations
-    if (unassignedSem.length > 0) {
-      const vol = unassignedSem.reduce((s, k) => s + k.monthlyVolume, 0);
-      const cpcSum = unassignedSem.reduce((s, k) => s + ((k.lowCpc + k.highCpc) / 2), 0);
-      clusters.push({
-        id: 'sem_core_variations',
-        name: '🎯 🚀 SEM: Ana Hizmet & Varyasyonlar',
-        icon: '🎯',
-        keywords: unassignedSem,
-        totalVolume: vol,
-        avgCpc: unassignedSem.length > 0 ? cpcSum / unassignedSem.length : 0,
-        selectedCount: 0
-      });
+  // 1. Deduplicate incoming list by normalized keyword string
+  const uniqueKwList: KeywordMetric[] = [];
+  const seenKws = new Set<string>();
+  for (const kw of kwList) {
+    const norm = kw.keyword.trim().toLowerCase().replace(/\s+/g, ' ');
+    if (!seenKws.has(norm)) {
+      seenKws.add(norm);
+      uniqueKwList.push(kw);
     }
   }
 
-  const themeRules = [
-    // 1. Private Schools, Colleges & K-12 Admissions (Multi-lingual)
+  const clusters: KeywordCluster[] = [];
+
+  // 2. High-converting STAG Theme Rules (Strict Priority Order - Each keyword belongs to EXACTLY ONE group)
+  const stagRules = [
+    // 1. Pricing, Costs, Packages & Fees (Global / Multi-lingual)
     {
-      id: 'schools_education',
-      name: 'Özel Okul, Kolej & Kayıtlar (School & Education)',
-      icon: '🎓',
-      regex: /\b(okul|okulu|okulları|ilkokul|ilkokulu|ortaokul|ortaokulu|lise|lisesi|kolej|koleji|kolejler|özel okul|özel okullar|anaokul|anaokulu|kreş|butik okul|eğitim|eğitimi|eğitim kurumu|bursluluk|bursluluk sınavı|erken kayıt|öğrenci kayıt|lgs|yks|schul|school|kindergarten)\b/i
-    },
-    // 2. Methods, Techniques & Technologies (Medical, Hair, Software, Tech)
-    {
-      id: 'methods_tech',
-      name: 'Yöntemler, Teknikler & Teknolojiler (Methods & Tech)',
-      icon: '🔬',
-      regex: /\b(technique|techniques|method|methods|technology|technologies|yöntem|yöntemi|yöntemleri|teknik|tekniği|teknikleri|teknoloji|teknolojisi|teknolojileri|fue|dhi|sapphire|safir|procedure|treatment|behandlung|operation|ameliyat|tedavi|cihaz|modül|software|yazılım|app|uygulama)\b/i
-    },
-    // 3. Pricing, Costs, Packages & Fees (Global / Multi-lingual)
-    {
-      id: 'pricing_costs',
-      name: 'Fiyatlar, Maliyetler & Paketler (Pricing & Cost)',
+      id: 'stag_pricing',
+      name: '💰 Fiyat, Paket & Maliyetler',
       icon: '💰',
-      regex: /\b(fiyat|fiyatı|fiyatları|fiyat listesi|ücret|ücreti|ücretleri|maliyet|maliyeti|paket|paketleri|price|prices|pricing|cost|costs|fee|fees|package|packages|how much|affordable|cheap|preise|preis|kosten|цена|цены|стоимость|тариф|расход)\b/i
+      regex: /\b(fiyat|fiyatı|fiyatları|fiyat listesi|ücret|ücreti|ücretleri|maliyet|maliyeti|paket|paketleri|price|prices|pricing|cost|costs|fee|fees|package|packages|how much|preise|preis|kosten|цена|цены|стоимость|angebot|teklif al)\b/i
     },
-    // 4. Clinics, Hospitals, Centers & Doctors
+    // 2. Reviews, Best, Recommendations & Comparisons
     {
-      id: 'clinics_surgeons',
-      name: 'Klinikler, Merkezler & Uzmanlar (Clinics & Specialists)',
-      icon: '🏥',
-      regex: /\b(clinic|clinics|hospital|hospitals|center|centers|centre|centres|doctor|doctors|surgeon|surgeons|specialist|specialists|physician|klinik|kliniği|klinikleri|hastane|hastanesi|doktor|doktorları|uzman|uzmanları|cerrah|cerrahı|merkez|merkezi)\b/i
-    },
-    // 5. Reviews, Results, Before-After & Comparisons
-    {
-      id: 'reviews_results',
-      name: 'Yorumlar, Karşılaştırma & Sonuçlar (Reviews & Results)',
+      id: 'stag_reviews',
+      name: '⭐ En İyi, Tavsiye & Yorumlar',
       icon: '⭐',
-      regex: /\b(review|reviews|best|top|before and after|before & after|results|success rate|rating|ratings|yorum|yorumlar|tavsiye|tavsiyeleri|en iyi|sonuçlar|öncesi sonrası|öncesi ve sonrası|başarı oranı|erfahrungen|bewertung|отзывы|лучший|результаты)\b/i
+      regex: /\b(best|top|top rated|reviews|review|before and after|before & after|rating|ratings|en iyi|tavsiye|tavsiyeleri|yorum|yorumları|yorumlar|erfahrungen|bewertung|erfahrung|отзывы|лучший|kaliteli)\b/i
     },
-    // 6. Locations, Destinations & Travel
+    // 3. Lead Generation, Booking, Appointments & Admissions
     {
-      id: 'location_destinations',
-      name: 'Lokasyon & Şehir Odaklı Aramalar (Locations)',
-      icon: '📍',
-      regex: /\b(kocaeli|izmit|yahya kaptan|başiskele|gölcük|sakarya|bursa|ankara|izmir|antalya|alanya|bodrum|istanbul|adana|gaziantep|konya|trabzon|eskişehir|cyprus|kıbrıs|dubai|germany|deutschland|berlin|frankfurt|münchen|uk|england|london|türkiye|turkey|yurtdışı|abroad)\b/i
+      id: 'stag_booking_leads',
+      name: '🪝 Rezervasyon, Randevu & Başvuru',
+      icon: '🪝',
+      regex: /\b(rezervasyon|booking|randevu|randevu al|ön kayıt|bursluluk|bursluluk sınavı|kayıt|kayıtları|başvuru|başvurusu|appointment|free consultation|consultation|quote|buchen|anmelden|beratung)\b/i
     },
-    // 7. Careers, Jobs & Recruitment
+    // 4. Hotel, Resorts, Vacation & Accommodation
     {
-      id: 'career_jobs',
-      name: 'Kariyer, İş İlanları & Başvuru (Jobs & Karriere)',
-      icon: '💼',
-      regex: /\b(job|jobs|career|careers|hiring|recruitment|recruiting|vacanc|stellenangebot|stellenanzeig|karriere|bewerbung|iş ilanı|iş ilanları|başvuru|çalışmak|работа|вакансии)\b/i
-    },
-    // 8. Team, Personnel & Staffing
-    {
-      id: 'hr_personnel',
-      name: 'İK, Personel & İstihdam (Personal & Team)',
-      icon: '👥',
-      regex: /\b(personal|personaldienst|personnel|mitarbeiter|angestellt|staffing|executive search|insan kaynakları|kadro|ekip|персонал|сотрудник)\b/i
-    },
-    // 9. Call Center, Support & Customer Service
-    {
-      id: 'callcenter_service',
-      name: 'Çağrı Merkezi & Müşteri Hizmetleri (Callcenter & Support)',
-      icon: '📞',
-      regex: /\b(callcenter|call center|kundenservice|kundenbetreuung|inbound|outbound|telesales|telefonservice|patientenservice|çağrı merkezi|müşteri hizmetleri|müşteri temsilcisi|support|destek)\b/i
-    },
-    // 10. Hotel, Resort & Vacation
-    {
-      id: 'hotel_tourism',
-      name: 'Otel, Tatil & Konaklama Fırsatları',
+      id: 'stag_hotel_tourism',
+      name: '🏨 Otel, Konaklama & Tatil',
       icon: '🏨',
-      regex: /\b(hotel|hotels|otel|otelleri|resort|resorts|tatil|konaklama|pansiyon|butik otel|boutique hotel|all inclusive|her şey dahil|rezervasyon|booking|urlaub|ferien|отель|гостиница)\b/i
+      regex: /\b(hotel|hotels|otel|otelleri|resort|resorts|tatil|konaklama|pansiyon|pansiyonlar|butik otel|boutique hotel|apart otel|apart|all inclusive|her şey dahil|oda kahvaltı|bungalov|glamping|urlaub|ferien|отель|гостиница)\b/i
     },
-    // 11. Real Estate & Property Investments
+    // 5. Medical Clinics, Hospitals, Doctors & Surgeons (Strict medical terms - NO standalone "merkez"!)
     {
-      id: 'property_realestate',
-      name: 'Satılık Daireler & Gayrimenkul Projeleri (Real Estate)',
+      id: 'stag_clinics_medical',
+      name: '🏥 Klinik, Hastane & Uzmanlar',
+      icon: '🏥',
+      regex: /\b(klinik|kliniği|klinikleri|hastane|hastanesi|doktor|doktoru|doktorları|uzman doktor|cerrah|cerrahı|diş hekimi|sağlık merkezi|tıp merkezi|estetik merkezi|saç ekim merkezi|clinic|clinics|hospital|hospitals|surgeon|surgeons|physician)\b/i
+    },
+    // 6. Real Estate, Apartments, Villas & Investments
+    {
+      id: 'stag_realestate',
+      name: '🏢 Gayrimenkul, Konut & Emlak',
       icon: '🏢',
-      regex: /\b(satılık daire|satılık konut|satılık villa|satılık mülk|satılık ev|apartment for sale|villas for sale|real estate|wohnung kaufen|immobilien|квартиra|гражданство|citizenship|vatandaşlık)\b/i
+      regex: /\b(satılık daire|satılık konut|satılık villa|satılık mülk|satılık ev|kiralık daire|kiralık villa|konut projeleri|emlak|gayrimenkul|property|properties|real estate|wohnung|immobilien|citizenship|vatandaşlık|pasaport)\b/i
     },
-    // 12. Automotive, Performance & Tuning
+    // 7. Education, Schools & Courses
     {
-      id: 'auto_tuning',
-      name: 'Otomotiv, Gaz Pedalı & Performans (Auto & Tuning)',
+      id: 'stag_education',
+      name: '🎓 Eğitim, Okul & Kurslar',
+      icon: '🎓',
+      regex: /\b(okul|okulu|okulları|ilkokul|ortaokul|lise|kolej|koleji|özel okul|butik okul|kurs|kursu|kursları|eğitim|eğitimi|eğitimleri|akademi|dershane|school|schul|education|academy)\b/i
+    },
+    // 8. Careers, Jobs & Recruitment
+    {
+      id: 'stag_careers',
+      name: '💼 Kariyer & İş İlanları',
+      icon: '💼',
+      regex: /\b(iş ilanı|iş ilanları|iş arama|eleman ilanı|eleman arayanlar|iş başvurusu|kariyer|istihdam|job|jobs|career|karriere|stellenangebot|bewerbung)\b/i
+    },
+    // 9. Automotive, Performance & Tuning
+    {
+      id: 'stag_automotive',
+      name: '🏎️ Otomotiv, Yazılım & Performans',
       icon: '🏎️',
-      regex: /\b(pedalbox|chip tuning|chiptuning|gaz pedalı|gaz pedal|gaz tepki|motor güç|araç performans|dte systems)\b/i
+      regex: /\b(pedalbox|chip tuning|chiptuning|gaz pedalı|gaz pedal|gaz tepki|motor güç|araç yazılım|araç performans|dte systems)\b/i
     },
-    // 13. Digital Marketing & Agency
+    // 10. Geographic & Location Specific Targeting
     {
-      id: 'digital_marketing',
-      name: 'Dijital Pazarlama & Ajans Danışmanlığı',
-      icon: '🚀',
-      regex: /\b(dijital pazarlama|google ads|meta ads|reklam ajansı|performans pazarlama|seo ajansı|growth marketing)\b/i
+      id: 'stag_locations',
+      name: '📍 Lokasyon, Şehir & Bölge Odaklı',
+      icon: '📍',
+      regex: /\b(istanbul|antalya|alanya|bodrum|çeşme|fethiye|marmaris|izmir|ankara|bursa|kocaeli|izmit|yahya kaptan|başiskele|trabzon|adana|eskişehir|cyprus|kıbrıs|girne|kyrenia|dubai|berlin|münih|münchen|frankfurt|köln|hamburg|london|uk|türkiye|turkey|merkez|şehir merkezi|denize sıfır|sahil|kale içi|kleopatra)\b/i
     }
   ];
 
   const assigned = new Map<string, KeywordMetric[]>();
-  let unassigned: KeywordMetric[] = [];
+  stagRules.forEach(r => assigned.set(r.id, []));
+  const unassigned: KeywordMetric[] = [];
 
-  for (const rule of themeRules) {
-    assigned.set(rule.id, []);
-  }
-
-  for (const kw of kwList) {
+  // SINGLE-PASS MUTUALLY EXCLUSIVE CLASSIFIER
+  for (const kw of uniqueKwList) {
     let matched = false;
-    for (const rule of themeRules) {
+    for (const rule of stagRules) {
       if (rule.regex.test(kw.keyword)) {
         assigned.get(rule.id)!.push(kw);
         matched = true;
-        break;
+        break; // Match exactly one primary group!
       }
     }
     if (!matched) {
@@ -243,7 +150,8 @@ export const groupKeywordsSemantically = (kwList: KeywordMetric[]): KeywordClust
     }
   }
 
-  for (const rule of themeRules) {
+  // Add populated STAG groups
+  for (const rule of stagRules) {
     const list = assigned.get(rule.id) || [];
     if (list.length > 0) {
       const vol = list.reduce((s, k) => s + k.monthlyVolume, 0);
@@ -260,107 +168,19 @@ export const groupKeywordsSemantically = (kwList: KeywordMetric[]): KeywordClust
     }
   }
 
-  // 🚀 UNIVERSAL DYNAMIC SUB-CLUSTERING FOR UNASSIGNED KEYWORDS (ANY LANGUAGE / ANY NICHE)
+  // Core Service Variations (Unassigned)
   if (unassigned.length > 0) {
-    const stopWords = new Set([
-      // German
-      'und', 'der', 'die', 'das', 'ein', 'eine', 'für', 'mit', 'von', 'bei', 'aus', 'nach', 'über', 'unter', 'vor',
-      'als', 'im', 'den', 'dem', 'des', 'zur', 'zum', 'am', 'zurück', 'nicht', 'wir', 'sie', 'uns', 'ihr',
-      // Turkish
-      'bir', 've', 'ile', 'için', 'icin', 'de', 'da', 'bu', 'şu', 'su', 'gibi', 'kadar', 'en', 'cok', 'çok', 'daha',
-      'her', 'hic', 'hiç', 'var', 'yok', 'olan', 'olarak', 'ben', 'sen', 'biz', 'siz', 'onlar', 'bize', 'size',
-      'okul', 'okulu', 'okullari', 'ilk', 'orta', 'lise', 'egitim', 'eğitim',
-      // English
-      'the', 'and', 'for', 'with', 'from', 'to', 'in', 'on', 'of', 'is', 'are', 'at', 'by', 'an', 'a', 'it', 'its',
-      'you', 'your', 'yours', 'we', 'our', 'ours', 'us', 'they', 'them', 'their', 'theirs', 'he', 'him', 'his',
-      'she', 'her', 'hers', 'not', 'no', 'nor', 'have', 'has', 'had', 'do', 'does', 'did', 'can', 'could', 'will',
-      'would', 'shall', 'should', 'may', 'might', 'must', 'fit', 'fits', 'good', 'bad', 'get', 'got', 'make', 'see',
-      'all', 'any', 'both', 'each', 'few', 'more', 'most', 'other', 'some', 'such', 'only', 'own', 'same', 'so',
-      'than', 'too', 'very', 'just', 'now', 'where', 'when', 'why', 'how', 'who', 'what', 'which', 'this', 'that'
-    ]);
-
-    // Pre-defined friendly naming dictionary for popular niche roots
-    const friendlyRootNames: Record<string, { name: string; icon: string }> = {
-      hair: { name: 'Saç Ekimi & Restorasyon (Hair Restoration)', icon: '💇' },
-      beard: { name: 'Sakal & Yüz Restorasyonu (Beard Restoration)', icon: '🧔' },
-      graft: { name: 'Greft & Kök Sayısı (Graft Count)', icon: '🌱' },
-      grafts: { name: 'Greft & Kök Sayısı (Graft Count)', icon: '🌱' },
-      greft: { name: 'Greft & Kök Sayısı (Graft Count)', icon: '🌱' },
-      women: { name: 'Kadınlara Özel Çözümler (Female Care)', icon: '👩' },
-      female: { name: 'Kadınlara Özel Çözümler (Female Care)', icon: '👩' },
-      eyebrow: { name: 'Kaş Ekimi & Restorasyonu (Eyebrow)', icon: '✨' },
-      dental: { name: 'Diş Tedavileri & İmplant (Dental)', icon: '🦷' },
-      teeth: { name: 'Diş Estetiği & Gülüş Tasarımı (Smile)', icon: '🦷' },
-      rhinoplasty: { name: 'Burun Estetiği & Rinoplasti', icon: '👃' },
-      tuning: { name: 'Tuning & Araç Güçlendirme', icon: '⚡' },
-      pedal: { name: 'Gaz Pedalı & Tepkime Modülleri', icon: '🏎️' }
-    };
-
-    // Filter out pure junk from unassigned list
-    const validUnassigned = unassigned.filter(kw => {
-      const words = kw.keyword.toLowerCase().split(/\s+/).filter(w => w.length >= 3 && !stopWords.has(w));
-      return words.length > 0;
+    const vol = unassigned.reduce((s, k) => s + k.monthlyVolume, 0);
+    const cpcSum = unassigned.reduce((s, k) => s + ((k.lowCpc + k.highCpc) / 2), 0);
+    clusters.push({
+      id: 'stag_core_variations',
+      name: '🎯 Ana Hizmet & Varyasyonlar',
+      icon: '🎯',
+      keywords: unassigned,
+      totalVolume: vol,
+      avgCpc: unassigned.length > 0 ? cpcSum / unassigned.length : 0,
+      selectedCount: 0
     });
-
-    // Count token frequencies among unassigned keywords
-    const tokenMap = new Map<string, KeywordMetric[]>();
-    for (const kw of validUnassigned) {
-      const words = kw.keyword.toLowerCase().split(/\s+/).filter(w => w.length >= 4 && !stopWords.has(w));
-      for (const w of words) {
-        if (!tokenMap.has(w)) tokenMap.set(w, []);
-        tokenMap.get(w)!.push(kw);
-      }
-    }
-
-    // Only create distinct sub-groups for verified friendly roots or significant clusters (>= 4 kws)
-    const sortedTokens = Array.from(tokenMap.entries())
-      .filter(([token, list]) => (friendlyRootNames[token.toLowerCase()] && list.length >= 2) || list.length >= 4)
-      .sort((a, b) => b[1].length - a[1].length);
-
-    const claimedKeywordIds = new Set<string>();
-
-    for (const [token, kws] of sortedTokens) {
-      const unclaimed = kws.filter(k => !claimedKeywordIds.has(k.id));
-      if (unclaimed.length >= 3 || (friendlyRootNames[token.toLowerCase()] && unclaimed.length >= 2)) {
-        unclaimed.forEach(k => claimedKeywordIds.add(k.id));
-        const vol = unclaimed.reduce((s, k) => s + k.monthlyVolume, 0);
-        const cpcSum = unclaimed.reduce((s, k) => s + ((k.lowCpc + k.highCpc) / 2), 0);
-        
-        let groupTitle = `${token.charAt(0).toUpperCase() + token.slice(1)} Odaklı Aramalar`;
-        let groupIcon = '💡';
-
-        if (friendlyRootNames[token.toLowerCase()]) {
-          groupTitle = friendlyRootNames[token.toLowerCase()].name;
-          groupIcon = friendlyRootNames[token.toLowerCase()].icon;
-        }
-
-        clusters.push({
-          id: `dyn_${token}`,
-          name: groupTitle,
-          icon: groupIcon,
-          keywords: unclaimed,
-          totalVolume: vol,
-          avgCpc: unclaimed.length > 0 ? cpcSum / unclaimed.length : 0,
-          selectedCount: 0
-        });
-      }
-    }
-
-    // Final clean catch-all for remaining individual queries
-    const remainingLeftovers = validUnassigned.filter(k => !claimedKeywordIds.has(k.id));
-    if (remainingLeftovers.length > 0) {
-      const vol = remainingLeftovers.reduce((s, k) => s + k.monthlyVolume, 0);
-      const cpcSum = remainingLeftovers.reduce((s, k) => s + ((k.lowCpc + k.highCpc) / 2), 0);
-      clusters.push({
-        id: 'other_related',
-        name: 'Diğer Özel & Niş Arama Fikirleri',
-        icon: '💡',
-        keywords: remainingLeftovers,
-        totalVolume: vol,
-        avgCpc: remainingLeftovers.length > 0 ? cpcSum / remainingLeftovers.length : 0,
-        selectedCount: 0
-      });
-    }
   }
 
   return clusters.sort((a, b) => b.totalVolume - a.totalVolume);
