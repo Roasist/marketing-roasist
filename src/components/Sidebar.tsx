@@ -68,9 +68,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
     },
     {
       id: 'forecast' as MarketingRoute,
-      name: 'Tahminleme (Forecast)',
+      name: '360° Medya & Büyüme',
       icon: LineChart,
-      badge: 'Yeni',
+      badge: '360°',
     },
     {
       id: 'ai-copywriter' as MarketingRoute,

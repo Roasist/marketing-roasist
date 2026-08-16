@@ -27,6 +27,21 @@ export interface CountryOption {
   currency: string;
 }
 
+export interface GeoTargetLocation {
+  id: string; // e.g. "1012782" or "2792"
+  resourceName: string; // e.g. "geoTargetConstants/1012782"
+  name: string; // e.g. "Alanya"
+  canonicalName: string; // e.g. "Alanya, Antalya, Turkey"
+  countryCode: string; // e.g. "TR"
+  targetType: string; // e.g. "City", "District", "Country", "State", "Province"
+  reach?: number; // e.g. 115000
+  flag?: string;
+  cpcMultiplier?: number;
+  volumeMultiplier?: number;
+}
+
+export type GrowthScenario = 'CONSERVATIVE' | 'REALISTIC' | 'AGGRESSIVE';
+
 export interface CountryMetric {
   code: string;
   name: string;
@@ -89,7 +104,7 @@ export interface ForecastPlan {
   createdAt?: string;
 }
 
-export type ChannelType = 'OMNICHANNEL' | 'GOOGLE_SEARCH' | 'META_ADS' | 'YOUTUBE' | 'GDN';
+export type ChannelType = 'OMNICHANNEL' | 'GOOGLE_SEARCH' | 'META_ADS' | 'YOUTUBE' | 'GDN' | 'NEGATIVES' | 'SAVED_PLANS';
 
 export interface MetaSimulation {
   budget: number;

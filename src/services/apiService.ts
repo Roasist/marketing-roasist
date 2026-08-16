@@ -280,6 +280,13 @@ export class ApiService {
     return res.categories || [];
   }
 
+  public static async searchLocations(query: string, locale: string = 'tr'): Promise<any[]> {
+    const res = await this.request<{ status: string; locations: any[] }>(
+      `/forecast.php?action=search_locations&q=${encodeURIComponent(query)}&locale=${encodeURIComponent(locale)}`
+    );
+    return res.locations || [];
+  }
+
   public static async getForecastPlans(workspaceId?: string): Promise<any[]> {
     const res = await this.request<{ status: string; plans: any[] }>(`/forecast.php?action=plans&workspace_id=${encodeURIComponent(workspaceId || '')}`);
     return res.plans || [];

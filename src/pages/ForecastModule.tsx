@@ -2,15 +2,10 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Search, 
   Sparkles, 
-  TrendingUp, 
-  TrendingDown, 
   DollarSign, 
-  Eye, 
   ShieldAlert, 
   Download, 
   Save, 
-  Layers, 
-  Sliders, 
   Check, 
   Copy, 
   Trash2, 
@@ -33,16 +28,32 @@ import {
   ForecastSimulation, 
   NegativeCategory, 
   ForecastPlan, 
-  CountryOption, 
   CountryMetric, 
   BusinessModel,
   ChannelType,
   MetaSimulation,
   GdnSimulation,
   YouTubeSimulation,
-  OmnichannelMediaMix
+  OmnichannelMediaMix,
+  GeoTargetLocation,
+  GrowthScenario
 } from '../types/forecast';
 import { ApiService } from '../services/apiService';
+
+export const DEFAULT_LOCATIONS: GeoTargetLocation[] = [
+  {
+    id: '2792',
+    resourceName: 'geoTargetConstants/2792',
+    name: 'Türkiye',
+    canonicalName: 'Türkiye',
+    countryCode: 'TR',
+    targetType: 'Country',
+    reach: 85000000,
+    flag: '🇹🇷',
+    cpcMultiplier: 1.0,
+    volumeMultiplier: 1.0
+  }
+];
 
 // Official Brand SVG Icons
 export const GoogleIcon: React.FC<{ size?: number }> = ({ size = 15 }) => (
@@ -240,20 +251,6 @@ export const groupKeywordsSemantically = (kwList: KeywordMetric[]): KeywordClust
   return clusters.sort((a, b) => b.totalVolume - a.totalVolume);
 };
 
-const DEFAULT_GLOBAL_COUNTRIES: CountryOption[] = [
-  { code: 'TR', name: 'Türkiye', flag: '🇹🇷', region: 'Yerel', cpcMultiplier: 1.0, volumeMultiplier: 1.0, currency: 'TRY' },
-  { code: 'RU', name: 'Rusya', flag: '🇷🇺', region: 'BDT', cpcMultiplier: 0.95, volumeMultiplier: 1.2, currency: 'RUB' },
-  { code: 'KZ', name: 'Kazakistan', flag: '🇰🇿', region: 'BDT', cpcMultiplier: 0.75, volumeMultiplier: 0.45, currency: 'KZT' },
-  { code: 'UZ', name: 'Özbekistan', flag: '🇺🇿', region: 'BDT', cpcMultiplier: 0.65, volumeMultiplier: 0.35, currency: 'UZS' },
-  { code: 'AE', name: 'BAE / Dubai', flag: '🇦🇪', region: 'Körfez', cpcMultiplier: 2.2, volumeMultiplier: 0.25, currency: 'AED' },
-  { code: 'SA', name: 'Suudi Arabistan', flag: '🇸🇦', region: 'Körfez', cpcMultiplier: 1.8, volumeMultiplier: 0.4, currency: 'SAR' },
-  { code: 'DE', name: 'Almanya', flag: '🇩🇪', region: 'Avrupa', cpcMultiplier: 1.9, volumeMultiplier: 0.6, currency: 'EUR' },
-  { code: 'GB', name: 'İngiltere', flag: '🇬🇧', region: 'Avrupa', cpcMultiplier: 2.1, volumeMultiplier: 0.55, currency: 'GBP' },
-  { code: 'US', name: 'Amerika (ABD)', flag: '🇺🇸', region: 'Amerika', cpcMultiplier: 2.5, volumeMultiplier: 1.5, currency: 'USD' },
-  { code: 'NL', name: 'Hollanda', flag: '🇳🇱', region: 'Avrupa', cpcMultiplier: 1.85, volumeMultiplier: 0.3, currency: 'EUR' },
-  { code: 'AZ', name: 'Azerbaycan', flag: '🇦🇿', region: 'Kafkas', cpcMultiplier: 0.7, volumeMultiplier: 0.3, currency: 'AZN' },
-];
-
 interface ForecastModuleProps {
   workspaceId?: string;
 }
@@ -377,15 +374,14 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     setSelectedKeywordIds(next);
   };
 
-  // Step 2: Target Countries / Multi-Market Selection
-  const [availableCountries, setAvailableCountries] = useState<CountryOption[]>(DEFAULT_GLOBAL_COUNTRIES);
-  const [selectedCountryCodes, setSelectedCountryCodes] = useState<Set<string>>(new Set(['RU', 'KZ', 'AE', 'TR']));
+  // Step 2: Target Locations (Google Keyword Planner Style Engine)
+  const [selectedLocations, setSelectedLocations] = useState<GeoTargetLocation[]>(DEFAULT_LOCATIONS);
+  const [locationSearchQuery, setLocationSearchQuery] = useState<string>('');
+  const [locationSearchResults, setLocationSearchResults] = useState<GeoTargetLocation[]>([]);
+  const [isSearchingLocations, setIsSearchingLocations] = useState<boolean>(false);
 
-  // Filter & Sort State
-  const [activeTab, setActiveTab] = useState<'matrix' | 'simulator' | 'negatives' | 'saved-plans'>('matrix');
-  const [searchFilter, setSearchFilter] = useState('');
-  const [intentFilter, setIntentFilter] = useState<string>('ALL');
-  const [sortBy, setSortBy] = useState<'VOLUME' | 'CPC_LOW' | 'CPC_HIGH' | 'OPPORTUNITY' | 'TREND'>('OPPORTUNITY');
+  // Growth Scenario Projection (Muhafazakar / Beklenen / Agresif)
+  const [growthScenario, setGrowthScenario] = useState<GrowthScenario>('REALISTIC');
 
   // Simulation & Business Model Parameters
   const [businessModel, setBusinessModel] = useState<BusinessModel>('LEAD_GEN');
@@ -497,33 +493,28 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           setBusinessModel('ECOMMERCE');
         }
 
-        // If AI suggested specific target countries for this language/sector, update them with Turkish localized names
-        if (res.suggestedCountries && res.suggestedCountries.length > 0) {
-          const turkishNormalized = res.suggestedCountries.map((c: any) => {
-            const def = DEFAULT_GLOBAL_COUNTRIES.find(d => d.code === c.code);
-            return {
-              ...c,
-              name: def ? def.name : c.name,
-              flag: def ? def.flag : (c.flag || '🌐'),
-              region: def ? def.region : (c.region || 'Global')
-            };
-          });
-          setAvailableCountries(turkishNormalized);
-          const initialCodes = new Set<string>(turkishNormalized.slice(0, 4).map((c: any) => c.code));
-          setSelectedCountryCodes(initialCodes);
+        // Initialize locations based on detected language
+        if (res.detectedLanguage === 'ru') {
+          setSelectedLocations([
+            { id: '2643', resourceName: 'geoTargetConstants/2643', name: 'Rusya', canonicalName: 'Rusya', countryCode: 'RU', targetType: 'Country', reach: 145000000, flag: '🇷🇺', cpcMultiplier: 1.6, volumeMultiplier: 1.8 },
+            { id: '2398', resourceName: 'geoTargetConstants/2398', name: 'Kazakistan', canonicalName: 'Kazakistan', countryCode: 'KZ', targetType: 'Country', reach: 19500000, flag: '🇰🇿', cpcMultiplier: 1.4, volumeMultiplier: 0.9 }
+          ]);
+        } else if (res.detectedLanguage === 'ar') {
+          setSelectedLocations([
+            { id: '1000010', resourceName: 'geoTargetConstants/1000010', name: 'Dubai', canonicalName: 'Dubai, Birleşik Arap Emirlikleri', countryCode: 'AE', targetType: 'City', reach: 3400000, flag: '🇦🇪', cpcMultiplier: 2.4, volumeMultiplier: 0.8 },
+            { id: '2682', resourceName: 'geoTargetConstants/2682', name: 'Suudi Arabistan', canonicalName: 'Suudi Arabistan', countryCode: 'SA', targetType: 'Country', reach: 35000000, flag: '🇸🇦', cpcMultiplier: 2.1, volumeMultiplier: 1.2 }
+          ]);
+        } else if (res.detectedLanguage === 'de') {
+          setSelectedLocations([
+            { id: '2276', resourceName: 'geoTargetConstants/2276', name: 'Almanya', canonicalName: 'Almanya', countryCode: 'DE', targetType: 'Country', reach: 84000000, flag: '🇩🇪', cpcMultiplier: 2.8, volumeMultiplier: 1.4 }
+          ]);
+        } else if (res.detectedLanguage === 'en') {
+          setSelectedLocations([
+            { id: '2826', resourceName: 'geoTargetConstants/2826', name: 'Birleşik Krallık', canonicalName: 'Birleşik Krallık', countryCode: 'GB', targetType: 'Country', reach: 67000000, flag: '🇬🇧', cpcMultiplier: 3.2, volumeMultiplier: 1.3 },
+            { id: '2840', resourceName: 'geoTargetConstants/2840', name: 'Amerika Birleşik Devletleri', canonicalName: 'Amerika Birleşik Devletleri', countryCode: 'US', targetType: 'Country', reach: 335000000, flag: '🇺🇸', cpcMultiplier: 3.5, volumeMultiplier: 2.0 }
+          ]);
         } else {
-          // Default selection based on language
-          if (res.detectedLanguage === 'ru') {
-            setSelectedCountryCodes(new Set(['RU', 'KZ', 'UZ', 'AE', 'TR']));
-          } else if (res.detectedLanguage === 'ar') {
-            setSelectedCountryCodes(new Set(['SA', 'AE', 'KW', 'QA', 'TR']));
-          } else if (res.detectedLanguage === 'de') {
-            setSelectedCountryCodes(new Set(['DE', 'AT', 'CH', 'TR']));
-          } else if (res.detectedLanguage === 'en') {
-            setSelectedCountryCodes(new Set(['US', 'GB', 'AE', 'CA']));
-          } else {
-            setSelectedCountryCodes(new Set(['TR']));
-          }
+          setSelectedLocations([DEFAULT_LOCATIONS[0]]);
         }
 
         // Dynamic Multi-Channel CPM & CPV benchmarks based on Sector & Target Market
@@ -611,15 +602,6 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     }
   };
 
-  // Keyword Selection Handlers
-  const toggleSelectAll = () => {
-    if (selectedKeywordIds.size === filteredKeywords.length) {
-      setSelectedKeywordIds(new Set());
-    } else {
-      setSelectedKeywordIds(new Set(filteredKeywords.map(k => k.id)));
-    }
-  };
-
   const toggleKeyword = (id: string) => {
     const next = new Set(selectedKeywordIds);
     if (next.has(id)) {
@@ -630,59 +612,100 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     setSelectedKeywordIds(next);
   };
 
-  // Country Selection Handlers (Step 2)
-  const toggleCountry = (code: string) => {
-    const next = new Set(selectedCountryCodes);
-    if (next.has(code)) {
-      if (next.size > 1) {
-        next.delete(code);
-      }
-    } else {
-      next.add(code);
+  // Country & Location Selection Handlers (Step 2)
+  // Debounced Search for Google Ads Geo Target Constants
+  useEffect(() => {
+    if (!locationSearchQuery.trim()) {
+      setLocationSearchResults([]);
+      setIsSearchingLocations(false);
+      return;
     }
-    setSelectedCountryCodes(next);
+
+    const timer = setTimeout(async () => {
+      setIsSearchingLocations(true);
+      try {
+        const results = await ApiService.searchLocations(locationSearchQuery, detectedLanguage || 'tr');
+        setLocationSearchResults(results || []);
+      } catch {
+        setLocationSearchResults([]);
+      } finally {
+        setIsSearchingLocations(false);
+      }
+    }, 280);
+
+    return () => clearTimeout(timer);
+  }, [locationSearchQuery, detectedLanguage]);
+
+  const toggleLocation = (loc: GeoTargetLocation) => {
+    setSelectedLocations(prev => {
+      const exists = prev.some(l => l.id === loc.id || l.name.toLowerCase() === loc.name.toLowerCase());
+      if (exists) {
+        if (prev.length === 1) return prev; // Keep at least 1 location
+        return prev.filter(l => l.id !== loc.id && l.name.toLowerCase() !== loc.name.toLowerCase());
+      } else {
+        return [...prev, loc];
+      }
+    });
   };
 
-  const selectRegionPreset = (codes: string[]) => {
-    setSelectedCountryCodes(new Set(codes));
+  const removeLocation = (id: string) => {
+    setSelectedLocations(prev => {
+      if (prev.length === 1) return prev;
+      return prev.filter(l => l.id !== id);
+    });
   };
 
-  // Active Countries List
+  // Strategic Scenario Multiplier
+  const scenarioMultiplier = useMemo(() => {
+    if (growthScenario === 'CONSERVATIVE') {
+      return {
+        crMult: 0.85,
+        cpcMult: 1.15,
+        healthyLeadMult: 0.85,
+        label: '🛡️ Muhafazakar (Temkinli)',
+        description: 'Temkinli projeksiyon: Daha yüksek TBM/CPM maliyeti ve taban dönüşüm oranları ile taban getiri senaryosu.'
+      };
+    }
+    if (growthScenario === 'AGGRESSIVE') {
+      return {
+        crMult: 1.20,
+        cpcMult: 0.90,
+        healthyLeadMult: 1.15,
+        label: '🚀 Agresif (Ölçeklenme)',
+        description: 'Optimize kampanya projeksiyonu: Yüksek reklam alaka düzeyi, artan dönüşüm ve yüksek nitelikli lead hacmi.'
+      };
+    }
+    return {
+      crMult: 1.0,
+      cpcMult: 1.0,
+      healthyLeadMult: 1.0,
+      label: '⚖️ Beklenen (Realist)',
+      description: 'Sektör ortalamaları ve Google Ads resmi geçmiş verilerine dayalı standart projeksiyon.'
+    };
+  }, [growthScenario]);
+
+  // Active Locations List
   const activeCountries = useMemo(() => {
-    return availableCountries.filter(c => selectedCountryCodes.has(c.code));
-  }, [availableCountries, selectedCountryCodes]);
+    return selectedLocations;
+  }, [selectedLocations]);
 
-  // Combined Multipliers for Multi-Country Targeting
+  // Combined Multipliers for Multi-Location Targeting
   const totalVolumeMultiplier = useMemo(() => {
-    if (activeCountries.length === 0) return 1.0;
-    return activeCountries.reduce((sum, c) => sum + c.volumeMultiplier, 0);
-  }, [activeCountries]);
+    if (selectedLocations.length === 0) return 1.0;
+    return selectedLocations.reduce((sum, loc) => sum + (loc.volumeMultiplier ?? 1.0), 0);
+  }, [selectedLocations]);
 
   const blendedCpcMultiplier = useMemo(() => {
-    if (activeCountries.length === 0) return 1.0;
-    const totalVol = activeCountries.reduce((sum, c) => sum + c.volumeMultiplier, 0);
+    if (selectedLocations.length === 0) return 1.0;
+    const totalVol = selectedLocations.reduce((sum, loc) => sum + (loc.volumeMultiplier ?? 1.0), 0);
     if (totalVol === 0) return 1.0;
-    const weightedSum = activeCountries.reduce((sum, c) => sum + (c.cpcMultiplier * c.volumeMultiplier), 0);
+    const weightedSum = selectedLocations.reduce((sum, loc) => {
+      const mult = loc.cpcMultiplier ?? (loc.countryCode === 'TR' ? 1.0 : (loc.countryCode === 'DE' ? 2.8 : (loc.countryCode === 'US' || loc.countryCode === 'GB' ? 3.2 : 1.8)));
+      const vol = loc.volumeMultiplier ?? 1.0;
+      return sum + (mult * vol);
+    }, 0);
     return weightedSum / totalVol;
-  }, [activeCountries]);
-
-  // Filtered & Sorted Keywords
-  const filteredKeywords = useMemo(() => {
-    return keywords
-      .filter(k => {
-        const matchesQuery = k.keyword.toLowerCase().includes(searchFilter.toLowerCase());
-        const matchesIntent = intentFilter === 'ALL' || k.intent === intentFilter;
-        return matchesQuery && matchesIntent;
-      })
-      .sort((a, b) => {
-        if (sortBy === 'VOLUME') return b.monthlyVolume - a.monthlyVolume;
-        if (sortBy === 'CPC_LOW') return a.lowCpc - b.lowCpc;
-        if (sortBy === 'CPC_HIGH') return b.highCpc - a.highCpc;
-        if (sortBy === 'OPPORTUNITY') return b.opportunityScore - a.opportunityScore;
-        if (sortBy === 'TREND') return b.trendChangePercent - a.trendChangePercent;
-        return 0;
-      });
-  }, [keywords, searchFilter, intentFilter, sortBy]);
+  }, [selectedLocations]);
 
   // Selected Keyword Pool for Simulation
   const selectedKeywordsPool = useMemo(() => {
@@ -709,15 +732,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     return baseTopPageCpc * blendedCpcMultiplier;
   }, [baseTopPageCpc, blendedCpcMultiplier]);
 
-  const highIntentRatio = useMemo(() => {
-    if (selectedKeywordsPool.length === 0) return 0;
-    const transactionalCount = selectedKeywordsPool.filter(k => k.intent === 'TRANSACTIONAL').length;
-    return Math.round((transactionalCount / selectedKeywordsPool.length) * 100);
-  }, [selectedKeywordsPool]);
-
   // 🎛️ Real-Time Dynamic Simulation Calculation (Strictly Capped by Total Market Search Volume & Impression Share)
   const simulation: ForecastSimulation = useMemo(() => {
-    const activeCpc = avgTopPageCpc > 0 ? avgTopPageCpc : 6.50;
+    const activeCpc = (avgTopPageCpc > 0 ? avgTopPageCpc : 6.50) * scenarioMultiplier.cpcMult;
     const availableMarketVolume = totalSearchVolume; // Total searches in selected target markets
     
     // 1. Calculate Maximum Market Capacity (95% Impression Share)
@@ -758,12 +775,14 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     const dailyBudget = Math.round(actualSpend / 30.4);
 
     // 4. Conversions based on Business Model
-    const activeConvRate = businessModel === 'LEAD_GEN' ? leadConversionRate : ecommerceConversionRate;
+    const baseConvRate = businessModel === 'LEAD_GEN' ? leadConversionRate : ecommerceConversionRate;
+    const activeConvRate = Number((baseConvRate * scenarioMultiplier.crMult).toFixed(2));
     const estConversions = Math.max(0, Math.round(estClicks * (activeConvRate / 100)));
     const cpa = estConversions > 0 ? Math.round(actualSpend / estConversions) : actualSpend;
 
     // 5. Deals & CAC (For Lead Gen)
-    const estDeals = businessModel === 'LEAD_GEN' ? Math.round(estConversions * (leadCloseRate / 100)) : 0;
+    const activeCloseRate = Number((leadCloseRate * scenarioMultiplier.crMult).toFixed(2));
+    const estDeals = businessModel === 'LEAD_GEN' ? Math.round(estConversions * (activeCloseRate / 100)) : 0;
     const cac = estDeals > 0 ? Math.round(actualSpend / estDeals) : actualSpend;
 
     // 6. Revenue & ROAS (For E-Commerce or Deal Value)
@@ -790,13 +809,13 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       conversionRate: activeConvRate,
       estConversions,
       cpa,
-      leadCloseRate,
+      leadCloseRate: activeCloseRate,
       estDeals,
       cac,
       avgOrderValue,
       estRevenue,
       projectedRoas,
-      targetCountries: Array.from(selectedCountryCodes)
+      targetCountries: selectedLocations.map(l => l.name)
     };
   }, [
     businessModel,
@@ -811,80 +830,89 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     ecommerceConversionRate,
     avgOrderValue,
     avgDealValue,
-    selectedCountryCodes
+    selectedLocations,
+    scenarioMultiplier
   ]);
 
-  // 🔵 Meta Ads Simulation Calculation
+  // 🔵 Meta Ads Simulation Calculation (Full Funnel & Healthy Lead Rate)
   const metaSimulation: MetaSimulation = useMemo(() => {
     const budget = (monthlyBudget * allocMetaAds) / 100;
-    const impressions = metaCpm > 0 ? Math.round((budget / metaCpm) * 1000) : 0;
+    const effectiveCpm = Math.max(1, metaCpm * scenarioMultiplier.cpcMult);
+    const impressions = effectiveCpm > 0 ? Math.round((budget / effectiveCpm) * 1000) : 0;
     const clicks = Math.round(impressions * (metaCtr / 100));
     const cpc = clicks > 0 ? Math.round((budget / clicks) * 100) / 100 : 0;
-    const grossLeads = Math.round(clicks * (metaLeadCr / 100));
+    const effectiveLeadCr = Number((metaLeadCr * scenarioMultiplier.crMult).toFixed(2));
+    const grossLeads = Math.round(clicks * (effectiveLeadCr / 100));
     const cpl = grossLeads > 0 ? Math.round(budget / grossLeads) : 0;
-    const healthyLeads = Math.round(grossLeads * (metaHealthyLeadRate / 100));
+    const effectiveHealthyRate = Number(Math.min(100, Math.max(10, metaHealthyLeadRate * scenarioMultiplier.healthyLeadMult)).toFixed(1));
+    const healthyLeads = Math.round(grossLeads * (effectiveHealthyRate / 100));
     const cpql = healthyLeads > 0 ? Math.round(budget / healthyLeads) : 0;
-    const deals = Math.round(healthyLeads * (metaCloseRate / 100));
+    const effectiveCloseRate = Number((metaCloseRate * scenarioMultiplier.crMult).toFixed(2));
+    const deals = Math.round(healthyLeads * (effectiveCloseRate / 100));
     const cac = deals > 0 ? Math.round(budget / deals) : 0;
     const revenue = deals * (avgDealValue > 0 ? avgDealValue : (businessModel === 'ECOMMERCE' ? avgOrderValue : 0));
     const roas = budget > 0 ? Math.round((revenue / budget) * 10) / 10 : 0;
 
     return {
       budget,
-      cpm: metaCpm,
+      cpm: effectiveCpm,
       impressions,
       ctr: metaCtr,
       clicks,
       cpc,
-      leadConversionRate: metaLeadCr,
+      leadConversionRate: effectiveLeadCr,
       grossLeads,
       cpl,
-      healthyLeadRate: metaHealthyLeadRate,
+      healthyLeadRate: effectiveHealthyRate,
       healthyLeads,
       cpql,
-      closeRate: metaCloseRate,
+      closeRate: effectiveCloseRate,
       deals,
       cac,
       revenue,
       roas
     };
-  }, [monthlyBudget, allocMetaAds, metaCpm, metaCtr, metaLeadCr, metaHealthyLeadRate, metaCloseRate, avgDealValue, avgOrderValue, businessModel]);
+  }, [monthlyBudget, allocMetaAds, metaCpm, metaCtr, metaLeadCr, metaHealthyLeadRate, metaCloseRate, avgDealValue, avgOrderValue, businessModel, scenarioMultiplier]);
 
   // 🟢 Google GDN Simulation Calculation
   const gdnSimulation: GdnSimulation = useMemo(() => {
     const budget = (monthlyBudget * allocGdn) / 100;
-    const impressions = gdnCpm > 0 ? Math.round((budget / gdnCpm) * 1000) : 0;
+    const effectiveCpm = Math.max(1, gdnCpm * scenarioMultiplier.cpcMult);
+    const impressions = effectiveCpm > 0 ? Math.round((budget / effectiveCpm) * 1000) : 0;
     const clicks = Math.round(impressions * (gdnCtr / 100));
     const cpc = clicks > 0 ? Math.round((budget / clicks) * 100) / 100 : 0;
-    const assistedConversions = Math.round(clicks * (gdnAssistedCr / 100));
+    const effectiveAssistedCr = Number((gdnAssistedCr * scenarioMultiplier.crMult).toFixed(2));
+    const assistedConversions = Math.round(clicks * (effectiveAssistedCr / 100));
     return {
       budget,
-      cpm: gdnCpm,
+      cpm: effectiveCpm,
       impressions,
       ctr: gdnCtr,
       clicks,
       cpc,
-      assistedConversionRate: gdnAssistedCr,
+      assistedConversionRate: effectiveAssistedCr,
       assistedConversions
     };
-  }, [monthlyBudget, allocGdn, gdnCpm, gdnCtr, gdnAssistedCr]);
+  }, [monthlyBudget, allocGdn, gdnCpm, gdnCtr, gdnAssistedCr, scenarioMultiplier]);
 
   // 🔴 YouTube Ads Simulation Calculation
   const youtubeSimulation: YouTubeSimulation = useMemo(() => {
     const budget = (monthlyBudget * allocYouTube) / 100;
-    const videoViews = youtubeCpv > 0 ? Math.round(budget / youtubeCpv) : 0;
+    const effectiveCpv = Math.max(0.05, youtubeCpv * scenarioMultiplier.cpcMult);
+    const videoViews = effectiveCpv > 0 ? Math.round(budget / effectiveCpv) : 0;
     const impressions = youtubeVtr > 0 ? Math.round(videoViews / (youtubeVtr / 100)) : videoViews * 3;
-    const actions = Math.round(videoViews * (youtubeActionRate / 100));
+    const effectiveActionRate = Number((youtubeActionRate * scenarioMultiplier.crMult).toFixed(2));
+    const actions = Math.round(videoViews * (effectiveActionRate / 100));
     return {
       budget,
-      cpv: youtubeCpv,
+      cpv: effectiveCpv,
       videoViews,
       vtr: youtubeVtr,
       impressions,
-      actionRate: youtubeActionRate,
+      actionRate: effectiveActionRate,
       actions
     };
-  }, [monthlyBudget, allocYouTube, youtubeCpv, youtubeVtr, youtubeActionRate]);
+  }, [monthlyBudget, allocYouTube, youtubeCpv, youtubeVtr, youtubeActionRate, scenarioMultiplier]);
 
   // 🌐 360° Omnichannel Media Mix Consolidated Simulation
   const omnichannelMix: OmnichannelMediaMix = useMemo(() => {
@@ -897,8 +925,8 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     const googleImpressions = Math.round(simulation.estImpressions * googleWeight);
     const googleClicks = Math.round(simulation.estClicks * googleWeight);
     const googleLeads = Math.round(simulation.estConversions * googleWeight);
-    const googleHealthyLeads = Math.round(googleLeads * (leadCloseRate / 100));
-    const googleDeals = Math.round(googleHealthyLeads * 0.35);
+    const googleHealthyLeads = Math.round(googleLeads * 0.85); // High intent search leads
+    const googleDeals = Math.round(googleHealthyLeads * (leadCloseRate / 100));
     const googleRevenue = googleDeals * (avgDealValue > 0 ? avgDealValue : (businessModel === 'ECOMMERCE' ? avgOrderValue : 0));
 
     const totalImpressions = googleImpressions + metaSimulation.impressions + youtubeSimulation.impressions + gdnSimulation.impressions;
@@ -951,20 +979,22 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     businessModel
   ]);
 
-  // Country Breakdown Metrics
+  // Location / Country Breakdown Metrics
   const countryBreakdown: CountryMetric[] = useMemo(() => {
-    if (activeCountries.length === 0) return [];
-    const totalWeight = activeCountries.reduce((s, c) => s + c.volumeMultiplier, 0);
-    return activeCountries.map(c => {
-      const share = totalWeight > 0 ? (c.volumeMultiplier / totalWeight) : (1 / activeCountries.length);
-      const cVol = Math.round(baseSearchVolume * c.volumeMultiplier);
-      const cCpc = Math.round((avgTopPageCpc / blendedCpcMultiplier) * c.cpcMultiplier * 100) / 100;
+    if (selectedLocations.length === 0) return [];
+    const totalWeight = selectedLocations.reduce((s, c) => s + (c.volumeMultiplier ?? 1.0), 0);
+    return selectedLocations.map(loc => {
+      const volMult = loc.volumeMultiplier ?? 1.0;
+      const share = totalWeight > 0 ? (volMult / totalWeight) : (1 / selectedLocations.length);
+      const cVol = Math.round(baseSearchVolume * volMult);
+      const cpcMult = loc.cpcMultiplier ?? (loc.countryCode === 'TR' ? 1.0 : 2.5);
+      const cCpc = Math.round((avgTopPageCpc / blendedCpcMultiplier) * cpcMult * 100) / 100;
       const cClicks = Math.round((simulation.estClicks || 0) * share);
       const cConvs = Math.round((simulation.estConversions || 0) * share);
       return {
-        code: c.code,
-        name: c.name,
-        flag: c.flag,
+        code: loc.countryCode,
+        name: loc.canonicalName || loc.name,
+        flag: loc.flag || '🌍',
         sharePercent: Math.round(share * 100),
         monthlyVolume: cVol,
         avgCpc: cCpc,
@@ -972,7 +1002,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         estConversions: cConvs,
       };
     });
-  }, [activeCountries, baseSearchVolume, avgTopPageCpc, blendedCpcMultiplier, simulation]);
+  }, [selectedLocations, baseSearchVolume, avgTopPageCpc, blendedCpcMultiplier, simulation]);
 
   // Copy Negative Keywords to Clipboard
   const handleCopyNegatives = (words: string[], categoryTitle: string) => {
@@ -1044,14 +1074,14 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
             <h1 style={{ fontSize: '1.5rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-              Google Ads Kampanya & Bütçe Tahminleme (Forecast)
+              360° Çok Kanallı Medya & Büyüme Planlayıcı (Omnichannel Growth Studio)
             </h1>
             <span className="badge badge-active" style={{ fontSize: '0.7rem' }}>
-              <Sparkles size={12} /> AI & Google Verisi
+              <Sparkles size={12} /> 360° Medya Karması • AI & Google Ads Resmi Verisi
             </span>
           </div>
           <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-            3 Aşamalı Akıllı Akış: Sayfa Analizi ➔ Hedef Ülke Seçimi ➔ Hacim, TBM & ROAS Simülasyonu.
+            3 Aşamalı Büyüme Planı: 1. Pazar & STAG Kelime Keşfi ➔ 2. Hedef Pazar / Lokasyon Seçimi (Ülke, Şehir, İlçe) ➔ 3. 360° Çok Kanallı Medya & ROI Simülasyonu.
           </p>
         </div>
 
@@ -1073,7 +1103,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
             style={{ fontSize: '0.8rem', padding: '0.45rem 0.85rem' }}
           >
             {planSaveSuccess ? <Check size={14} /> : <Save size={14} />}
-            {planSaveSuccess ? 'Plan Kaydedildi!' : 'Simülasyon Planını Kaydet'}
+            {planSaveSuccess ? 'Plan Kaydedildi!' : '360° Medya Planını Kaydet'}
           </button>
         </div>
       </div>
@@ -1292,7 +1322,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
             })}
           </div>
         </div>
-      ) : keywords.length === 0 && activeTab !== 'saved-plans' ? (
+      ) : keywords.length === 0 ? (
         /* SCENARIO B: EMPTY STATE */
         <div className="card" style={{ padding: '3.5rem 1.5rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1rem' }}>
           <div style={{ width: '64px', height: '64px', borderRadius: '50%', backgroundColor: 'rgba(37, 99, 235, 0.1)', color: 'var(--brand-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -1300,7 +1330,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           </div>
           <div>
             <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-              Google Ads Akıllı Tahminleme & Bütçe Planlama
+              360° Çok Kanallı Medya & Büyüme Planlayıcı
             </div>
             <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', maxWidth: '580px', margin: '0.5rem auto 0 auto', lineHeight: 1.5 }}>
               Yukarıdaki arama kutusuna analiz etmek istediğiniz <strong>web sitesi URL'sini</strong> veya <strong>anahtar kelimeleri</strong> yazın. Sistemimiz resmi Google Ads Keyword Planner servisinden arama hacimlerini, sayfa üstü TBM tekliflerini ve tematik STAG reklam gruplarını anında çıkaracaktır.
@@ -1318,6 +1348,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
             ].map(label => (
               <button
                 key={label}
+                type="button"
                 onClick={() => {
                   setQuery(label);
                   const isUrl = label.includes('.') && !label.includes(' ');
@@ -1336,7 +1367,8 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           {savedPlans.length > 0 && (
             <div style={{ marginTop: '0.5rem' }}>
               <button
-                onClick={() => { setActiveTab('saved-plans'); loadSavedPlans(); }}
+                type="button"
+                onClick={() => { setCurrentStep(3); setActiveChannelTab('SAVED_PLANS'); loadSavedPlans(); }}
                 className="btn-secondary"
                 style={{ fontSize: '0.8rem', padding: '0.4rem 0.85rem' }}
               >
@@ -1386,7 +1418,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
               }}>
                 {currentStep > 1 ? <Check size={15} /> : '1'}
               </div>
-              <span>1. Adım: Anahtar Kelime Analizi & Gruplar</span>
+              <span>1. Adım: Pazar & Kelime Keşfi</span>
             </button>
 
             {/* Step 2 */}
@@ -1424,7 +1456,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
               }}>
                 {currentStep > 2 ? <Check size={15} /> : '2'}
               </div>
-              <span>2. Adım: Hedef Pazar & Ülke Seçimi</span>
+              <span>2. Adım: Hedef Pazar & Lokasyon Seçimi ({selectedLocations.length})</span>
             </button>
 
             {/* Step 3 */}
@@ -1462,7 +1494,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
               }}>
                 3
               </div>
-              <span>3. Adım: Hacim, Bütçe & ROI Simülasyonu</span>
+              <span>3. Adım: 360° Medya Karması & Büyüme Simülatörü</span>
             </button>
 
           </div>
@@ -2039,118 +2071,300 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           )}
 
           {/* ========================================================================= */}
-          {/* STEP 2 VIEW: Target Market & Multi-Country Selection                     */}
+          {/* STEP 2 VIEW: Google Keyword Planner Style Location & Geo-Targeting Engine */}
           {/* ========================================================================= */}
           {currentStep === 2 && (
-            <div className="card" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div className="card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', backgroundColor: 'var(--bg-surface)' }}>
               
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <div style={{ padding: '8px', borderRadius: '50%', backgroundColor: 'rgba(37, 99, 235, 0.1)', color: 'var(--brand-primary)' }}>
-                    <Globe size={20} />
+              {/* Header */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem', borderBottom: '1px solid var(--border-default)', paddingBottom: '1rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <div style={{ padding: '10px', borderRadius: '50%', backgroundColor: 'rgba(37, 99, 235, 0.12)', color: 'var(--brand-primary)' }}>
+                    <Globe size={22} />
                   </div>
                   <div>
-                    <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                      2. Adım: Hedef Pazar & Ülke Seçimi ({activeCountries.length} Ülke Seçili)
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <div style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                        2. Adım: Hedef Pazar & Lokasyon Seçimi
+                      </div>
+                      <span className="badge badge-active" style={{ fontSize: '0.72rem' }}>
+                        <Sparkles size={11} /> Google Keyword Planner API
+                      </span>
                     </div>
-                    <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
-                      Seçilen <strong>{selectedKeywordIds.size} anahtar kelimeyi</strong> hangi ülke pazarlarında yayınlayacaksınız? Seçimlerinize göre arama hacimleri ve ortalama TBM anlık hesaplanır.
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                      Google Ads resmi lokasyon veritabanından <strong>ülke, şehir veya ilçe</strong> arayarak hedefleyin. (Örn: Alanya, Kadıköy, İstanbul, Antalya, Berlin, Londra...)
                     </div>
                   </div>
                 </div>
 
-                {/* Quick Region Presets */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Hazır Pazar Paketleri:</span>
-                  {[
-                    { label: '🇷🇺 BDT & Rusça', codes: ['RU', 'KZ', 'UZ'] },
-                    { label: '🇦🇪 Körfez / GCC', codes: ['AE', 'SA'] },
-                    { label: '🇹🇷 Türkiye İçi', codes: ['TR'] },
-                    { label: '🇩🇪 Avrupa', codes: ['DE', 'GB', 'NL'] },
-                    { label: '✨ Tümünü Seç', codes: availableCountries.map(c => c.code) },
-                  ].map(p => (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', backgroundColor: 'var(--bg-surface-elevated)', padding: '0.4rem 0.75rem', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-default)' }}>
+                  <span style={{ color: 'var(--text-muted)' }}>Seçili Lokasyon:</span>
+                  <strong style={{ color: 'var(--brand-primary)' }}>{selectedLocations.length} Bölge</strong>
+                </div>
+              </div>
+
+              {/* Google Keyword Planner Live Search Bar */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', position: 'relative' }}>
+                <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <Search size={15} color="var(--brand-primary)" />
+                  <span>Hedef Lokasyon Ara (Şehir, İlçe, Ülke veya Eyalet):</span>
+                </label>
+
+                <div style={{ position: 'relative', width: '100%' }}>
+                  <Search size={16} color="var(--text-muted)" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+                  <input
+                    type="text"
+                    placeholder="Şehir, ilçe veya ülke adı yazın (örn: Alanya, Kadıköy, İstanbul, Antalya, Bodrum, Berlin, Dubai, London)..."
+                    value={locationSearchQuery}
+                    onChange={(e) => setLocationSearchQuery(e.target.value)}
+                    style={{
+                      width: '100%',
+                      paddingLeft: '2.5rem',
+                      paddingRight: isSearchingLocations || locationSearchQuery ? '2.5rem' : '1rem',
+                      height: '42px',
+                      fontSize: '0.875rem',
+                      backgroundColor: 'var(--bg-surface-elevated)',
+                      border: '1.5px solid var(--brand-primary)',
+                      borderRadius: 'var(--radius-sm)'
+                    }}
+                  />
+                  {isSearchingLocations ? (
+                    <div style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)' }}>
+                      <RefreshCw size={15} className="animate-spin" color="var(--brand-primary)" />
+                    </div>
+                  ) : locationSearchQuery ? (
                     <button
-                      key={p.label}
-                      onClick={() => selectRegionPreset(p.codes)}
+                      type="button"
+                      onClick={() => setLocationSearchQuery('')}
                       className="btn-ghost"
-                      style={{ fontSize: '0.72rem', padding: '0.3rem 0.6rem', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-xs)' }}
+                      style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', padding: '4px' }}
                     >
-                      {p.label}
+                      <X size={14} />
                     </button>
+                  ) : null}
+                </div>
+
+                {/* Autocomplete Suggestions Dropdown Panel */}
+                {locationSearchQuery.trim().length > 0 && (
+                  <div style={{
+                    marginTop: '0.25rem',
+                    backgroundColor: 'var(--bg-surface)',
+                    border: '1px solid var(--border-default)',
+                    borderRadius: 'var(--radius-sm)',
+                    boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
+                    maxHeight: '260px',
+                    overflowY: 'auto',
+                    zIndex: 20
+                  }}>
+                    {isSearchingLocations ? (
+                      <div style={{ padding: '1rem', textAlign: 'center', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                        Google Ads lokasyon veritabanı taranıyor...
+                      </div>
+                    ) : locationSearchResults.length === 0 ? (
+                      <div style={{ padding: '1rem', textAlign: 'center', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                        "{locationSearchQuery}" ile eşleşen bir Google Ads hedefleme bölgesi bulunamadı.
+                      </div>
+                    ) : (
+                      locationSearchResults.map((loc) => {
+                        const isAlreadySelected = selectedLocations.some(l => l.id === loc.id || l.name.toLowerCase() === loc.name.toLowerCase());
+                        return (
+                          <div
+                            key={loc.id}
+                            style={{
+                              padding: '0.65rem 1rem',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              borderBottom: '1px solid var(--border-default)',
+                              backgroundColor: isAlreadySelected ? 'rgba(37, 99, 235, 0.06)' : 'transparent',
+                              transition: 'background-color 0.12s ease'
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                              <span style={{ fontSize: '1.3rem' }}>{loc.flag || '🌍'}</span>
+                              <div>
+                                <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                  <span>{loc.name}</span>
+                                  <span style={{ fontSize: '0.68rem', padding: '1px 6px', borderRadius: 'var(--radius-full)', backgroundColor: 'var(--bg-surface-elevated)', border: '1px solid var(--border-default)', color: 'var(--text-secondary)' }}>
+                                    {loc.targetType === 'City' ? 'Şehir' : (loc.targetType === 'District' ? 'İlçe' : (loc.targetType === 'Country' ? 'Ülke' : loc.targetType))}
+                                  </span>
+                                </div>
+                                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                                  {loc.canonicalName || loc.name} {loc.reach ? `• Yaklaşık Erişim: ${loc.reach.toLocaleString('tr-TR')} kullanıcı` : ''}
+                                </div>
+                              </div>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                toggleLocation(loc);
+                                setLocationSearchQuery('');
+                              }}
+                              className={isAlreadySelected ? 'btn-secondary' : 'btn-primary'}
+                              style={{ fontSize: '0.75rem', padding: '0.35rem 0.75rem', borderRadius: 'var(--radius-xs)' }}
+                            >
+                              {isAlreadySelected ? (
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: '#10b981' }}>
+                                  <Check size={13} /> Seçildi
+                                </span>
+                              ) : (
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                  <Plus size={13} /> Ekle
+                                </span>
+                              )}
+                            </button>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Selected Target Locations Chips Bar */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <Target size={15} color="var(--brand-primary)" />
+                    <span>🎯 Seçili Hedef Lokasyonlar ({selectedLocations.length}):</span>
+                  </div>
+                  {selectedLocations.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedLocations([DEFAULT_LOCATIONS[0]])}
+                      className="btn-ghost"
+                      style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}
+                    >
+                      Sıfırla (Sadece Türkiye)
+                    </button>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', minHeight: '44px', padding: '0.65rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
+                  {selectedLocations.map((loc) => (
+                    <div
+                      key={loc.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.45rem',
+                        padding: '0.35rem 0.75rem',
+                        backgroundColor: 'var(--bg-surface)',
+                        border: '1.5px solid var(--brand-primary)',
+                        borderRadius: 'var(--radius-full)',
+                        fontSize: '0.8rem',
+                        fontWeight: 600,
+                        color: 'var(--text-primary)',
+                        boxShadow: '0 1px 4px rgba(37,99,235,0.08)'
+                      }}
+                    >
+                      <span>{loc.flag || '🌍'}</span>
+                      <span>{loc.canonicalName || loc.name}</span>
+                      <span style={{ fontSize: '0.67rem', padding: '1px 5px', borderRadius: '4px', backgroundColor: 'rgba(37,99,235,0.12)', color: 'var(--brand-primary)' }}>
+                        {loc.targetType === 'City' ? 'Şehir' : (loc.targetType === 'District' ? 'İlçe' : (loc.targetType === 'Country' ? 'Ülke' : loc.targetType))}
+                      </span>
+                      {selectedLocations.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeLocation(loc.id)}
+                          title="Lokasyonu Kaldır"
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }}
+                        >
+                          <X size={13} />
+                        </button>
+                      )}
+                    </div>
                   ))}
                 </div>
               </div>
 
-              {/* Country Pills (Multi-Select) */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '0.65rem' }}>
-                {availableCountries.map(c => {
-                  const isSelected = selectedCountryCodes.has(c.code);
-                  return (
-                    <button
-                      key={c.code}
-                      onClick={() => toggleCountry(c.code)}
-                      style={{
-                        padding: '0.65rem 0.85rem',
-                        borderRadius: 'var(--radius-sm)',
-                        border: isSelected ? '1.5px solid var(--brand-primary)' : '1px solid var(--border-default)',
-                        backgroundColor: isSelected ? 'rgba(37, 99, 235, 0.12)' : 'var(--bg-surface-elevated)',
-                        color: isSelected ? 'var(--text-primary)' : 'var(--text-secondary)',
-                        fontSize: '0.82rem',
-                        fontWeight: isSelected ? 600 : 400,
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        gap: '0.5rem',
-                        transition: 'all 0.15s ease',
-                        textAlign: 'left'
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <span style={{ fontSize: '1.25rem' }}>{c.flag}</span>
-                        <div>
-                          <div>{c.name}</div>
-                          <div style={{ fontSize: '0.7rem', color: isSelected ? 'var(--brand-primary)' : 'var(--text-muted)' }}>
-                            TBM Çarpanı: {c.cpcMultiplier}x ({c.currency})
-                          </div>
-                        </div>
-                      </div>
-                      {isSelected && <Check size={16} color="var(--brand-primary)" />}
-                    </button>
-                  );
-                })}
+              {/* Quick Add Popular Locations (Presets) */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+                  ⚡ Hızlı Ekle (Popüler Lokasyonlar & Şehirler):
+                </span>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                  {[
+                    { id: '2792', name: 'Türkiye Geneli', canonicalName: 'Türkiye', countryCode: 'TR', targetType: 'Country', reach: 85000000, flag: '🇹🇷', cpcMultiplier: 1.0, volumeMultiplier: 1.0 },
+                    { id: '1012764', name: 'İstanbul', canonicalName: 'İstanbul, Türkiye', countryCode: 'TR', targetType: 'City', reach: 16000000, flag: '🇹🇷', cpcMultiplier: 1.15, volumeMultiplier: 0.35 },
+                    { id: '1012783', name: 'Antalya', canonicalName: 'Antalya, Türkiye', countryCode: 'TR', targetType: 'City', reach: 2600000, flag: '🇹🇷', cpcMultiplier: 1.10, volumeMultiplier: 0.15 },
+                    { id: '1012782', name: 'Alanya', canonicalName: 'Alanya, Antalya, Türkiye', countryCode: 'TR', targetType: 'City', reach: 350000, flag: '🇹🇷', cpcMultiplier: 1.05, volumeMultiplier: 0.08 },
+                    { id: '1012763', name: 'Ankara', canonicalName: 'Ankara, Türkiye', countryCode: 'TR', targetType: 'City', reach: 5800000, flag: '🇹🇷', cpcMultiplier: 1.05, volumeMultiplier: 0.20 },
+                    { id: '1012765', name: 'İzmir', canonicalName: 'İzmir, Türkiye', countryCode: 'TR', targetType: 'City', reach: 4400000, flag: '🇹🇷', cpcMultiplier: 1.05, volumeMultiplier: 0.18 },
+                    { id: '1012785', name: 'Bodrum', canonicalName: 'Bodrum, Muğla, Türkiye', countryCode: 'TR', targetType: 'City', reach: 190000, flag: '🇹🇷', cpcMultiplier: 1.10, volumeMultiplier: 0.06 },
+                    { id: '2276', name: 'Almanya', canonicalName: 'Almanya', countryCode: 'DE', targetType: 'Country', reach: 84000000, flag: '🇩🇪', cpcMultiplier: 2.8, volumeMultiplier: 1.4 },
+                    { id: '2826', name: 'Birleşik Krallık (UK)', canonicalName: 'Birleşik Krallık', countryCode: 'GB', targetType: 'Country', reach: 67000000, flag: '🇬🇧', cpcMultiplier: 3.2, volumeMultiplier: 1.3 },
+                    { id: '2840', name: 'ABD', canonicalName: 'Amerika Birleşik Devletleri', countryCode: 'US', targetType: 'Country', reach: 335000000, flag: '🇺🇸', cpcMultiplier: 3.5, volumeMultiplier: 2.0 },
+                    { id: '1000010', name: 'Dubai', canonicalName: 'Dubai, Birleşik Arap Emirlikleri', countryCode: 'AE', targetType: 'City', reach: 3400000, flag: '🇦🇪', cpcMultiplier: 2.4, volumeMultiplier: 0.8 },
+                    { id: '2643', name: 'Rusya', canonicalName: 'Rusya', countryCode: 'RU', targetType: 'Country', reach: 145000000, flag: '🇷🇺', cpcMultiplier: 1.6, volumeMultiplier: 1.8 },
+                    { id: '2398', name: 'Kazakistan', canonicalName: 'Kazakistan', countryCode: 'KZ', targetType: 'Country', reach: 19500000, flag: '🇰🇿', cpcMultiplier: 1.4, volumeMultiplier: 0.9 }
+                  ].map((preset) => {
+                    const isSelected = selectedLocations.some(l => l.id === preset.id || l.name.toLowerCase() === preset.name.toLowerCase());
+                    return (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        onClick={() => toggleLocation(preset as GeoTargetLocation)}
+                        className="btn-ghost"
+                        style={{
+                          fontSize: '0.75rem',
+                          padding: '0.3rem 0.65rem',
+                          borderRadius: 'var(--radius-full)',
+                          border: isSelected ? '1.5px solid var(--brand-primary)' : '1px solid var(--border-default)',
+                          backgroundColor: isSelected ? 'rgba(37, 99, 235, 0.12)' : 'var(--bg-surface-elevated)',
+                          color: isSelected ? 'var(--brand-primary)' : 'var(--text-secondary)',
+                          fontWeight: isSelected ? 700 : 500
+                        }}
+                      >
+                        {preset.flag} {preset.name} {isSelected ? '✓' : '+'}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               {/* Selected Market Impact Summary */}
-              <div style={{ backgroundColor: 'var(--bg-surface-elevated)', padding: '0.85rem 1rem', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
-                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                  Seçili Pazarlar: <strong>{activeCountries.map(c => c.name).join(', ')}</strong>
+              <div style={{ backgroundColor: 'var(--bg-surface-elevated)', padding: '1rem 1.25rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+                <div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Hedeflenen Lokasyonlar:</div>
+                  <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
+                    {selectedLocations.map(l => l.flag + ' ' + (l.canonicalName || l.name)).join(' • ')}
+                  </div>
                 </div>
-                <div style={{ display: 'flex', gap: '1rem', fontSize: '0.78rem' }}>
-                  <span>Toplam Pazar Hacim Çarpanı: <strong style={{ color: 'var(--brand-primary)' }}>{totalVolumeMultiplier.toFixed(2)}x</strong></span>
-                  <span>Ağırlıklı TBM Çarpanı: <strong style={{ color: '#34d399' }}>{blendedCpcMultiplier.toFixed(2)}x</strong></span>
+                <div style={{ display: 'flex', gap: '1.25rem', fontSize: '0.82rem' }}>
+                  <div>
+                    <span style={{ color: 'var(--text-muted)' }}>Pazar Hacim Çarpanı: </span>
+                    <strong style={{ color: 'var(--brand-primary)' }}>{totalVolumeMultiplier.toFixed(2)}x</strong>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-muted)' }}>Ağırlıklı TBM Çarpanı: </span>
+                    <strong style={{ color: '#34d399' }}>{blendedCpcMultiplier.toFixed(2)}x</strong>
+                  </div>
                 </div>
               </div>
 
               {/* Navigation Actions */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border-default)', paddingTop: '0.85rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border-default)', paddingTop: '1rem' }}>
                 <button
+                  type="button"
                   onClick={() => setCurrentStep(1)}
                   className="btn-secondary"
-                  style={{ fontSize: '0.82rem', padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                  style={{ fontSize: '0.85rem', padding: '0.55rem 1.15rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
                 >
-                  <ArrowLeft size={14} />
+                  <ArrowLeft size={15} />
                   <span>1. Adım: Kelimelere Dön</span>
                 </button>
 
                 <button
+                  type="button"
                   onClick={() => setCurrentStep(3)}
-                  disabled={activeCountries.length === 0}
+                  disabled={selectedLocations.length === 0}
                   className="btn-primary"
-                  style={{ fontSize: '0.85rem', padding: '0.55rem 1.25rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+                  style={{ fontSize: '0.875rem', padding: '0.6rem 1.4rem', display: 'flex', alignItems: 'center', gap: '0.45rem', fontWeight: 700 }}
                 >
-                  <span>3. Adım: Hacim & Bütçe Tahminlerini Gör</span>
-                  <ArrowRight size={15} />
+                  <span>3. Adım: 360° Medya Karması & Simülasyona Geç</span>
+                  <ArrowRight size={16} />
                 </button>
               </div>
 
@@ -2158,421 +2372,218 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           )}
 
           {/* ========================================================================= */}
-          {/* STEP 3 VIEW: KPIs, Matrix, Simulator, Negatives & Saved Plans             */}
+          {/* STEP 3 VIEW: 360° Omnichannel Media Studio & Growth Simulator            */}
           {/* ========================================================================= */}
           {currentStep === 3 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
               
-              {/* Step 3 Quick Context Bar */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem', backgroundColor: 'var(--bg-surface)', padding: '0.5rem 0.85rem', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-default)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                  <span>Dil: <strong>{detectedLanguageName}</strong></span>
-                  <span>•</span>
-                  <span>Seçili Kelimeler: <strong>{selectedKeywordsPool.length} Adet</strong></span>
-                  <span>•</span>
-                  <span>Hedef Ülkeler: <strong>{activeCountries.map(c => c.flag + ' ' + c.name).join(', ')}</strong></span>
-                </div>
-                <div style={{ display: 'flex', gap: '0.4rem' }}>
-                  <button
-                    onClick={() => setCurrentStep(1)}
-                    className="btn-ghost"
-                    style={{ fontSize: '0.72rem', padding: '0.2rem 0.5rem' }}
-                  >
-                    1. Kelimeleri Düzenle
-                  </button>
-                  <button
-                    onClick={() => setCurrentStep(2)}
-                    className="btn-ghost"
-                    style={{ fontSize: '0.72rem', padding: '0.2rem 0.5rem' }}
-                  >
-                    2. Ülkeleri Değiştir
-                  </button>
-                </div>
-              </div>
-
-              {/* Aggregate KPI Metric Cards */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
+              {/* Step 3 Quick Context & Strategic Growth Scenario Selector Bar */}
+              <div className="card" style={{ padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', backgroundColor: 'var(--bg-surface)' }}>
                 
-                {/* Total Volume */}
-                <div className="card" style={{ padding: '1.15rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Toplam Aylık Pazar Hacmi</span>
-                    <div style={{ padding: '6px', borderRadius: '50%', backgroundColor: 'var(--bg-surface-elevated)', color: 'var(--brand-primary)' }}>
-                      <Eye size={15} />
-                    </div>
+                {/* Left: Summary Meta */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                      3. Adım: 360° Medya Karması & Büyüme Simülatörü
+                    </span>
+                    <span className="badge badge-active" style={{ fontSize: '0.72rem' }}>
+                      <Sparkles size={11} /> 4 Kanal Entegre
+                    </span>
                   </div>
-                  <div style={{ fontSize: '1.65rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '0.35rem' }}>
-                    {totalSearchVolume.toLocaleString('tr-TR')}
-                  </div>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
-                    Seçili {activeCountries.length} ülke pazarında toplam aylık arama
-                  </div>
-                </div>
-
-                {/* Avg Top of Page CPC */}
-                <div className="card" style={{ padding: '1.15rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Ağırlıklı Ort. Sayfa Üstü TBM</span>
-                    <div style={{ padding: '6px', borderRadius: '50%', backgroundColor: 'var(--bg-surface-elevated)', color: '#34d399' }}>
-                      <DollarSign size={15} />
-                    </div>
-                  </div>
-                  <div style={{ fontSize: '1.65rem', fontWeight: 700, color: '#34d399', marginTop: '0.35rem' }}>
-                    ₺{avgTopPageCpc.toFixed(2)}
-                  </div>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
-                    Hedeflenen pazarların ağırlıklı ortalama tıklama maliyeti
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '0.78rem', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
+                    <span>Dil: <strong>{detectedLanguageName}</strong></span>
+                    <span>•</span>
+                    <span>Kelime Havuzu: <strong>{selectedKeywordsPool.length} Kelime</strong></span>
+                    <span>•</span>
+                    <span>Hedef Bölgeler: <strong>{selectedLocations.map(l => l.flag + ' ' + (l.canonicalName || l.name)).join(', ')}</strong></span>
                   </div>
                 </div>
 
-                {/* High-Intent Ratio */}
-                <div className="card" style={{ padding: '1.15rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Satın Alma Odaklı Kelimeler</span>
-                    <div style={{ padding: '6px', borderRadius: '50%', backgroundColor: 'var(--bg-surface-elevated)', color: 'var(--info)' }}>
-                      <Target size={15} />
-                    </div>
-                  </div>
-                  <div style={{ fontSize: '1.65rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '0.35rem' }}>
-                    %{highIntentRatio}
-                  </div>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
-                    Doğrudan sipariş veya talep getiren yüksek niyetli kelime oranı
+                {/* Right: Strategic Growth Scenario 3-Toggle Buttons */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+                    🎯 Büyüme Senaryosu:
+                  </span>
+                  
+                  {[
+                    { id: 'CONSERVATIVE', label: '🛡️ Muhafazakar', desc: 'Temkinli Projeksiyon (-15% CR, +15% Maliyet)', color: '#64748b' },
+                    { id: 'REALISTIC', label: '⚖️ Beklenen', desc: 'Sektör & Pazar Medyanı (1.0x)', color: 'var(--brand-primary)' },
+                    { id: 'AGGRESSIVE', label: '🚀 Agresif', desc: 'Optimizasyon & Ölçeklenme (+20% CR, +15% Nitelikli Lead)', color: '#10b981' }
+                  ].map(sc => (
+                    <button
+                      key={sc.id}
+                      type="button"
+                      onClick={() => setGrowthScenario(sc.id as GrowthScenario)}
+                      title={sc.desc}
+                      style={{
+                        padding: '0.45rem 0.85rem',
+                        fontSize: '0.8rem',
+                        borderRadius: 'var(--radius-xs)',
+                        border: growthScenario === sc.id ? `1.5px solid ${sc.color}` : '1px solid var(--border-default)',
+                        backgroundColor: growthScenario === sc.id ? (sc.id === 'CONSERVATIVE' ? 'rgba(100, 116, 139, 0.15)' : (sc.id === 'AGGRESSIVE' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(37, 99, 235, 0.15)')) : 'var(--bg-surface-elevated)',
+                        color: growthScenario === sc.id ? (sc.id === 'CONSERVATIVE' ? '#475569' : (sc.id === 'AGGRESSIVE' ? '#10b981' : 'var(--brand-primary)')) : 'var(--text-secondary)',
+                        fontWeight: growthScenario === sc.id ? 700 : 500,
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                        boxShadow: growthScenario === sc.id ? `0 0 0 1px ${sc.color}` : 'none'
+                      }}
+                    >
+                      {sc.label}
+                    </button>
+                  ))}
+
+                  <div style={{ display: 'flex', gap: '0.35rem', marginLeft: '0.35rem' }}>
+                    <button
+                      type="button"
+                      onClick={() => setCurrentStep(1)}
+                      className="btn-ghost"
+                      style={{ fontSize: '0.72rem', padding: '0.3rem 0.55rem', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-xs)' }}
+                    >
+                      1. Kelimeler
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCurrentStep(2)}
+                      className="btn-ghost"
+                      style={{ fontSize: '0.72rem', padding: '0.3rem 0.55rem', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-xs)' }}
+                    >
+                      2. Lokasyonlar
+                    </button>
                   </div>
                 </div>
 
-                {/* Active Target Markets */}
-                <div className="card" style={{ padding: '1.15rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Hedeflenen Pazarlar</span>
-                    <div style={{ padding: '6px', borderRadius: '50%', backgroundColor: 'var(--bg-surface-elevated)', color: '#facc15' }}>
-                      <Globe size={15} />
-                    </div>
+              </div>
+
+              {/* Active Scenario Guidance Alert */}
+              <div style={{
+                padding: '0.65rem 1rem',
+                borderRadius: 'var(--radius-xs)',
+                backgroundColor: growthScenario === 'CONSERVATIVE' ? 'rgba(100, 116, 139, 0.08)' : (growthScenario === 'AGGRESSIVE' ? 'rgba(16, 185, 129, 0.08)' : 'rgba(37, 99, 235, 0.06)'),
+                border: `1px solid ${growthScenario === 'CONSERVATIVE' ? 'rgba(100, 116, 139, 0.2)' : (growthScenario === 'AGGRESSIVE' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(37, 99, 235, 0.2)')}`,
+                fontSize: '0.78rem',
+                color: 'var(--text-secondary)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '0.5rem'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span style={{ fontSize: '1rem' }}>
+                    {growthScenario === 'CONSERVATIVE' ? '🛡️' : (growthScenario === 'AGGRESSIVE' ? '🚀' : '⚖️')}
+                  </span>
+                  <span>
+                    <strong>Aktif Simülasyon Çarpanı:</strong> {
+                      growthScenario === 'CONSERVATIVE'
+                        ? 'Temkinli Model — Rekabet baskısı ve düşük dönüşüm oranları (CR × 0.85, CPC/CPM × 1.15) baz alınmıştır.'
+                        : (growthScenario === 'AGGRESSIVE'
+                            ? 'Büyüme & Ölçeklenme Modeli — Yüksek kaliteli landing page ve negatif koruması ile optimize edilmiş performans (CR × 1.20, CPC × 0.90, Nitelikli Lead × 1.15).'
+                            : 'Gerçekçi Sektör Standardı — Google Ads & Meta Ads sektör ortalamaları ve geçmiş pazar verileri baz alınmıştır.')
+                    }
+                  </span>
+                </div>
+                <span style={{ fontSize: '0.72rem', fontWeight: 600, color: growthScenario === 'AGGRESSIVE' ? '#10b981' : (growthScenario === 'CONSERVATIVE' ? '#64748b' : 'var(--brand-primary)') }}>
+                  {growthScenario === 'CONSERVATIVE' ? 'Temkinli Bütçe' : (growthScenario === 'AGGRESSIVE' ? 'Yüksek Ölçek' : 'Standart')}
+                </span>
+              </div>
+
+              {/* Business Model & Goal Selector */}
+              <div className="card" style={{ padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', backgroundColor: 'var(--bg-surface-elevated)' }}>
+                <div>
+                  <div style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    🏢 İş Modeli & Kampanya Hedefi
                   </div>
-                  <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                    {activeCountries.slice(0, 5).map(c => c.flag).join(' ')}
-                    {activeCountries.length > 5 && <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>+{activeCountries.length - 5}</span>}
-                  </div>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
-                    {activeCountries.map(c => c.name).join(', ')}
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
+                    İşletmenizin türüne uygun performans metriklerini ve projeksiyon modelini seçin.
                   </div>
                 </div>
 
-              </div>
-      <div style={{ display: 'flex', gap: '0.35rem', borderBottom: '1px solid var(--border-default)', paddingBottom: '0.5rem', overflowX: 'auto' }}>
-        <button
-          onClick={() => setActiveTab('matrix')}
-          className={activeTab === 'matrix' ? 'btn-primary' : 'btn-ghost'}
-          style={{ padding: '0.45rem 0.85rem', fontSize: '0.825rem' }}
-        >
-          <Layers size={14} /> Anahtar Kelime & Trend Matrisi ({keywords.length})
-        </button>
-
-        <button
-          onClick={() => setActiveTab('simulator')}
-          className={activeTab === 'simulator' ? 'btn-primary' : 'btn-ghost'}
-          style={{ padding: '0.45rem 0.85rem', fontSize: '0.825rem' }}
-        >
-          <Sliders size={14} /> Akıllı Bütçe & ROI Simülatörü
-        </button>
-
-        <button
-          onClick={() => setActiveTab('negatives')}
-          className={activeTab === 'negatives' ? 'btn-primary' : 'btn-ghost'}
-          style={{ padding: '0.45rem 0.85rem', fontSize: '0.825rem' }}
-        >
-          <ShieldAlert size={14} /> AI Negatif Kelime Kalkanı ({negativeCategories.reduce((a, c) => a + c.words.length, 0)})
-        </button>
-
-        <button
-          onClick={() => { setActiveTab('saved-plans'); loadSavedPlans(); }}
-          className={activeTab === 'saved-plans' ? 'btn-primary' : 'btn-ghost'}
-          style={{ padding: '0.45rem 0.85rem', fontSize: '0.825rem' }}
-        >
-          <FolderDown size={14} /> Kayıtlı Planlar ({savedPlans.length})
-        </button>
-      </div>
-
-      {/* ------------------------------------------------------------- */}
-      {/* TAB 1: KEYWORD & TREND MATRIX */}
-      {/* ------------------------------------------------------------- */}
-      {activeTab === 'matrix' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          
-          {/* Filter & Sort Bar */}
-          <div className="card" style={{ padding: '0.85rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
-            
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-              
-              {/* Quick Search */}
-              <div style={{ position: 'relative', width: '220px' }}>
-                <Search size={14} color="var(--text-muted)" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }} />
-                <input
-                  type="text"
-                  placeholder="Kelimelerde filtrele..."
-                  value={searchFilter}
-                  onChange={(e) => setSearchFilter(e.target.value)}
-                  style={{ width: '100%', paddingLeft: '2.1rem', fontSize: '0.78rem', height: '34px' }}
-                />
+                <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                  {[
+                    { id: 'LEAD_GEN', label: '🎯 Potansiyel Müşteri & Talep (B2B, Gayrimenkul, Hizmet)' },
+                    { id: 'ECOMMERCE', label: '🛒 E-Ticaret & Online Sipariş' },
+                    { id: 'BRAND_REACH', label: '👁️ Pazar Hakimiyeti & Trafik' },
+                  ].map(bm => (
+                    <button
+                      key={bm.id}
+                      type="button"
+                      onClick={() => setBusinessModel(bm.id as BusinessModel)}
+                      style={{
+                        padding: '0.45rem 0.85rem',
+                        fontSize: '0.8rem',
+                        borderRadius: 'var(--radius-xs)',
+                        border: businessModel === bm.id ? '1.5px solid var(--brand-primary)' : '1px solid var(--border-default)',
+                        backgroundColor: businessModel === bm.id ? 'rgba(37, 99, 235, 0.15)' : 'var(--bg-surface)',
+                        color: businessModel === bm.id ? 'var(--brand-primary)' : 'var(--text-secondary)',
+                        fontWeight: businessModel === bm.id ? 700 : 500,
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      {bm.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
-              {/* Intent Filter */}
-              <div style={{ display: 'flex', gap: '0.25rem', backgroundColor: 'var(--bg-surface-elevated)', padding: '2px', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-default)' }}>
-                {[
-                  { id: 'ALL', label: 'Tüm Niyetler' },
-                  { id: 'TRANSACTIONAL', label: '🛒 Satın Alma' },
-                  { id: 'COMMERCIAL', label: '🔍 Araştırma' },
-                  { id: 'INFORMATIONAL', label: 'ℹ️ Bilgi' },
-                ].map(item => (
-                  <button
-                    key={item.id}
-                    onClick={() => setIntentFilter(item.id)}
-                    style={{
-                      background: intentFilter === item.id ? 'var(--brand-primary)' : 'transparent',
-                      color: intentFilter === item.id ? '#ffffff' : 'var(--text-secondary)',
-                      border: 'none',
-                      padding: '0.3rem 0.6rem',
-                      fontSize: '0.72rem',
-                      borderRadius: 'var(--radius-xs)',
-                      cursor: 'pointer',
-                      fontWeight: intentFilter === item.id ? 600 : 400
-                    }}
-                  >
-                    {item.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Sort & Bulk Select */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Sırala:</span>
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as any)}
-                style={{ fontSize: '0.78rem', padding: '0.35rem 0.65rem', height: '34px', cursor: 'pointer' }}
-              >
-                <option value="OPPORTUNITY">⭐ Fırsat Skoru (En Yüksek)</option>
-                <option value="VOLUME">📈 Arama Hacmi (En Çok)</option>
-                <option value="CPC_LOW">💵 TBM (En Ucuz)</option>
-                <option value="CPC_HIGH">💰 TBM (En Yüksek)</option>
-                <option value="TREND">🚀 Trend Artışı (%)</option>
-              </select>
-
-              <button
-                onClick={toggleSelectAll}
-                className="btn-secondary"
-                style={{ fontSize: '0.75rem', height: '34px', padding: '0 0.65rem' }}
-              >
-                {selectedKeywordIds.size === filteredKeywords.length ? 'Seçimi Kaldır' : 'Tümünü Seç'} ({selectedKeywordIds.size})
-              </button>
-            </div>
-
-          </div>
-
-          {/* Keywords Table */}
-          <div className="card" style={{ overflowX: 'auto' }}>
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th style={{ width: '40px' }}>
-                    <input
-                      type="checkbox"
-                      checked={selectedKeywordIds.size === filteredKeywords.length && filteredKeywords.length > 0}
-                      onChange={toggleSelectAll}
-                      style={{ cursor: 'pointer' }}
-                    />
-                  </th>
-                  <th>Anahtar Kelime</th>
-                  <th>Arama Niyeti</th>
-                  <th style={{ textAlign: 'right' }}>Aylık Hacim</th>
-                  <th>3 Aylık Trend</th>
-                  <th>Rekabet Düzeyi</th>
-                  <th style={{ textAlign: 'right' }}>Sayfa Üstü TBM</th>
-                  <th style={{ textAlign: 'center' }}>Fırsat Skoru</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredKeywords.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} style={{ textAlign: 'center', padding: '2.5rem', color: 'var(--text-muted)' }}>
-                      Eşleşen anahtar kelime bulunamadı. Lütfen yukarıdan yeni bir web sitesi veya kelime arayın.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredKeywords.map((k) => {
-                    const isSelected = selectedKeywordIds.has(k.id);
-                    return (
-                      <tr 
-                        key={k.id}
-                        onClick={() => toggleKeyword(k.id)}
-                        style={{ 
-                          cursor: 'pointer',
-                          backgroundColor: isSelected ? 'rgba(37, 99, 235, 0.04)' : undefined
-                        }}
-                      >
-                        <td onClick={(e) => e.stopPropagation()}>
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={() => toggleKeyword(k.id)}
-                            style={{ cursor: 'pointer' }}
-                          />
-                        </td>
-                        <td>
-                          <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.85rem' }}>
-                            {k.keyword}
-                          </div>
-                        </td>
-                        <td>
-                          {k.intent === 'TRANSACTIONAL' && (
-                            <span className="badge" style={{ backgroundColor: 'rgba(52, 211, 153, 0.15)', color: '#34d399', border: '1px solid rgba(52, 211, 153, 0.3)', fontSize: '0.68rem' }}>
-                              🛒 Satın Alma
-                            </span>
-                          )}
-                          {k.intent === 'COMMERCIAL' && (
-                            <span className="badge" style={{ backgroundColor: 'rgba(96, 165, 250, 0.15)', color: '#60a5fa', border: '1px solid rgba(96, 165, 250, 0.3)', fontSize: '0.68rem' }}>
-                              🔍 Araştırma
-                            </span>
-                          )}
-                          {k.intent === 'INFORMATIONAL' && (
-                            <span className="badge badge-neutral" style={{ fontSize: '0.68rem' }}>
-                              ℹ️ Bilgi
-                            </span>
-                          )}
-                        </td>
-                        <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--text-primary)' }}>
-                          {k.monthlyVolume.toLocaleString('tr-TR')}
-                        </td>
-                        <td>
-                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '0.75rem', color: k.trendChangePercent >= 0 ? '#34d399' : 'var(--danger)' }}>
-                            {k.trendChangePercent >= 0 ? <TrendingUp size={13} /> : <TrendingDown size={13} />}
-                            <span>{k.trendChangePercent >= 0 ? `+${k.trendChangePercent}%` : `${k.trendChangePercent}%`}</span>
-                          </div>
-                        </td>
-                        <td>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                            <div style={{ flex: 1, width: '60px', height: '6px', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: '3px', overflow: 'hidden' }}>
-                              <div style={{
-                                width: `${k.competitionIndex}%`,
-                                height: '100%',
-                                backgroundColor: k.competition === 'HIGH' ? 'var(--danger)' : (k.competition === 'MEDIUM' ? '#facc15' : '#34d399')
-                              }} />
-                            </div>
-                            <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
-                              {k.competition === 'HIGH' ? 'Yüksek' : (k.competition === 'MEDIUM' ? 'Orta' : 'Düşük')}
-                            </span>
-                          </div>
-                        </td>
-                        <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                          <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>₺{k.lowCpc.toFixed(2)}</span>
-                          <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', margin: '0 3px' }}>-</span>
-                          <span style={{ color: 'var(--text-secondary)', fontSize: '0.78rem' }}>₺{k.highCpc.toFixed(2)}</span>
-                        </td>
-                        <td style={{ textAlign: 'center' }}>
-                          <span className="badge" style={{
-                            backgroundColor: k.opportunityScore >= 80 ? 'rgba(52, 211, 153, 0.15)' : (k.opportunityScore >= 60 ? 'rgba(250, 204, 21, 0.15)' : 'var(--bg-surface-elevated)'),
-                            color: k.opportunityScore >= 80 ? '#34d399' : (k.opportunityScore >= 60 ? '#facc15' : 'var(--text-secondary)'),
-                            border: `1px solid ${k.opportunityScore >= 80 ? 'rgba(52, 211, 153, 0.3)' : 'var(--border-default)'}`,
-                            fontWeight: 700,
-                            fontSize: '0.75rem'
-                          }}>
-                            {k.opportunityScore}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-
-        </div>
-      )}
-
-      {/* ------------------------------------------------------------- */}
-      {/* TAB 2: 360° MULTI-CHANNEL & OMNICHANNEL BUDGET SIMULATOR       */}
-      {/* ------------------------------------------------------------- */}
-      {activeTab === 'simulator' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          
-          {/* Top Business Model & Goal Selector */}
-          <div className="card" style={{ padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', backgroundColor: 'var(--bg-surface-elevated)' }}>
-            <div>
-              <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                🏢 İş Modeli & Kampanya Dönüşüm Hedefi
-              </div>
-              <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
-                İşletmenizin türüne uygun performans metriklerini ve projeksiyon modelini seçin.
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-              {[
-                { id: 'LEAD_GEN', label: '🎯 Potansiyel Müşteri & Talep (B2B, Gayrimenkul, Hizmet)' },
-                { id: 'ECOMMERCE', label: '🛒 E-Ticaret & Online Sipariş' },
-                { id: 'BRAND_REACH', label: '👁️ Pazar Hakimiyeti & Trafik' },
-              ].map(bm => (
+              {/* Channel Selector Sub-Tabs with Official SVG Brand Icons */}
+              <div style={{ display: 'flex', gap: '0.4rem', borderBottom: '1px solid var(--border-default)', paddingBottom: '0.65rem', overflowX: 'auto' }}>
                 <button
-                  key={bm.id}
-                  onClick={() => setBusinessModel(bm.id as BusinessModel)}
-                  style={{
-                    padding: '0.45rem 0.85rem',
-                    fontSize: '0.8rem',
-                    borderRadius: 'var(--radius-xs)',
-                    border: businessModel === bm.id ? '1.5px solid var(--brand-primary)' : '1px solid var(--border-default)',
-                    backgroundColor: businessModel === bm.id ? 'rgba(37, 99, 235, 0.15)' : 'var(--bg-surface)',
-                    color: businessModel === bm.id ? 'var(--brand-primary)' : 'var(--text-secondary)',
-                    fontWeight: businessModel === bm.id ? 700 : 500,
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease'
-                  }}
+                  type="button"
+                  onClick={() => setActiveChannelTab('OMNICHANNEL')}
+                  className={activeChannelTab === 'OMNICHANNEL' ? 'btn-primary' : 'btn-ghost'}
+                  style={{ padding: '0.5rem 0.95rem', fontSize: '0.825rem', fontWeight: activeChannelTab === 'OMNICHANNEL' ? 700 : 500, display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}
                 >
-                  {bm.label}
+                  <OmnichannelIcon size={16} /> 360° Medya Karması (Omnichannel)
                 </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Channel Selector Sub-Tabs */}
-          <div style={{ display: 'flex', gap: '0.4rem', borderBottom: '1px solid var(--border-default)', paddingBottom: '0.65rem', overflowX: 'auto' }}>
-            <button
-              onClick={() => setActiveChannelTab('OMNICHANNEL')}
-              className={activeChannelTab === 'OMNICHANNEL' ? 'btn-primary' : 'btn-ghost'}
-              style={{ padding: '0.45rem 0.9rem', fontSize: '0.825rem', fontWeight: activeChannelTab === 'OMNICHANNEL' ? 700 : 500, display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}
-            >
-              <OmnichannelIcon size={16} /> 360° Medya Karması (Omnichannel)
-            </button>
-            <button
-              onClick={() => setActiveChannelTab('GOOGLE_SEARCH')}
-              className={activeChannelTab === 'GOOGLE_SEARCH' ? 'btn-primary' : 'btn-ghost'}
-              style={{ padding: '0.45rem 0.9rem', fontSize: '0.825rem', fontWeight: activeChannelTab === 'GOOGLE_SEARCH' ? 700 : 500, display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}
-            >
-              <GoogleIcon size={16} /> Google Search (Arama Ağı)
-            </button>
-            <button
-              onClick={() => setActiveChannelTab('META_ADS')}
-              className={activeChannelTab === 'META_ADS' ? 'btn-primary' : 'btn-ghost'}
-              style={{ padding: '0.45rem 0.9rem', fontSize: '0.825rem', fontWeight: activeChannelTab === 'META_ADS' ? 700 : 500, display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}
-            >
-              <MetaIcon size={16} /> Meta Ads (Facebook & Instagram)
-            </button>
-            <button
-              onClick={() => setActiveChannelTab('YOUTUBE')}
-              className={activeChannelTab === 'YOUTUBE' ? 'btn-primary' : 'btn-ghost'}
-              style={{ padding: '0.45rem 0.9rem', fontSize: '0.825rem', fontWeight: activeChannelTab === 'YOUTUBE' ? 700 : 500, display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}
-            >
-              <YouTubeIcon size={16} /> YouTube Video (Action & Shorts)
-            </button>
-            <button
-              onClick={() => setActiveChannelTab('GDN')}
-              className={activeChannelTab === 'GDN' ? 'btn-primary' : 'btn-ghost'}
-              style={{ padding: '0.45rem 0.9rem', fontSize: '0.825rem', fontWeight: activeChannelTab === 'GDN' ? 700 : 500, display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}
-            >
-              <GdnIcon size={16} /> Google GDN (Display & Retargeting)
-            </button>
-          </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveChannelTab('GOOGLE_SEARCH')}
+                  className={activeChannelTab === 'GOOGLE_SEARCH' ? 'btn-primary' : 'btn-ghost'}
+                  style={{ padding: '0.5rem 0.95rem', fontSize: '0.825rem', fontWeight: activeChannelTab === 'GOOGLE_SEARCH' ? 700 : 500, display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}
+                >
+                  <GoogleIcon size={16} /> Google Search (Arama Ağı)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveChannelTab('META_ADS')}
+                  className={activeChannelTab === 'META_ADS' ? 'btn-primary' : 'btn-ghost'}
+                  style={{ padding: '0.5rem 0.95rem', fontSize: '0.825rem', fontWeight: activeChannelTab === 'META_ADS' ? 700 : 500, display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}
+                >
+                  <MetaIcon size={16} /> Meta Ads (Facebook & Instagram)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveChannelTab('YOUTUBE')}
+                  className={activeChannelTab === 'YOUTUBE' ? 'btn-primary' : 'btn-ghost'}
+                  style={{ padding: '0.5rem 0.95rem', fontSize: '0.825rem', fontWeight: activeChannelTab === 'YOUTUBE' ? 700 : 500, display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}
+                >
+                  <YouTubeIcon size={16} /> YouTube Video (Action & Shorts)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveChannelTab('GDN')}
+                  className={activeChannelTab === 'GDN' ? 'btn-primary' : 'btn-ghost'}
+                  style={{ padding: '0.5rem 0.95rem', fontSize: '0.825rem', fontWeight: activeChannelTab === 'GDN' ? 700 : 500, display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}
+                >
+                  <GdnIcon size={16} /> Google GDN (Display & Retargeting)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveChannelTab('NEGATIVES')}
+                  className={activeChannelTab === 'NEGATIVES' ? 'btn-primary' : 'btn-ghost'}
+                  style={{ padding: '0.5rem 0.95rem', fontSize: '0.825rem', fontWeight: activeChannelTab === 'NEGATIVES' ? 700 : 500, display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}
+                >
+                  <ShieldAlert size={15} /> AI Negatif Kalkanı ({negativeCategories.reduce((a, c) => a + c.words.length, 0)})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setActiveChannelTab('SAVED_PLANS'); loadSavedPlans(); }}
+                  className={activeChannelTab === 'SAVED_PLANS' ? 'btn-primary' : 'btn-ghost'}
+                  style={{ padding: '0.5rem 0.95rem', fontSize: '0.825rem', fontWeight: activeChannelTab === 'SAVED_PLANS' ? 700 : 500, display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}
+                >
+                  <FolderDown size={15} /> Kayıtlı Planlar ({savedPlans.length})
+                </button>
+              </div>
 
           {/* ========================================================================= */}
           {/* CHANNEL 1: 360° OMNICHANNEL CONSOLIDATED MEDIA MIX                        */}
@@ -3681,163 +3692,163 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
             </div>
           )}
 
-        </div>
-      )}
-
-      {/* ------------------------------------------------------------- */}
-      {/* TAB 3: AI NEGATIVE KEYWORD SHIELD */}
-      {/* ------------------------------------------------------------- */}
-      {activeTab === 'negatives' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          
-          <div className="card" style={{ padding: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
-            <div>
-              <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                🛡️ AI Destekli Bütçe Koruma & Negatif Kelime Kalkanı
-              </div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
-                {sectorName} sektörü için dönüşüm getirmeyen, bütçe israfına yol açacak alakasız aramalar filtrelenmiştir.
-              </div>
-            </div>
-
-            <button
-              onClick={() => {
-                const allWords = negativeCategories.flatMap(c => c.words);
-                handleCopyNegatives(allWords, 'TÜMÜ');
-              }}
-              className="btn-primary"
-              style={{ fontSize: '0.8rem', padding: '0.45rem 0.85rem' }}
-            >
-              {copiedCategory === 'TÜMÜ' ? <Check size={14} /> : <Copy size={14} />}
-              {copiedCategory === 'TÜMÜ' ? 'Tüm Liste Kopyalandı!' : 'Tüm Negatifleri Kopyala (Google Ads Uyumlu)'}
-            </button>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1rem' }}>
-            {negativeCategories.map((cat, idx) => (
-              <div key={idx} className="card" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                    {cat.category}
+          {/* ========================================================================= */}
+          {/* CHANNEL 6: AI NEGATIVE KEYWORD SHIELD                                     */}
+          {/* ========================================================================= */}
+          {activeChannelTab === 'NEGATIVES' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              
+              <div className="card" style={{ padding: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+                <div>
+                  <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                    🛡️ AI Destekli Bütçe Koruma & Negatif Kelime Kalkanı
                   </div>
-                  <button
-                    onClick={() => handleCopyNegatives(cat.words, cat.category)}
-                    className="btn-ghost"
-                    style={{ fontSize: '0.72rem', padding: '2px 6px' }}
-                  >
-                    {copiedCategory === cat.category ? <Check size={12} color="#34d399" /> : <Copy size={12} />}
-                    {copiedCategory === cat.category ? 'Kopyalandı' : 'Kopyala'}
-                  </button>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                    {sectorName} sektörü için dönüşüm getirmeyen, bütçe israfına yol açacak alakasız aramalar filtrelenmiştir.
+                  </div>
                 </div>
 
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
-                  {cat.words.map((w, wIdx) => (
-                    <span 
-                      key={wIdx} 
-                      style={{
-                        fontSize: '0.75rem',
-                        padding: '0.2rem 0.5rem',
-                        backgroundColor: 'var(--bg-surface-elevated)',
-                        border: '1px solid var(--border-default)',
-                        borderRadius: 'var(--radius-xs)',
-                        color: 'var(--text-secondary)'
-                      }}
-                    >
-                      -{w}
-                    </span>
-                  ))}
-                </div>
-
+                <button
+                  type="button"
+                  onClick={() => {
+                    const allWords = negativeCategories.flatMap(c => c.words);
+                    handleCopyNegatives(allWords, 'TÜMÜ');
+                  }}
+                  className="btn-primary"
+                  style={{ fontSize: '0.8rem', padding: '0.45rem 0.85rem' }}
+                >
+                  {copiedCategory === 'TÜMÜ' ? <Check size={14} /> : <Copy size={14} />}
+                  {copiedCategory === 'TÜMÜ' ? 'Tüm Liste Kopyalandı!' : 'Tüm Negatifleri Kopyala (Google Ads Uyumlu)'}
+                </button>
               </div>
-            ))}
-          </div>
 
-        </div>
-      )}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1rem' }}>
+                {negativeCategories.map((cat, idx) => (
+                  <div key={idx} className="card" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                        {cat.category}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyNegatives(cat.words, cat.category)}
+                        className="btn-ghost"
+                        style={{ fontSize: '0.72rem', padding: '2px 6px' }}
+                      >
+                        {copiedCategory === cat.category ? <Check size={12} color="#34d399" /> : <Copy size={12} />}
+                        {copiedCategory === cat.category ? 'Kopyalandı' : 'Kopyala'}
+                      </button>
+                    </div>
 
-      {/* ------------------------------------------------------------- */}
-      {/* TAB 4: SAVED FORECAST PLANS */}
-      {/* ------------------------------------------------------------- */}
-      {activeTab === 'saved-plans' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-              Kayıtlı Kampanya Bütçe Planları ({savedPlans.length})
-            </div>
-            <button onClick={loadSavedPlans} className="btn-secondary" style={{ fontSize: '0.78rem', padding: '0.35rem 0.65rem' }}>
-              <RefreshCw size={13} /> Yenile
-            </button>
-          </div>
-
-          <div className="card" style={{ overflowX: 'auto' }}>
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Plan Adı</th>
-                  <th>Hedef / Tohum</th>
-                  <th>Aylık Bütçe</th>
-                  <th>Tahmini Tıklama</th>
-                  <th>Projeksiyon ROAS</th>
-                  <th>Oluşturulma Tarihi</th>
-                  <th style={{ textAlign: 'right' }}>İşlemler</th>
-                </tr>
-              </thead>
-              <tbody>
-                {savedPlans.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} style={{ textAlign: 'center', padding: '2.5rem', color: 'var(--text-muted)' }}>
-                      Henüz bu çalışma alanında kayıtlı bir tahminleme planı bulunmuyor.
-                    </td>
-                  </tr>
-                ) : (
-                  savedPlans.map((plan) => (
-                    <tr key={plan.id}>
-                      <td>
-                        <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{plan.name}</div>
-                      </td>
-                      <td style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
-                        {plan.targetUrl || plan.seedKeywords || '—'}
-                      </td>
-                      <td style={{ fontWeight: 600, color: 'var(--brand-primary)' }}>
-                        ₺{plan.monthlyBudget?.toLocaleString('tr-TR')}
-                      </td>
-                      <td>
-                        {plan.simulationResult?.estClicks?.toLocaleString('tr-TR') || '—'} Tıklama
-                      </td>
-                      <td>
-                        <span className="badge badge-active" style={{ fontSize: '0.72rem' }}>
-                          {plan.simulationResult?.projectedRoas || 0}x
-                        </span>
-                      </td>
-                      <td style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                        {plan.createdAt ? new Date(plan.createdAt).toLocaleString('tr-TR') : '—'}
-                      </td>
-                      <td style={{ textAlign: 'right' }}>
-                        <button
-                          onClick={async () => {
-                            if (window.confirm('Bu planı silmek istediğinize emin misiniz?')) {
-                              await ApiService.deleteForecastPlan(plan.id);
-                              loadSavedPlans();
-                            }
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+                      {cat.words.map((w, wIdx) => (
+                        <span 
+                          key={wIdx} 
+                          style={{
+                            fontSize: '0.75rem',
+                            padding: '0.2rem 0.5rem',
+                            backgroundColor: 'var(--bg-surface-elevated)',
+                            border: '1px solid var(--border-default)',
+                            borderRadius: 'var(--radius-xs)',
+                            color: 'var(--text-secondary)'
                           }}
-                          className="btn-ghost"
-                          style={{ color: 'var(--danger)', padding: '0.3rem 0.5rem' }}
-                          title="Planı Sil"
                         >
-                          <Trash2 size={13} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                          -{w}
+                        </span>
+                      ))}
+                    </div>
 
-        </div>
-      )}
+                  </div>
+                ))}
+              </div>
+
+            </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* CHANNEL 7: SAVED FORECAST PLANS                                           */}
+          {/* ========================================================================= */}
+          {activeChannelTab === 'SAVED_PLANS' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                  Kayıtlı Kampanya Bütçe Planları ({savedPlans.length})
+                </div>
+                <button type="button" onClick={loadSavedPlans} className="btn-secondary" style={{ fontSize: '0.78rem', padding: '0.35rem 0.65rem' }}>
+                  <RefreshCw size={13} /> Yenile
+                </button>
+              </div>
+
+              <div className="card" style={{ overflowX: 'auto' }}>
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Plan Adı</th>
+                      <th>Hedef / Tohum</th>
+                      <th>Aylık Bütçe</th>
+                      <th>Tahmini Tıklama</th>
+                      <th>Projeksiyon ROAS</th>
+                      <th>Oluşturulma Tarihi</th>
+                      <th style={{ textAlign: 'right' }}>İşlemler</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {savedPlans.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} style={{ textAlign: 'center', padding: '2.5rem', color: 'var(--text-muted)' }}>
+                          Henüz bu çalışma alanında kayıtlı bir tahminleme planı bulunmuyor.
+                        </td>
+                      </tr>
+                    ) : (
+                      savedPlans.map((plan) => (
+                        <tr key={plan.id}>
+                          <td>
+                            <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{plan.name}</div>
+                          </td>
+                          <td style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
+                            {plan.targetUrl || plan.seedKeywords || '—'}
+                          </td>
+                          <td style={{ fontWeight: 600, color: 'var(--brand-primary)' }}>
+                            ₺{plan.monthlyBudget?.toLocaleString('tr-TR')}
+                          </td>
+                          <td>
+                            {plan.simulationResult?.estClicks?.toLocaleString('tr-TR') || '—'} Tıklama
+                          </td>
+                          <td>
+                            <span className="badge badge-active" style={{ fontSize: '0.72rem' }}>
+                              {plan.simulationResult?.projectedRoas || 0}x
+                            </span>
+                          </td>
+                          <td style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                            {plan.createdAt ? new Date(plan.createdAt).toLocaleString('tr-TR') : '—'}
+                          </td>
+                          <td style={{ textAlign: 'right' }}>
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                if (window.confirm('Bu planı silmek istediğinize emin misiniz?')) {
+                                  await ApiService.deleteForecastPlan(plan.id);
+                                  loadSavedPlans();
+                                }
+                              }}
+                              className="btn-ghost"
+                              style={{ color: 'var(--danger)', padding: '0.3rem 0.5rem' }}
+                              title="Planı Sil"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+            </div>
+          )}
 
             </div>
           )}

@@ -43,9 +43,180 @@ function getApiKeys($pdo) {
 }
 
 // -------------------------------------------------------------
+// HELPER: GOOGLE ADS GEOTARGETCONSTANTS SEARCH & SUGGEST SERVICE
+// -------------------------------------------------------------
+function fetchGoogleAdsGeoTargetConstants($apiKeys, $query, $locale = 'tr') {
+    $clientId = $apiKeys['googleClientId'] ?? '';
+    $clientSecret = $apiKeys['googleClientSecret'] ?? '';
+    $refreshToken = $apiKeys['googleRefreshToken'] ?? '';
+    $devToken = $apiKeys['googleAdsDevToken'] ?? '';
+
+    if (empty($clientId) || empty($clientSecret) || empty($refreshToken) || empty($devToken)) {
+        return null;
+    }
+
+    $ch = curl_init('https://oauth2.googleapis.com/token');
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query([
+        'client_id' => $clientId,
+        'client_secret' => $clientSecret,
+        'refresh_token' => $refreshToken,
+        'grant_type' => 'refresh_token'
+    ]));
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 6);
+    $res = curl_exec($ch);
+    curl_close($ch);
+
+    $json = json_decode($res, true);
+    if (empty($json['access_token'])) {
+        return null;
+    }
+    $accessToken = $json['access_token'];
+
+    $payload = [
+        'locale' => $locale,
+        'locationNames' => [
+            'names' => [$query]
+        ]
+    ];
+
+    $chGeo = curl_init("https://googleads.googleapis.com/v22/geoTargetConstants:suggest");
+    curl_setopt($chGeo, CURLOPT_POST, true);
+    curl_setopt($chGeo, CURLOPT_POSTFIELDS, json_encode($payload));
+    curl_setopt($chGeo, CURLOPT_HTTPHEADER, [
+        "Authorization: Bearer {$accessToken}",
+        "developer-token: {$devToken}",
+        "Content-Type: application/json"
+    ]);
+    curl_setopt($chGeo, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($chGeo, CURLOPT_TIMEOUT, 8);
+    $geoRes = curl_exec($chGeo);
+    $httpCode = curl_getinfo($chGeo, CURLINFO_HTTP_CODE);
+    curl_close($chGeo);
+
+    if ($httpCode !== 200) {
+        return null;
+    }
+
+    $geoJson = json_decode($geoRes, true);
+    $suggestions = $geoJson['geoTargetConstantSuggestions'] ?? [];
+    $results = [];
+
+    $flagMap = [
+        'TR' => '🇹🇷', 'DE' => '🇩🇪', 'GB' => '🇬🇧', 'US' => '🇺🇸',
+        'RU' => '🇷🇺', 'AE' => '🇦🇪', 'KZ' => '🇰🇿', 'FR' => '🇫🇷',
+        'IT' => '🇮🇹', 'ES' => '🇪🇸', 'NL' => '🇳🇱', 'SA' => '🇸🇦',
+        'QA' => '🇶🇦', 'AZ' => '🇦🇿', 'UA' => '🇺🇦', 'CH' => '🇨🇭',
+        'AT' => '🇦🇹', 'SE' => '🇸🇪', 'NO' => '🇳🇴', 'CA' => '🇨🇦'
+    ];
+
+    foreach ($suggestions as $s) {
+        $c = $s['geoTargetConstant'] ?? [];
+        if (empty($c['id']) || ($c['status'] ?? '') !== 'ENABLED') continue;
+        $cc = strtoupper($c['countryCode'] ?? 'TR');
+        $results[] = [
+            'id' => (string)$c['id'],
+            'resourceName' => $c['resourceName'] ?? ("geoTargetConstants/" . $c['id']),
+            'name' => $c['name'] ?? $query,
+            'canonicalName' => $c['canonicalName'] ?? ($c['name'] ?? $query),
+            'countryCode' => $cc,
+            'targetType' => $c['targetType'] ?? 'City',
+            'reach' => isset($s['reach']) ? (int)$s['reach'] : null,
+            'flag' => $flagMap[$cc] ?? '🌍'
+        ];
+    }
+
+    return !empty($results) ? $results : null;
+}
+
+function searchGoogleAdsLocations($apiKeys, $query, $locale = 'tr') {
+    $catalog = [
+        ['id' => '2792', 'name' => 'Türkiye', 'canonicalName' => 'Türkiye', 'countryCode' => 'TR', 'targetType' => 'Country', 'reach' => 85000000, 'flag' => '🇹🇷'],
+        ['id' => '1012782', 'name' => 'Alanya', 'canonicalName' => 'Alanya, Antalya, Türkiye', 'countryCode' => 'TR', 'targetType' => 'City', 'reach' => 350000, 'flag' => '🇹🇷'],
+        ['id' => '1012783', 'name' => 'Antalya', 'canonicalName' => 'Antalya, Türkiye', 'countryCode' => 'TR', 'targetType' => 'City', 'reach' => 2600000, 'flag' => '🇹🇷'],
+        ['id' => '1012764', 'name' => 'İstanbul', 'canonicalName' => 'İstanbul, Türkiye', 'countryCode' => 'TR', 'targetType' => 'City', 'reach' => 16000000, 'flag' => '🇹🇷'],
+        ['id' => '1012763', 'name' => 'Ankara', 'canonicalName' => 'Ankara, Türkiye', 'countryCode' => 'TR', 'targetType' => 'City', 'reach' => 5800000, 'flag' => '🇹🇷'],
+        ['id' => '1012765', 'name' => 'İzmir', 'canonicalName' => 'İzmir, Türkiye', 'countryCode' => 'TR', 'targetType' => 'City', 'reach' => 4400000, 'flag' => '🇹🇷'],
+        ['id' => '1012766', 'name' => 'Bursa', 'canonicalName' => 'Bursa, Türkiye', 'countryCode' => 'TR', 'targetType' => 'City', 'reach' => 3100000, 'flag' => '🇹🇷'],
+        ['id' => '1012785', 'name' => 'Bodrum', 'canonicalName' => 'Bodrum, Muğla, Türkiye', 'countryCode' => 'TR', 'targetType' => 'City', 'reach' => 190000, 'flag' => '🇹🇷'],
+        ['id' => '1012786', 'name' => 'Fethiye', 'canonicalName' => 'Fethiye, Muğla, Türkiye', 'countryCode' => 'TR', 'targetType' => 'City', 'reach' => 170000, 'flag' => '🇹🇷'],
+        ['id' => '1012787', 'name' => 'Marmaris', 'canonicalName' => 'Marmaris, Muğla, Türkiye', 'countryCode' => 'TR', 'targetType' => 'City', 'reach' => 100000, 'flag' => '🇹🇷'],
+        ['id' => '1012788', 'name' => 'Kemer', 'canonicalName' => 'Kemer, Antalya, Türkiye', 'countryCode' => 'TR', 'targetType' => 'City', 'reach' => 50000, 'flag' => '🇹🇷'],
+        ['id' => '1012789', 'name' => 'Manavgat / Side', 'canonicalName' => 'Manavgat, Antalya, Türkiye', 'countryCode' => 'TR', 'targetType' => 'City', 'reach' => 240000, 'flag' => '🇹🇷'],
+        ['id' => '1012790', 'name' => 'Kuşadası', 'canonicalName' => 'Kuşadası, Aydın, Türkiye', 'countryCode' => 'TR', 'targetType' => 'City', 'reach' => 130000, 'flag' => '🇹🇷'],
+        ['id' => '1012791', 'name' => 'Çeşme', 'canonicalName' => 'Çeşme, İzmir, Türkiye', 'countryCode' => 'TR', 'targetType' => 'City', 'reach' => 50000, 'flag' => '🇹🇷'],
+        ['id' => '1012767', 'name' => 'Adana', 'canonicalName' => 'Adana, Türkiye', 'countryCode' => 'TR', 'targetType' => 'City', 'reach' => 2200000, 'flag' => '🇹🇷'],
+        ['id' => '1012768', 'name' => 'Gaziantep', 'canonicalName' => 'Gaziantep, Türkiye', 'countryCode' => 'TR', 'targetType' => 'City', 'reach' => 2100000, 'flag' => '🇹🇷'],
+        ['id' => '1012769', 'name' => 'Konya', 'canonicalName' => 'Konya, Türkiye', 'countryCode' => 'TR', 'targetType' => 'City', 'reach' => 2300000, 'flag' => '🇹🇷'],
+        ['id' => '1012770', 'name' => 'Kayseri', 'canonicalName' => 'Kayseri, Türkiye', 'countryCode' => 'TR', 'targetType' => 'City', 'reach' => 1400000, 'flag' => '🇹🇷'],
+        ['id' => '1012771', 'name' => 'Trabzon', 'canonicalName' => 'Trabzon, Türkiye', 'countryCode' => 'TR', 'targetType' => 'City', 'reach' => 820000, 'flag' => '🇹🇷'],
+        ['id' => '1012772', 'name' => 'Mersin', 'canonicalName' => 'Mersin, Türkiye', 'countryCode' => 'TR', 'targetType' => 'City', 'reach' => 1900000, 'flag' => '🇹🇷'],
+        ['id' => '1012773', 'name' => 'Samsun', 'canonicalName' => 'Samsun, Türkiye', 'countryCode' => 'TR', 'targetType' => 'City', 'reach' => 1350000, 'flag' => '🇹🇷'],
+        ['id' => '1012774', 'name' => 'Eskişehir', 'canonicalName' => 'Eskişehir, Türkiye', 'countryCode' => 'TR', 'targetType' => 'City', 'reach' => 900000, 'flag' => '🇹🇷'],
+        ['id' => '1012775', 'name' => 'Kocaeli / İzmit', 'canonicalName' => 'Kocaeli, Türkiye', 'countryCode' => 'TR', 'targetType' => 'City', 'reach' => 2050000, 'flag' => '🇹🇷'],
+        ['id' => '1012776', 'name' => 'Sakarya', 'canonicalName' => 'Sakarya, Türkiye', 'countryCode' => 'TR', 'targetType' => 'City', 'reach' => 1060000, 'flag' => '🇹🇷'],
+        ['id' => '1012777', 'name' => 'Denizli', 'canonicalName' => 'Denizli, Türkiye', 'countryCode' => 'TR', 'targetType' => 'City', 'reach' => 1050000, 'flag' => '🇹🇷'],
+        ['id' => '1012778', 'name' => 'Muğla', 'canonicalName' => 'Muğla, Türkiye', 'countryCode' => 'TR', 'targetType' => 'City', 'reach' => 1020000, 'flag' => '🇹🇷'],
+        ['id' => '2276', 'name' => 'Almanya', 'canonicalName' => 'Almanya', 'countryCode' => 'DE', 'targetType' => 'Country', 'reach' => 84000000, 'flag' => '🇩🇪'],
+        ['id' => '1004054', 'name' => 'Berlin', 'canonicalName' => 'Berlin, Almanya', 'countryCode' => 'DE', 'targetType' => 'City', 'reach' => 3700000, 'flag' => '🇩🇪'],
+        ['id' => '1004118', 'name' => 'Münih (Munich)', 'canonicalName' => 'Munich, Bavyera, Almanya', 'countryCode' => 'DE', 'targetType' => 'City', 'reach' => 1500000, 'flag' => '🇩🇪'],
+        ['id' => '1004092', 'name' => 'Frankfurt', 'canonicalName' => 'Frankfurt, Hesse, Almanya', 'countryCode' => 'DE', 'targetType' => 'City', 'reach' => 760000, 'flag' => '🇩🇪'],
+        ['id' => '1004071', 'name' => 'Köln (Cologne)', 'canonicalName' => 'Köln, Almanya', 'countryCode' => 'DE', 'targetType' => 'City', 'reach' => 1080000, 'flag' => '🇩🇪'],
+        ['id' => '1004080', 'name' => 'Düsseldorf', 'canonicalName' => 'Düsseldorf, Almanya', 'countryCode' => 'DE', 'targetType' => 'City', 'reach' => 620000, 'flag' => '🇩🇪'],
+        ['id' => '2826', 'name' => 'Birleşik Krallık (İngiltere)', 'canonicalName' => 'Birleşik Krallık', 'countryCode' => 'GB', 'targetType' => 'Country', 'reach' => 67000000, 'flag' => '🇬🇧'],
+        ['id' => '1006886', 'name' => 'Londra (London)', 'canonicalName' => 'London, Birleşik Krallık', 'countryCode' => 'GB', 'targetType' => 'City', 'reach' => 9000000, 'flag' => '🇬🇧'],
+        ['id' => '2840', 'name' => 'Amerika Birleşik Devletleri (ABD)', 'canonicalName' => 'Amerika Birleşik Devletleri', 'countryCode' => 'US', 'targetType' => 'Country', 'reach' => 335000000, 'flag' => '🇺🇸'],
+        ['id' => '1023191', 'name' => 'New York', 'canonicalName' => 'New York, Amerika Birleşik Devletleri', 'countryCode' => 'US', 'targetType' => 'City', 'reach' => 8400000, 'flag' => '🇺🇸'],
+        ['id' => '2784', 'name' => 'Birleşik Arap Emirlikleri (BAE / Dubai)', 'canonicalName' => 'Birleşik Arap Emirlikleri', 'countryCode' => 'AE', 'targetType' => 'Country', 'reach' => 9900000, 'flag' => '🇦🇪'],
+        ['id' => '1000010', 'name' => 'Dubai', 'canonicalName' => 'Dubai, Birleşik Arap Emirlikleri', 'countryCode' => 'AE', 'targetType' => 'City', 'reach' => 3400000, 'flag' => '🇦🇪'],
+        ['id' => '1000013', 'name' => 'Abu Dabi', 'canonicalName' => 'Abu Dabi, Birleşik Arap Emirlikleri', 'countryCode' => 'AE', 'targetType' => 'City', 'reach' => 1500000, 'flag' => '🇦🇪'],
+        ['id' => '2643', 'name' => 'Rusya', 'canonicalName' => 'Rusya Federasyonu', 'countryCode' => 'RU', 'targetType' => 'Country', 'reach' => 145000000, 'flag' => '🇷🇺'],
+        ['id' => '1011982', 'name' => 'Moskova', 'canonicalName' => 'Moskova, Rusya', 'countryCode' => 'RU', 'targetType' => 'City', 'reach' => 12500000, 'flag' => '🇷🇺'],
+        ['id' => '1012040', 'name' => 'St. Petersburg', 'canonicalName' => 'St. Petersburg, Rusya', 'countryCode' => 'RU', 'targetType' => 'City', 'reach' => 5400000, 'flag' => '🇷🇺'],
+        ['id' => '2398', 'name' => 'Kazakistan', 'canonicalName' => 'Kazakistan', 'countryCode' => 'KZ', 'targetType' => 'Country', 'reach' => 19500000, 'flag' => '🇰🇿'],
+        ['id' => '1009804', 'name' => 'Almatı', 'canonicalName' => 'Almatı, Kazakistan', 'countryCode' => 'KZ', 'targetType' => 'City', 'reach' => 2000000, 'flag' => '🇰🇿'],
+        ['id' => '1009805', 'name' => 'Astana', 'canonicalName' => 'Astana, Kazakistan', 'countryCode' => 'KZ', 'targetType' => 'City', 'reach' => 1200000, 'flag' => '🇰🇿'],
+        ['id' => '2250', 'name' => 'Fransa', 'canonicalName' => 'Fransa', 'countryCode' => 'FR', 'targetType' => 'Country', 'reach' => 68000000, 'flag' => '🇫🇷'],
+        ['id' => '1006094', 'name' => 'Paris', 'canonicalName' => 'Paris, Fransa', 'countryCode' => 'FR', 'targetType' => 'City', 'reach' => 2160000, 'flag' => '🇫🇷'],
+        ['id' => '2380', 'name' => 'İtalya', 'canonicalName' => 'İtalya', 'countryCode' => 'IT', 'targetType' => 'Country', 'reach' => 59000000, 'flag' => '🇮🇹'],
+        ['id' => '1008736', 'name' => 'Roma', 'canonicalName' => 'Roma, İtalya', 'countryCode' => 'IT', 'targetType' => 'City', 'reach' => 2870000, 'flag' => '🇮🇹'],
+        ['id' => '1008722', 'name' => 'Milano', 'canonicalName' => 'Milano, İtalya', 'countryCode' => 'IT', 'targetType' => 'City', 'reach' => 1400000, 'flag' => '🇮🇹'],
+        ['id' => '2724', 'name' => 'İspanya', 'canonicalName' => 'İspanya', 'countryCode' => 'ES', 'targetType' => 'Country', 'reach' => 47000000, 'flag' => '🇪🇸'],
+        ['id' => '1005493', 'name' => 'Madrid', 'canonicalName' => 'Madrid, İspanya', 'countryCode' => 'ES', 'targetType' => 'City', 'reach' => 3300000, 'flag' => '🇪🇸'],
+        ['id' => '1005424', 'name' => 'Barselona', 'canonicalName' => 'Barselona, İspanya', 'countryCode' => 'ES', 'targetType' => 'City', 'reach' => 1620000, 'flag' => '🇪🇸'],
+        ['id' => '2528', 'name' => 'Hollanda', 'canonicalName' => 'Hollanda', 'countryCode' => 'NL', 'targetType' => 'Country', 'reach' => 17500000, 'flag' => '🇳🇱'],
+        ['id' => '1010543', 'name' => 'Amsterdam', 'canonicalName' => 'Amsterdam, Hollanda', 'countryCode' => 'NL', 'targetType' => 'City', 'reach' => 870000, 'flag' => '🇳🇱'],
+        ['id' => '2031', 'name' => 'Azerbaycan', 'canonicalName' => 'Azerbaycan', 'countryCode' => 'AZ', 'targetType' => 'Country', 'reach' => 10000000, 'flag' => '🇦🇿'],
+        ['id' => '1000280', 'name' => 'Bakü', 'canonicalName' => 'Bakü, Azerbaycan', 'countryCode' => 'AZ', 'targetType' => 'City', 'reach' => 2300000, 'flag' => '🇦🇿']
+    ];
+
+    if (!empty($query)) {
+        $apiResults = fetchGoogleAdsGeoTargetConstants($apiKeys, $query, $locale);
+        if (!empty($apiResults)) {
+            return $apiResults;
+        }
+
+        $filtered = [];
+        $normQ = mb_strtolower($query, 'UTF-8');
+        foreach ($catalog as $item) {
+            $nameMatch = mb_stripos(mb_strtolower($item['name'], 'UTF-8'), $normQ) !== false;
+            $canonicalMatch = mb_stripos(mb_strtolower($item['canonicalName'], 'UTF-8'), $normQ) !== false;
+            if ($nameMatch || $canonicalMatch) {
+                $item['resourceName'] = "geoTargetConstants/{$item['id']}";
+                $filtered[] = $item;
+            }
+        }
+        return $filtered;
+    }
+
+    return array_slice($catalog, 0, 15);
+}
+
+// -------------------------------------------------------------
 // HELPER: OFFICIAL GOOGLE ADS API KEYWORD PLANNER SERVICE
 // -------------------------------------------------------------
-function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode = 'tr', $countryCode = 'TR') {
+function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode = 'tr', $countryCode = 'TR', $geoTargetConstants = []) {
     $clientId = $apiKeys['googleClientId'];
     $clientSecret = $apiKeys['googleClientSecret'];
     $refreshToken = $apiKeys['googleRefreshToken'];
@@ -98,11 +269,27 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
     ];
     $geoConst = $geoMap[strtoupper($countryCode)] ?? 'geoTargetConstants/2792';
 
+    $finalGeoList = [];
+    if (!empty($geoTargetConstants) && is_array($geoTargetConstants)) {
+        foreach ($geoTargetConstants as $gtc) {
+            $gtcClean = trim((string)$gtc);
+            if (empty($gtcClean)) continue;
+            if (strpos($gtcClean, 'geoTargetConstants/') === 0) {
+                $finalGeoList[] = $gtcClean;
+            } elseif (is_numeric($gtcClean)) {
+                $finalGeoList[] = 'geoTargetConstants/' . $gtcClean;
+            }
+        }
+    }
+    if (empty($finalGeoList)) {
+        $finalGeoList = [$geoConst];
+    }
+
     // Step 2: Configure payload mirroring official Google Ads Keyword Planner UI
     $payload = [
         "keywordPlanNetwork" => "GOOGLE_SEARCH",
         "language" => $langConst,
-        "geoTargetConstants" => [$geoConst]
+        "geoTargetConstants" => $finalGeoList
     ];
 
     if (!empty($url)) {
@@ -226,7 +413,7 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
         $urlPayload = [
             "keywordPlanNetwork" => "GOOGLE_SEARCH",
             "language" => $langConst,
-            "geoTargetConstants" => [$geoConst],
+            "geoTargetConstants" => $finalGeoList,
             "urlSeed" => ["url" => $url]
         ];
         $urlRes = $callGoogleAdsApi($urlPayload);
@@ -240,7 +427,7 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
             $seedPayload = [
                 "keywordPlanNetwork" => "GOOGLE_SEARCH",
                 "language" => $langConst,
-                "geoTargetConstants" => [$geoConst],
+                "geoTargetConstants" => $finalGeoList,
                 "keywordSeed" => ["keywords" => $uniqueSeeds]
             ];
             $seedRes = $callGoogleAdsApi($seedPayload);
@@ -1347,12 +1534,30 @@ function generateSemanticKeywordsFallback($query, $pageDetails, $langCode) {
 }
 
 // -------------------------------------------------------------
+// ACTION: SEARCH LOCATIONS (GOOGLE ADS GEOTARGETCONSTANTS API)
+// -------------------------------------------------------------
+if ($action === 'search_locations') {
+    $q = trim($_GET['q'] ?? '');
+    $locale = trim($_GET['locale'] ?? 'tr');
+    $apiKeys = getApiKeys($pdo);
+    
+    $locations = searchGoogleAdsLocations($apiKeys, $q, $locale);
+    echo json_encode([
+        'status' => 'success',
+        'query' => $q,
+        'locations' => $locations
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+// -------------------------------------------------------------
 // ACTION: DISCOVER & ANALYZE KEYWORDS (WITH AUTO-LANGUAGE & SMART AUTO-ROUTING)
 // -------------------------------------------------------------
 if ($action === 'discover' && $method === 'POST') {
     $input = json_decode(file_get_contents('php://input'), true) ?? [];
     $query = trim($input['query'] ?? '');
     $mode = trim($input['mode'] ?? 'URL');
+    $requestedGeoTargetConstants = $input['geoTargetConstants'] ?? [];
 
     if (empty($query)) {
         echo json_encode(['status' => 'error', 'message' => 'Lütfen analiz edilecek bir web sitesi veya anahtar kelime girin.']);
@@ -1441,7 +1646,8 @@ if ($action === 'discover' && $method === 'POST') {
         $isActualUrl ? $query : null,
         $smartSeeds ?: (!$isActualUrl ? $cleanUserSeeds : null),
         $langInfo['code'],
-        $suggestedCountries[0]['code'] ?? 'TR'
+        $suggestedCountries[0]['code'] ?? 'TR',
+        $requestedGeoTargetConstants
     );
 
     if (!empty($officialKeywords) && is_array($officialKeywords)) {
