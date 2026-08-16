@@ -815,6 +815,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   const simulation: ForecastSimulation = useMemo(() => {
     const activeCpc = (avgTopPageCpc > 0 ? avgTopPageCpc : 6.50) * scenarioMultiplier.cpcMult;
     const availableMarketVolume = totalSearchVolume; // Total searches in selected target markets
+    const googleSearchBudget = Math.round((monthlyBudget * allocGoogleSearch) / 100);
     
     // 1. Calculate Maximum Market Capacity (95% Impression Share)
     const maxPossibleImpressions = Math.max(1, availableMarketVolume);
@@ -823,12 +824,12 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
     // 2. Calculate Effective Impression Share and Actual Spend based on Budget Mode
     let effectiveIS = targetImpressionShare;
-    let actualSpend = monthlyBudget;
+    let actualSpend = googleSearchBudget;
     let isMarketSaturated = false;
 
     if (budgetMode === 'BY_BUDGET') {
-      // Calculate what Impression Share this budget can buy
-      const theoreticalClicks = monthlyBudget / activeCpc;
+      // Calculate what Impression Share this allocated Google Search budget can buy
+      const theoreticalClicks = activeCpc > 0 ? googleSearchBudget / activeCpc : 0;
       const theoreticalImpressions = theoreticalClicks / (expectedCtr / 100);
       const calculatedIS = availableMarketVolume > 0 ? (theoreticalImpressions / availableMarketVolume) * 100 : 100;
       
@@ -838,7 +839,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         actualSpend = marketCapacitySpend;
       } else {
         effectiveIS = Math.max(5, Math.min(95, Math.round(calculatedIS)));
-        actualSpend = monthlyBudget;
+        actualSpend = googleSearchBudget;
       }
     } else {
       // User specifies target Impression Share (%)
@@ -875,7 +876,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
     return {
       businessModel,
-      monthlyBudget,
+      monthlyBudget: googleSearchBudget,
       dailyBudget,
       actualSpend,
       marketCapacitySpend,
@@ -900,6 +901,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     businessModel,
     budgetMode,
     monthlyBudget,
+    allocGoogleSearch,
     targetImpressionShare,
     expectedCtr,
     avgTopPageCpc,
@@ -3110,21 +3112,32 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                 {/* Monthly Budget Slider */}
                 {budgetMode === 'BY_BUDGET' ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <label style={{ fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                        Hedef Aylık Reklam Bütçesi
-                      </label>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div>
+                        <label style={{ fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                          Google Search Ayrılan Bütçe (%{allocGoogleSearch})
+                        </label>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                          Toplam ₺{monthlyBudget.toLocaleString('tr-TR')} medya bütçesinin %{allocGoogleSearch}'i
+                        </div>
+                      </div>
                       <div style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--brand-primary)' }}>
-                        ₺{monthlyBudget.toLocaleString('tr-TR')}
+                        ₺{Math.round((monthlyBudget * allocGoogleSearch) / 100).toLocaleString('tr-TR')}
                       </div>
                     </div>
                     <input
                       type="range"
-                      min={1000}
-                      max={150000}
-                      step={1000}
-                      value={monthlyBudget}
-                      onChange={(e) => setMonthlyBudget(Number(e.target.value))}
+                      min={500}
+                      max={Math.max(1000, monthlyBudget)}
+                      step={250}
+                      value={Math.round((monthlyBudget * allocGoogleSearch) / 100)}
+                      onChange={(e) => {
+                        const newSpend = Number(e.target.value);
+                        if (monthlyBudget > 0) {
+                          const newAlloc = Math.max(5, Math.min(95, Math.round((newSpend / monthlyBudget) * 100)));
+                          setAllocGoogleSearch(newAlloc);
+                        }
+                      }}
                       style={{ width: '100%', accentColor: 'var(--brand-primary)', cursor: 'pointer' }}
                     />
                   </div>
