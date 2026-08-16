@@ -496,6 +496,62 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   const [allocYouTube, setAllocYouTube] = useState<number>(10);
   const [allocGdn, setAllocGdn] = useState<number>(10);
 
+  // Smart Proportional Channel Allocation (Strictly preserves 100% total sum)
+  const updateChannelAllocation = (
+    channel: 'google' | 'meta' | 'youtube' | 'gdn',
+    newVal: number
+  ) => {
+    const clampedVal = Math.max(0, Math.min(100, Math.round(newVal)));
+    const cur = {
+      google: allocGoogleSearch,
+      meta: allocMetaAds,
+      youtube: allocYouTube,
+      gdn: allocGdn
+    };
+
+    const otherKeys = (['google', 'meta', 'youtube', 'gdn'] as const).filter(k => k !== channel);
+    const sumOthers = otherKeys.reduce((acc, k) => acc + cur[k], 0);
+    const remainingPercent = 100 - clampedVal;
+
+    const newOthers: Record<string, number> = {};
+
+    if (sumOthers > 0) {
+      let distributedSum = 0;
+      otherKeys.forEach((k, idx) => {
+        if (idx === otherKeys.length - 1) {
+          newOthers[k] = Math.max(0, remainingPercent - distributedSum);
+        } else {
+          const share = Math.round((cur[k] / sumOthers) * remainingPercent);
+          newOthers[k] = Math.max(0, share);
+          distributedSum += newOthers[k];
+        }
+      });
+    } else {
+      const equalShare = Math.floor(remainingPercent / otherKeys.length);
+      let distributedSum = 0;
+      otherKeys.forEach((k, idx) => {
+        if (idx === otherKeys.length - 1) {
+          newOthers[k] = Math.max(0, remainingPercent - distributedSum);
+        } else {
+          newOthers[k] = equalShare;
+          distributedSum += equalShare;
+        }
+      });
+    }
+
+    if (channel === 'google') setAllocGoogleSearch(clampedVal);
+    else if (newOthers.google !== undefined) setAllocGoogleSearch(newOthers.google);
+
+    if (channel === 'meta') setAllocMetaAds(clampedVal);
+    else if (newOthers.meta !== undefined) setAllocMetaAds(newOthers.meta);
+
+    if (channel === 'youtube') setAllocYouTube(clampedVal);
+    else if (newOthers.youtube !== undefined) setAllocYouTube(newOthers.youtube);
+
+    if (channel === 'gdn') setAllocGdn(clampedVal);
+    else if (newOthers.gdn !== undefined) setAllocGdn(newOthers.gdn);
+  };
+
   // Negative Keywords State
   const [negativeCategories, setNegativeCategories] = useState<NegativeCategory[]>([]);
   const [copiedCategory, setCopiedCategory] = useState<string | null>(null);
@@ -2510,6 +2566,23 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                   </div>
                 </div>
 
+                {/* Total Distribution Progress Bar & Status */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem' }}>
+                    <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>Bütçe Dağılım Dengesi:</span>
+                    <span style={{ fontWeight: 700, color: (allocGoogleSearch + allocMetaAds + allocYouTube + allocGdn) === 100 ? '#10b981' : '#f59e0b', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      {(allocGoogleSearch + allocMetaAds + allocYouTube + allocGdn) === 100 ? '✓ Tam Dengeli (%100)' : `⚠️ Toplam: %${allocGoogleSearch + allocMetaAds + allocYouTube + allocGdn}`}
+                    </span>
+                  </div>
+                  {/* Segmented 100% Bar */}
+                  <div style={{ height: '8px', width: '100%', display: 'flex', borderRadius: 'var(--radius-full)', overflow: 'hidden', backgroundColor: 'var(--border-default)' }}>
+                    <div style={{ width: `${allocGoogleSearch}%`, backgroundColor: '#ef4444', transition: 'width 0.15s ease' }} title={`Google Search: %${allocGoogleSearch}`} />
+                    <div style={{ width: `${allocMetaAds}%`, backgroundColor: '#2563eb', transition: 'width 0.15s ease' }} title={`Meta Ads: %${allocMetaAds}`} />
+                    <div style={{ width: `${allocYouTube}%`, backgroundColor: '#dc2626', transition: 'width 0.15s ease' }} title={`YouTube Video: %${allocYouTube}`} />
+                    <div style={{ width: `${allocGdn}%`, backgroundColor: '#10b981', transition: 'width 0.15s ease' }} title={`Google GDN: %${allocGdn}`} />
+                  </div>
+                </div>
+
                 {/* Individual Channel Sliders */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', padding: '1rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
                   
@@ -2525,12 +2598,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       type="range"
                       min={0}
                       max={100}
-                      step={5}
+                      step={1}
                       value={allocGoogleSearch}
-                      onChange={(e) => {
-                        const val = Number(e.target.value);
-                        setAllocGoogleSearch(val);
-                      }}
+                      onChange={(e) => updateChannelAllocation('google', Number(e.target.value))}
                       style={{ width: '100%', accentColor: '#ef4444', cursor: 'pointer' }}
                     />
                   </div>
@@ -2547,12 +2617,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       type="range"
                       min={0}
                       max={100}
-                      step={5}
+                      step={1}
                       value={allocMetaAds}
-                      onChange={(e) => {
-                        const val = Number(e.target.value);
-                        setAllocMetaAds(val);
-                      }}
+                      onChange={(e) => updateChannelAllocation('meta', Number(e.target.value))}
                       style={{ width: '100%', accentColor: '#2563eb', cursor: 'pointer' }}
                     />
                   </div>
@@ -2569,12 +2636,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       type="range"
                       min={0}
                       max={100}
-                      step={5}
+                      step={1}
                       value={allocYouTube}
-                      onChange={(e) => {
-                        const val = Number(e.target.value);
-                        setAllocYouTube(val);
-                      }}
+                      onChange={(e) => updateChannelAllocation('youtube', Number(e.target.value))}
                       style={{ width: '100%', accentColor: '#dc2626', cursor: 'pointer' }}
                     />
                   </div>
@@ -2591,12 +2655,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       type="range"
                       min={0}
                       max={100}
-                      step={5}
+                      step={1}
                       value={allocGdn}
-                      onChange={(e) => {
-                        const val = Number(e.target.value);
-                        setAllocGdn(val);
-                      }}
+                      onChange={(e) => updateChannelAllocation('gdn', Number(e.target.value))}
                       style={{ width: '100%', accentColor: '#10b981', cursor: 'pointer' }}
                     />
                   </div>
@@ -3134,8 +3195,8 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       onChange={(e) => {
                         const newSpend = Number(e.target.value);
                         if (monthlyBudget > 0) {
-                          const newAlloc = Math.max(5, Math.min(95, Math.round((newSpend / monthlyBudget) * 100)));
-                          setAllocGoogleSearch(newAlloc);
+                          const newAlloc = Math.max(0, Math.min(100, Math.round((newSpend / monthlyBudget) * 100)));
+                          updateChannelAllocation('google', newAlloc);
                         }
                       }}
                       style={{ width: '100%', accentColor: 'var(--brand-primary)', cursor: 'pointer' }}
