@@ -26,10 +26,7 @@ import {
   X,
   FolderTree,
   BarChart3,
-  ArrowUpDown,
-  Video,
-  PieChart,
-  Smartphone
+  ArrowUpDown
 } from 'lucide-react';
 import { 
   KeywordMetric, 
@@ -46,6 +43,47 @@ import {
   OmnichannelMediaMix
 } from '../types/forecast';
 import { ApiService } from '../services/apiService';
+
+// Official Brand SVG Icons
+export const GoogleIcon: React.FC<{ size?: number }> = ({ size = 15 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" style={{ flexShrink: 0, verticalAlign: 'middle', display: 'inline-block' }}>
+    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"/>
+    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335"/>
+  </svg>
+);
+
+export const MetaIcon: React.FC<{ size?: number }> = ({ size = 15 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, verticalAlign: 'middle', display: 'inline-block' }}>
+    <path d="M12 8.167C9.37 3.52 4.67 1.84 1.7 4.54C-1.33 7.3 -0.22 13.82 2.9 17.36C6.02 20.9 9.87 17.36 12 13.5C14.13 17.36 17.98 20.9 21.1 17.36C24.22 13.82 25.33 7.3 22.3 4.54C19.33 1.84 14.63 3.52 12 8.167ZM18.52 14.54C16.54 16.54 14.28 14.86 12.82 12.44C14.48 9.68 17.2 6.94 19.3 7.54C21.4 8.14 21.3 12.14 18.52 14.54ZM5.48 14.54C2.7 12.14 2.6 8.14 4.7 7.54C6.8 6.94 9.52 9.68 11.18 12.44C9.72 14.86 7.46 16.54 5.48 14.54Z" fill="#0081FB"/>
+  </svg>
+);
+
+export const YouTubeIcon: React.FC<{ size?: number }> = ({ size = 15 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" style={{ flexShrink: 0, verticalAlign: 'middle', display: 'inline-block' }}>
+    <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814z" fill="#FF0000"/>
+    <path d="M9.545 15.568V8.432L15.818 12l-6.273 3.568z" fill="#FFFFFF"/>
+  </svg>
+);
+
+export const GdnIcon: React.FC<{ size?: number }> = ({ size = 15 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, verticalAlign: 'middle', display: 'inline-block' }}>
+    <rect x="2" y="3" width="20" height="14" rx="2" stroke="#4285F4" strokeWidth="2" fill="none"/>
+    <rect x="5" y="6" width="6" height="4" rx="1" fill="#EA4335"/>
+    <rect x="13" y="6" width="6" height="2" rx="0.5" fill="#FBBC05"/>
+    <rect x="13" y="9" width="4" height="2" rx="0.5" fill="#34A853"/>
+    <path d="M8 21h8M12 17v4" stroke="#4285F4" strokeWidth="2" strokeLinecap="round"/>
+  </svg>
+);
+
+export const OmnichannelIcon: React.FC<{ size?: number }> = ({ size = 15 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, verticalAlign: 'middle', display: 'inline-block' }}>
+    <circle cx="12" cy="12" r="9.5" stroke="#3b82f6" strokeWidth="1.75"/>
+    <ellipse cx="12" cy="12" rx="4.5" ry="9.5" stroke="#06b6d4" strokeWidth="1.5"/>
+    <path d="M2.5 12h19M4 7.5h16M4 16.5h16" stroke="#3b82f6" strokeWidth="1.25" strokeLinecap="round"/>
+  </svg>
+);
 
 export interface KeywordCluster {
   id: string;
@@ -2502,37 +2540,37 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
             <button
               onClick={() => setActiveChannelTab('OMNICHANNEL')}
               className={activeChannelTab === 'OMNICHANNEL' ? 'btn-primary' : 'btn-ghost'}
-              style={{ padding: '0.45rem 0.9rem', fontSize: '0.825rem', fontWeight: activeChannelTab === 'OMNICHANNEL' ? 700 : 500 }}
+              style={{ padding: '0.45rem 0.9rem', fontSize: '0.825rem', fontWeight: activeChannelTab === 'OMNICHANNEL' ? 700 : 500, display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}
             >
-              <PieChart size={14} /> 🌐 360° Medya Karması (Omnichannel)
+              <OmnichannelIcon size={16} /> 360° Medya Karması (Omnichannel)
             </button>
             <button
               onClick={() => setActiveChannelTab('GOOGLE_SEARCH')}
               className={activeChannelTab === 'GOOGLE_SEARCH' ? 'btn-primary' : 'btn-ghost'}
-              style={{ padding: '0.45rem 0.9rem', fontSize: '0.825rem', fontWeight: activeChannelTab === 'GOOGLE_SEARCH' ? 700 : 500 }}
+              style={{ padding: '0.45rem 0.9rem', fontSize: '0.825rem', fontWeight: activeChannelTab === 'GOOGLE_SEARCH' ? 700 : 500, display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}
             >
-              <Search size={14} /> 🔴 Google Search (Arama Ağı)
+              <GoogleIcon size={16} /> Google Search (Arama Ağı)
             </button>
             <button
               onClick={() => setActiveChannelTab('META_ADS')}
               className={activeChannelTab === 'META_ADS' ? 'btn-primary' : 'btn-ghost'}
-              style={{ padding: '0.45rem 0.9rem', fontSize: '0.825rem', fontWeight: activeChannelTab === 'META_ADS' ? 700 : 500 }}
+              style={{ padding: '0.45rem 0.9rem', fontSize: '0.825rem', fontWeight: activeChannelTab === 'META_ADS' ? 700 : 500, display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}
             >
-              <Smartphone size={14} /> 🔵 Meta Ads (Facebook & Instagram)
+              <MetaIcon size={16} /> Meta Ads (Facebook & Instagram)
             </button>
             <button
               onClick={() => setActiveChannelTab('YOUTUBE')}
               className={activeChannelTab === 'YOUTUBE' ? 'btn-primary' : 'btn-ghost'}
-              style={{ padding: '0.45rem 0.9rem', fontSize: '0.825rem', fontWeight: activeChannelTab === 'YOUTUBE' ? 700 : 500 }}
+              style={{ padding: '0.45rem 0.9rem', fontSize: '0.825rem', fontWeight: activeChannelTab === 'YOUTUBE' ? 700 : 500, display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}
             >
-              <Video size={14} /> 🔴 YouTube Video (Action & Shorts)
+              <YouTubeIcon size={16} /> YouTube Video (Action & Shorts)
             </button>
             <button
               onClick={() => setActiveChannelTab('GDN')}
               className={activeChannelTab === 'GDN' ? 'btn-primary' : 'btn-ghost'}
-              style={{ padding: '0.45rem 0.9rem', fontSize: '0.825rem', fontWeight: activeChannelTab === 'GDN' ? 700 : 500 }}
+              style={{ padding: '0.45rem 0.9rem', fontSize: '0.825rem', fontWeight: activeChannelTab === 'GDN' ? 700 : 500, display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}
             >
-              <Layers size={14} /> 🟢 Google GDN (Display & Retargeting)
+              <GdnIcon size={16} /> Google GDN (Display & Retargeting)
             </button>
           </div>
 
@@ -2620,8 +2658,10 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                   
                   {/* Google Search Allocation */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem' }}>
-                      <span style={{ fontWeight: 600, color: '#ef4444' }}>🔴 Google Search (%{allocGoogleSearch})</span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.78rem' }}>
+                      <span style={{ fontWeight: 600, color: '#ef4444', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                        <GoogleIcon size={15} /> Google Search (%{allocGoogleSearch})
+                      </span>
                       <strong>₺{omnichannelMix.googleSearchSpend.toLocaleString('tr-TR')}</strong>
                     </div>
                     <input
@@ -2640,8 +2680,10 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
                   {/* Meta Ads Allocation */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem' }}>
-                      <span style={{ fontWeight: 600, color: '#2563eb' }}>🔵 Meta Ads (FB & IG) (%{allocMetaAds})</span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.78rem' }}>
+                      <span style={{ fontWeight: 600, color: '#2563eb', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                        <MetaIcon size={15} /> Meta Ads (FB & IG) (%{allocMetaAds})
+                      </span>
                       <strong>₺{omnichannelMix.metaAdsSpend.toLocaleString('tr-TR')}</strong>
                     </div>
                     <input
@@ -2660,8 +2702,10 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
                   {/* YouTube Allocation */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem' }}>
-                      <span style={{ fontWeight: 600, color: '#dc2626' }}>🔴 YouTube Video (%{allocYouTube})</span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.78rem' }}>
+                      <span style={{ fontWeight: 600, color: '#dc2626', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                        <YouTubeIcon size={15} /> YouTube Video (%{allocYouTube})
+                      </span>
                       <strong>₺{omnichannelMix.youtubeSpend.toLocaleString('tr-TR')}</strong>
                     </div>
                     <input
@@ -2680,8 +2724,10 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
                   {/* GDN Allocation */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem' }}>
-                      <span style={{ fontWeight: 600, color: '#10b981' }}>🟢 Google GDN (%{allocGdn})</span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.78rem' }}>
+                      <span style={{ fontWeight: 600, color: '#10b981', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                        <GdnIcon size={15} /> Google GDN (%{allocGdn})
+                      </span>
                       <strong>₺{omnichannelMix.gdnSpend.toLocaleString('tr-TR')}</strong>
                     </div>
                     <input
@@ -2829,7 +2875,11 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       </thead>
                       <tbody>
                         <tr>
-                          <td><strong>🔴 Google Search</strong></td>
+                          <td>
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}>
+                              <GoogleIcon size={14} /> Google Search
+                            </div>
+                          </td>
                           <td>₺{omnichannelMix.googleSearchSpend.toLocaleString('tr-TR')} (%{allocGoogleSearch})</td>
                           <td style={{ textAlign: 'right' }}>{Math.round(simulation.estImpressions * (allocGoogleSearch / 100)).toLocaleString('tr-TR')}</td>
                           <td style={{ textAlign: 'right' }}>{Math.round(simulation.estClicks * (allocGoogleSearch / 100)).toLocaleString('tr-TR')}</td>
@@ -2837,7 +2887,11 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                           <td style={{ textAlign: 'right', fontWeight: 600, color: '#16a34a' }}>~{Math.round((simulation.estDeals || 0) * (allocGoogleSearch / 100))}</td>
                         </tr>
                         <tr>
-                          <td><strong>🔵 Meta Ads (FB & IG)</strong></td>
+                          <td>
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}>
+                              <MetaIcon size={14} /> Meta Ads (FB & IG)
+                            </div>
+                          </td>
                           <td>₺{omnichannelMix.metaAdsSpend.toLocaleString('tr-TR')} (%{allocMetaAds})</td>
                           <td style={{ textAlign: 'right' }}>{metaSimulation.impressions.toLocaleString('tr-TR')}</td>
                           <td style={{ textAlign: 'right' }}>{metaSimulation.clicks.toLocaleString('tr-TR')}</td>
@@ -2845,7 +2899,11 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                           <td style={{ textAlign: 'right', fontWeight: 600, color: '#16a34a' }}>~{metaSimulation.healthyLeads}</td>
                         </tr>
                         <tr>
-                          <td><strong>🔴 YouTube Video</strong></td>
+                          <td>
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}>
+                              <YouTubeIcon size={14} /> YouTube Video
+                            </div>
+                          </td>
                           <td>₺{omnichannelMix.youtubeSpend.toLocaleString('tr-TR')} (%{allocYouTube})</td>
                           <td style={{ textAlign: 'right' }}>{youtubeSimulation.impressions.toLocaleString('tr-TR')}</td>
                           <td style={{ textAlign: 'right' }}>{youtubeSimulation.videoViews.toLocaleString('tr-TR')} İzlenme</td>
@@ -2853,7 +2911,11 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                           <td style={{ textAlign: 'right', color: 'var(--text-secondary)' }}>~{youtubeSimulation.actions} Eylem</td>
                         </tr>
                         <tr>
-                          <td><strong>🟢 Google GDN</strong></td>
+                          <td>
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}>
+                              <GdnIcon size={14} /> Google GDN
+                            </div>
+                          </td>
                           <td>₺{omnichannelMix.gdnSpend.toLocaleString('tr-TR')} (%{allocGdn})</td>
                           <td style={{ textAlign: 'right' }}>{gdnSimulation.impressions.toLocaleString('tr-TR')}</td>
                           <td style={{ textAlign: 'right' }}>{gdnSimulation.clicks.toLocaleString('tr-TR')}</td>
@@ -2879,8 +2941,8 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
               {/* Meta Controls Column */}
               <div className="card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                 <div>
-                  <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                    🔵 Meta Ads (FB & Instagram) Lead Huni Parametreleri
+                  <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                    <MetaIcon size={18} /> Meta Ads (FB & Instagram) Lead Huni Parametreleri
                   </div>
                   <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
                     1.000 Gösterim Başı Maliyet (CPM), Form Dönüşüm ve Sağlıklı Lead Oranını ayarlayın.
@@ -3014,8 +3076,8 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
               <div className="card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                 
                 <div>
-                  <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                    🎯 Meta Ads Kampanya Projeksiyonu & Funnel
+                  <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                    <MetaIcon size={18} /> Meta Ads Kampanya Projeksiyonu & Funnel
                   </div>
                   <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
                     Aylık <strong>₺{metaSimulation.budget.toLocaleString('tr-TR')}</strong> Meta bütçesiyle beklenen performans çıktısı.
@@ -3147,8 +3209,8 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                 
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div>
-                    <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                      Bütçe & Gösterim Payı (IS) Değişkenleri
+                    <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                      <GoogleIcon size={18} /> Google Search (Arama Ağı) Parametreleri
                     </div>
                     <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
                       Pazar hacmine bağlı gerçekçi tıklama ve dönüşüm projeksiyonu.
@@ -3355,8 +3417,8 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
               <div className="card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                 
                 <div>
-                  <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                    🎯 Google Search Performans Projeksiyonu
+                  <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                    <GoogleIcon size={18} /> Google Search Performans Projeksiyonu
                   </div>
                   <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
                     Aylık <strong>₺{simulation.actualSpend.toLocaleString('tr-TR')}</strong> harcama ile beklenen arama ağı sonuçları.
@@ -3418,8 +3480,8 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '1.25rem' }}>
               <div className="card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                 <div>
-                  <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                    🔴 YouTube Video Reklam Parametreleri
+                  <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                    <YouTubeIcon size={18} /> YouTube Video Reklam Parametreleri
                   </div>
                   <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
                     In-Stream, Video Action ve Shorts için Görüntüleme Başı Maliyet (CPV) simülasyonu.
@@ -3488,8 +3550,8 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
               </div>
 
               <div className="card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                  🎬 YouTube Kampanya Çıktıları
+                <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                  <YouTubeIcon size={18} /> YouTube Kampanya Çıktıları
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' }}>
                   <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
@@ -3522,8 +3584,8 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '1.25rem' }}>
               <div className="card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                 <div>
-                  <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                    🟢 Google GDN (Display Network & Remarketing)
+                  <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                    <GdnIcon size={18} /> Google GDN (Display Network & Remarketing)
                   </div>
                   <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
                     Web sitelerinde banner gösterimi ve yeniden pazarlama desteği.
