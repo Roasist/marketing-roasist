@@ -1557,6 +1557,7 @@ if ($action === 'discover' && $method === 'POST') {
     $input = json_decode(file_get_contents('php://input'), true) ?? [];
     $query = trim($input['query'] ?? '');
     $mode = trim($input['mode'] ?? 'URL');
+    $requestedLanguage = trim($input['language'] ?? '');
     $requestedGeoTargetConstants = $input['geoTargetConstants'] ?? [];
 
     if (empty($query)) {
@@ -1564,7 +1565,7 @@ if ($action === 'discover' && $method === 'POST') {
         exit;
     }
 
-    $cacheKey = md5("forecast_v10_{$mode}_{$query}");
+    $cacheKey = md5("forecast_v12_{$mode}_{$query}_" . ($requestedLanguage ?: 'auto') . '_' . implode('_', (array)$requestedGeoTargetConstants));
 
     // 1. Check Server-Side Cache
     $stmtCache = $pdo->prepare("SELECT data, created_at FROM keyword_cache WHERE cache_key = ?");
@@ -1616,7 +1617,15 @@ if ($action === 'discover' && $method === 'POST') {
         $aiSeeds = array_merge($aiSeeds, $cleanUserSeeds);
     }
 
-    if ($aiAnalysis && !empty($aiAnalysis['detectedLanguage'])) {
+    if (!empty($requestedLanguage)) {
+        $langNames = ['tr' => 'Türkçe', 'en' => 'İngilizce', 'de' => 'Almanca', 'ru' => 'Rusça', 'ar' => 'Arapça'];
+        $langInfo = [
+            'code' => $requestedLanguage,
+            'name' => $langNames[$requestedLanguage] ?? 'Seçili Dil'
+        ];
+        $sectorTitle = $aiAnalysis['sector'] ?? ($pageDetails['title'] ?? 'Google Ads Kampanyası');
+        $suggestedCountries = !empty($aiAnalysis['suggestedCountries']) ? $aiAnalysis['suggestedCountries'] : getSuggestedCountriesByLang($langInfo['code']);
+    } elseif ($aiAnalysis && !empty($aiAnalysis['detectedLanguage'])) {
         $langInfo = [
             'code' => $aiAnalysis['detectedLanguage'],
             'name' => $aiAnalysis['detectedLanguageName'] ?? 'Otomatik'

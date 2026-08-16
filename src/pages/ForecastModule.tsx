@@ -10,17 +10,16 @@ import {
   Copy, 
   Trash2, 
   RefreshCw, 
-  Target,
-  FolderDown,
-  Globe,
-  Languages,
-  CheckCircle2,
-  ArrowRight,
-  ArrowLeft,
-  Plus,
-  X,
-  FolderTree,
-  BarChart3,
+  FolderDown, 
+  Globe, 
+  Languages, 
+  CheckCircle2, 
+  ArrowRight, 
+  ArrowLeft, 
+  Plus, 
+  X, 
+  FolderTree, 
+  BarChart3, 
   ArrowUpDown
 } from 'lucide-react';
 import { 
@@ -256,12 +255,14 @@ interface ForecastModuleProps {
 }
 
 export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) => {
-  // Stepper State: 1 = Sayfa Kelimeleri, 2 = Hedef Pazarlar, 3 = Hacim & Forecast
-  const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
+  // Stepper State: 1 = STAG Kelime Keşfi & Gruplar, 2 = 360° Medya Karması & Büyüme Simülatörü
+  const [currentStep, setCurrentStep] = useState<1 | 2>(1);
 
   // Search & Discovery State
   const [query, setQuery] = useState('');
   const [mode, setMode] = useState<'URL' | 'KEYWORDS'>('URL');
+  const [targetLanguage, setTargetLanguage] = useState<string>('auto');
+  const [isLocationModalOpen, setIsLocationModalOpen] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingStage, setLoadingStage] = useState(0);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -463,6 +464,8 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       const res = await ApiService.discoverKeywords({
         query: q.trim(),
         mode: m,
+        language: targetLanguage !== 'auto' ? targetLanguage : undefined,
+        geoTargetConstants: selectedLocations.map(l => l.id),
       });
 
       clearTimeout(timer1);
@@ -493,28 +496,30 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           setBusinessModel('ECOMMERCE');
         }
 
-        // Initialize locations based on detected language
-        if (res.detectedLanguage === 'ru') {
-          setSelectedLocations([
-            { id: '2643', resourceName: 'geoTargetConstants/2643', name: 'Rusya', canonicalName: 'Rusya', countryCode: 'RU', targetType: 'Country', reach: 145000000, flag: '🇷🇺', cpcMultiplier: 1.6, volumeMultiplier: 1.8 },
-            { id: '2398', resourceName: 'geoTargetConstants/2398', name: 'Kazakistan', canonicalName: 'Kazakistan', countryCode: 'KZ', targetType: 'Country', reach: 19500000, flag: '🇰🇿', cpcMultiplier: 1.4, volumeMultiplier: 0.9 }
-          ]);
-        } else if (res.detectedLanguage === 'ar') {
-          setSelectedLocations([
-            { id: '1000010', resourceName: 'geoTargetConstants/1000010', name: 'Dubai', canonicalName: 'Dubai, Birleşik Arap Emirlikleri', countryCode: 'AE', targetType: 'City', reach: 3400000, flag: '🇦🇪', cpcMultiplier: 2.4, volumeMultiplier: 0.8 },
-            { id: '2682', resourceName: 'geoTargetConstants/2682', name: 'Suudi Arabistan', canonicalName: 'Suudi Arabistan', countryCode: 'SA', targetType: 'Country', reach: 35000000, flag: '🇸🇦', cpcMultiplier: 2.1, volumeMultiplier: 1.2 }
-          ]);
-        } else if (res.detectedLanguage === 'de') {
-          setSelectedLocations([
-            { id: '2276', resourceName: 'geoTargetConstants/2276', name: 'Almanya', canonicalName: 'Almanya', countryCode: 'DE', targetType: 'Country', reach: 84000000, flag: '🇩🇪', cpcMultiplier: 2.8, volumeMultiplier: 1.4 }
-          ]);
-        } else if (res.detectedLanguage === 'en') {
-          setSelectedLocations([
-            { id: '2826', resourceName: 'geoTargetConstants/2826', name: 'Birleşik Krallık', canonicalName: 'Birleşik Krallık', countryCode: 'GB', targetType: 'Country', reach: 67000000, flag: '🇬🇧', cpcMultiplier: 3.2, volumeMultiplier: 1.3 },
-            { id: '2840', resourceName: 'geoTargetConstants/2840', name: 'Amerika Birleşik Devletleri', canonicalName: 'Amerika Birleşik Devletleri', countryCode: 'US', targetType: 'Country', reach: 335000000, flag: '🇺🇸', cpcMultiplier: 3.5, volumeMultiplier: 2.0 }
-          ]);
-        } else {
-          setSelectedLocations([DEFAULT_LOCATIONS[0]]);
+        // Only initialize locations if user hasn't explicitly customized them yet
+        if (!selectedLocations || selectedLocations.length === 0) {
+          if (res.detectedLanguage === 'ru') {
+            setSelectedLocations([
+              { id: '2643', resourceName: 'geoTargetConstants/2643', name: 'Rusya', canonicalName: 'Rusya', countryCode: 'RU', targetType: 'Country', reach: 145000000, flag: '🇷🇺', cpcMultiplier: 1.6, volumeMultiplier: 1.8 },
+              { id: '2398', resourceName: 'geoTargetConstants/2398', name: 'Kazakistan', canonicalName: 'Kazakistan', countryCode: 'KZ', targetType: 'Country', reach: 19500000, flag: '🇰🇿', cpcMultiplier: 1.4, volumeMultiplier: 0.9 }
+            ]);
+          } else if (res.detectedLanguage === 'ar') {
+            setSelectedLocations([
+              { id: '1000010', resourceName: 'geoTargetConstants/1000010', name: 'Dubai', canonicalName: 'Dubai, Birleşik Arap Emirlikleri', countryCode: 'AE', targetType: 'City', reach: 3400000, flag: '🇦🇪', cpcMultiplier: 2.4, volumeMultiplier: 0.8 },
+              { id: '2682', resourceName: 'geoTargetConstants/2682', name: 'Suudi Arabistan', canonicalName: 'Suudi Arabistan', countryCode: 'SA', targetType: 'Country', reach: 35000000, flag: '🇸🇦', cpcMultiplier: 2.1, volumeMultiplier: 1.2 }
+            ]);
+          } else if (res.detectedLanguage === 'de') {
+            setSelectedLocations([
+              { id: '2276', resourceName: 'geoTargetConstants/2276', name: 'Almanya', canonicalName: 'Almanya', countryCode: 'DE', targetType: 'Country', reach: 84000000, flag: '🇩🇪', cpcMultiplier: 2.8, volumeMultiplier: 1.4 }
+            ]);
+          } else if (res.detectedLanguage === 'en') {
+            setSelectedLocations([
+              { id: '2826', resourceName: 'geoTargetConstants/2826', name: 'Birleşik Krallık', canonicalName: 'Birleşik Krallık', countryCode: 'GB', targetType: 'Country', reach: 67000000, flag: '🇬🇧', cpcMultiplier: 3.2, volumeMultiplier: 1.3 },
+              { id: '2840', resourceName: 'geoTargetConstants/2840', name: 'Amerika Birleşik Devletleri', canonicalName: 'Amerika Birleşik Devletleri', countryCode: 'US', targetType: 'Country', reach: 335000000, flag: '🇺🇸', cpcMultiplier: 3.5, volumeMultiplier: 2.0 }
+            ]);
+          } else {
+            setSelectedLocations([DEFAULT_LOCATIONS[0]]);
+          }
         }
 
         // Dynamic Multi-Channel CPM & CPV benchmarks based on Sector & Target Market
@@ -1150,19 +1155,70 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           </div>
         </div>
 
-        {/* Unified Input Bar */}
+        {/* Unified Input Bar with Integrated Location & Language Selectors */}
         <div style={{ display: 'flex', gap: '0.65rem', flexWrap: 'wrap', alignItems: 'center' }}>
-          <div style={{ flex: 1, minWidth: '280px', position: 'relative' }}>
+          {/* Query Input */}
+          <div style={{ flex: 2, minWidth: '260px', position: 'relative' }}>
             <Search size={16} color="var(--text-muted)" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
             <input
               type="text"
-              placeholder="Web sitesi URL'si veya anahtar kelime(ler) girin (örn: summerhomes.com veya alanya butik oteller)..."
+              placeholder="Web sitesi URL'si veya anahtar kelime(ler) girin (örn: summerhomes.com veya alanya satılık villa)..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') handleDiscover(); }}
               style={{ width: '100%', paddingLeft: '2.4rem', fontSize: '0.875rem' }}
             />
           </div>
+
+          {/* 📍 Location Selector Button */}
+          <button
+            type="button"
+            onClick={() => setIsLocationModalOpen(true)}
+            className="btn-secondary"
+            title="Google Ads Coğrafi Lokasyon Hedeflemesi Seçin"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.45rem',
+              padding: '0.55rem 0.85rem',
+              fontSize: '0.82rem',
+              backgroundColor: 'var(--bg-surface-elevated)',
+              border: '1px solid var(--brand-primary)',
+              borderRadius: 'var(--radius-xs)',
+              color: 'var(--text-primary)',
+              fontWeight: 600,
+              whiteSpace: 'nowrap'
+            }}
+          >
+            <Globe size={15} color="var(--brand-primary)" />
+            <span>
+              {selectedLocations.length === 1
+                ? `${selectedLocations[0].flag || '📍'} ${selectedLocations[0].name}`
+                : `📍 ${selectedLocations.length} Bölge (${selectedLocations[0]?.name || ''}...)`}
+            </span>
+          </button>
+
+          {/* 🌐 Target Language Selector */}
+          <select
+            value={targetLanguage}
+            onChange={(e) => setTargetLanguage(e.target.value)}
+            style={{
+              padding: '0.55rem 0.75rem',
+              fontSize: '0.82rem',
+              backgroundColor: 'var(--bg-surface-elevated)',
+              border: '1px solid var(--border-default)',
+              borderRadius: 'var(--radius-xs)',
+              color: 'var(--text-primary)',
+              fontWeight: 500
+            }}
+          >
+            <option value="auto">🌐 Dil: Otomatik (Sayfa Dili)</option>
+            <option value="tr">🇹🇷 Dil: Türkçe (TR)</option>
+            <option value="en">🇬🇧 Dil: İngilizce (EN)</option>
+            <option value="de">🇩🇪 Dil: Almanca (DE)</option>
+            <option value="ru">🇷🇺 Dil: Rusça (RU)</option>
+            <option value="ar">🇸🇦 Dil: Arapça (AR)</option>
+          </select>
 
           {/* Action Button */}
           <button
@@ -1172,7 +1228,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
             style={{ padding: '0.55rem 1.35rem', fontSize: '0.875rem', whiteSpace: 'nowrap', fontWeight: 600 }}
           >
             <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
-            {isLoading ? 'Google Ads Verileri Analiz Ediliyor...' : '🔍 Analiz Et & Kelimeleri Çıkar'}
+            {isLoading ? 'Google Ads Verileri Analiz Ediliyor...' : '🚀 Analiz Et & Keşfet'}
           </button>
         </div>
 
@@ -1368,7 +1424,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
             <div style={{ marginTop: '0.5rem' }}>
               <button
                 type="button"
-                onClick={() => { setCurrentStep(3); setActiveChannelTab('SAVED_PLANS'); loadSavedPlans(); }}
+                onClick={() => { setCurrentStep(2); setActiveChannelTab('SAVED_PLANS'); loadSavedPlans(); }}
                 className="btn-secondary"
                 style={{ fontSize: '0.8rem', padding: '0.4rem 0.85rem' }}
               >
@@ -1380,8 +1436,8 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       ) : (
         /* SCENARIO C: RESULTS LOADED (Clean & Bold 3-Step Wizard) */
         <>
-          {/* 3-Step Wizard Navigation Bar */}
-          <div className="card" style={{ padding: '0.6rem 0.85rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0.65rem', backgroundColor: 'var(--bg-surface)' }}>
+          {/* 2-Step Wizard Navigation Bar */}
+          <div className="card" style={{ padding: '0.6rem 0.85rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '0.65rem', backgroundColor: 'var(--bg-surface)' }}>
             
             {/* Step 1 */}
             <button
@@ -1408,7 +1464,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                 width: '26px',
                 height: '26px',
                 borderRadius: '50%',
-                backgroundColor: currentStep === 1 ? 'var(--brand-primary)' : (currentStep > 1 ? '#10b981' : 'var(--border-default)'),
+                backgroundColor: currentStep === 1 ? 'var(--brand-primary)' : '#10b981',
                 color: '#ffffff',
                 display: 'flex',
                 alignItems: 'center',
@@ -1416,9 +1472,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                 fontSize: '0.8rem',
                 fontWeight: 700
               }}>
-                {currentStep > 1 ? <Check size={15} /> : '1'}
+                {currentStep === 2 ? <Check size={15} /> : '1'}
               </div>
-              <span>1. Adım: Pazar & Kelime Keşfi</span>
+              <span>1. Adım: STAG Kelime Keşfi & Gruplar</span>
             </button>
 
             {/* Step 2 */}
@@ -1446,7 +1502,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                 width: '26px',
                 height: '26px',
                 borderRadius: '50%',
-                backgroundColor: currentStep === 2 ? 'var(--brand-primary)' : (currentStep > 2 ? '#10b981' : 'var(--border-default)'),
+                backgroundColor: currentStep === 2 ? 'var(--brand-primary)' : 'var(--border-default)',
                 color: '#ffffff',
                 display: 'flex',
                 alignItems: 'center',
@@ -1454,47 +1510,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                 fontSize: '0.8rem',
                 fontWeight: 700
               }}>
-                {currentStep > 2 ? <Check size={15} /> : '2'}
+                2
               </div>
-              <span>2. Adım: Hedef Pazar & Lokasyon Seçimi ({selectedLocations.length})</span>
-            </button>
-
-            {/* Step 3 */}
-            <button
-              type="button"
-              onClick={() => setCurrentStep(3)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '0.75rem',
-                padding: '0.85rem 1.25rem',
-                borderRadius: 'var(--radius-sm)',
-                border: currentStep === 3 ? '2px solid var(--brand-primary)' : '1px solid var(--border-default)',
-                backgroundColor: currentStep === 3 ? 'rgba(37, 99, 235, 0.12)' : 'var(--bg-surface-elevated)',
-                color: currentStep === 3 ? 'var(--brand-primary)' : 'var(--text-secondary)',
-                cursor: 'pointer',
-                fontWeight: currentStep === 3 ? 700 : 500,
-                fontSize: '0.9rem',
-                transition: 'all 0.15s ease',
-                boxShadow: currentStep === 3 ? '0 0 0 1px var(--brand-primary)' : 'none'
-              }}
-            >
-              <div style={{
-                width: '26px',
-                height: '26px',
-                borderRadius: '50%',
-                backgroundColor: currentStep === 3 ? 'var(--brand-primary)' : 'var(--border-default)',
-                color: '#ffffff',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '0.8rem',
-                fontWeight: 700
-              }}>
-                3
-              </div>
-              <span>3. Adım: 360° Medya Karması & Büyüme Simülatörü</span>
+              <span>2. Adım: 360° Medya Karması & Büyüme Simülatörü</span>
             </button>
 
           </div>
@@ -1517,7 +1535,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                         {mode === 'URL' ? 'AÇILIŞ SAYFASI ANALİZİ' : 'TOHUM ANAHTAR KELİME ANALİZİ'}
                       </span>
                       <span className="badge badge-active" style={{ fontSize: '0.725rem' }}>
-                        <CheckCircle2 size={11} /> {detectedLanguageName} ({detectedLanguage.toUpperCase()}) — Otomatik Algılandı
+                        <CheckCircle2 size={11} /> {detectedLanguageName} ({detectedLanguage.toUpperCase()})
                       </span>
                       {sectorName && (
                         <span className="badge badge-neutral" style={{ fontSize: '0.725rem' }}>
@@ -1539,6 +1557,46 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     💡 {pageSummary}
                   </div>
                 )}
+              </div>
+
+              {/* 📍 Active Target Locations Interactive Strip */}
+              <div className="card" style={{ padding: '0.75rem 1.1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem', backgroundColor: 'var(--bg-surface-elevated)', border: '1px solid var(--border-default)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    <Globe size={16} color="var(--brand-primary)" />
+                    <span>Hedef Lokasyonlar ({selectedLocations.length}):</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                    {selectedLocations.map(loc => (
+                      <span key={loc.id} className="badge badge-active" style={{ fontSize: '0.75rem', padding: '3px 8px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <span>{loc.flag || '📍'}</span>
+                        <strong>{loc.name}</strong>
+                        <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>({loc.targetType === 'City' ? 'Şehir' : (loc.targetType === 'District' ? 'İlçe' : 'Ülke')})</span>
+                        {selectedLocations.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removeLocation(loc.id)}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginLeft: '2px', display: 'flex', alignItems: 'center', color: 'var(--text-muted)' }}
+                          >
+                            <X size={12} />
+                          </button>
+                        )}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <button
+                    type="button"
+                    onClick={() => setIsLocationModalOpen(true)}
+                    className="btn-ghost"
+                    style={{ fontSize: '0.78rem', padding: '0.35rem 0.75rem', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-xs)', display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--brand-primary)', fontWeight: 600 }}
+                  >
+                    <Plus size={13} />
+                    <span>Lokasyon Ekle / Değiştir</span>
+                  </button>
+                </div>
               </div>
 
               {/* Master-Detail PPC Keyword & Ad Group Manager */}
@@ -2060,7 +2118,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     className="btn-primary"
                     style={{ fontSize: '0.85rem', padding: '0.55rem 1.35rem', display: 'flex', alignItems: 'center', gap: '0.45rem' }}
                   >
-                    <span>2. Adım: Hedef Pazar & Ülke Seçimine Geç</span>
+                    <span>2. Adım: 360° Medya Karması & Büyüme Simülatörüne Geç</span>
                     <ArrowRight size={15} />
                   </button>
                 </div>
@@ -2071,320 +2129,19 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           )}
 
           {/* ========================================================================= */}
-          {/* STEP 2 VIEW: Google Keyword Planner Style Location & Geo-Targeting Engine */}
+          {/* STEP 2 VIEW: 360° Omnichannel Media Studio & Growth Simulator            */}
           {/* ========================================================================= */}
           {currentStep === 2 && (
-            <div className="card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', backgroundColor: 'var(--bg-surface)' }}>
-              
-              {/* Header */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem', borderBottom: '1px solid var(--border-default)', paddingBottom: '1rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <div style={{ padding: '10px', borderRadius: '50%', backgroundColor: 'rgba(37, 99, 235, 0.12)', color: 'var(--brand-primary)' }}>
-                    <Globe size={22} />
-                  </div>
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <div style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                        2. Adım: Hedef Pazar & Lokasyon Seçimi
-                      </div>
-                      <span className="badge badge-active" style={{ fontSize: '0.72rem' }}>
-                        <Sparkles size={11} /> Google Keyword Planner API
-                      </span>
-                    </div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
-                      Google Ads resmi lokasyon veritabanından <strong>ülke, şehir veya ilçe</strong> arayarak hedefleyin. (Örn: Alanya, Kadıköy, İstanbul, Antalya, Berlin, Londra...)
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', backgroundColor: 'var(--bg-surface-elevated)', padding: '0.4rem 0.75rem', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-default)' }}>
-                  <span style={{ color: 'var(--text-muted)' }}>Seçili Lokasyon:</span>
-                  <strong style={{ color: 'var(--brand-primary)' }}>{selectedLocations.length} Bölge</strong>
-                </div>
-              </div>
-
-              {/* Google Keyword Planner Live Search Bar */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', position: 'relative' }}>
-                <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <Search size={15} color="var(--brand-primary)" />
-                  <span>Hedef Lokasyon Ara (Şehir, İlçe, Ülke veya Eyalet):</span>
-                </label>
-
-                <div style={{ position: 'relative', width: '100%' }}>
-                  <Search size={16} color="var(--text-muted)" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
-                  <input
-                    type="text"
-                    placeholder="Şehir, ilçe veya ülke adı yazın (örn: Alanya, Kadıköy, İstanbul, Antalya, Bodrum, Berlin, Dubai, London)..."
-                    value={locationSearchQuery}
-                    onChange={(e) => setLocationSearchQuery(e.target.value)}
-                    style={{
-                      width: '100%',
-                      paddingLeft: '2.5rem',
-                      paddingRight: isSearchingLocations || locationSearchQuery ? '2.5rem' : '1rem',
-                      height: '42px',
-                      fontSize: '0.875rem',
-                      backgroundColor: 'var(--bg-surface-elevated)',
-                      border: '1.5px solid var(--brand-primary)',
-                      borderRadius: 'var(--radius-sm)'
-                    }}
-                  />
-                  {isSearchingLocations ? (
-                    <div style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)' }}>
-                      <RefreshCw size={15} className="animate-spin" color="var(--brand-primary)" />
-                    </div>
-                  ) : locationSearchQuery ? (
-                    <button
-                      type="button"
-                      onClick={() => setLocationSearchQuery('')}
-                      className="btn-ghost"
-                      style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', padding: '4px' }}
-                    >
-                      <X size={14} />
-                    </button>
-                  ) : null}
-                </div>
-
-                {/* Autocomplete Suggestions Dropdown Panel */}
-                {locationSearchQuery.trim().length > 0 && (
-                  <div style={{
-                    marginTop: '0.25rem',
-                    backgroundColor: 'var(--bg-surface)',
-                    border: '1px solid var(--border-default)',
-                    borderRadius: 'var(--radius-sm)',
-                    boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
-                    maxHeight: '260px',
-                    overflowY: 'auto',
-                    zIndex: 20
-                  }}>
-                    {isSearchingLocations ? (
-                      <div style={{ padding: '1rem', textAlign: 'center', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                        Google Ads lokasyon veritabanı taranıyor...
-                      </div>
-                    ) : locationSearchResults.length === 0 ? (
-                      <div style={{ padding: '1rem', textAlign: 'center', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                        "{locationSearchQuery}" ile eşleşen bir Google Ads hedefleme bölgesi bulunamadı.
-                      </div>
-                    ) : (
-                      locationSearchResults.map((loc) => {
-                        const isAlreadySelected = selectedLocations.some(l => l.id === loc.id || l.name.toLowerCase() === loc.name.toLowerCase());
-                        return (
-                          <div
-                            key={loc.id}
-                            style={{
-                              padding: '0.65rem 1rem',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
-                              borderBottom: '1px solid var(--border-default)',
-                              backgroundColor: isAlreadySelected ? 'rgba(37, 99, 235, 0.06)' : 'transparent',
-                              transition: 'background-color 0.12s ease'
-                            }}
-                          >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                              <span style={{ fontSize: '1.3rem' }}>{loc.flag || '🌍'}</span>
-                              <div>
-                                <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                                  <span>{loc.name}</span>
-                                  <span style={{ fontSize: '0.68rem', padding: '1px 6px', borderRadius: 'var(--radius-full)', backgroundColor: 'var(--bg-surface-elevated)', border: '1px solid var(--border-default)', color: 'var(--text-secondary)' }}>
-                                    {loc.targetType === 'City' ? 'Şehir' : (loc.targetType === 'District' ? 'İlçe' : (loc.targetType === 'Country' ? 'Ülke' : loc.targetType))}
-                                  </span>
-                                </div>
-                                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                                  {loc.canonicalName || loc.name} {loc.reach ? `• Yaklaşık Erişim: ${loc.reach.toLocaleString('tr-TR')} kullanıcı` : ''}
-                                </div>
-                              </div>
-                            </div>
-
-                            <button
-                              type="button"
-                              onClick={() => {
-                                toggleLocation(loc);
-                                setLocationSearchQuery('');
-                              }}
-                              className={isAlreadySelected ? 'btn-secondary' : 'btn-primary'}
-                              style={{ fontSize: '0.75rem', padding: '0.35rem 0.75rem', borderRadius: 'var(--radius-xs)' }}
-                            >
-                              {isAlreadySelected ? (
-                                <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: '#10b981' }}>
-                                  <Check size={13} /> Seçildi
-                                </span>
-                              ) : (
-                                <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                                  <Plus size={13} /> Ekle
-                                </span>
-                              )}
-                            </button>
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Selected Target Locations Chips Bar */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                    <Target size={15} color="var(--brand-primary)" />
-                    <span>🎯 Seçili Hedef Lokasyonlar ({selectedLocations.length}):</span>
-                  </div>
-                  {selectedLocations.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => setSelectedLocations([DEFAULT_LOCATIONS[0]])}
-                      className="btn-ghost"
-                      style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}
-                    >
-                      Sıfırla (Sadece Türkiye)
-                    </button>
-                  )}
-                </div>
-
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', minHeight: '44px', padding: '0.65rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
-                  {selectedLocations.map((loc) => (
-                    <div
-                      key={loc.id}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.45rem',
-                        padding: '0.35rem 0.75rem',
-                        backgroundColor: 'var(--bg-surface)',
-                        border: '1.5px solid var(--brand-primary)',
-                        borderRadius: 'var(--radius-full)',
-                        fontSize: '0.8rem',
-                        fontWeight: 600,
-                        color: 'var(--text-primary)',
-                        boxShadow: '0 1px 4px rgba(37,99,235,0.08)'
-                      }}
-                    >
-                      <span>{loc.flag || '🌍'}</span>
-                      <span>{loc.canonicalName || loc.name}</span>
-                      <span style={{ fontSize: '0.67rem', padding: '1px 5px', borderRadius: '4px', backgroundColor: 'rgba(37,99,235,0.12)', color: 'var(--brand-primary)' }}>
-                        {loc.targetType === 'City' ? 'Şehir' : (loc.targetType === 'District' ? 'İlçe' : (loc.targetType === 'Country' ? 'Ülke' : loc.targetType))}
-                      </span>
-                      {selectedLocations.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => removeLocation(loc.id)}
-                          title="Lokasyonu Kaldır"
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }}
-                        >
-                          <X size={13} />
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Quick Add Popular Locations (Presets) */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-                  ⚡ Hızlı Ekle (Popüler Lokasyonlar & Şehirler):
-                </span>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-                  {[
-                    { id: '2792', name: 'Türkiye Geneli', canonicalName: 'Türkiye', countryCode: 'TR', targetType: 'Country', reach: 85000000, flag: '🇹🇷', cpcMultiplier: 1.0, volumeMultiplier: 1.0 },
-                    { id: '1012764', name: 'İstanbul', canonicalName: 'İstanbul, Türkiye', countryCode: 'TR', targetType: 'City', reach: 16000000, flag: '🇹🇷', cpcMultiplier: 1.15, volumeMultiplier: 0.35 },
-                    { id: '1012783', name: 'Antalya', canonicalName: 'Antalya, Türkiye', countryCode: 'TR', targetType: 'City', reach: 2600000, flag: '🇹🇷', cpcMultiplier: 1.10, volumeMultiplier: 0.15 },
-                    { id: '1012782', name: 'Alanya', canonicalName: 'Alanya, Antalya, Türkiye', countryCode: 'TR', targetType: 'City', reach: 350000, flag: '🇹🇷', cpcMultiplier: 1.05, volumeMultiplier: 0.08 },
-                    { id: '1012763', name: 'Ankara', canonicalName: 'Ankara, Türkiye', countryCode: 'TR', targetType: 'City', reach: 5800000, flag: '🇹🇷', cpcMultiplier: 1.05, volumeMultiplier: 0.20 },
-                    { id: '1012765', name: 'İzmir', canonicalName: 'İzmir, Türkiye', countryCode: 'TR', targetType: 'City', reach: 4400000, flag: '🇹🇷', cpcMultiplier: 1.05, volumeMultiplier: 0.18 },
-                    { id: '1012785', name: 'Bodrum', canonicalName: 'Bodrum, Muğla, Türkiye', countryCode: 'TR', targetType: 'City', reach: 190000, flag: '🇹🇷', cpcMultiplier: 1.10, volumeMultiplier: 0.06 },
-                    { id: '2276', name: 'Almanya', canonicalName: 'Almanya', countryCode: 'DE', targetType: 'Country', reach: 84000000, flag: '🇩🇪', cpcMultiplier: 2.8, volumeMultiplier: 1.4 },
-                    { id: '2826', name: 'Birleşik Krallık (UK)', canonicalName: 'Birleşik Krallık', countryCode: 'GB', targetType: 'Country', reach: 67000000, flag: '🇬🇧', cpcMultiplier: 3.2, volumeMultiplier: 1.3 },
-                    { id: '2840', name: 'ABD', canonicalName: 'Amerika Birleşik Devletleri', countryCode: 'US', targetType: 'Country', reach: 335000000, flag: '🇺🇸', cpcMultiplier: 3.5, volumeMultiplier: 2.0 },
-                    { id: '1000010', name: 'Dubai', canonicalName: 'Dubai, Birleşik Arap Emirlikleri', countryCode: 'AE', targetType: 'City', reach: 3400000, flag: '🇦🇪', cpcMultiplier: 2.4, volumeMultiplier: 0.8 },
-                    { id: '2643', name: 'Rusya', canonicalName: 'Rusya', countryCode: 'RU', targetType: 'Country', reach: 145000000, flag: '🇷🇺', cpcMultiplier: 1.6, volumeMultiplier: 1.8 },
-                    { id: '2398', name: 'Kazakistan', canonicalName: 'Kazakistan', countryCode: 'KZ', targetType: 'Country', reach: 19500000, flag: '🇰🇿', cpcMultiplier: 1.4, volumeMultiplier: 0.9 }
-                  ].map((preset) => {
-                    const isSelected = selectedLocations.some(l => l.id === preset.id || l.name.toLowerCase() === preset.name.toLowerCase());
-                    return (
-                      <button
-                        key={preset.id}
-                        type="button"
-                        onClick={() => toggleLocation(preset as GeoTargetLocation)}
-                        className="btn-ghost"
-                        style={{
-                          fontSize: '0.75rem',
-                          padding: '0.3rem 0.65rem',
-                          borderRadius: 'var(--radius-full)',
-                          border: isSelected ? '1.5px solid var(--brand-primary)' : '1px solid var(--border-default)',
-                          backgroundColor: isSelected ? 'rgba(37, 99, 235, 0.12)' : 'var(--bg-surface-elevated)',
-                          color: isSelected ? 'var(--brand-primary)' : 'var(--text-secondary)',
-                          fontWeight: isSelected ? 700 : 500
-                        }}
-                      >
-                        {preset.flag} {preset.name} {isSelected ? '✓' : '+'}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Selected Market Impact Summary */}
-              <div style={{ backgroundColor: 'var(--bg-surface-elevated)', padding: '1rem 1.25rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
-                <div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Hedeflenen Lokasyonlar:</div>
-                  <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
-                    {selectedLocations.map(l => l.flag + ' ' + (l.canonicalName || l.name)).join(' • ')}
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: '1.25rem', fontSize: '0.82rem' }}>
-                  <div>
-                    <span style={{ color: 'var(--text-muted)' }}>Pazar Hacim Çarpanı: </span>
-                    <strong style={{ color: 'var(--brand-primary)' }}>{totalVolumeMultiplier.toFixed(2)}x</strong>
-                  </div>
-                  <div>
-                    <span style={{ color: 'var(--text-muted)' }}>Ağırlıklı TBM Çarpanı: </span>
-                    <strong style={{ color: '#34d399' }}>{blendedCpcMultiplier.toFixed(2)}x</strong>
-                  </div>
-                </div>
-              </div>
-
-              {/* Navigation Actions */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border-default)', paddingTop: '1rem' }}>
-                <button
-                  type="button"
-                  onClick={() => setCurrentStep(1)}
-                  className="btn-secondary"
-                  style={{ fontSize: '0.85rem', padding: '0.55rem 1.15rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
-                >
-                  <ArrowLeft size={15} />
-                  <span>1. Adım: Kelimelere Dön</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setCurrentStep(3)}
-                  disabled={selectedLocations.length === 0}
-                  className="btn-primary"
-                  style={{ fontSize: '0.875rem', padding: '0.6rem 1.4rem', display: 'flex', alignItems: 'center', gap: '0.45rem', fontWeight: 700 }}
-                >
-                  <span>3. Adım: 360° Medya Karması & Simülasyona Geç</span>
-                  <ArrowRight size={16} />
-                </button>
-              </div>
-
-            </div>
-          )}
-
-          {/* ========================================================================= */}
-          {/* STEP 3 VIEW: 360° Omnichannel Media Studio & Growth Simulator            */}
-          {/* ========================================================================= */}
-          {currentStep === 3 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
               
-              {/* Step 3 Quick Context & Strategic Growth Scenario Selector Bar */}
+              {/* Step 2 Quick Context & Strategic Growth Scenario Selector Bar */}
               <div className="card" style={{ padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', backgroundColor: 'var(--bg-surface)' }}>
                 
                 {/* Left: Summary Meta */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
                     <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                      3. Adım: 360° Medya Karması & Büyüme Simülatörü
+                      2. Adım: 360° Medya Karması & Büyüme Simülatörü
                     </span>
                     <span className="badge badge-active" style={{ fontSize: '0.72rem' }}>
                       <Sparkles size={11} /> 4 Kanal Entegre
@@ -2432,22 +2189,24 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     </button>
                   ))}
 
-                  <div style={{ display: 'flex', gap: '0.35rem', marginLeft: '0.35rem' }}>
+                  <div style={{ display: 'flex', gap: '0.45rem', marginLeft: '0.5rem' }}>
+                    <button
+                      type="button"
+                      onClick={() => setIsLocationModalOpen(true)}
+                      className="btn-ghost"
+                      style={{ fontSize: '0.75rem', padding: '0.35rem 0.65rem', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-xs)', display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--brand-primary)', fontWeight: 600 }}
+                    >
+                      <Globe size={13} />
+                      <span>Lokasyon ({selectedLocations.length})</span>
+                    </button>
                     <button
                       type="button"
                       onClick={() => setCurrentStep(1)}
                       className="btn-ghost"
-                      style={{ fontSize: '0.72rem', padding: '0.3rem 0.55rem', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-xs)' }}
+                      style={{ fontSize: '0.75rem', padding: '0.35rem 0.65rem', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-xs)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
                     >
-                      1. Kelimeler
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setCurrentStep(2)}
-                      className="btn-ghost"
-                      style={{ fontSize: '0.72rem', padding: '0.3rem 0.55rem', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-xs)' }}
-                    >
-                      2. Lokasyonlar
+                      <ArrowLeft size={13} />
+                      <span>1. Kelime Grupları</span>
                     </button>
                   </div>
                 </div>
@@ -3854,6 +3613,279 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           )}
 
         </>
+      )}
+
+      {/* 📍 Google Ads Geo-Targeting / Location Modal */}
+      {isLocationModalOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.65)',
+          backdropFilter: 'blur(4px)',
+          zIndex: 9999,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '1rem'
+        }}>
+          <div className="card" style={{
+            width: '100%',
+            maxWidth: '680px',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            padding: '1.5rem',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '1.25rem',
+            backgroundColor: 'var(--bg-surface)',
+            border: '1.5px solid var(--brand-primary)',
+            borderRadius: 'var(--radius-md)',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.4)'
+          }}>
+            {/* Modal Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-default)', paddingBottom: '0.75rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                <div style={{ padding: '8px', borderRadius: '50%', backgroundColor: 'rgba(37, 99, 235, 0.12)', color: 'var(--brand-primary)' }}>
+                  <Globe size={20} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                    <span>Hedef Pazar & Lokasyon Seçimi</span>
+                    <span className="badge badge-active" style={{ fontSize: '0.7rem' }}>
+                      <Sparkles size={10} /> Google Ads API
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                    Google Ads resmi veri tabanından ülke, şehir veya ilçe arayarak ekleyin.
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsLocationModalOpen(false)}
+                className="btn-ghost"
+                style={{ padding: '6px', borderRadius: '50%' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Search Input */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', position: 'relative' }}>
+              <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                Lokasyon Ara (Şehir, İlçe, Ülke veya Eyalet):
+              </label>
+              <div style={{ position: 'relative', width: '100%' }}>
+                <Search size={16} color="var(--text-muted)" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+                <input
+                  type="text"
+                  placeholder="örn: Alanya, Kadıköy, İstanbul, Antalya, Bodrum, Berlin, Dubai, London..."
+                  value={locationSearchQuery}
+                  onChange={(e) => setLocationSearchQuery(e.target.value)}
+                  autoFocus
+                  style={{
+                    width: '100%',
+                    paddingLeft: '2.5rem',
+                    paddingRight: isSearchingLocations || locationSearchQuery ? '2.5rem' : '1rem',
+                    height: '42px',
+                    fontSize: '0.875rem',
+                    backgroundColor: 'var(--bg-surface-elevated)',
+                    border: '1.5px solid var(--brand-primary)',
+                    borderRadius: 'var(--radius-sm)'
+                  }}
+                />
+                {isSearchingLocations ? (
+                  <div style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)' }}>
+                    <RefreshCw size={15} className="animate-spin" color="var(--brand-primary)" />
+                  </div>
+                ) : locationSearchQuery ? (
+                  <button
+                    type="button"
+                    onClick={() => setLocationSearchQuery('')}
+                    className="btn-ghost"
+                    style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', padding: '4px' }}
+                  >
+                    <X size={14} />
+                  </button>
+                ) : null}
+              </div>
+
+              {/* Autocomplete Suggestions Dropdown Panel */}
+              {locationSearchQuery.trim().length > 0 && (
+                <div style={{
+                  marginTop: '0.25rem',
+                  backgroundColor: 'var(--bg-surface)',
+                  border: '1px solid var(--border-default)',
+                  borderRadius: 'var(--radius-sm)',
+                  boxShadow: '0 10px 25px rgba(0,0,0,0.25)',
+                  maxHeight: '220px',
+                  overflowY: 'auto',
+                  zIndex: 100
+                }}>
+                  {locationSearchResults.length > 0 ? (
+                    locationSearchResults.map((loc) => {
+                      const isSelected = selectedLocations.some(l => l.id === loc.id || l.name.toLowerCase() === loc.name.toLowerCase());
+                      return (
+                        <div
+                          key={loc.id}
+                          onClick={() => toggleLocation(loc)}
+                          style={{
+                            padding: '0.65rem 0.85rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            cursor: 'pointer',
+                            borderBottom: '1px solid var(--border-subtle)',
+                            backgroundColor: isSelected ? 'rgba(37, 99, 235, 0.1)' : 'transparent',
+                            transition: 'background-color 0.15s ease'
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                            <span style={{ fontSize: '1.1rem' }}>{loc.flag || '📍'}</span>
+                            <div>
+                              <div style={{ fontSize: '0.85rem', fontWeight: 600, color: isSelected ? 'var(--brand-primary)' : 'var(--text-primary)' }}>
+                                {loc.name}
+                              </div>
+                              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                                {loc.canonicalName}
+                              </div>
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <span className="badge badge-neutral" style={{ fontSize: '0.68rem', padding: '2px 6px' }}>
+                              {loc.targetType === 'City' ? 'Şehir' : (loc.targetType === 'District' ? 'İlçe' : (loc.targetType === 'State' ? 'Eyalet' : 'Ülke'))}
+                            </span>
+                            {loc.reach ? (
+                              <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                                {(loc.reach / 1000000).toFixed(1)}M erişim
+                              </span>
+                            ) : null}
+                            <button
+                              type="button"
+                              style={{
+                                fontSize: '0.72rem',
+                                padding: '0.25rem 0.6rem',
+                                borderRadius: 'var(--radius-xs)',
+                                border: isSelected ? '1px solid #10b981' : '1px solid var(--brand-primary)',
+                                backgroundColor: isSelected ? 'rgba(16, 185, 129, 0.15)' : 'rgba(37, 99, 235, 0.15)',
+                                color: isSelected ? '#10b981' : 'var(--brand-primary)',
+                                cursor: 'pointer',
+                                fontWeight: 600
+                              }}
+                            >
+                              {isSelected ? '✓ Eklendi' : '+ Ekle'}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : !isSearchingLocations ? (
+                    <div style={{ padding: '1rem', textAlign: 'center', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                      "{locationSearchQuery}" için sonuç bulunamadı. Lütfen farklı bir şehir veya ilçe adı yazın.
+                    </div>
+                  ) : null}
+                </div>
+              )}
+            </div>
+
+            {/* Selected Locations Chips */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                  Seçili Hedef Lokasyonlar ({selectedLocations.length}):
+                </label>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                  Ağırlıklı TBM Çarpanı: <strong style={{ color: 'var(--brand-primary)' }}>{blendedCpcMultiplier.toFixed(2)}x</strong>
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.45rem', minHeight: '38px', padding: '0.5rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-default)' }}>
+                {selectedLocations.map(loc => (
+                  <div
+                    key={loc.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.4rem',
+                      backgroundColor: 'var(--bg-surface)',
+                      border: '1px solid var(--border-default)',
+                      borderRadius: 'var(--radius-full)',
+                      padding: '0.25rem 0.65rem',
+                      fontSize: '0.78rem'
+                    }}
+                  >
+                    <span>{loc.flag || '📍'}</span>
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{loc.name}</span>
+                    <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+                      ({loc.targetType === 'City' ? 'Şehir' : (loc.targetType === 'District' ? 'İlçe' : 'Ülke')})
+                    </span>
+                    {selectedLocations.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeLocation(loc.id)}
+                        className="btn-ghost"
+                        style={{ padding: '1px', display: 'flex', alignItems: 'center', color: 'var(--text-muted)', cursor: 'pointer' }}
+                      >
+                        <X size={12} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Quick Presets */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                Hızlı Önerilen Pazar Paketleri & Şehirler:
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+                {[
+                  { name: '🇹🇷 Tüm Türkiye', locs: [DEFAULT_LOCATIONS[0]] },
+                  { name: '🇹🇷 İstanbul', locs: [DEFAULT_LOCATIONS[1]] },
+                  { name: '🇹🇷 Antalya & Alanya', locs: [DEFAULT_LOCATIONS[2], DEFAULT_LOCATIONS[3]] },
+                  { name: '🇹🇷 İzmir & Ege', locs: [DEFAULT_LOCATIONS[5], DEFAULT_LOCATIONS[6]] },
+                  { name: '🇩🇪 Almanya (Gurbetçi & Diaspora)', locs: [DEFAULT_LOCATIONS[7]] },
+                  { name: '🇬🇧 Birleşik Krallık', locs: [DEFAULT_LOCATIONS[8]] },
+                  { name: '🇺🇸 ABD (Global Yatırım)', locs: [DEFAULT_LOCATIONS[9]] },
+                  { name: '🇦🇪 Dubai / BAE', locs: [DEFAULT_LOCATIONS[10]] },
+                  { name: '🇷🇺 Rusya & BDT', locs: [DEFAULT_LOCATIONS[11], DEFAULT_LOCATIONS[12]] }
+                ].map(preset => (
+                  <button
+                    key={preset.name}
+                    type="button"
+                    onClick={() => setSelectedLocations(preset.locs)}
+                    className="btn-ghost"
+                    style={{
+                      fontSize: '0.72rem',
+                      padding: '0.25rem 0.6rem',
+                      border: '1px solid var(--border-default)',
+                      borderRadius: 'var(--radius-full)',
+                      backgroundColor: 'var(--bg-surface-elevated)'
+                    }}
+                  >
+                    + {preset.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.5rem', borderTop: '1px solid var(--border-default)', paddingTop: '0.75rem' }}>
+              <button
+                type="button"
+                onClick={() => setIsLocationModalOpen(false)}
+                className="btn-primary"
+                style={{ padding: '0.5rem 1.25rem', fontSize: '0.85rem', fontWeight: 600 }}
+              >
+                ✓ Lokasyonları Onayla ({selectedLocations.length} Bölge)
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
     </div>

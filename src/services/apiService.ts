@@ -257,6 +257,7 @@ export class ApiService {
     mode: 'URL' | 'KEYWORDS';
     country?: string;
     language?: string;
+    geoTargetConstants?: string[];
   }): Promise<any> {
     const res = await this.request<{ status: string; data?: any; message?: string }>('/forecast.php?action=discover', {
       method: 'POST',
