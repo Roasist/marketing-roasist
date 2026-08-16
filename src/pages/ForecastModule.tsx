@@ -26,9 +26,25 @@ import {
   X,
   FolderTree,
   BarChart3,
-  ArrowUpDown
+  ArrowUpDown,
+  Video,
+  PieChart,
+  Smartphone
 } from 'lucide-react';
-import { KeywordMetric, ForecastSimulation, NegativeCategory, ForecastPlan, CountryOption, CountryMetric, BusinessModel } from '../types/forecast';
+import { 
+  KeywordMetric, 
+  ForecastSimulation, 
+  NegativeCategory, 
+  ForecastPlan, 
+  CountryOption, 
+  CountryMetric, 
+  BusinessModel,
+  ChannelType,
+  MetaSimulation,
+  GdnSimulation,
+  YouTubeSimulation,
+  OmnichannelMediaMix
+} from '../types/forecast';
 import { ApiService } from '../services/apiService';
 
 export interface KeywordCluster {
@@ -345,6 +361,32 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   const [avgOrderValue, setAvgOrderValue] = useState<number>(3500); // 3500 ₺
   const [avgDealValue, setAvgDealValue] = useState<number>(0); // Opsiyonel anlaşma değeri
 
+  // Multi-Channel Simulation State (Step 3)
+  const [activeChannelTab, setActiveChannelTab] = useState<ChannelType>('OMNICHANNEL');
+
+  // Meta Ads Simulation State
+  const [metaCpm, setMetaCpm] = useState<number>(75);
+  const [metaCtr, setMetaCtr] = useState<number>(1.6);
+  const [metaLeadCr, setMetaLeadCr] = useState<number>(4.5);
+  const [metaHealthyLeadRate, setMetaHealthyLeadRate] = useState<number>(50); // % Healthy/Qualified Lead
+  const [metaCloseRate, setMetaCloseRate] = useState<number>(15); // % Sales close
+
+  // Google GDN Simulation State
+  const [gdnCpm, setGdnCpm] = useState<number>(18);
+  const [gdnCtr, setGdnCtr] = useState<number>(0.60);
+  const [gdnAssistedCr, setGdnAssistedCr] = useState<number>(1.2);
+
+  // YouTube Ads Simulation State
+  const [youtubeCpv, setYoutubeCpv] = useState<number>(0.45);
+  const [youtubeVtr, setYoutubeVtr] = useState<number>(32);
+  const [youtubeActionRate, setYoutubeActionRate] = useState<number>(1.2);
+
+  // Omnichannel Budget Allocations (%)
+  const [allocGoogleSearch, setAllocGoogleSearch] = useState<number>(50);
+  const [allocMetaAds, setAllocMetaAds] = useState<number>(30);
+  const [allocYouTube, setAllocYouTube] = useState<number>(10);
+  const [allocGdn, setAllocGdn] = useState<number>(10);
+
   // Negative Keywords State
   const [negativeCategories, setNegativeCategories] = useState<NegativeCategory[]>([]);
   const [copiedCategory, setCopiedCategory] = useState<string | null>(null);
@@ -444,6 +486,26 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           } else {
             setSelectedCountryCodes(new Set(['TR']));
           }
+        }
+
+        // Dynamic Multi-Channel CPM & CPV benchmarks based on Sector & Target Market
+        const isIntl = (res.detectedLanguage && res.detectedLanguage !== 'tr') || (res.suggestedCountries && res.suggestedCountries.some((c: any) => ['DE', 'GB', 'US', 'AE', 'SA', 'RU'].includes(c.code)));
+        if (/emlak|gayrimenkul|citizenship|vatandaşlık|villa|property|real estate|klinik|health|saç ekim|hair transplant|estetik|hastane/.test(lowerContext)) {
+          setMetaCpm(isIntl ? 320 : 120);
+          setGdnCpm(isIntl ? 28 : 16);
+          setYoutubeCpv(isIntl ? 0.75 : 0.40);
+        } else if (/otel|hotel|tatil|resort|turizm|pansiyon/.test(lowerContext)) {
+          setMetaCpm(isIntl ? 190 : 85);
+          setGdnCpm(16);
+          setYoutubeCpv(0.35);
+        } else if (/e-ticaret|eticaret|shop|store|giyim|ayakkabı/.test(lowerContext)) {
+          setMetaCpm(isIntl ? 110 : 55);
+          setGdnCpm(12);
+          setYoutubeCpv(0.28);
+        } else {
+          setMetaCpm(isIntl ? 140 : 70);
+          setGdnCpm(15);
+          setYoutubeCpv(0.35);
         }
 
         // Auto-select all keywords by default
@@ -712,6 +774,143 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     avgOrderValue,
     avgDealValue,
     selectedCountryCodes
+  ]);
+
+  // 🔵 Meta Ads Simulation Calculation
+  const metaSimulation: MetaSimulation = useMemo(() => {
+    const budget = (monthlyBudget * allocMetaAds) / 100;
+    const impressions = metaCpm > 0 ? Math.round((budget / metaCpm) * 1000) : 0;
+    const clicks = Math.round(impressions * (metaCtr / 100));
+    const cpc = clicks > 0 ? Math.round((budget / clicks) * 100) / 100 : 0;
+    const grossLeads = Math.round(clicks * (metaLeadCr / 100));
+    const cpl = grossLeads > 0 ? Math.round(budget / grossLeads) : 0;
+    const healthyLeads = Math.round(grossLeads * (metaHealthyLeadRate / 100));
+    const cpql = healthyLeads > 0 ? Math.round(budget / healthyLeads) : 0;
+    const deals = Math.round(healthyLeads * (metaCloseRate / 100));
+    const cac = deals > 0 ? Math.round(budget / deals) : 0;
+    const revenue = deals * (avgDealValue > 0 ? avgDealValue : (businessModel === 'ECOMMERCE' ? avgOrderValue : 0));
+    const roas = budget > 0 ? Math.round((revenue / budget) * 10) / 10 : 0;
+
+    return {
+      budget,
+      cpm: metaCpm,
+      impressions,
+      ctr: metaCtr,
+      clicks,
+      cpc,
+      leadConversionRate: metaLeadCr,
+      grossLeads,
+      cpl,
+      healthyLeadRate: metaHealthyLeadRate,
+      healthyLeads,
+      cpql,
+      closeRate: metaCloseRate,
+      deals,
+      cac,
+      revenue,
+      roas
+    };
+  }, [monthlyBudget, allocMetaAds, metaCpm, metaCtr, metaLeadCr, metaHealthyLeadRate, metaCloseRate, avgDealValue, avgOrderValue, businessModel]);
+
+  // 🟢 Google GDN Simulation Calculation
+  const gdnSimulation: GdnSimulation = useMemo(() => {
+    const budget = (monthlyBudget * allocGdn) / 100;
+    const impressions = gdnCpm > 0 ? Math.round((budget / gdnCpm) * 1000) : 0;
+    const clicks = Math.round(impressions * (gdnCtr / 100));
+    const cpc = clicks > 0 ? Math.round((budget / clicks) * 100) / 100 : 0;
+    const assistedConversions = Math.round(clicks * (gdnAssistedCr / 100));
+    return {
+      budget,
+      cpm: gdnCpm,
+      impressions,
+      ctr: gdnCtr,
+      clicks,
+      cpc,
+      assistedConversionRate: gdnAssistedCr,
+      assistedConversions
+    };
+  }, [monthlyBudget, allocGdn, gdnCpm, gdnCtr, gdnAssistedCr]);
+
+  // 🔴 YouTube Ads Simulation Calculation
+  const youtubeSimulation: YouTubeSimulation = useMemo(() => {
+    const budget = (monthlyBudget * allocYouTube) / 100;
+    const videoViews = youtubeCpv > 0 ? Math.round(budget / youtubeCpv) : 0;
+    const impressions = youtubeVtr > 0 ? Math.round(videoViews / (youtubeVtr / 100)) : videoViews * 3;
+    const actions = Math.round(videoViews * (youtubeActionRate / 100));
+    return {
+      budget,
+      cpv: youtubeCpv,
+      videoViews,
+      vtr: youtubeVtr,
+      impressions,
+      actionRate: youtubeActionRate,
+      actions
+    };
+  }, [monthlyBudget, allocYouTube, youtubeCpv, youtubeVtr, youtubeActionRate]);
+
+  // 🌐 360° Omnichannel Media Mix Consolidated Simulation
+  const omnichannelMix: OmnichannelMediaMix = useMemo(() => {
+    const googleSpend = (monthlyBudget * allocGoogleSearch) / 100;
+    const metaSpend = (monthlyBudget * allocMetaAds) / 100;
+    const ytSpend = (monthlyBudget * allocYouTube) / 100;
+    const gdnSpend = (monthlyBudget * allocGdn) / 100;
+
+    const googleWeight = allocGoogleSearch / 100;
+    const googleImpressions = Math.round(simulation.estImpressions * googleWeight);
+    const googleClicks = Math.round(simulation.estClicks * googleWeight);
+    const googleLeads = Math.round(simulation.estConversions * googleWeight);
+    const googleHealthyLeads = Math.round(googleLeads * (leadCloseRate / 100));
+    const googleDeals = Math.round(googleHealthyLeads * 0.35);
+    const googleRevenue = googleDeals * (avgDealValue > 0 ? avgDealValue : (businessModel === 'ECOMMERCE' ? avgOrderValue : 0));
+
+    const totalImpressions = googleImpressions + metaSimulation.impressions + youtubeSimulation.impressions + gdnSimulation.impressions;
+    const totalClicks = googleClicks + metaSimulation.clicks + gdnSimulation.clicks + youtubeSimulation.actions;
+    const blendedCtr = totalImpressions > 0 ? Math.round((totalClicks / totalImpressions) * 10000) / 100 : 0;
+    const totalGrossLeads = googleLeads + metaSimulation.grossLeads + gdnSimulation.assistedConversions + youtubeSimulation.actions;
+    const totalHealthyLeads = googleHealthyLeads + metaSimulation.healthyLeads;
+    const blendedCpql = totalHealthyLeads > 0 ? Math.round(monthlyBudget / totalHealthyLeads) : 0;
+    const totalDeals = googleDeals + metaSimulation.deals;
+    const blendedCac = totalDeals > 0 ? Math.round(monthlyBudget / totalDeals) : 0;
+    const totalRevenue = googleRevenue + metaSimulation.revenue;
+    const blendedRoas = monthlyBudget > 0 ? Math.round((totalRevenue / monthlyBudget) * 10) / 10 : 0;
+
+    return {
+      totalBudget: monthlyBudget,
+      allocations: {
+        googleSearch: allocGoogleSearch,
+        metaAds: allocMetaAds,
+        youtube: allocYouTube,
+        gdn: allocGdn
+      },
+      googleSearchSpend: googleSpend,
+      metaAdsSpend: metaSpend,
+      youtubeSpend: ytSpend,
+      gdnSpend: gdnSpend,
+      totalImpressions,
+      totalClicks,
+      blendedCtr,
+      totalGrossLeads,
+      totalHealthyLeads,
+      blendedCpql,
+      totalDeals,
+      blendedCac,
+      totalRevenue,
+      blendedRoas
+    };
+  }, [
+    monthlyBudget,
+    allocGoogleSearch,
+    allocMetaAds,
+    allocYouTube,
+    allocGdn,
+    simulation,
+    metaSimulation,
+    youtubeSimulation,
+    gdnSimulation,
+    leadCloseRate,
+    avgDealValue,
+    avgOrderValue,
+    businessModel
   ]);
 
   // Country Breakdown Metrics
@@ -2255,7 +2454,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       )}
 
       {/* ------------------------------------------------------------- */}
-      {/* TAB 2: INTERACTIVE BUDGET SIMULATOR & ROI PLAYGROUND */}
+      {/* TAB 2: 360° MULTI-CHANNEL & OMNICHANNEL BUDGET SIMULATOR       */}
       {/* ------------------------------------------------------------- */}
       {activeTab === 'simulator' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -2298,364 +2497,289 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '1.25rem' }}>
-            
-            {/* Controls Column */}
-            <div className="card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          {/* Channel Selector Sub-Tabs */}
+          <div style={{ display: 'flex', gap: '0.4rem', borderBottom: '1px solid var(--border-default)', paddingBottom: '0.65rem', overflowX: 'auto' }}>
+            <button
+              onClick={() => setActiveChannelTab('OMNICHANNEL')}
+              className={activeChannelTab === 'OMNICHANNEL' ? 'btn-primary' : 'btn-ghost'}
+              style={{ padding: '0.45rem 0.9rem', fontSize: '0.825rem', fontWeight: activeChannelTab === 'OMNICHANNEL' ? 700 : 500 }}
+            >
+              <PieChart size={14} /> 🌐 360° Medya Karması (Omnichannel)
+            </button>
+            <button
+              onClick={() => setActiveChannelTab('GOOGLE_SEARCH')}
+              className={activeChannelTab === 'GOOGLE_SEARCH' ? 'btn-primary' : 'btn-ghost'}
+              style={{ padding: '0.45rem 0.9rem', fontSize: '0.825rem', fontWeight: activeChannelTab === 'GOOGLE_SEARCH' ? 700 : 500 }}
+            >
+              <Search size={14} /> 🔴 Google Search (Arama Ağı)
+            </button>
+            <button
+              onClick={() => setActiveChannelTab('META_ADS')}
+              className={activeChannelTab === 'META_ADS' ? 'btn-primary' : 'btn-ghost'}
+              style={{ padding: '0.45rem 0.9rem', fontSize: '0.825rem', fontWeight: activeChannelTab === 'META_ADS' ? 700 : 500 }}
+            >
+              <Smartphone size={14} /> 🔵 Meta Ads (Facebook & Instagram)
+            </button>
+            <button
+              onClick={() => setActiveChannelTab('YOUTUBE')}
+              className={activeChannelTab === 'YOUTUBE' ? 'btn-primary' : 'btn-ghost'}
+              style={{ padding: '0.45rem 0.9rem', fontSize: '0.825rem', fontWeight: activeChannelTab === 'YOUTUBE' ? 700 : 500 }}
+            >
+              <Video size={14} /> 🔴 YouTube Video (Action & Shorts)
+            </button>
+            <button
+              onClick={() => setActiveChannelTab('GDN')}
+              className={activeChannelTab === 'GDN' ? 'btn-primary' : 'btn-ghost'}
+              style={{ padding: '0.45rem 0.9rem', fontSize: '0.825rem', fontWeight: activeChannelTab === 'GDN' ? 700 : 500 }}
+            >
+              <Layers size={14} /> 🟢 Google GDN (Display & Retargeting)
+            </button>
+          </div>
+
+          {/* ========================================================================= */}
+          {/* CHANNEL 1: 360° OMNICHANNEL CONSOLIDATED MEDIA MIX                        */}
+          {/* ========================================================================= */}
+          {activeChannelTab === 'OMNICHANNEL' && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '1.25rem' }}>
               
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              {/* Left Column: Budget Allocation Sliders & Presets */}
+              <div className="card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                 <div>
                   <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                    Bütçe & Gösterim Payı (IS) Değişkenleri
+                    🎯 Çok Kanallı Bütçe Dağılımı & Medya Karması
                   </div>
                   <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
-                    Pazar hacmine bağlı gerçekçi tıklama ve dönüşüm projeksiyonu.
+                    Toplam bütçeyi reklam kanallarına paylaştırın ve konsolide sağlıklı lead hacmini simüle edin.
                   </div>
                 </div>
 
-                {/* Budget Mode Selector */}
-                <div style={{ display: 'flex', backgroundColor: 'var(--bg-surface-elevated)', padding: '2px', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-default)' }}>
-                  <button
-                    onClick={() => setBudgetMode('BY_BUDGET')}
-                    style={{
-                      padding: '3px 8px',
-                      fontSize: '0.72rem',
-                      borderRadius: 'var(--radius-xs)',
-                      border: 'none',
-                      backgroundColor: budgetMode === 'BY_BUDGET' ? 'var(--brand-primary)' : 'transparent',
-                      color: budgetMode === 'BY_BUDGET' ? '#ffffff' : 'var(--text-secondary)',
-                      cursor: 'pointer',
-                      fontWeight: budgetMode === 'BY_BUDGET' ? 600 : 400
-                    }}
-                  >
-                    Bütçeye Göre
-                  </button>
-                  <button
-                    onClick={() => setBudgetMode('BY_IMPRESSION_SHARE')}
-                    style={{
-                      padding: '3px 8px',
-                      fontSize: '0.72rem',
-                      borderRadius: 'var(--radius-xs)',
-                      border: 'none',
-                      backgroundColor: budgetMode === 'BY_IMPRESSION_SHARE' ? 'var(--brand-primary)' : 'transparent',
-                      color: budgetMode === 'BY_IMPRESSION_SHARE' ? '#ffffff' : 'var(--text-secondary)',
-                      cursor: 'pointer',
-                      fontWeight: budgetMode === 'BY_IMPRESSION_SHARE' ? 600 : 400
-                    }}
-                  >
-                    Gösterim Payına Göre
-                  </button>
-                </div>
-              </div>
-
-              {/* Monthly Budget Slider (when BY_BUDGET) */}
-              {budgetMode === 'BY_BUDGET' ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {/* Total Monthly Budget */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <label style={{ fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                      Hedef Aylık Reklam Bütçesi
+                      Toplam Aylık Medya Bütçesi
                     </label>
-                    <div style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--brand-primary)' }}>
+                    <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--brand-primary)' }}>
                       ₺{monthlyBudget.toLocaleString('tr-TR')}
                     </div>
                   </div>
                   <input
                     type="range"
-                    min={1000}
-                    max={150000}
-                    step={1000}
+                    min={5000}
+                    max={250000}
+                    step={2500}
                     value={monthlyBudget}
                     onChange={(e) => setMonthlyBudget(Number(e.target.value))}
                     style={{ width: '100%', accentColor: 'var(--brand-primary)', cursor: 'pointer' }}
                   />
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                    <span>₺1.000</span>
-                    <span>₺25.000</span>
-                    <span>₺75.000</span>
-                    <span>₺150.000</span>
+                    <span>₺5.000</span>
+                    <span>₺50.000</span>
+                    <span>₺125.000</span>
+                    <span>₺250.000</span>
                   </div>
                 </div>
-              ) : (
-                /* Target Impression Share Slider (when BY_IMPRESSION_SHARE) */
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <label style={{ fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                      Hedef Pazar Gösterim Payı (Impression Share - IS)
-                    </label>
-                    <div style={{ fontSize: '1.15rem', fontWeight: 700, color: '#34d399' }}>
-                      %{targetImpressionShare}
+
+                {/* Quick Presets */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>Stratejik Dağılım Önayarları:</span>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem' }}>
+                    <button
+                      onClick={() => { setAllocGoogleSearch(50); setAllocMetaAds(30); setAllocYouTube(10); setAllocGdn(10); }}
+                      className="btn-ghost"
+                      style={{ fontSize: '0.72rem', padding: '0.35rem 0.5rem', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-xs)', textAlign: 'left' }}
+                    >
+                      ⚖️ <strong>Dengeli (50/30/10/10)</strong>
+                    </button>
+                    <button
+                      onClick={() => { setAllocGoogleSearch(70); setAllocMetaAds(20); setAllocYouTube(5); setAllocGdn(5); }}
+                      className="btn-ghost"
+                      style={{ fontSize: '0.72rem', padding: '0.35rem 0.5rem', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-xs)', textAlign: 'left' }}
+                    >
+                      🔍 <strong>Google Odaklı (70/20/5/5)</strong>
+                    </button>
+                    <button
+                      onClick={() => { setAllocGoogleSearch(25); setAllocMetaAds(60); setAllocYouTube(10); setAllocGdn(5); }}
+                      className="btn-ghost"
+                      style={{ fontSize: '0.72rem', padding: '0.35rem 0.5rem', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-xs)', textAlign: 'left' }}
+                    >
+                      📱 <strong>Meta Lead Odaklı (25/60/10/5)</strong>
+                    </button>
+                    <button
+                      onClick={() => { setAllocGoogleSearch(30); setAllocMetaAds(30); setAllocYouTube(25); setAllocGdn(15); }}
+                      className="btn-ghost"
+                      style={{ fontSize: '0.72rem', padding: '0.35rem 0.5rem', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-xs)', textAlign: 'left' }}
+                    >
+                      🚀 <strong>Marka Büyüme (30/30/25/15)</strong>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Individual Channel Sliders */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', padding: '1rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
+                  
+                  {/* Google Search Allocation */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem' }}>
+                      <span style={{ fontWeight: 600, color: '#ef4444' }}>🔴 Google Search (%{allocGoogleSearch})</span>
+                      <strong>₺{omnichannelMix.googleSearchSpend.toLocaleString('tr-TR')}</strong>
+                    </div>
+                    <input
+                      type="range"
+                      min={0}
+                      max={100}
+                      step={5}
+                      value={allocGoogleSearch}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        setAllocGoogleSearch(val);
+                      }}
+                      style={{ width: '100%', accentColor: '#ef4444', cursor: 'pointer' }}
+                    />
+                  </div>
+
+                  {/* Meta Ads Allocation */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem' }}>
+                      <span style={{ fontWeight: 600, color: '#2563eb' }}>🔵 Meta Ads (FB & IG) (%{allocMetaAds})</span>
+                      <strong>₺{omnichannelMix.metaAdsSpend.toLocaleString('tr-TR')}</strong>
+                    </div>
+                    <input
+                      type="range"
+                      min={0}
+                      max={100}
+                      step={5}
+                      value={allocMetaAds}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        setAllocMetaAds(val);
+                      }}
+                      style={{ width: '100%', accentColor: '#2563eb', cursor: 'pointer' }}
+                    />
+                  </div>
+
+                  {/* YouTube Allocation */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem' }}>
+                      <span style={{ fontWeight: 600, color: '#dc2626' }}>🔴 YouTube Video (%{allocYouTube})</span>
+                      <strong>₺{omnichannelMix.youtubeSpend.toLocaleString('tr-TR')}</strong>
+                    </div>
+                    <input
+                      type="range"
+                      min={0}
+                      max={100}
+                      step={5}
+                      value={allocYouTube}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        setAllocYouTube(val);
+                      }}
+                      style={{ width: '100%', accentColor: '#dc2626', cursor: 'pointer' }}
+                    />
+                  </div>
+
+                  {/* GDN Allocation */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem' }}>
+                      <span style={{ fontWeight: 600, color: '#10b981' }}>🟢 Google GDN (%{allocGdn})</span>
+                      <strong>₺{omnichannelMix.gdnSpend.toLocaleString('tr-TR')}</strong>
+                    </div>
+                    <input
+                      type="range"
+                      min={0}
+                      max={100}
+                      step={5}
+                      value={allocGdn}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        setAllocGdn(val);
+                      }}
+                      style={{ width: '100%', accentColor: '#10b981', cursor: 'pointer' }}
+                    />
+                  </div>
+
+                </div>
+
+                <button
+                  onClick={handleSavePlan}
+                  className="btn-primary"
+                  style={{ width: '100%', justifyContent: 'center', padding: '0.65rem', fontSize: '0.85rem' }}
+                >
+                  {planSaveSuccess ? <Check size={16} /> : <Save size={16} />}
+                  {planSaveSuccess ? '360° Medya Planı Kaydedildi!' : '360° Medya Planını Çalışma Alanına Kaydet'}
+                </button>
+
+              </div>
+
+              {/* Right Column: 360 Consolidated Projections & Breakdown Table */}
+              <div className="card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <div>
+                    <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                      📊 360° Konsolide Kampanya Çıktıları
+                    </div>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                      Tüm kanalların birleşimiyle elde edilecek toplam erişim, lead ve gelir simülasyonu.
                     </div>
                   </div>
-                  <input
-                    type="range"
-                    min={10}
-                    max={95}
-                    step={5}
-                    value={targetImpressionShare}
-                    onChange={(e) => setTargetImpressionShare(Number(e.target.value))}
-                    style={{ width: '100%', accentColor: '#34d399', cursor: 'pointer' }}
-                  />
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                    <span>%10 (Giriş)</span>
-                    <span>%50 (Orta Rekabet)</span>
-                    <span>%75 (Pazar Lideri)</span>
-                    <span>%95 (Maksimum Doygunluk)</span>
-                  </div>
-                </div>
-              )}
-
-              {/* Expected CTR (TO %) Slider */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <label style={{ fontSize: '0.825rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
-                    Tahmini Arama Ağı Tıklama Oranı (CTR / TO %)
-                  </label>
-                  <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                    %{expectedCtr}
+                  <span className="badge badge-active" style={{ fontSize: '0.75rem' }}>
+                    4 Kanal Entegre
                   </span>
                 </div>
-                <input
-                  type="range"
-                  min={3.0}
-                  max={15.0}
-                  step={0.5}
-                  value={expectedCtr}
-                  onChange={(e) => setExpectedCtr(Number(e.target.value))}
-                  style={{ width: '100%', accentColor: 'var(--info)', cursor: 'pointer' }}
-                />
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                  Arama Ağı sektör standardı ortalama %5.0 - %10.0 aralığındadır.
-                </div>
-              </div>
 
-              {/* Model-Specific Conversion Controls */}
-              {businessModel === 'LEAD_GEN' && (
-                <>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <label style={{ fontSize: '0.825rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
-                        Form & Talep Dönüşüm Oranı (Lead CR %)
-                      </label>
-                      <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#34d399' }}>
-                        %{leadConversionRate}
-                      </span>
+                {/* 4 Core Consolidated KPI Cards */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' }}>
+                  
+                  {/* Total Impressions */}
+                  <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Toplam Gösterim & Erişim</div>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
+                      {omnichannelMix.totalImpressions.toLocaleString('tr-TR')}
                     </div>
-                    <input
-                      type="range"
-                      min={0.5}
-                      max={12.0}
-                      step={0.5}
-                      value={leadConversionRate}
-                      onChange={(e) => setLeadConversionRate(Number(e.target.value))}
-                      style={{ width: '100%', accentColor: '#34d399', cursor: 'pointer' }}
-                    />
-                  </div>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <label style={{ fontSize: '0.825rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
-                        Sağlıklı Lead Oranı (% Healthy Lead)
-                      </label>
-                      <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--brand-primary)' }}>
-                        %{leadCloseRate}
-                      </span>
-                    </div>
-                    <input
-                      type="range"
-                      min={1}
-                      max={40}
-                      step={1}
-                      value={leadCloseRate}
-                      onChange={(e) => setLeadCloseRate(Number(e.target.value))}
-                      style={{ width: '100%', accentColor: 'var(--brand-primary)', cursor: 'pointer' }}
-                    />
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                      Gelen toplam form/taleplerin satışa/fırsata dönüştürülebilecek nitelikli (sağlıklı lead) oranı.
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                      Tüm kanallarda aylık marka görünürlüğü
                     </div>
                   </div>
 
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
-                      Ortalama Anlaşma / Satış / Komisyon Tutarı (₺ - İsteğe Bağlı)
-                    </label>
-                    <input
-                      type="number"
-                      placeholder="Örn: 50000"
-                      value={avgDealValue || ''}
-                      onChange={(e) => setAvgDealValue(Number(e.target.value) || 0)}
-                      style={{ width: '100%', fontSize: '0.85rem' }}
-                    />
-                  </div>
-                </>
-              )}
-
-              {businessModel === 'ECOMMERCE' && (
-                <>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <label style={{ fontSize: '0.825rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
-                        Web Sitesi Sipariş Dönüşüm Oranı (%)
-                      </label>
-                      <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                        %{ecommerceConversionRate}
-                      </span>
+                  {/* Total Clicks & Web Traffic */}
+                  <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Toplam Tıklama & Ziyaretçi</div>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--brand-primary)', marginTop: '2px' }}>
+                      {omnichannelMix.totalClicks.toLocaleString('tr-TR')}
                     </div>
-                    <input
-                      type="range"
-                      min={0.5}
-                      max={8.0}
-                      step={0.1}
-                      value={ecommerceConversionRate}
-                      onChange={(e) => setEcommerceConversionRate(Number(e.target.value))}
-                      style={{ width: '100%', accentColor: 'var(--info)', cursor: 'pointer' }}
-                    />
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                      Karma TO: %{omnichannelMix.blendedCtr} • Günlük ~{Math.max(1, Math.round(omnichannelMix.totalClicks / 30.4))} Ziyaret
+                    </div>
                   </div>
 
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
-                      Ortalama Sepet Tutarı (AOV ₺)
-                    </label>
-                    <input
-                      type="number"
-                      value={avgOrderValue}
-                      onChange={(e) => setAvgOrderValue(Math.max(1, Number(e.target.value)))}
-                      style={{ width: '100%', fontSize: '0.85rem' }}
-                    />
+                  {/* Total Gross Leads */}
+                  <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Toplam Brüt Form & Talep</div>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#f59e0b', marginTop: '2px' }}>
+                      {omnichannelMix.totalGrossLeads.toLocaleString('tr-TR')} Lead
+                    </div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                      Ortalama CPL: ₺{omnichannelMix.totalGrossLeads > 0 ? Math.round(monthlyBudget / omnichannelMix.totalGrossLeads) : 0} / talep
+                    </div>
                   </div>
-                </>
-              )}
 
-              {/* Campaign Model Info Badge */}
-              <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)', fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
-                💡 <strong>Matematiksel Model:</strong> Seçili {selectedKeywordsPool.length} anahtar kelimenin toplam aylık pazar hacmi (<strong>{totalSearchVolume.toLocaleString('tr-TR')} arama</strong>), ağırlıklı sayfa üstü TBM (<strong>₺{avgTopPageCpc.toFixed(2)}</strong>) ve <strong>%{simulation.targetImpressionShare} Hedef Gösterim Payı (IS)</strong> esas alınarak hesaplanmıştır.
-              </div>
-
-              <button
-                onClick={handleSavePlan}
-                className="btn-primary"
-                style={{ width: '100%', justifyContent: 'center', padding: '0.65rem', fontSize: '0.85rem' }}
-              >
-                {planSaveSuccess ? <Check size={16} /> : <Save size={16} />}
-                {planSaveSuccess ? 'Plan Başarıyla Kaydedildi!' : 'Bu Simülasyonu Çalışma Alanına Kaydet'}
-              </button>
-
-            </div>
-
-            {/* Projected Outcomes Column */}
-            <div className="card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-              
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
-                  <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                    🎯 Tahmini Kampanya Performans Projeksiyonu
+                  {/* Total Healthy / Qualified Leads */}
+                  <div style={{ padding: '0.85rem', backgroundColor: 'rgba(16, 185, 129, 0.08)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                    <div style={{ fontSize: '0.72rem', color: '#16a34a', fontWeight: 600 }}>🎯 NET SAĞLIKLI LEAD (MQL)</div>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#16a34a', marginTop: '2px' }}>
+                      {omnichannelMix.totalHealthyLeads.toLocaleString('tr-TR')} Nitelikli
+                    </div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                      Sağlıklı Lead Başı Maliyet (CPQL): <strong>₺{omnichannelMix.blendedCpql}</strong>
+                    </div>
                   </div>
-                  <div className="badge" style={{ backgroundColor: 'rgba(37, 99, 235, 0.1)', color: 'var(--brand-primary)', fontWeight: 600, fontSize: '0.75rem' }}>
-                    %{simulation.targetImpressionShare} Gösterim Payı (IS)
-                  </div>
-                </div>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
-                  Aylık <strong>₺{simulation.actualSpend.toLocaleString('tr-TR')}</strong> harcama ile beklenen gerçekçi pazar sonuçları.
-                </div>
-              </div>
 
-              {/* Market Saturation Warning if Budget exceeds Market Capacity */}
-              {simulation.isMarketSaturated && (
-                <div style={{ padding: '0.85rem 1rem', backgroundColor: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.35)', borderRadius: 'var(--radius-sm)', fontSize: '0.78rem', color: '#d97706', lineHeight: 1.45 }}>
-                  ⚠️ <strong>Pazar Kapasite Tavanı Uyarısı:</strong> Hedeflediğiniz pazarda bu anahtar kelimelerin toplam aylık arama hacmi <strong>{totalSearchVolume.toLocaleString('tr-TR')}</strong> adettir. %95 maksimum gösterim payında bile aylık harcanabilecek tutar <strong>₺{simulation.marketCapacitySpend.toLocaleString('tr-TR')}</strong> ile sınırlıdır. ₺{monthlyBudget.toLocaleString('tr-TR')} bütçenizi tüketmek için lütfen yeni anahtar kelimeler ekleyin veya 2. Adımdan yeni hedef ülkeler seçin.
-                </div>
-              )}
-
-              {/* Core Search Metric Cards */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' }}>
-                
-                {/* Impressions (Strictly bounded by search volume) */}
-                <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Tahmini Gösterim (Impressions)</div>
-                  <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
-                    {simulation.estImpressions.toLocaleString('tr-TR')}
-                  </div>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
-                    Pazar Payı: %{simulation.targetImpressionShare} / {totalSearchVolume.toLocaleString('tr-TR')} Hacim
-                  </div>
                 </div>
 
-                {/* Clicks */}
-                <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Tahmini Tıklama (Aylık Ziyaret)</div>
-                  <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--brand-primary)', marginTop: '2px' }}>
-                    {simulation.estClicks.toLocaleString('tr-TR')}
-                  </div>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
-                    %{expectedCtr} Tahmini TO • Günlük ~{Math.max(1, Math.round(simulation.estClicks / 30.4))} Tık
-                  </div>
-                </div>
-
-                {/* Actual Spend */}
-                <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Gerçekleşecek Aylık Harcama</div>
-                  <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
-                    ₺{simulation.actualSpend.toLocaleString('tr-TR')}
-                  </div>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
-                    Günlük: ~₺{simulation.dailyBudget.toLocaleString('tr-TR')} • Ort. TBM: ₺{simulation.avgCpc.toFixed(2)}
-                  </div>
-                </div>
-
-                {/* Conversions or Leads */}
-                <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                    {businessModel === 'LEAD_GEN' ? 'Tahmini Form & Talep (Leads)' : businessModel === 'ECOMMERCE' ? 'Tahmini Sipariş' : 'Toplam Etkileşim'}
-                  </div>
-                  <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#34d399', marginTop: '2px' }}>
-                    {simulation.estConversions.toLocaleString('tr-TR')} Adet
-                  </div>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
-                    {businessModel === 'LEAD_GEN' ? `CPL: ₺${simulation.cpa.toLocaleString('tr-TR')} / talep` : `CPA: ₺${simulation.cpa.toLocaleString('tr-TR')} / sipariş`}
-                  </div>
-                </div>
-
-              </div>
-
-              {/* Business Model Specific Outcome Box */}
-              {businessModel === 'LEAD_GEN' && (
+                {/* Consolidated ROAS & Revenue Box */}
                 <div style={{
-                  padding: '1.25rem',
-                  backgroundColor: 'rgba(16, 185, 129, 0.06)',
-                  borderRadius: 'var(--radius-sm)',
-                  border: '1px solid rgba(16, 185, 129, 0.25)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  flexWrap: 'wrap',
-                  gap: '1rem'
-                }}>
-                  <div>
-                    <div style={{ fontSize: '0.75rem', color: '#16a34a', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                      Tahmini Sağlıklı Lead (Healthy Leads)
-                    </div>
-                    <div style={{ fontSize: '2rem', fontWeight: 800, color: '#16a34a', marginTop: '2px' }}>
-                      ~{simulation.estDeals} Nitelikli Lead
-                    </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                      %{leadCloseRate} Sağlıklı Lead Oranı ile • Nitelikli Lead Başı Maliyet (Cost / Healthy Lead): <strong>₺{simulation.cac?.toLocaleString('tr-TR') || 0}</strong>
-                    </div>
-                  </div>
-
-                  {avgDealValue > 0 && (
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Tahmini Proje Geliri</div>
-                      <div style={{ fontSize: '1.35rem', fontWeight: 700, color: '#16a34a', marginTop: '2px' }}>
-                        ₺{simulation.estRevenue.toLocaleString('tr-TR')}
-                      </div>
-                      <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>ROAS: {simulation.projectedRoas}x</div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {businessModel === 'ECOMMERCE' && (
-                <div style={{
-                  padding: '1.25rem',
+                  padding: '1.15rem',
                   backgroundColor: 'rgba(37, 99, 235, 0.06)',
                   borderRadius: 'var(--radius-sm)',
                   border: '1px solid rgba(37, 99, 235, 0.25)',
@@ -2667,32 +2791,320 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                 }}>
                   <div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--brand-primary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                      Projeksiyon ROAS (Getiri Oranı)
+                      Konsolide Projeksiyon ROAS
                     </div>
-                    <div style={{ fontSize: '2.2rem', fontWeight: 800, color: 'var(--brand-primary)', marginTop: '2px' }}>
-                      {simulation.projectedRoas}x
+                    <div style={{ fontSize: '2.1rem', fontWeight: 800, color: 'var(--brand-primary)', marginTop: '2px' }}>
+                      {omnichannelMix.blendedRoas}x
                     </div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                      Her <strong>1 ₺</strong> reklam harcaması için <strong>₺{simulation.projectedRoas}</strong> ciro projeksiyonu
+                      Tahmini Satış / Müşteri: <strong>~{omnichannelMix.totalDeals} Adet</strong> • CAC: <strong>₺{omnichannelMix.blendedCac}</strong>
                     </div>
                   </div>
 
                   <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Tahmini Net Kâr / Ciro</div>
-                    <div style={{ fontSize: '1.25rem', fontWeight: 700, color: simulation.estRevenue - simulation.actualSpend >= 0 ? '#34d399' : 'var(--danger)', marginTop: '2px' }}>
-                      ₺{simulation.estRevenue.toLocaleString('tr-TR')}
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Toplam Beklenen Ciro</div>
+                    <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#16a34a', marginTop: '2px' }}>
+                      ₺{omnichannelMix.totalRevenue.toLocaleString('tr-TR')}
                     </div>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Net Kâr: ₺{(simulation.estRevenue - simulation.actualSpend).toLocaleString('tr-TR')}</div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Net Kâr: ₺{(omnichannelMix.totalRevenue - monthlyBudget).toLocaleString('tr-TR')}</div>
                   </div>
                 </div>
-              )}
 
-              {businessModel === 'BRAND_REACH' && (
+                {/* Channel-by-Channel Breakdown Table */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                    📋 Kanal Bazlı Performans Karşılaştırma Matrisi:
+                  </span>
+                  <div style={{ overflowX: 'auto' }}>
+                    <table className="data-table" style={{ fontSize: '0.75rem' }}>
+                      <thead>
+                        <tr>
+                          <th>Kanal</th>
+                          <th>Bütçe</th>
+                          <th style={{ textAlign: 'right' }}>Gösterim</th>
+                          <th style={{ textAlign: 'right' }}>Tıklama</th>
+                          <th style={{ textAlign: 'right' }}>Birim Maliyet</th>
+                          <th style={{ textAlign: 'right' }}>Sağlıklı Lead</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td><strong>🔴 Google Search</strong></td>
+                          <td>₺{omnichannelMix.googleSearchSpend.toLocaleString('tr-TR')} (%{allocGoogleSearch})</td>
+                          <td style={{ textAlign: 'right' }}>{Math.round(simulation.estImpressions * (allocGoogleSearch / 100)).toLocaleString('tr-TR')}</td>
+                          <td style={{ textAlign: 'right' }}>{Math.round(simulation.estClicks * (allocGoogleSearch / 100)).toLocaleString('tr-TR')}</td>
+                          <td style={{ textAlign: 'right' }}>₺{simulation.avgCpc.toFixed(2)} TBM</td>
+                          <td style={{ textAlign: 'right', fontWeight: 600, color: '#16a34a' }}>~{Math.round((simulation.estDeals || 0) * (allocGoogleSearch / 100))}</td>
+                        </tr>
+                        <tr>
+                          <td><strong>🔵 Meta Ads (FB & IG)</strong></td>
+                          <td>₺{omnichannelMix.metaAdsSpend.toLocaleString('tr-TR')} (%{allocMetaAds})</td>
+                          <td style={{ textAlign: 'right' }}>{metaSimulation.impressions.toLocaleString('tr-TR')}</td>
+                          <td style={{ textAlign: 'right' }}>{metaSimulation.clicks.toLocaleString('tr-TR')}</td>
+                          <td style={{ textAlign: 'right' }}>₺{metaSimulation.cpm} CPM</td>
+                          <td style={{ textAlign: 'right', fontWeight: 600, color: '#16a34a' }}>~{metaSimulation.healthyLeads}</td>
+                        </tr>
+                        <tr>
+                          <td><strong>🔴 YouTube Video</strong></td>
+                          <td>₺{omnichannelMix.youtubeSpend.toLocaleString('tr-TR')} (%{allocYouTube})</td>
+                          <td style={{ textAlign: 'right' }}>{youtubeSimulation.impressions.toLocaleString('tr-TR')}</td>
+                          <td style={{ textAlign: 'right' }}>{youtubeSimulation.videoViews.toLocaleString('tr-TR')} İzlenme</td>
+                          <td style={{ textAlign: 'right' }}>₺{youtubeSimulation.cpv} CPV</td>
+                          <td style={{ textAlign: 'right', color: 'var(--text-secondary)' }}>~{youtubeSimulation.actions} Eylem</td>
+                        </tr>
+                        <tr>
+                          <td><strong>🟢 Google GDN</strong></td>
+                          <td>₺{omnichannelMix.gdnSpend.toLocaleString('tr-TR')} (%{allocGdn})</td>
+                          <td style={{ textAlign: 'right' }}>{gdnSimulation.impressions.toLocaleString('tr-TR')}</td>
+                          <td style={{ textAlign: 'right' }}>{gdnSimulation.clicks.toLocaleString('tr-TR')}</td>
+                          <td style={{ textAlign: 'right' }}>₺{gdnSimulation.cpm} CPM</td>
+                          <td style={{ textAlign: 'right', color: 'var(--text-secondary)' }}>~{gdnSimulation.assistedConversions} Asist</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+              </div>
+
+            </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* CHANNEL 2: META ADS (FACEBOOK & INSTAGRAM) DEEP DIVE                      */}
+          {/* ========================================================================= */}
+          {activeChannelTab === 'META_ADS' && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '1.25rem' }}>
+              
+              {/* Meta Controls Column */}
+              <div className="card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                <div>
+                  <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                    🔵 Meta Ads (FB & Instagram) Lead Huni Parametreleri
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                    1.000 Gösterim Başı Maliyet (CPM), Form Dönüşüm ve Sağlıklı Lead Oranını ayarlayın.
+                  </div>
+                </div>
+
+                {/* Sektörel CPM Slider */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label style={{ fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                      Sektörel Ortalama CPM (1.000 Gösterim Maliyeti ₺)
+                    </label>
+                    <div style={{ fontSize: '1.15rem', fontWeight: 700, color: '#2563eb' }}>
+                      ₺{metaCpm}
+                    </div>
+                  </div>
+                  <input
+                    type="range"
+                    min={20}
+                    max={600}
+                    step={5}
+                    value={metaCpm}
+                    onChange={(e) => setMetaCpm(Number(e.target.value))}
+                    style={{ width: '100%', accentColor: '#2563eb', cursor: 'pointer' }}
+                  />
+                  <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', marginTop: '0.2rem' }}>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Hızlı Sektör Benchmarkları:</span>
+                    <button onClick={() => setMetaCpm(55)} className="btn-ghost" style={{ padding: '1px 5px', fontSize: '0.68rem' }}>E-Ticaret (₺55)</button>
+                    <button onClick={() => setMetaCpm(85)} className="btn-ghost" style={{ padding: '1px 5px', fontSize: '0.68rem' }}>Turizm/Otel (₺85)</button>
+                    <button onClick={() => setMetaCpm(130)} className="btn-ghost" style={{ padding: '1px 5px', fontSize: '0.68rem' }}>Yerel Gayrimenkul (₺130)</button>
+                    <button onClick={() => setMetaCpm(320)} className="btn-ghost" style={{ padding: '1px 5px', fontSize: '0.68rem' }}>Sağlık/Yabancıya Konut (₺320)</button>
+                  </div>
+                </div>
+
+                {/* Link Tıklama Oranı (CTR %) */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label style={{ fontSize: '0.825rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
+                      Ortalama Tıklama Oranı (CTR / TO %)
+                    </label>
+                    <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                      %{metaCtr}
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0.5}
+                    max={4.0}
+                    step={0.1}
+                    value={metaCtr}
+                    onChange={(e) => setMetaCtr(Number(e.target.value))}
+                    style={{ width: '100%', accentColor: '#2563eb', cursor: 'pointer' }}
+                  />
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                    Meta akış ve hikaye reklamlarında ortalama CTR %1.2 - %2.2 aralığındadır.
+                  </div>
+                </div>
+
+                {/* Form & Lead Dönüşüm Oranı (CR %) */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label style={{ fontSize: '0.825rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
+                      Form & Talep Dönüşüm Oranı (Lead CR %)
+                    </label>
+                    <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#f59e0b' }}>
+                      %{metaLeadCr}
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min={1.0}
+                    max={15.0}
+                    step={0.5}
+                    value={metaLeadCr}
+                    onChange={(e) => setMetaLeadCr(Number(e.target.value))}
+                    style={{ width: '100%', accentColor: '#f59e0b', cursor: 'pointer' }}
+                  />
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                    Instant Lead Formlarında %5-%10, Web Sitesi Landing Page'lerinde %2.5-%5.0 arasındadır.
+                  </div>
+                </div>
+
+                {/* 🎯 SAĞLIKLI LEAD ORANI (%) */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', padding: '0.85rem', backgroundColor: 'rgba(16, 185, 129, 0.06)', borderRadius: 'var(--radius-xs)', border: '1px solid rgba(16, 185, 129, 0.25)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label style={{ fontSize: '0.825rem', fontWeight: 700, color: '#16a34a' }}>
+                      🎯 Sağlıklı & Nitelikli Lead Oranı (Healthy Lead %)
+                    </label>
+                    <span style={{ fontSize: '1.05rem', fontWeight: 800, color: '#16a34a' }}>
+                      %{metaHealthyLeadRate}
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min={10}
+                    max={90}
+                    step={5}
+                    value={metaHealthyLeadRate}
+                    onChange={(e) => setMetaHealthyLeadRate(Number(e.target.value))}
+                    style={{ width: '100%', accentColor: '#16a34a', cursor: 'pointer' }}
+                  />
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                    Gelen ham formların bütçesi olan, telefona bakan ve gerçek alıcı potansiyeline sahip nitelikli lead oranı.
+                  </div>
+                </div>
+
+                {/* Satış Kapanış Oranı (%) */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label style={{ fontSize: '0.825rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
+                      Sağlıklı Lead'den Satışa Kapanış Oranı (%)
+                    </label>
+                    <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                      %{metaCloseRate}
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min={2}
+                    max={40}
+                    step={1}
+                    value={metaCloseRate}
+                    onChange={(e) => setMetaCloseRate(Number(e.target.value))}
+                    style={{ width: '100%', accentColor: 'var(--brand-primary)', cursor: 'pointer' }}
+                  />
+                </div>
+
+              </div>
+
+              {/* Meta Outcomes Column */}
+              <div className="card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                
+                <div>
+                  <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                    🎯 Meta Ads Kampanya Projeksiyonu & Funnel
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                    Aylık <strong>₺{metaSimulation.budget.toLocaleString('tr-TR')}</strong> Meta bütçesiyle beklenen performans çıktısı.
+                  </div>
+                </div>
+
+                {/* 4 Core Meta Metrics */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' }}>
+                  
+                  {/* Impressions */}
+                  <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Toplam Gösterim (Impressions)</div>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
+                      {metaSimulation.impressions.toLocaleString('tr-TR')}
+                    </div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                      Ortalama CPM: ₺{metaSimulation.cpm}
+                    </div>
+                  </div>
+
+                  {/* Clicks */}
+                  <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Link Tıklaması (Trafik)</div>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#2563eb', marginTop: '2px' }}>
+                      {metaSimulation.clicks.toLocaleString('tr-TR')}
+                    </div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                      %{metaSimulation.ctr} CTR • Ort. TBM: ₺{metaSimulation.cpc.toFixed(2)}
+                    </div>
+                  </div>
+
+                  {/* Gross Leads & CPL */}
+                  <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Toplam Brüt Form (Lead)</div>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#f59e0b', marginTop: '2px' }}>
+                      {metaSimulation.grossLeads.toLocaleString('tr-TR')} Form
+                    </div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                      Brüt Lead Başı Maliyet (CPL): <strong>₺{metaSimulation.cpl}</strong>
+                    </div>
+                  </div>
+
+                  {/* Healthy Qualified Leads & CPQL */}
+                  <div style={{ padding: '0.85rem', backgroundColor: 'rgba(16, 185, 129, 0.08)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                    <div style={{ fontSize: '0.72rem', color: '#16a34a', fontWeight: 700 }}>🎯 SAĞLIKLI LEAD (MQL)</div>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#16a34a', marginTop: '2px' }}>
+                      {metaSimulation.healthyLeads.toLocaleString('tr-TR')} Nitelikli
+                    </div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                      Sağlıklı Lead Maliyeti (CPQL): <strong>₺{metaSimulation.cpql}</strong>
+                    </div>
+                  </div>
+
+                </div>
+
+                {/* Visual Lead Funnel Progress */}
+                <div style={{ padding: '1rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)', display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                    🎯 Meta Ads Huni Düşüş Akışı (Lead Funnel):
+                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.75rem', textAlign: 'center' }}>
+                    <div style={{ flex: 1, padding: '0.4rem', backgroundColor: 'var(--bg-surface)', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-subtle)' }}>
+                      <div style={{ color: 'var(--text-muted)', fontSize: '0.68rem' }}>1. Gösterim</div>
+                      <strong style={{ fontSize: '0.85rem' }}>{metaSimulation.impressions.toLocaleString('tr-TR')}</strong>
+                    </div>
+                    <span style={{ padding: '0 0.3rem', color: 'var(--text-muted)' }}>➔</span>
+                    <div style={{ flex: 1, padding: '0.4rem', backgroundColor: 'var(--bg-surface)', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-subtle)' }}>
+                      <div style={{ color: 'var(--text-muted)', fontSize: '0.68rem' }}>2. Tıklama</div>
+                      <strong style={{ fontSize: '0.85rem' }}>{metaSimulation.clicks.toLocaleString('tr-TR')}</strong>
+                    </div>
+                    <span style={{ padding: '0 0.3rem', color: 'var(--text-muted)' }}>➔</span>
+                    <div style={{ flex: 1, padding: '0.4rem', backgroundColor: 'var(--bg-surface)', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-subtle)' }}>
+                      <div style={{ color: 'var(--text-muted)', fontSize: '0.68rem' }}>3. Brüt Form</div>
+                      <strong style={{ fontSize: '0.85rem', color: '#f59e0b' }}>{metaSimulation.grossLeads}</strong>
+                    </div>
+                    <span style={{ padding: '0 0.3rem', color: 'var(--text-muted)' }}>➔</span>
+                    <div style={{ flex: 1, padding: '0.4rem', backgroundColor: 'rgba(16, 185, 129, 0.1)', borderRadius: 'var(--radius-xs)', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                      <div style={{ color: '#16a34a', fontSize: '0.68rem', fontWeight: 600 }}>4. Sağlıklı Lead</div>
+                      <strong style={{ fontSize: '0.85rem', color: '#16a34a' }}>{metaSimulation.healthyLeads}</strong>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ROAS & Deals Box */}
                 <div style={{
-                  padding: '1.25rem',
-                  backgroundColor: 'rgba(245, 158, 11, 0.06)',
+                  padding: '1.15rem',
+                  backgroundColor: 'rgba(37, 99, 235, 0.06)',
                   borderRadius: 'var(--radius-sm)',
-                  border: '1px solid rgba(245, 158, 11, 0.25)',
+                  border: '1px solid rgba(37, 99, 235, 0.25)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
@@ -2700,81 +3112,512 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                   gap: '1rem'
                 }}>
                   <div>
-                    <div style={{ fontSize: '0.75rem', color: '#d97706', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                      Pazar Hakimiyeti & Erişim
+                    <div style={{ fontSize: '0.75rem', color: 'var(--brand-primary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      Meta Kampanyası Projeksiyon ROAS
                     </div>
-                    <div style={{ fontSize: '2rem', fontWeight: 800, color: '#d97706', marginTop: '2px' }}>
-                      %{simulation.targetImpressionShare} Pazar Payı
+                    <div style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--brand-primary)', marginTop: '2px' }}>
+                      {metaSimulation.roas}x
                     </div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                      Hedeflenen ülkedeki her 100 aramanın <strong>{simulation.targetImpressionShare}</strong> tanesinde reklamınız ilk sayfada görünecektir.
+                      Tahmini Satış: <strong>~{metaSimulation.deals} Adet</strong> • CAC: <strong>₺{metaSimulation.cac}</strong>
                     </div>
                   </div>
 
                   <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Aylık Trafik Kazanımı</div>
-                    <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
-                      ~{simulation.estClicks.toLocaleString('tr-TR')} Ziyaretçi
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Meta Kaynaklı Gelir</div>
+                    <div style={{ fontSize: '1.35rem', fontWeight: 700, color: '#16a34a', marginTop: '2px' }}>
+                      ₺{metaSimulation.revenue.toLocaleString('tr-TR')}
                     </div>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Ortalama TBM: ₺{simulation.avgCpc.toFixed(2)}</div>
                   </div>
                 </div>
-              )}
 
-              {/* Country Breakdown & Market Share Table */}
-              {countryBreakdown.length > 0 && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '1rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                      <Globe size={15} color="var(--brand-primary)" /> Hedef Ülke Dağılımı ve Tahmin Kırılımı
+              </div>
+
+            </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* CHANNEL 3: GOOGLE SEARCH (SEM) DEEP DIVE                                  */}
+          {/* ========================================================================= */}
+          {activeChannelTab === 'GOOGLE_SEARCH' && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '1.25rem' }}>
+              
+              {/* Controls Column */}
+              <div className="card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div>
+                    <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                      Bütçe & Gösterim Payı (IS) Değişkenleri
                     </div>
-                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                      {countryBreakdown.length} Aktif Pazar
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                      Pazar hacmine bağlı gerçekçi tıklama ve dönüşüm projeksiyonu.
+                    </div>
+                  </div>
+
+                  {/* Budget Mode Selector */}
+                  <div style={{ display: 'flex', backgroundColor: 'var(--bg-surface-elevated)', padding: '2px', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-default)' }}>
+                    <button
+                      onClick={() => setBudgetMode('BY_BUDGET')}
+                      style={{
+                        padding: '3px 8px',
+                        fontSize: '0.72rem',
+                        borderRadius: 'var(--radius-xs)',
+                        border: 'none',
+                        backgroundColor: budgetMode === 'BY_BUDGET' ? 'var(--brand-primary)' : 'transparent',
+                        color: budgetMode === 'BY_BUDGET' ? '#ffffff' : 'var(--text-secondary)',
+                        cursor: 'pointer',
+                        fontWeight: budgetMode === 'BY_BUDGET' ? 600 : 400
+                      }}
+                    >
+                      Bütçeye Göre
+                    </button>
+                    <button
+                      onClick={() => setBudgetMode('BY_IMPRESSION_SHARE')}
+                      style={{
+                        padding: '3px 8px',
+                        fontSize: '0.72rem',
+                        borderRadius: 'var(--radius-xs)',
+                        border: 'none',
+                        backgroundColor: budgetMode === 'BY_IMPRESSION_SHARE' ? 'var(--brand-primary)' : 'transparent',
+                        color: budgetMode === 'BY_IMPRESSION_SHARE' ? '#ffffff' : 'var(--text-secondary)',
+                        cursor: 'pointer',
+                        fontWeight: budgetMode === 'BY_IMPRESSION_SHARE' ? 600 : 400
+                      }}
+                    >
+                      Gösterim Payına Göre
+                    </button>
+                  </div>
+                </div>
+
+                {/* Monthly Budget Slider */}
+                {budgetMode === 'BY_BUDGET' ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <label style={{ fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                        Hedef Aylık Reklam Bütçesi
+                      </label>
+                      <div style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--brand-primary)' }}>
+                        ₺{monthlyBudget.toLocaleString('tr-TR')}
+                      </div>
+                    </div>
+                    <input
+                      type="range"
+                      min={1000}
+                      max={150000}
+                      step={1000}
+                      value={monthlyBudget}
+                      onChange={(e) => setMonthlyBudget(Number(e.target.value))}
+                      style={{ width: '100%', accentColor: 'var(--brand-primary)', cursor: 'pointer' }}
+                    />
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <label style={{ fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                        Hedef Pazar Gösterim Payı (IS %)
+                      </label>
+                      <div style={{ fontSize: '1.15rem', fontWeight: 700, color: '#34d399' }}>
+                        %{targetImpressionShare}
+                      </div>
+                    </div>
+                    <input
+                      type="range"
+                      min={10}
+                      max={95}
+                      step={5}
+                      value={targetImpressionShare}
+                      onChange={(e) => setTargetImpressionShare(Number(e.target.value))}
+                      style={{ width: '100%', accentColor: '#34d399', cursor: 'pointer' }}
+                    />
+                  </div>
+                )}
+
+                {/* Expected CTR Slider */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label style={{ fontSize: '0.825rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
+                      Tahmini Arama Ağı Tıklama Oranı (CTR / TO %)
+                    </label>
+                    <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                      %{expectedCtr}
                     </span>
                   </div>
+                  <input
+                    type="range"
+                    min={3.0}
+                    max={15.0}
+                    step={0.5}
+                    value={expectedCtr}
+                    onChange={(e) => setExpectedCtr(Number(e.target.value))}
+                    style={{ width: '100%', accentColor: 'var(--info)', cursor: 'pointer' }}
+                  />
+                </div>
 
-                  {/* Visual Stacked Progress Bar */}
-                  <div style={{ height: '8px', borderRadius: '4px', display: 'flex', overflow: 'hidden', backgroundColor: 'var(--border-default)' }}>
-                    {countryBreakdown.map((cm, idx) => {
-                      const colors = ['#2563eb', '#34d399', '#facc15', '#f97316', '#a855f7', '#ec4899'];
-                      return (
-                        <div
-                          key={cm.code}
-                          style={{
-                            width: `${cm.sharePercent}%`,
-                            backgroundColor: colors[idx % colors.length],
-                            height: '100%'
-                          }}
-                          title={`${cm.flag} ${cm.name}: %${cm.sharePercent}`}
-                        />
-                      );
-                    })}
+                {/* Lead CR Slider */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label style={{ fontSize: '0.825rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
+                      Form & Talep Dönüşüm Oranı (Lead CR %)
+                    </label>
+                    <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#34d399' }}>
+                      %{leadConversionRate}
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0.5}
+                    max={12.0}
+                    step={0.5}
+                    value={leadConversionRate}
+                    onChange={(e) => setLeadConversionRate(Number(e.target.value))}
+                    style={{ width: '100%', accentColor: '#34d399', cursor: 'pointer' }}
+                  />
+                </div>
+
+                {/* Business Model Specific Conversion Controls for Search */}
+                {businessModel === 'LEAD_GEN' && (
+                  <>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <label style={{ fontSize: '0.825rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
+                          Sağlıklı Lead Oranı (% Healthy Lead)
+                        </label>
+                        <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--brand-primary)' }}>
+                          %{leadCloseRate}
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min={1}
+                        max={40}
+                        step={1}
+                        value={leadCloseRate}
+                        onChange={(e) => setLeadCloseRate(Number(e.target.value))}
+                        style={{ width: '100%', accentColor: 'var(--brand-primary)', cursor: 'pointer' }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
+                        Ortalama Anlaşma / Satış Tutarı (₺ - İsteğe Bağlı)
+                      </label>
+                      <input
+                        type="number"
+                        placeholder="Örn: 50000"
+                        value={avgDealValue || ''}
+                        onChange={(e) => setAvgDealValue(Number(e.target.value) || 0)}
+                        style={{ width: '100%', fontSize: '0.85rem' }}
+                      />
+                    </div>
+                  </>
+                )}
+
+                {businessModel === 'ECOMMERCE' && (
+                  <>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <label style={{ fontSize: '0.825rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
+                          Sipariş Dönüşüm Oranı (%)
+                        </label>
+                        <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                          %{ecommerceConversionRate}
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min={0.5}
+                        max={8.0}
+                        step={0.1}
+                        value={ecommerceConversionRate}
+                        onChange={(e) => setEcommerceConversionRate(Number(e.target.value))}
+                        style={{ width: '100%', accentColor: 'var(--info)', cursor: 'pointer' }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
+                        Ortalama Sepet Tutarı (AOV ₺)
+                      </label>
+                      <input
+                        type="number"
+                        value={avgOrderValue}
+                        onChange={(e) => setAvgOrderValue(Math.max(1, Number(e.target.value)))}
+                        style={{ width: '100%', fontSize: '0.85rem' }}
+                      />
+                    </div>
+                  </>
+                )}
+
+              </div>
+
+              {/* Outcomes Column */}
+              <div className="card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                
+                <div>
+                  <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                    🎯 Google Search Performans Projeksiyonu
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                    Aylık <strong>₺{simulation.actualSpend.toLocaleString('tr-TR')}</strong> harcama ile beklenen arama ağı sonuçları.
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' }}>
+                  <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Tahmini Gösterim</div>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
+                      {simulation.estImpressions.toLocaleString('tr-TR')}
+                    </div>
                   </div>
 
-                  {/* Country Breakdown Rows */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Tahmini Tıklama</div>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--brand-primary)', marginTop: '2px' }}>
+                      {simulation.estClicks.toLocaleString('tr-TR')}
+                    </div>
+                  </div>
+
+                  <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Arama Başı Talep (Lead)</div>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#34d399', marginTop: '2px' }}>
+                      {simulation.estConversions.toLocaleString('tr-TR')} Adet
+                    </div>
+                  </div>
+
+                  <div style={{ padding: '0.85rem', backgroundColor: 'rgba(16, 185, 129, 0.08)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                    <div style={{ fontSize: '0.72rem', color: '#16a34a', fontWeight: 600 }}>SAĞLIKLI LEAD</div>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#16a34a', marginTop: '2px' }}>
+                      ~{simulation.estDeals} Nitelikli
+                    </div>
+                  </div>
+                </div>
+
+                {/* Country Breakdown Rows */}
+                {countryBreakdown.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
+                    <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-primary)' }}>Pazar Kırılımı:</span>
                     {countryBreakdown.map((cm) => (
-                      <div key={cm.code} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.75rem', padding: '0.35rem 0.5rem', backgroundColor: 'var(--bg-surface)', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-subtle)' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontWeight: 500 }}>
-                          <span>{cm.flag}</span>
-                          <span>{cm.name}</span>
-                          <span className="badge badge-neutral" style={{ fontSize: '0.65rem', padding: '1px 4px' }}>%{cm.sharePercent}</span>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', color: 'var(--text-secondary)' }}>
-                          <span>Pazar Hacmi: <strong style={{ color: 'var(--text-primary)' }}>{cm.monthlyVolume.toLocaleString('tr-TR')}</strong></span>
-                          <span>Ort. TBM: <strong style={{ color: 'var(--text-primary)' }}>₺{cm.avgCpc.toFixed(2)}</strong></span>
-                          <span>~{cm.estClicks} Tıklama</span>
-                          <span>~{cm.estConversions} {businessModel === 'LEAD_GEN' ? 'Talep' : 'Sipariş'}</span>
-                        </div>
+                      <div key={cm.code} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.75rem' }}>
+                        <span>{cm.flag} {cm.name}</span>
+                        <span><strong>{cm.monthlyVolume.toLocaleString('tr-TR')}</strong> arama • ₺{cm.avgCpc.toFixed(2)} TBM</span>
                       </div>
                     ))}
                   </div>
-                </div>
-              )}
+                )}
+
+              </div>
 
             </div>
+          )}
 
-          </div>
+          {/* ========================================================================= */}
+          {/* CHANNEL 4: YOUTUBE ADS                                                    */}
+          {/* ========================================================================= */}
+          {activeChannelTab === 'YOUTUBE' && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '1.25rem' }}>
+              <div className="card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                <div>
+                  <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                    🔴 YouTube Video Reklam Parametreleri
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                    In-Stream, Video Action ve Shorts için Görüntüleme Başı Maliyet (CPV) simülasyonu.
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label style={{ fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                      Ortalama CPV (Görüntüleme Başı Maliyet ₺)
+                    </label>
+                    <span style={{ fontSize: '1.1rem', fontWeight: 700, color: '#dc2626' }}>
+                      ₺{youtubeCpv.toFixed(2)}
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0.10}
+                    max={1.50}
+                    step={0.05}
+                    value={youtubeCpv}
+                    onChange={(e) => setYoutubeCpv(Number(e.target.value))}
+                    style={{ width: '100%', accentColor: '#dc2626', cursor: 'pointer' }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label style={{ fontSize: '0.825rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
+                      Video İzleme Oranı (VTR / View Rate %)
+                    </label>
+                    <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                      %{youtubeVtr}
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min={15}
+                    max={55}
+                    step={1}
+                    value={youtubeVtr}
+                    onChange={(e) => setYoutubeVtr(Number(e.target.value))}
+                    style={{ width: '100%', accentColor: '#dc2626', cursor: 'pointer' }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label style={{ fontSize: '0.825rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
+                      Video Tıklama & Eylem Oranı (%)
+                    </label>
+                    <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                      %{youtubeActionRate}
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0.2}
+                    max={3.0}
+                    step={0.1}
+                    value={youtubeActionRate}
+                    onChange={(e) => setYoutubeActionRate(Number(e.target.value))}
+                    style={{ width: '100%', accentColor: '#dc2626', cursor: 'pointer' }}
+                  />
+                </div>
+              </div>
+
+              <div className="card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                  🎬 YouTube Kampanya Çıktıları
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' }}>
+                  <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Toplam Video Gösterimi</div>
+                    <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
+                      {youtubeSimulation.impressions.toLocaleString('tr-TR')}
+                    </div>
+                  </div>
+                  <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Tamamlanan İzlenmeler</div>
+                    <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#dc2626', marginTop: '2px' }}>
+                      {youtubeSimulation.videoViews.toLocaleString('tr-TR')}
+                    </div>
+                  </div>
+                  <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Kazanılan Eylemler (Tıklama/Form)</div>
+                    <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#34d399', marginTop: '2px' }}>
+                      ~{youtubeSimulation.actions}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* CHANNEL 5: GOOGLE GDN (DISPLAY & RETARGETING)                             */}
+          {/* ========================================================================= */}
+          {activeChannelTab === 'GDN' && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '1.25rem' }}>
+              <div className="card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                <div>
+                  <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                    🟢 Google GDN (Display Network & Remarketing)
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                    Web sitelerinde banner gösterimi ve yeniden pazarlama desteği.
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label style={{ fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                      GDN Ortalama CPM (1.000 Banner Gösterimi ₺)
+                    </label>
+                    <span style={{ fontSize: '1.1rem', fontWeight: 700, color: '#10b981' }}>
+                      ₺{gdnCpm}
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min={5}
+                    max={60}
+                    step={1}
+                    value={gdnCpm}
+                    onChange={(e) => setGdnCpm(Number(e.target.value))}
+                    style={{ width: '100%', accentColor: '#10b981', cursor: 'pointer' }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label style={{ fontSize: '0.825rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
+                      Banner Tıklama Oranı (CTR %)
+                    </label>
+                    <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                      %{gdnCtr}
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0.2}
+                    max={2.0}
+                    step={0.05}
+                    value={gdnCtr}
+                    onChange={(e) => setGdnCtr(Number(e.target.value))}
+                    style={{ width: '100%', accentColor: '#10b981', cursor: 'pointer' }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label style={{ fontSize: '0.825rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
+                      Asist Edilen Dönüşüm Oranı (%)
+                    </label>
+                    <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                      %{gdnAssistedCr}
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0.2}
+                    max={5.0}
+                    step={0.1}
+                    value={gdnAssistedCr}
+                    onChange={(e) => setGdnAssistedCr(Number(e.target.value))}
+                    style={{ width: '100%', accentColor: '#10b981', cursor: 'pointer' }}
+                  />
+                </div>
+              </div>
+
+              <div className="card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                  🖼️ GDN Görünürlük Çıktıları
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' }}>
+                  <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Toplam Banner Gösterimi</div>
+                    <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
+                      {gdnSimulation.impressions.toLocaleString('tr-TR')}
+                    </div>
+                  </div>
+                  <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Kazanılan Banner Trafiği</div>
+                    <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#10b981', marginTop: '2px' }}>
+                      {gdnSimulation.clicks.toLocaleString('tr-TR')}
+                    </div>
+                  </div>
+                  <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Asist Edilen Dönüşümler</div>
+                    <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#34d399', marginTop: '2px' }}>
+                      ~{gdnSimulation.assistedConversions}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
         </div>
       )}
