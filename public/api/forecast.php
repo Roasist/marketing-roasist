@@ -476,15 +476,17 @@ function analyzeLandingPageWithAI($pageDetails, $query, $geminiKey) {
         . "STRATEJİK GÖREVLER VE DİNAMİK SEM KELİME MATRİSİ:\n"
         . "1. Sayfanın sunduğu gerçek hizmeti/ürünü, ana sektörünü, iş modelini ('LEAD_GEN', 'ECOMMERCE', 'B2B_SERVICE', 'TOURISM', 'HEALTH_CARE') ve HEDEF ŞEHİR/ÜLKE HİYERARŞİSİNİ ('detectedGeoHierarchy') tespit et.\n"
         . "2. Sektöre özel terimleri, eş anlamlıları ve kısaltmaları ('detectedServiceSynonyms') tespit et.\n"
-        . "3. ÇOK ÖNEMLİ KURAL - SEM ÇAPRAZ MATRİS GENİŞLETMESİ (EN AZ 40-50 ADET YÜKSEK DÖNÜŞÜMLÜ KELİME):\n"
+        . "3. ÇOK ÖNEMLİ KURAL - DİL vs ÜLKE VE ANLAMSAL NETLİK:\n"
+        . "   Kullanıcı tohumunda veya sayfada bir DİL YETKİNLİĞİ (örn: Almanca, İngilizce, Rusça, Fransızca, İspanyolca, Arapça) geçtiğinde bunu ÜLKE veya GÖÇ kavramıyla (Almanya, İngiltere, Rusya vb.) KESİNLİKLE KARIŞTIRMA! Örneğin 'almanca iş ilanları' arandığında tohumlar 'almanca bilen müşteri temsilcisi', 'almanca çağrı merkezi', 'almanca tercüman', 'almanca bilen eleman' olmalıdır; asla 'almanya işçi alımı' veya 'almanya vizesi' üretilmemelidir.\n"
+        . "4. SEM ÇAPRAZ MATRİS GENİŞLETMESİ (EN AZ 40-50 ADET YÜKSEK DÖNÜŞÜMLÜ KELİME):\n"
         . "   Herhangi bir sektör için (Sağlık, Gayrimenkul, Eğitim, B2B Yazılım, Sanayi, E-Ticaret vb.) bu işletmeye DOĞRUDAN DÖNÜŞÜM getirecek EN AZ 40-50 ADET kelimeyi şu 5 dinamik boyutta eksiksiz üret ('strategistKeywords'):\n"
         . "   a) COĞRAFİ ÇAPRAZLAMA (Şehir <-> Ülke): Şehir bazlı her kelimenin aynı zamanda Ülke/Bölge varyasyonunu da üret.\n"
         . "   b) EŞ ANLAMLI & KISALTMA ÇAPRAZLAMA: Sektörün tüm terimlerini, teknik adlarını ve kısaltmalarını çaprazla.\n"
         . "   c) SATIN ALMA / FİYAT / PAKET / TEKLİF: ('cost', 'price', 'package', 'fiyatları', 'ücretleri', 'kosten', 'preise', 'angebot', 'teklif al').\n"
         . "   d) GÜVEN & OTORİTE / EN İYİ / YORUM: ('best ... in ...', 'top rated', 'reviews', 'before and after', 'en iyi ...', 'tavsiye', 'erfahrungen').\n"
         . "   e) LEAD KANCALARI / RANDEVU / DEMO: ('free consultation', 'book online', 'bursluluk sınavı', 'demo talep et', 'randevu al', 'kostenlose beratung').\n"
-        . "4. Bu kampanya için KESİNLİKLE HARİÇ TUTULMASI (Negatif) gereken 15 alakasız terimi listele ('negativeExclusions').\n"
-        . "5. Bu sayfa için Google Ads'te hedeflenebilecek en mantıklı 4-5 hedef ülkeyi listele ('suggestedCountries').\n\n"
+        . "5. Bu kampanya için KESİNLİKLE HARİÇ TUTULMASI (Negatif) gereken 15 alakasız terimi listele ('negativeExclusions').\n"
+        . "6. Bu sayfa için Google Ads'te hedeflenebilecek en mantıklı 4-5 hedef ülkeyi listele ('suggestedCountries').\n\n"
         . "Yanıtını SADECE geçerli JSON formatında şu şemayla ver (başka hiçbir metin ekleme):\n"
         . "{\n"
         . "  \"detectedLanguage\": \"tr\",\n"
@@ -1057,6 +1059,17 @@ function filterKeywordsByPageContext($keywords, $pageDetails, $query, $langCode)
             }
         }
 
+        // 0.2 If query is specifically a language skill (e.g. "almanca iş ilanları") and NOT country migration ("almanya"):
+        // Prune foreign country migration noise (e.g. "bremen iş ilanları", "wiesbaden iş ilanları") that lack the language skill term
+        $isLangSkillIntent = preg_match('/\b(almanca|ingilizce|rusça|rusca|fransızca|fransizca|arapça|arapca|ispanyolca|italyanca)\b/ui', $query) && !preg_match('/\b(almanya|ingiltere|rusya|fransa|ispanya|italya)\b/ui', $query);
+        if ($isLangSkillIntent) {
+            $hasLangTerm = preg_match('/\b(almanca|ingilizce|rusça|rusca|fransızca|fransizca|arapça|arapca|ispanyolca|italyanca|dil|lisan|tercüman|tercuman|çevirmen|cevirmen|bilingual|mütercim|mutercim)\b/ui', $kwLower);
+            $isForeignCityOrCountry = preg_match('/\b(almanya|bremen|köln|koln|bielefeld|wiesbaden|stuttgart|münih|munih|berlin|frankfurt|hamburg|düsseldorf|dusseldorf|ingiltere|londra|rusya|moskova)\b/ui', $kwLower);
+            if ($isForeignCityOrCountry && !$hasLangTerm) {
+                continue; // ❌ REJECT pure foreign country/city terms when searching for a language skill!
+            }
+        }
+
         // 1. If page is Hotel / Tourism, STRICTLY exclude real estate, citizenship, and property for sale noise!
         if ($isHotelOrTourism && preg_match($realEstateExclusionPattern, $kwLower)) {
             continue; // ❌ REJECT real estate term on a hotel/tourism page!
@@ -1348,7 +1361,7 @@ if ($action === 'discover' && $method === 'POST') {
         exit;
     }
 
-    $cacheKey = md5("forecast_v8_{$mode}_{$query}");
+    $cacheKey = md5("forecast_v9_{$mode}_{$query}");
 
     // 1. Check Server-Side Cache
     $stmtCache = $pdo->prepare("SELECT data, created_at FROM keyword_cache WHERE cache_key = ?");
