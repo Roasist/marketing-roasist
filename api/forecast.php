@@ -132,6 +132,16 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
     $parsedKeywords = [];
     $seenKeywords = [];
 
+    $seedKeys = [];
+    if (!empty($keywords) && is_array($keywords)) {
+        foreach ($keywords as $k) {
+            $cleanK = is_array($k) ? ($k['keyword'] ?? '') : (string)$k;
+            if (!empty($cleanK)) {
+                $seedKeys[mb_strtolower(preg_replace('/\s+/', ' ', trim($cleanK)), 'UTF-8')] = true;
+            }
+        }
+    }
+
     // Helper to execute Google Ads Keyword Planner API call
     $callGoogleAdsApi = function($payload) use ($customerId, $accessToken, $devToken) {
         $chAds = curl_init("https://googleads.googleapis.com/v22/customers/{$customerId}:generateKeywordIdeas");
@@ -150,12 +160,14 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
         return ($adsCode === 200) ? json_decode($adsRes, true) : null;
     };
 
-    $parseResults = function($adsJson, $isAiStrategist = false) use (&$parsedKeywords, &$seenKeywords) {
+    $parseResults = function($adsJson, $isFromSeedCall = false) use (&$parsedKeywords, &$seenKeywords, $seedKeys) {
         if (empty($adsJson['results'])) return;
         foreach ($adsJson['results'] as $idx => $r) {
             $kwText = trim($r['text'] ?? '');
             if (empty($kwText) || mb_strlen($kwText, 'UTF-8') < 3) continue;
-            $kwKey = mb_strtolower($kwText, 'UTF-8');
+            
+            // Normalize key for 100% airtight deduplication
+            $kwKey = mb_strtolower(preg_replace('/\s+/', ' ', $kwText), 'UTF-8');
             if (isset($seenKeywords[$kwKey])) continue;
             $seenKeywords[$kwKey] = true;
 
@@ -168,11 +180,14 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
 
             // Compute search intent
             $intent = 'COMMERCIAL';
-            if (preg_match('/\b(fiyat|satın al|ücret|ajans|hizmet|paket|danışmanlık|al|fiyatları|fiyatı|sipariş|rezervasyon|kursu|eğitimi|maliyet|cost|price|preise|kosten)\b/ui', $kwText)) {
+            if (preg_match('/\b(fiyat|satın al|ücret|ajans|hizmet|paket|danışmanlık|al|fiyatları|fiyatı|sipariş|rezervasyon|kursu|eğitimi|maliyet|cost|price|preise|kosten|başvuru|iş ilanı|iş ilanları|iş arama|satılık|kiralık|angebot)\b/ui', $kwText)) {
                 $intent = 'TRANSACTIONAL';
             } elseif (preg_match('/\b(nedir|nasıl|rehber|örnek|yorum|tavsiye|forum|was ist|wie)\b/ui', $kwText)) {
                 $intent = 'INFORMATIONAL';
             }
+
+            // Only mark as SEM Strategist if it was an explicit seed or is high-ROAS transactional
+            $isAiStrategist = isset($seedKeys[$kwKey]) || ($intent === 'TRANSACTIONAL');
 
             // Calculate 3-month trend if available
             $monthlyVols = $metrics['monthlySearchVolumes'] ?? [];
@@ -1017,6 +1032,7 @@ function filterKeywordsByPageContext($keywords, $pageDetails, $query, $langCode)
     $realEstateExclusionPattern = '/\b(citizenship|citizen|vatandaşlık|passport|pasaport|real estate|gayrimenkul|satılık|for sale|buy property|invest in property|property for sale|apartments for sale|villas for sale|sale house|satılık daire|satılık ev|satılık mülk|emlak|housing)\b/ui';
 
     $filtered = [];
+    $seenKeywords = [];
 
     foreach ($keywords as $kw) {
         $kwText = is_array($kw) ? ($kw['keyword'] ?? '') : (string)$kw;
@@ -1024,6 +1040,10 @@ function filterKeywordsByPageContext($keywords, $pageDetails, $query, $langCode)
 
         if (empty($kwLower)) continue;
         if (mb_strlen($kwLower, 'UTF-8') < 3) continue;
+
+        $dedupKey = mb_strtolower(preg_replace('/\s+/', ' ', $kwLower), 'UTF-8');
+        if (isset($seenKeywords[$dedupKey])) continue;
+        $seenKeywords[$dedupKey] = true;
 
         // 0. Drop pure stopword, pronoun, auxiliary verb and filler grammatical fragments
         if (isPureStopwordJunk($kwLower)) {
@@ -1328,7 +1348,7 @@ if ($action === 'discover' && $method === 'POST') {
         exit;
     }
 
-    $cacheKey = md5("forecast_v7_{$mode}_{$query}");
+    $cacheKey = md5("forecast_v8_{$mode}_{$query}");
 
     // 1. Check Server-Side Cache
     $stmtCache = $pdo->prepare("SELECT data, created_at FROM keyword_cache WHERE cache_key = ?");
