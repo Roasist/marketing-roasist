@@ -1021,102 +1021,71 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         </div>
       </div>
 
-      {/* 2. Search & Discovery Control Card */}
-      <div className="card" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      {/* 2. Unified Smart Search & Discovery Control Card */}
+      <div className="card" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
         
-        {/* Mode Toggle Buttons */}
+        {/* Top Meta Bar with Title and Curated Examples */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
-          <div style={{ display: 'flex', gap: '0.4rem', backgroundColor: 'var(--bg-surface-elevated)', padding: '0.25rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
-            <button
-              onClick={() => { setMode('URL'); }}
-              style={{
-                background: mode === 'URL' ? 'var(--brand-primary)' : 'transparent',
-                color: mode === 'URL' ? '#ffffff' : 'var(--text-secondary)',
-                border: 'none',
-                padding: '0.35rem 0.75rem',
-                borderRadius: 'var(--radius-xs)',
-                fontSize: '0.78rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.35rem'
-              }}
-            >
-              🌐 Web Sitesi / Rakip URL ile Keşfet
-            </button>
-            <button
-              onClick={() => { setMode('KEYWORDS'); }}
-              style={{
-                background: mode === 'KEYWORDS' ? 'var(--brand-primary)' : 'transparent',
-                color: mode === 'KEYWORDS' ? '#ffffff' : 'var(--text-secondary)',
-                border: 'none',
-                padding: '0.35rem 0.75rem',
-                borderRadius: 'var(--radius-xs)',
-                fontSize: '0.78rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.35rem'
-              }}
-            >
-              ✍️ Anahtar Kelimeler ile Başla
-            </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+              <Sparkles size={15} color="var(--brand-primary)" /> Akıllı SEM Keşif & Hacim Motoru
+            </span>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+              (Web Sitesi URL'si veya Anahtar Kelime girin)
+            </span>
           </div>
 
           {/* Quick Examples */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', color: 'var(--text-muted)', flexWrap: 'wrap' }}>
             <span>Örnekler:</span>
-            {(mode === 'URL' ? [
-              { text: 'summerhomes.com', mode: 'URL' as const },
-              { text: 'dusbahcesiilkokulu.com', mode: 'URL' as const },
-              { text: 'roasist.com', mode: 'URL' as const }
-            ] : [
-              { text: 'buy apartment alanya', mode: 'KEYWORDS' as const },
-              { text: 'diksiyon kursu istanbul', mode: 'KEYWORDS' as const },
-              { text: 'bbl surgery turkey', mode: 'KEYWORDS' as const },
-              { text: 'solaranlage münchen', mode: 'KEYWORDS' as const }
-            ]).map((ex) => (
+            {[
+              'summerhomes.com',
+              'alanya butik oteller',
+              'diksiyon kursu istanbul',
+              'dusbahcesiilkokulu.com',
+              'buy apartment alanya'
+            ].map((ex) => (
               <button
-                key={ex.text}
+                key={ex}
                 onClick={() => {
-                  setQuery(ex.text);
-                  setMode(ex.mode);
-                  handleDiscover(ex.text, ex.mode);
+                  setQuery(ex);
+                  const isUrl = ex.includes('.') && !ex.includes(' ');
+                  const newMode = isUrl ? 'URL' : 'KEYWORDS';
+                  setMode(newMode);
+                  handleDiscover(ex, newMode);
                 }}
                 className="btn-ghost"
-                style={{ padding: '2px 6px', fontSize: '0.72rem' }}
+                style={{ padding: '2px 8px', fontSize: '0.72rem', borderRadius: 'var(--radius-full)', border: '1px solid var(--border-default)' }}
               >
-                {ex.text}
+                {ex}
               </button>
             ))}
           </div>
         </div>
 
-        {/* Input Bar */}
+        {/* Unified Input Bar */}
         <div style={{ display: 'flex', gap: '0.65rem', flexWrap: 'wrap', alignItems: 'center' }}>
           <div style={{ flex: 1, minWidth: '280px', position: 'relative' }}>
             <Search size={16} color="var(--text-muted)" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
             <input
               type="text"
-              placeholder={mode === 'URL' ? 'Web sitesi veya Landing Page adresi girin (örn: https://summerhomes.com)...' : 'Tohum kelime(ler) yazın (virgülle birden çok yazabilirsiniz. Örn: buy apartment alanya, alanya villas)...'}
+              placeholder="Web sitesi URL'si veya anahtar kelime(ler) girin (örn: summerhomes.com veya alanya butik oteller)..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') handleDiscover(); }}
-              style={{ width: '100%', paddingLeft: '2.4rem', fontSize: '0.85rem' }}
+              style={{ width: '100%', paddingLeft: '2.4rem', fontSize: '0.875rem' }}
             />
           </div>
 
-          {/* Submit Button */}
+          {/* Action Button */}
           <button
             onClick={() => handleDiscover()}
             disabled={isLoading || !query.trim()}
             className="btn-primary"
-            style={{ padding: '0.55rem 1.25rem', fontSize: '0.85rem', whiteSpace: 'nowrap' }}
+            style={{ padding: '0.55rem 1.35rem', fontSize: '0.875rem', whiteSpace: 'nowrap', fontWeight: 600 }}
           >
             <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
-            {isLoading ? (mode === 'URL' ? 'Sayfa Kazınıyor & Kelimeler Çıkarılıyor...' : 'Kelimeler Analiz Ediliyor & Genişletiliyor...') : (mode === 'URL' ? '🚀 Sayfayı Tara & Kelimeleri Çıkar' : '🔍 Kelimeleri Analiz Et & Resmi Havuz Çıkar')}
+            {isLoading ? 'Google Ads Verileri Analiz Ediliyor...' : '🔍 Analiz Et & Kelimeleri Çıkar'}
           </button>
         </div>
 
@@ -1277,29 +1246,32 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
               Google Ads Akıllı Tahminleme & Bütçe Planlama
             </div>
             <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', maxWidth: '580px', margin: '0.5rem auto 0 auto', lineHeight: 1.5 }}>
-              Yukarıdaki arama kutusuna analiz etmek istediğiniz <strong>landing page / web sitesini</strong> (örn: <code>https://grazhdanstvo.23projects.net/</code>) yazın. Sistemimiz sayfanın dilini ve sektörel içeriğini otomatik tarayıp anahtar kelimeleri çıkaracaktır.
+              Yukarıdaki arama kutusuna analiz etmek istediğiniz <strong>web sitesi URL'sini</strong> veya <strong>anahtar kelimeleri</strong> yazın. Sistemimiz resmi Google Ads Keyword Planner servisinden arama hacimlerini, sayfa üstü TBM tekliflerini ve tematik STAG reklam gruplarını anında çıkaracaktır.
             </div>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem', flexWrap: 'wrap', justifyContent: 'center' }}>
             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Hızlı Başlangıç Örnekleri:</span>
             {[
-              { label: 'https://grazhdanstvo.23projects.net/', mode: 'URL' as const },
-              { label: 'summerhomes.com', mode: 'URL' as const },
-              { label: 'roasist.com', mode: 'URL' as const },
-              { label: 'dijital pazarlama ajansı', mode: 'KEYWORDS' as const },
-            ].map(chip => (
+              'summerhomes.com',
+              'alanya butik oteller',
+              'diksiyon kursu istanbul',
+              'dusbahcesiilkokulu.com',
+              'buy apartment alanya'
+            ].map(label => (
               <button
-                key={chip.label}
+                key={label}
                 onClick={() => {
-                  setQuery(chip.label);
-                  setMode(chip.mode);
-                  handleDiscover(chip.label, chip.mode);
+                  setQuery(label);
+                  const isUrl = label.includes('.') && !label.includes(' ');
+                  const newMode = isUrl ? 'URL' : 'KEYWORDS';
+                  setMode(newMode);
+                  handleDiscover(label, newMode);
                 }}
                 className="btn-ghost"
                 style={{ fontSize: '0.75rem', padding: '0.3rem 0.65rem', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-full)' }}
               >
-                + {chip.label}
+                + {label}
               </button>
             ))}
           </div>
