@@ -370,7 +370,13 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
         'lt' => 'languageConstants/1026'  // Lithuanian
     ];
     $normLangCode = strtolower(trim($langCode));
-    $langConst = $langMap[$normLangCode] ?? 'languageConstants/1037';
+    if (is_numeric($normLangCode)) {
+        $langConst = 'languageConstants/' . $normLangCode;
+        $codeMap = array_flip($langMap);
+        $normLangCode = $codeMap[$langConst] ?? 'en';
+    } else {
+        $langConst = $langMap[$normLangCode] ?? 'languageConstants/1037';
+    }
 
     // Map country to Google Ads criteria
     $geoMap = [
@@ -572,15 +578,21 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
         $siteRes = $callGoogleAdsApi($sitePayload);
         $parseResults($siteRes, false);
 
-        // 1.2 urlSeed: "Use only this page" (with trailing slash)
-        $urlPayload = [
-            "keywordPlanNetwork" => "GOOGLE_SEARCH",
-            "language" => $langConst,
-            "geoTargetConstants" => $finalGeoList,
-            "urlSeed" => ["url" => rtrim($url, '/') . '/']
-        ];
-        $urlRes = $callGoogleAdsApi($urlPayload);
-        $parseResults($urlRes, false);
+        // 1.3 If subdomain siteSeed or urlSeed returned few results, query root domain (e.g. 23projects.net)
+        $host = parse_url($cleanSiteUrl, PHP_URL_HOST) ?: $siteUrl;
+        $hostParts = explode('.', $host);
+        if (count($hostParts) > 2) {
+            $rootHost = implode('.', array_slice($hostParts, -2));
+            $rootSiteUrl = 'https://' . $rootHost;
+            $rootPayload = [
+                "keywordPlanNetwork" => "GOOGLE_SEARCH",
+                "language" => $langConst,
+                "geoTargetConstants" => $finalGeoList,
+                "siteSeed" => ["siteUrl" => $rootSiteUrl]
+            ];
+            $rootRes = $callGoogleAdsApi($rootPayload);
+            $parseResults($rootRes, false);
+        }
     }
 
     // 2. Query Google Ads API with High-Intent Seeds (AI seeds) to get REAL official Google Ads data!
@@ -1307,22 +1319,71 @@ function extractLocationAndSmartSeeds($pageDetails, $query, $langCode = 'en') {
         return array_slice($seeds, 0, 20);
     }
 
-    // 4. Detect Turkey Citizenship & Real Estate (Summer Homes, 23projects, etc.)
-    if (preg_match('/\b(turkish citizenship|citizenship by investment|vatandaşlık|real estate|gayrimenkul|property for sale|properties for sale|satılık daire|satılık ev|satılık mülk|konut projesi|summer homes)\b/ui', $full)) {
-        $seeds = [
-            'turkish citizenship by investment',
-            'turkey real estate investment',
-            'buy property in turkey for citizenship',
-            'apartments for sale in istanbul turkey',
-            'turkey passport by investment',
-            'real estate in turkey for foreigners',
-            'istanbul property for sale',
-            'alanya apartments for sale',
-            'antalya luxury villas for sale',
-            'invest in turkey for passport',
-            'turkey property investment'
+    // 4. Detect Turkey Citizenship & Real Estate in Russian, Turkish, Arabic, German, English
+    $isRussianCyrillic = preg_match('/[\p{Cyrillic}]/u', $full);
+    if ($isRussianCyrillic && preg_match('/(гражданств|внж|паспорт|недвижим|квартир|вилл|инвестиц|турци|алань|анталь|стамбул|23projects|23square)/ui', $full)) {
+        return [
+            'гражданство турции за инвестиции',
+            'гражданство турции при покупке недвижимости',
+            'внж в турции при покупке недвижимости',
+            'купить квартиру в турции и получить гражданство',
+            'гражданство турции через инвестиции',
+            'паспорт турции за инвестиции',
+            'недвижимость в турции для гражданства',
+            'внж в турции',
+            'купить квартиру в аланье',
+            'купить квартиру в анталии',
+            'купить недвижимость в турции',
+            'оформление внж в турции',
+            'внж турции за инвестиции',
+            'пмж в турции',
+            'гражданство за инвестиции турция',
+            'инвестиции в недвижимость турции',
+            'купить квартиру в стамбуле',
+            'турецкое гражданство за покупку недвижимости'
         ];
-        return array_slice($seeds, 0, 20);
+    }
+
+    if (preg_match('/\b(turkish citizenship|citizenship by investment|vatandaşlık|real estate|gayrimenkul|property for sale|properties for sale|satılık daire|satılık ev|satılık mülk|konut projesi|summer homes|23projects|23 projects|23square)\b/ui', $full)) {
+        if ($langCode === 'tr') {
+            return [
+                'türkiye yatırım yoluyla vatandaşlık',
+                'gayrimenkul yatırımı ile vatandaşlık',
+                'türkiye konut alana vatandaşlık',
+                'türkiye gayrimenkul yatırımı',
+                'satılık lüks daire alanya',
+                'satılık lüks villa antalya',
+                'istanbul satılık konut projeleri',
+                'yabancılara konut satışı türkiye',
+                'türkiye pasaportu yatırım',
+                'vatandaşlığa uygun satılık daire'
+            ];
+        } elseif ($langCode === 'ar' || preg_match('/[\p{Arabic}]/u', $full)) {
+            return [
+                'الجنسية التركية عن طريق الاستثمار',
+                'شراء عقار في تركيا للحصول على الجنسية',
+                'الاقامة العقارية في تركيا',
+                'شقق للبيع في اسطنبول',
+                'عقارات للبيع في تركيا',
+                'الجواز التركي عن طريق الاستثمار',
+                'شقق للبيع في انطاليا',
+                'فلل للبيع في الانيا'
+            ];
+        } else {
+            return [
+                'turkish citizenship by investment',
+                'turkey real estate investment',
+                'buy property in turkey for citizenship',
+                'apartments for sale in istanbul turkey',
+                'turkey passport by investment',
+                'real estate in turkey for foreigners',
+                'istanbul property for sale',
+                'alanya apartments for sale',
+                'antalya luxury villas for sale',
+                'invest in turkey for passport',
+                'turkey property investment'
+            ];
+        }
     }
 
     // 5. Detect Digital Marketing / Agency (Roasist)
