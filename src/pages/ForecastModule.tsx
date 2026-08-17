@@ -2165,15 +2165,23 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       });
     }
 
-    const targetGeoId = String(activeScopeMetric.id || activeScopeLocation?.id);
+    const targetGeoId = String(activeScopeMetric.id || activeScopeLocation?.id || '');
+    const cleanGeoId = targetGeoId.replace(/[^0-9]/g, '');
     const share = (activeScopeMetric.sharePercent || (100 / Math.max(1, selectedLocations.length))) / 100;
     const cpcScale = avgTopPageCpc > 0 && activeScopeMetric.avgCpc > 0 ? (activeScopeMetric.avgCpc / avgTopPageCpc) : 1.0;
 
     return keywords.map(k => {
       // 1. Direct official Google Ads volume for this exact location if available
-      const directLocVol = k.geoVolumes ? k.geoVolumes[targetGeoId] : undefined;
-      const directLocLowCpc = k.geoCpc ? k.geoCpc[targetGeoId]?.lowCpc : undefined;
-      const directLocHighCpc = k.geoCpc ? k.geoCpc[targetGeoId]?.highCpc : undefined;
+      const directLocVol = k.geoVolumes ? (
+        k.geoVolumes[cleanGeoId] !== undefined ? k.geoVolumes[cleanGeoId] :
+        (k.geoVolumes[targetGeoId] !== undefined ? k.geoVolumes[targetGeoId] :
+        k.geoVolumes['geoTargetConstants/' + cleanGeoId])
+      ) : undefined;
+      const directCpcObj = k.geoCpc ? (
+        k.geoCpc[cleanGeoId] || k.geoCpc[targetGeoId] || k.geoCpc['geoTargetConstants/' + cleanGeoId]
+      ) : undefined;
+      const directLocLowCpc = directCpcObj?.lowCpc;
+      const directLocHighCpc = directCpcObj?.highCpc;
 
       if (directLocVol !== undefined) {
         return {
