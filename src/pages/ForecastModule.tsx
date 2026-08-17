@@ -499,6 +499,12 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   const [selectedKeywordIds, setSelectedKeywordIds] = useState<Set<string>>(new Set());
   const [newKeywordInput, setNewKeywordInput] = useState<string>('');
 
+  // Target Locations (Google Keyword Planner Style Engine)
+  const [selectedLocations, setSelectedLocations] = useState<GeoTargetLocation[]>(DEFAULT_LOCATIONS);
+  const [locationSearchQuery, setLocationSearchQuery] = useState<string>('');
+  const [locationSearchResults, setLocationSearchResults] = useState<GeoTargetLocation[]>([]);
+  const [isSearchingLocations, setIsSearchingLocations] = useState<boolean>(false);
+
   // Step 1: Master-Detail Clustering & Data Grid State
   const [activeClusterId, setActiveClusterId] = useState<string>('ALL');
   const [step1SortBy, setStep1SortBy] = useState<'VOLUME' | 'CPC_LOW' | 'CPC_HIGH' | 'ALPHABETICAL'>('VOLUME');
@@ -507,9 +513,33 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   const [activeLocationScope, setActiveLocationScope] = useState<string>('ALL');
   const [hoveredKwGeoId, setHoveredKwGeoId] = useState<string | null>(null);
 
+  // Keywords normalized with exact multi-location summed volume if geoVolumes exists
+  const normalizedKeywords = useMemo(() => {
+    const activeGeoIds = new Set(selectedLocations.map(l => String(l.id)));
+    return keywords.map(k => {
+      if (k.geoVolumes && Object.keys(k.geoVolumes).length > 0) {
+        let sumGeo = 0;
+        let hasMatchingGeo = false;
+        for (const [gId, vol] of Object.entries(k.geoVolumes)) {
+          if (activeGeoIds.size === 0 || activeGeoIds.has(String(gId))) {
+            sumGeo += (Number(vol) || 0);
+            hasMatchingGeo = true;
+          }
+        }
+        if (hasMatchingGeo && sumGeo > 0) {
+          return {
+            ...k,
+            monthlyVolume: sumGeo
+          };
+        }
+      }
+      return k;
+    });
+  }, [keywords, selectedLocations]);
+
   // Semantic Clusters (Base Raw Clusters)
   const baseKeywordClusters = useMemo(() => {
-    const rawClusters = groupKeywordsSemantically(keywords);
+    const rawClusters = groupKeywordsSemantically(normalizedKeywords);
     return rawClusters.map(cluster => {
       const selectedInCluster = cluster.keywords.filter(k => selectedKeywordIds.has(k.id)).length;
       return {
@@ -517,9 +547,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         selectedCount: selectedInCluster
       };
     });
-  }, [keywords, selectedKeywordIds]);
-
-
+  }, [normalizedKeywords, selectedKeywordIds]);
 
   const toggleGroupSelection = (cluster: { id: string; keywords: KeywordMetric[] }) => {
     const next = new Set(selectedKeywordIds);
@@ -533,12 +561,6 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     }
     setSelectedKeywordIds(next);
   };
-
-  // Step 2: Target Locations (Google Keyword Planner Style Engine)
-  const [selectedLocations, setSelectedLocations] = useState<GeoTargetLocation[]>(DEFAULT_LOCATIONS);
-  const [locationSearchQuery, setLocationSearchQuery] = useState<string>('');
-  const [locationSearchResults, setLocationSearchResults] = useState<GeoTargetLocation[]>([]);
-  const [isSearchingLocations, setIsSearchingLocations] = useState<boolean>(false);
 
   // Saved Custom Location Presets State
   const [savedLocationPresets, setSavedLocationPresets] = useState<SavedLocationPreset[]>(() => {
@@ -1671,30 +1693,6 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     }, 0);
     return weightedSum / totalVol;
   }, [selectedLocations]);
-
-  // Keywords normalized with exact multi-location summed volume if geoVolumes exists
-  const normalizedKeywords = useMemo(() => {
-    const activeGeoIds = new Set(selectedLocations.map(l => String(l.id)));
-    return keywords.map(k => {
-      if (k.geoVolumes && Object.keys(k.geoVolumes).length > 0) {
-        let sumGeo = 0;
-        let hasMatchingGeo = false;
-        for (const [gId, vol] of Object.entries(k.geoVolumes)) {
-          if (activeGeoIds.size === 0 || activeGeoIds.has(String(gId))) {
-            sumGeo += (Number(vol) || 0);
-            hasMatchingGeo = true;
-          }
-        }
-        if (hasMatchingGeo && sumGeo > 0) {
-          return {
-            ...k,
-            monthlyVolume: sumGeo
-          };
-        }
-      }
-      return k;
-    });
-  }, [keywords, selectedLocations]);
 
   // Selected Keyword Pool for Simulation
   const selectedKeywordsPool = useMemo(() => {

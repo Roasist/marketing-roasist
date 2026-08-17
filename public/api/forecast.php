@@ -954,7 +954,7 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
     $keywordIndexMap = [];
     $parsedKeywords = [];
 
-    $parseResults = function($adsJson, $isFromSeedCall = false) use (&$parsedKeywords, &$keywordIndexMap, $seedKeys) {
+    $parseResults = function($adsJson, $isFromSeedCall = false, $currentGeos = []) use (&$parsedKeywords, &$keywordIndexMap, $seedKeys) {
         if (empty($adsJson['results'])) return;
         foreach ($adsJson['results'] as $idx => $r) {
             $kwText = trim($r['text'] ?? '');
@@ -977,6 +977,12 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
                 }
                 if ($highBid > 0) {
                     $parsedKeywords[$pos]['highCpc'] = max($parsedKeywords[$pos]['highCpc'], $highBid);
+                }
+                foreach ($currentGeos as $g) {
+                    $gId = preg_replace('/[^0-9]/', '', $g);
+                    if ($gId) {
+                        $parsedKeywords[$pos]['geoVolumes'][$gId] = ($parsedKeywords[$pos]['geoVolumes'][$gId] ?? 0) + $avgVol;
+                    }
                 }
                 continue;
             }
@@ -1037,6 +1043,14 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
                               ($intent === 'TRANSACTIONAL' && $oppScore >= 80) || 
                               ($intent === 'COMMERCIAL' && $oppScore >= 94);
 
+            $initGeoVolumes = [];
+            foreach ($currentGeos as $g) {
+                $gId = preg_replace('/[^0-9]/', '', $g);
+                if ($gId) {
+                    $initGeoVolumes[$gId] = $avgVol;
+                }
+            }
+
             $keywordIndexMap[$kwKey] = count($parsedKeywords);
             $parsedKeywords[] = [
                 'id' => ($isAiStrategist ? 'ai_strat_' : 'ads_kw_') . (count($parsedKeywords) + 1) . '_' . substr(md5($kwText), 0, 6),
@@ -1049,12 +1063,13 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
                 'intent' => $intent,
                 'trendChangePercent' => $trendChange,
                 'opportunityScore' => $oppScore,
-                'isAiStrategistPick' => $isAiStrategist
+                'isAiStrategistPick' => $isAiStrategist,
+                'geoVolumes' => $initGeoVolumes
             ];
         }
     };
 
-    $geoChunks = count($finalGeoList) > 2 ? array_chunk($finalGeoList, 2) : [$finalGeoList];
+    $geoChunks = count($finalGeoList) > 4 ? array_chunk($finalGeoList, 4) : [$finalGeoList];
 
     // 1. If URL is present, query Google Ads API with siteSeed ("Use the entire site") and urlSeed ("Use this page")
     $cleanSiteUrl = '';
@@ -1075,7 +1090,7 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
                 "urlSeed" => ["url" => $url]
             ];
             $urlRes = $callGoogleAdsApi($urlPayload);
-            $parseResults($urlRes, false);
+            $parseResults($urlRes, false, $gc);
 
             // 1.2 siteSeed: Subdomain / Site URL ("Use the entire site")
             $sitePayload = [
@@ -1085,13 +1100,12 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
                 "siteSeed" => ["siteUrl" => $cleanSiteUrl]
             ];
             $siteRes = $callGoogleAdsApi($sitePayload);
-            $parseResults($siteRes, false);
-            if (count($parsedKeywords) >= 100) break;
+            $parseResults($siteRes, false, $gc);
         }
 
         // 1.3 If urlSeed and siteSeed returned few results (< 20) with target language, also try with Turkish (1037)
         if (count($parsedKeywords) < 20 && $langConst !== 'languageConstants/1037') {
-            foreach (array_slice($geoChunks, 0, 2) as $gc) {
+            foreach ($geoChunks as $gc) {
                 $urlTrPayload = [
                     "keywordPlanNetwork" => "GOOGLE_SEARCH",
                     "language" => "languageConstants/1037",
@@ -1099,7 +1113,7 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
                     "urlSeed" => ["url" => $url]
                 ];
                 $urlTrRes = $callGoogleAdsApi($urlTrPayload);
-                $parseResults($urlTrRes, false);
+                $parseResults($urlTrRes, false, $gc);
 
                 $siteTrPayload = [
                     "keywordPlanNetwork" => "GOOGLE_SEARCH",
@@ -1108,7 +1122,7 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
                     "siteSeed" => ["siteUrl" => $cleanSiteUrl]
                 ];
                 $siteTrRes = $callGoogleAdsApi($siteTrPayload);
-                $parseResults($siteTrRes, false);
+                $parseResults($siteTrRes, false, $gc);
             }
         }
 
@@ -1118,7 +1132,7 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
         if (count($hostParts) > 2 && count($parsedKeywords) < 50) {
             $rootHost = implode('.', array_slice($hostParts, -2));
             $rootSiteUrl = 'https://' . $rootHost;
-            foreach (array_slice($geoChunks, 0, 2) as $gc) {
+            foreach ($geoChunks as $gc) {
                 $rootPayload = [
                     "keywordPlanNetwork" => "GOOGLE_SEARCH",
                     "language" => $langConst,
@@ -1126,7 +1140,7 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
                     "siteSeed" => ["siteUrl" => $rootSiteUrl]
                 ];
                 $rootRes = $callGoogleAdsApi($rootPayload);
-                $parseResults($rootRes, false);
+                $parseResults($rootRes, false, $gc);
             }
         }
     }
@@ -1144,7 +1158,7 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
                     "keywordSeed" => ["keywords" => $uniqueSeeds]
                 ];
                 $seedRes = $callGoogleAdsApi($seedPayload);
-                $parseResults($seedRes, true);
+                $parseResults($seedRes, true, $gc);
             }
         }
     }
