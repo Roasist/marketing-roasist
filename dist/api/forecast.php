@@ -568,7 +568,17 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
         $siteUrl = preg_replace('/[\/\?].*$/', '', $siteUrl);
         $cleanSiteUrl = 'https://' . $siteUrl;
 
-        // 1.1 siteSeed: Mirrors Google Ads UI "Use the entire site" (Returns full 380 keywords!)
+        // 1.1 urlSeed: Exact Page URL ("Use only this page" as in Google Ads Keyword Planner UI)
+        $urlPayload = [
+            "keywordPlanNetwork" => "GOOGLE_SEARCH",
+            "language" => $langConst,
+            "geoTargetConstants" => $finalGeoList,
+            "urlSeed" => ["url" => $url]
+        ];
+        $urlRes = $callGoogleAdsApi($urlPayload);
+        $parseResults($urlRes, false);
+
+        // 1.2 siteSeed: Subdomain / Site URL ("Use the entire site")
         $sitePayload = [
             "keywordPlanNetwork" => "GOOGLE_SEARCH",
             "language" => $langConst,
@@ -578,7 +588,29 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
         $siteRes = $callGoogleAdsApi($sitePayload);
         $parseResults($siteRes, false);
 
-        // 1.3 If subdomain siteSeed or urlSeed returned few results, query root domain (e.g. 23projects.net)
+        // 1.3 If urlSeed and siteSeed returned few results (< 20) with target language, also try with Turkish (1037)
+        // (Google Ads Keyword Planner UI default in Turkey returns full 385 ideas even for foreign content)
+        if (count($parsedKeywords) < 20 && $langConst !== 'languageConstants/1037') {
+            $urlTrPayload = [
+                "keywordPlanNetwork" => "GOOGLE_SEARCH",
+                "language" => "languageConstants/1037",
+                "geoTargetConstants" => $finalGeoList,
+                "urlSeed" => ["url" => $url]
+            ];
+            $urlTrRes = $callGoogleAdsApi($urlTrPayload);
+            $parseResults($urlTrRes, false);
+
+            $siteTrPayload = [
+                "keywordPlanNetwork" => "GOOGLE_SEARCH",
+                "language" => "languageConstants/1037",
+                "geoTargetConstants" => $finalGeoList,
+                "siteSeed" => ["siteUrl" => $cleanSiteUrl]
+            ];
+            $siteTrRes = $callGoogleAdsApi($siteTrPayload);
+            $parseResults($siteTrRes, false);
+        }
+
+        // 1.4 If subdomain siteSeed or urlSeed returned few results, query root domain (e.g. 23projects.net)
         $host = parse_url($cleanSiteUrl, PHP_URL_HOST) ?: $siteUrl;
         $hostParts = explode('.', $host);
         if (count($hostParts) > 2) {
@@ -1862,7 +1894,7 @@ if ($action === 'discover' && $method === 'POST') {
         exit;
     }
 
-    $cacheKey = md5("forecast_v21_{$mode}_{$query}_" . ($requestedLanguage ?: 'auto') . '_' . ($requestedCountryCode ?: 'auto') . '_' . implode('_', (array)$requestedGeoTargetConstants));
+    $cacheKey = md5("forecast_v22_{$mode}_{$query}_" . ($requestedLanguage ?: 'auto') . '_' . ($requestedCountryCode ?: 'auto') . '_' . implode('_', (array)$requestedGeoTargetConstants));
 
     // 1. Check Server-Side Cache
     $stmtCache = $pdo->prepare("SELECT data, created_at FROM keyword_cache WHERE cache_key = ?");
