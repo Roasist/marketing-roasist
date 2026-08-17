@@ -237,47 +237,47 @@ export const groupKeywordsSemantically = (kwList: KeywordMetric[]): KeywordClust
 
   // 2. High-converting Multi-Lingual STAG Theme Rules (Russian, Turkish, English, German, Arabic)
   const stagRules = [
-    // 1. Yatırım, Vatandaşlık & İkamet (Citizenship, Passport & Residency / ВНЖ и Гражданство)
-    {
-      id: 'stag_citizenship_investment',
-      name: '🏛️ Yatırım, Vatandaşlık & İkamet (ВНЖ)',
-      icon: '🏛️',
-      regex: /(?:^|[^\p{L}\p{N}])(гражданств|гражданство|паспорт|внж|пмж|икамет|инвестиц|инвестиции|инвестор|вид на жительство|резидент|резидентство|миграц|переезд|эмиграц|турецкий паспорт|паспорт турции|vatandaşlık|vatandaslik|pasaport|yatırım|yatirim|ikamet|oturum|oturum izni|ikamet izni|yatırımcı|citizenship|passport|investment|investor|residency|residence permit|golden visa|cbi|immigrate|immigration|staatsbürgerschaft|pass|reisepass|investition|aufenthalt|aufenthaltstitel|residenz|einbürgerung)(?:[^\p{L}\p{N}]|$)/ui
-    },
-    // 2. Pricing, Costs, Packages & Fees (Цены, Расходы & Стоимость / Fiyat & Maliyet)
+    // 1. Pricing, Costs, Packages & Fees (Цены, Расходы & Стоимость / Fiyat & Maliyet)
     {
       id: 'stag_pricing',
       name: '💰 Fiyat, Paket & Maliyetler',
       icon: '💰',
       regex: /(?:^|[^\p{L}\p{N}])(fiyat|fiyatı|fiyatları|fiyat listesi|ücret|ücreti|ücretleri|maliyet|maliyeti|paket|paketleri|kaç para|ne kadar|masraf|harç|teklif al|bütçe|hesaplama|price|prices|pricing|cost|costs|fee|fees|package|packages|how much|budget|cheap|affordable|quote|rates|calculator|preise|preis|kosten|gebühr|gebühren|цена|цены|цену|ценам|стоимост|стоимость|сколько стоит|расход|расходы|пошлин|пошлина|пошлины|тариф|тарифы|дешев|дешево|недорог|недорого|прайс|angebot)(?:[^\p{L}\p{N}]|$)/ui
     },
-    // 3. Real Estate, Apartments, Villas & Property (Недвижимость & Квартиры / Gayrimenkul & Konut)
+    // 2. Reviews, Best, Recommendations & Comparisons (Лучшие, Отзывы & Опыт)
     {
-      id: 'stag_realestate',
-      name: '🏢 Gayrimenkul, Konut & Daireler',
-      icon: '🏢',
-      regex: /(?:^|[^\p{L}\p{N}])(satılık daire|satılık konut|satılık villa|satılık mülk|satılık ev|kiralık daire|kiralık villa|konut projeleri|emlak|gayrimenkul|satılık|kiralık|daire|villa|ev|mülk|proje|rezidans|arsa|satın al|yazlık|penthouse|недвижим|недвижимость|недвижимости|квартир|квартира|квартиры|квартиру|вилл|вилла|виллы|дом|дома|жиль|жилье|новостройк|новостройка|новостройки|жк|жилой комплекс|апартамент|апартаменты|купить|покупк|покупка|застройщик|property|properties|real estate|wohnung|wohnungen|immobilien|apartment|apartments|villas|house|houses|flat|flats|buy property|for sale)(?:[^\p{L}\p{N}]|$)/ui
+      id: 'stag_reviews',
+      name: '⭐ En İyi, Tavsiye & Yorumlar',
+      icon: '⭐',
+      regex: /(?:^|[^\p{L}\p{N}])(best|top|top rated|reviews|review|before and after|before & after|rating|ratings|comparison|compare|pros and cons|trusted|experience|forum|testimonials|en iyi|en uygun|tavsiye|tavsiyeleri|yorum|yorumları|yorumlar|şikayet|karşılaştırma|güvenilir|tecrübe|deneyim|erfahrungen|bewertung|erfahrung|vergleich|отзывы|отзыв|лучший|лучшие|лучш|рейтинг|плюсы и минусы|опыт|форум|надежн|надежный|проверенный|сравнение|реальный опыт|kaliteli)(?:[^\p{L}\p{N}]|$)/ui
     },
-    // 4. Lead Generation, Booking, Legal, Application & Admissions (Оформление, Условия & Юристы)
+    // 3. Lead Generation, Booking, Legal, Application & Admissions (Оформление, Условия & Юристы)
     {
       id: 'stag_booking_leads',
       name: '🪝 Başvuru, Şartlar & Danışmanlık',
       icon: '🪝',
       regex: /(?:^|[^\p{L}\p{N}])(rezervasyon|booking|randevu|randevu al|ön kayıt|bursluluk|bursluluk sınavı|kayıt|kayıtları|başvuru|başvurusu|başvuruları|şart|şartlar|şartları|evrak|evraklar|gerekli|süreç|nasıl alınır|danışmanlık|avukat|hizmet|hizmetleri|işlemleri|hukuk|koşulları|appointment|free consultation|consultation|consulting|lawyer|legal|services|agency|firm|quote|status|requirements|conditions|documents|process|procedure|how to get|how to apply|eligibility|turnkey|buchen|anmelden|beratung|antrag|beantragen|voraussetzungen|dokumente|оформлен|оформление|получен|получение|получить|подать|подача|услови|условия|требован|требования|документ|документы|закон|процедур|процедура|как получить|консультац|консультация|юрист|адвокат|агентств|агентство|услуг|услуги|под ключ|сроки|статус|проверить|проверка)(?:[^\p{L}\p{N}]|$)/ui
     },
-    // 5. Geographic & Location Specific Targeting (Города, Регионы & Локации)
+    // 4. Yatırım, Vatandaşlık & İkamet (Citizenship, Passport & Residency / ВНЖ и Гражданство)
+    {
+      id: 'stag_citizenship_investment',
+      name: '🏛️ Yatırım, Vatandaşlık & İkamet (ВНЖ)',
+      icon: '🏛️',
+      regex: /(?:^|[^\p{L}\p{N}])(гражданств|гражданство|паспорт|внж|пмж|икамет|инвестиц|инвестиции|инвестор|вид на жительство|резидент|резидентство|миграц|переезд|эмиграц|турецкий паспорт|паспорт турции|vatandaşlık|vatandaslik|pasaport|yatırım|yatirim|ikamet|oturum|oturum izni|ikamet izni|yatırımcı|citizenship|passport|investment|investor|residency|residence permit|golden visa|cbi|immigrate|immigration|staatsbürgerschaft|pass|reisepass|investition|aufenthalt|aufenthaltstitel|residenz|einbürgerung)(?:[^\p{L}\p{N}]|$)/ui
+    },
+    // 5. Real Estate, Apartments, Villas & Property (Недвижимость & Квартиры / Gayrimenkul & Konut)
+    {
+      id: 'stag_realestate',
+      name: '🏢 Gayrimenkul, Konut & Daireler',
+      icon: '🏢',
+      regex: /(?:^|[^\p{L}\p{N}])(satılık daire|satılık konut|satılık villa|satılık mülk|satılık ev|kiralık daire|kiralık villa|konut projeleri|emlak|gayrimenkul|satılık|kiralık|daire|villa|ev|mülk|proje|rezidans|arsa|satın al|yazlık|penthouse|недвижим|недвижимость|недвижимости|квартир|квартира|квартиры|квартиру|вилл|вилла|виллы|дом|дома|жиль|жилье|новостройк|новостройка|новостройки|жк|жилой комплекс|апартамент|апартаменты|купить|покупк|покупка|застройщик|property|properties|real estate|wohnung|wohnungen|immobilien|apartment|apartments|villas|house|houses|flat|flats|buy property|for sale)(?:[^\p{L}\p{N}]|$)/ui
+    },
+    // 6. Geographic & Location Specific Targeting (Города, Регионы & Локации)
     {
       id: 'stag_locations',
       name: '📍 Lokasyon, Şehir & Bölge Odaklı',
       icon: '📍',
-      regex: /(?:^|[^\p{L}\p{N}])(istanbul|antalya|alanya|bodrum|çeşme|fethiye|marmaris|izmir|ankara|bursa|kocaeli|izmit|yahya kaptan|başiskele|trabzon|adana|eskişehir|cyprus|kıbrıs|girne|kyrenia|dubai|berlin|münih|münchen|frankfurt|köln|hamburg|london|uk|türkiye|turkey|turkish|türkei|türkisch|merkez|şehir merkezi|denize sıfır|sahil|kale içi|kleopatra|mahmutlar|oba|kestel|kargıcak|avsallar|seafront|beachfront|downtown|турци|турция|турции|турцию|турецк|турецкий|турецкая|алань|аланья|аланье|аланьи|аланью|анталь|анталья|анталии|анталию|стамбул|стамбуле|бодрум|мерсин|кипр|дубай|махмутлар|оба|кестель|каргыджак|авсаллар|у моря|первая линия)(?:[^\p{L}\p{N}]|$)/ui
-    },
-    // 6. Reviews, Best, Recommendations & Comparisons (Лучшие, Отзывы & Опыт)
-    {
-      id: 'stag_reviews',
-      name: '⭐ En İyi, Tavsiye & Yorumlar',
-      icon: '⭐',
-      regex: /(?:^|[^\p{L}\p{N}])(best|top|top rated|reviews|review|before and after|before & after|rating|ratings|comparison|compare|pros and cons|trusted|experience|forum|testimonials|en iyi|en uygun|tavsiye|tavsiyeleri|yorum|yorumları|yorumlar|şikayet|karşılaştırma|güvenilir|tecrübe|deneyim|erfahrungen|bewertung|erfahrung|vergleich|отзывы|отзыв|лучший|лучшие|лучш|рейтинг|плюсы и минусы|опыт|форум|надежн|надежный|проверенный|сравнение|реальный опыт|kaliteli)(?:[^\p{L}\p{N}]|$)/ui
+      regex: /(?:^|[^\p{L}\p{N}])(istanbul|antalya|alanya|bodrum|çeşme|fethiye|marmaris|izmir|ankara|bursa|kocaeli|izmit|yahya kaptan|başiskele|trabzon|adana|eskişehir|cyprus|kıbrıs|girne|kyrenia|dubai|berlin|münih|münchen|frankfurt|köln|hamburg|london|uk|türkiye|turkey|turkish|türkei|türkisch|merkez|şehir merkezi|denize sıfır|sahil|kale içi|kleopatra|mahmutlar|oba|kestel|kargıcak|avsallar|seafront|beachfront|downtown|турци|турция|турции|турцию|турецк|турецкий|турецкая|алань|аланья|аланье|аланьи|аланью|анталь|анталья|анталии|анталию|стамбул|стамбуле|бодрум|мерсин|кипр|дубай|махмутlar|оба|кестель|каргыджак|авсалlar|у моря|первая линия)(?:[^\p{L}\p{N}]|$)/ui
     },
     // 7. Hotel, Resorts, Vacation & Accommodation (Отели & Отдых)
     {
