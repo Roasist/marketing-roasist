@@ -985,6 +985,8 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
         }
     };
 
+    $geoChunks = count($finalGeoList) > 2 ? array_chunk($finalGeoList, 2) : [$finalGeoList];
+
     // 1. If URL is present, query Google Ads API with siteSeed ("Use the entire site") and urlSeed ("Use this page")
     $cleanSiteUrl = '';
     if (!empty($url)) {
@@ -995,62 +997,68 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
         $siteUrl = preg_replace('/[\/\?].*$/', '', $siteUrl);
         $cleanSiteUrl = 'https://' . $siteUrl;
 
-        // 1.1 urlSeed: Exact Page URL ("Use only this page" as in Google Ads Keyword Planner UI)
-        $urlPayload = [
-            "keywordPlanNetwork" => "GOOGLE_SEARCH",
-            "language" => $langConst,
-            "geoTargetConstants" => $finalGeoList,
-            "urlSeed" => ["url" => $url]
-        ];
-        $urlRes = $callGoogleAdsApi($urlPayload);
-        $parseResults($urlRes, false);
-
-        // 1.2 siteSeed: Subdomain / Site URL ("Use the entire site")
-        $sitePayload = [
-            "keywordPlanNetwork" => "GOOGLE_SEARCH",
-            "language" => $langConst,
-            "geoTargetConstants" => $finalGeoList,
-            "siteSeed" => ["siteUrl" => $cleanSiteUrl]
-        ];
-        $siteRes = $callGoogleAdsApi($sitePayload);
-        $parseResults($siteRes, false);
-
-        // 1.3 If urlSeed and siteSeed returned few results (< 20) with target language, also try with Turkish (1037)
-        // (Google Ads Keyword Planner UI default in Turkey returns full 385 ideas even for foreign content)
-        if (count($parsedKeywords) < 20 && $langConst !== 'languageConstants/1037') {
-            $urlTrPayload = [
+        foreach ($geoChunks as $gc) {
+            // 1.1 urlSeed: Exact Page URL ("Use only this page" as in Google Ads Keyword Planner UI)
+            $urlPayload = [
                 "keywordPlanNetwork" => "GOOGLE_SEARCH",
-                "language" => "languageConstants/1037",
-                "geoTargetConstants" => $finalGeoList,
+                "language" => $langConst,
+                "geoTargetConstants" => $gc,
                 "urlSeed" => ["url" => $url]
             ];
-            $urlTrRes = $callGoogleAdsApi($urlTrPayload);
-            $parseResults($urlTrRes, false);
+            $urlRes = $callGoogleAdsApi($urlPayload);
+            $parseResults($urlRes, false);
 
-            $siteTrPayload = [
+            // 1.2 siteSeed: Subdomain / Site URL ("Use the entire site")
+            $sitePayload = [
                 "keywordPlanNetwork" => "GOOGLE_SEARCH",
-                "language" => "languageConstants/1037",
-                "geoTargetConstants" => $finalGeoList,
+                "language" => $langConst,
+                "geoTargetConstants" => $gc,
                 "siteSeed" => ["siteUrl" => $cleanSiteUrl]
             ];
-            $siteTrRes = $callGoogleAdsApi($siteTrPayload);
-            $parseResults($siteTrRes, false);
+            $siteRes = $callGoogleAdsApi($sitePayload);
+            $parseResults($siteRes, false);
+            if (count($parsedKeywords) >= 100) break;
+        }
+
+        // 1.3 If urlSeed and siteSeed returned few results (< 20) with target language, also try with Turkish (1037)
+        if (count($parsedKeywords) < 20 && $langConst !== 'languageConstants/1037') {
+            foreach (array_slice($geoChunks, 0, 2) as $gc) {
+                $urlTrPayload = [
+                    "keywordPlanNetwork" => "GOOGLE_SEARCH",
+                    "language" => "languageConstants/1037",
+                    "geoTargetConstants" => $gc,
+                    "urlSeed" => ["url" => $url]
+                ];
+                $urlTrRes = $callGoogleAdsApi($urlTrPayload);
+                $parseResults($urlTrRes, false);
+
+                $siteTrPayload = [
+                    "keywordPlanNetwork" => "GOOGLE_SEARCH",
+                    "language" => "languageConstants/1037",
+                    "geoTargetConstants" => $gc,
+                    "siteSeed" => ["siteUrl" => $cleanSiteUrl]
+                ];
+                $siteTrRes = $callGoogleAdsApi($siteTrPayload);
+                $parseResults($siteTrRes, false);
+            }
         }
 
         // 1.4 If subdomain siteSeed or urlSeed returned few results, query root domain (e.g. 23projects.net)
         $host = parse_url($cleanSiteUrl, PHP_URL_HOST) ?: $siteUrl;
         $hostParts = explode('.', $host);
-        if (count($hostParts) > 2) {
+        if (count($hostParts) > 2 && count($parsedKeywords) < 50) {
             $rootHost = implode('.', array_slice($hostParts, -2));
             $rootSiteUrl = 'https://' . $rootHost;
-            $rootPayload = [
-                "keywordPlanNetwork" => "GOOGLE_SEARCH",
-                "language" => $langConst,
-                "geoTargetConstants" => $finalGeoList,
-                "siteSeed" => ["siteUrl" => $rootSiteUrl]
-            ];
-            $rootRes = $callGoogleAdsApi($rootPayload);
-            $parseResults($rootRes, false);
+            foreach (array_slice($geoChunks, 0, 2) as $gc) {
+                $rootPayload = [
+                    "keywordPlanNetwork" => "GOOGLE_SEARCH",
+                    "language" => $langConst,
+                    "geoTargetConstants" => $gc,
+                    "siteSeed" => ["siteUrl" => $rootSiteUrl]
+                ];
+                $rootRes = $callGoogleAdsApi($rootPayload);
+                $parseResults($rootRes, false);
+            }
         }
     }
 
@@ -1059,14 +1067,16 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
     if (!empty($keywords) && is_array($keywords) && count($keywords) > 0) {
         $uniqueSeeds = array_slice(array_values(array_unique(array_filter($keywords))), 0, 20);
         if (!empty($uniqueSeeds)) {
-            $seedPayload = [
-                "keywordPlanNetwork" => "GOOGLE_SEARCH",
-                "language" => $langConst,
-                "geoTargetConstants" => $finalGeoList,
-                "keywordSeed" => ["keywords" => $uniqueSeeds]
-            ];
-            $seedRes = $callGoogleAdsApi($seedPayload);
-            $parseResults($seedRes, true);
+            foreach ($geoChunks as $gc) {
+                $seedPayload = [
+                    "keywordPlanNetwork" => "GOOGLE_SEARCH",
+                    "language" => $langConst,
+                    "geoTargetConstants" => $gc,
+                    "keywordSeed" => ["keywords" => $uniqueSeeds]
+                ];
+                $seedRes = $callGoogleAdsApi($seedPayload);
+                $parseResults($seedRes, true);
+            }
         }
     }
 
