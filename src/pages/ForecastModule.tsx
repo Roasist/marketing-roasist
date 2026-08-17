@@ -2009,12 +2009,20 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     if (selectedLocations.length === 0) return [];
 
     const totalOfficialVol = selectedLocations.reduce((sum, loc) => {
-      const off = officialLocationBreakdown.find(b => (b as any).id === loc.id || b.name.toLowerCase() === loc.name.toLowerCase() || b.code === loc.countryCode);
+      const off = officialLocationBreakdown.find(b => 
+        String((b as any).id) === String(loc.id) || 
+        b.name.toLowerCase() === loc.name.toLowerCase() ||
+        (loc.canonicalName && b.canonicalName && b.canonicalName.toLowerCase() === loc.canonicalName.toLowerCase())
+      );
       return sum + (off?.monthlyVolume || 0);
     }, 0);
 
     const items = selectedLocations.map(loc => {
-      const off = officialLocationBreakdown.find(b => (b as any).id === loc.id || b.name.toLowerCase() === loc.name.toLowerCase() || b.code === loc.countryCode);
+      const off = officialLocationBreakdown.find(b => 
+        String((b as any).id) === String(loc.id) || 
+        b.name.toLowerCase() === loc.name.toLowerCase() ||
+        (loc.canonicalName && b.canonicalName && b.canonicalName.toLowerCase() === loc.canonicalName.toLowerCase())
+      );
       
       let cVol = off?.monthlyVolume;
       let cCpc = off?.avgCpc;

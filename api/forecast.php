@@ -408,10 +408,10 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
             "geoTargetConstants" => [$geoResource]
         ];
 
-        if ($mode === 'URL' && !empty($query) && preg_match('/^https?:\/\//i', $query)) {
+        if (!empty($topSeeds)) {
+            $payload["keywordSeed"] = ["keywords" => array_slice($topSeeds, 0, 15)];
+        } elseif ($mode === 'URL' && !empty($query) && preg_match('/^https?:\/\//i', $query)) {
             $payload["urlSeed"] = ["url" => $query];
-        } elseif (!empty($topSeeds)) {
-            $payload["keywordSeed"] = ["keywords" => array_slice($topSeeds, 0, 10)];
         } else {
             $cleanSite = preg_replace('/^https?:\/\//i', '', $query);
             $cleanSite = preg_replace('/^www\./i', '', $cleanSite);

@@ -55,8 +55,10 @@ export interface SavedLocationPreset {
 export type GrowthScenario = 'CONSERVATIVE' | 'REALISTIC' | 'AGGRESSIVE';
 
 export interface CountryMetric {
+  id?: string;
   code: string;
   name: string;
+  canonicalName?: string;
   flag: string;
   sharePercent: number;
   monthlyVolume: number;
