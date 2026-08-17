@@ -303,117 +303,96 @@ export const groupKeywordsSemantically = (kwList: KeywordMetric[]): KeywordClust
 
   // 2. High-converting Granular STAG Theme Rules (Multi-Lingual: Russian, Turkish, English, German, Arabic)
   const stagRules = [
-    // 1. Fiyat, Harç & Maliyetler (Pricing, Costs & Investment Amount)
-    {
-      id: 'stag_pricing',
-      name: '💰 Fiyat, Harç & Maliyetler',
-      icon: '💰',
-      regex: /(?:^|[^\p{L}\p{N}])(цена|цены|цену|ценам|стоимост|стоимость|сколько стоит|расход|расходы|пошлин|пошлина|пошлины|тариф|тарифы|дешев|дешево|недорог|недорого|прайс|минимальн|fiyat|fiyatı|fiyatları|ücret|ücreti|ücretleri|maliyet|maliyeti|paket|paketleri|kaç para|ne kadar|masraf|harç|teklif al|bütçe|hesaplama|price|prices|pricing|cost|costs|fee|fees|package|packages|how much|budget|cheap|affordable|quote|rates|calculator|preise|preis|kosten|gebühr)(?:[^\p{L}\p{N}]|$)/ui
-    },
-    // 2. Yatırım Yoluyla Vatandaşlık & CBI (Citizenship by Investment)
+    // 1. Yatırım Yoluyla Vatandaşlık & CBI (Citizenship by Investment)
     {
       id: 'stag_cbi_investment',
       name: '💎 Yatırım Yoluyla Vatandaşlık (CBI)',
       icon: '💎',
-      regex: /(?:^|[^\p{L}\p{N}])(за инвестиции|через инвестиции|инвестиции в недвижимость|инвестиционн|инвестиции|инвестор|инвесторов|инвестировать|yatırım yoluyla|yatırımla|yatırım ile|yatırımcı|gayrimenkul yatırımı|citizenship by investment|golden visa|cbi|investor visa|invest in property|investition|investor)(?:[^\p{L}\p{N}]|$)/ui
+      regex: /(?:^|[^\p{L}\p{N}])(за инвестиции|через инвестиции|инвестиции в недвижимость|инвестиционн|инвестиции|инвестор|инвесторов|инвестировать|yatırım yoluyla|yatırımla|yatırım ile|yatırımcı|gayrimenkul yatırımı|citizenship by investment|golden visa|cbi|investor visa|invest in property|investition|investor|عن طريق الإستثمار|عبر الإستثمار|استثمار|استثماري|عقاري|فيزا ذهبية|إقامة مستثمر|از طریق سرمایه‌گذاری|سرمایه‌گذاری|سرمایه گذاری|سرمایه گذار|ویزای طلایی)(?:[^\p{L}\p{N}]|$)/ui
     },
-    // 3. Gayrimenkul & Daire Satın Alma (Real Estate & Property Buying)
+    // 2. Fiyat, Harç & Maliyetler (Pricing, Costs & Investment Amount)
+    {
+      id: 'stag_pricing',
+      name: '💰 Fiyat, Harç & Uygun Seçenekler',
+      icon: '💰',
+      regex: /(?:^|[^\p{L}\p{N}])(цена|цены|цену|ценам|стоимост|стоимость|сколько стоит|расход|расходы|пошлин|пошлина|пошлины|тариф|тарифы|дешев|дешево|недорог|недорого|прайс|минимальн|fiyat|fiyatı|fiyatları|ücret|ücreti|ücretleri|maliyet|maliyeti|paket|paketleri|kaç para|ne kadar|masraf|harç|teklif al|bütçe|hesaplama|price|prices|pricing|cost|costs|fee|fees|package|packages|how much|budget|cheap|affordable|quote|rates|calculator|preise|preis|kosten|gebühr|سعر|اسعار|أسعار|تكلفة|تكاليف|رسوم|كم سعر|رخيص|رخيصة|ميزانية|أرخص|قیمت|قیمت‌ها|هزینه|هزینه‌ها|چقدر است|ارزان|ارزان‌ترین|تعرفه)(?:[^\p{L}\p{N}]|$)/ui
+    },
+    // 3. Gayrimenkul & Konut Satın Alma (Real Estate & Property Buying)
     {
       id: 'stag_realestate',
       name: '🏢 Gayrimenkul & Konut Satın Alma',
       icon: '🏢',
-      regex: /(?:^|[^\p{L}\p{N}])(купить квартиру|купить апартаменты|купить дом|купить виллу|купить жилье|купить|покупк|покупка|недвижим|недвижимость|недвижимости|квартир|квартира|квартиры|квартиру|вилл|вилла|виллы|новостройк|новостройка|новостройки|жк|жилой комплекс|апартамент|апартаменты|застройщик|застройщика|собственност|собственность|satılık daire|satılık konut|satılık villa|satılık mülk|satılık ev|kiralık daire|kiralık villa|konut projeleri|emlak|gayrimenkul|satılık|kiralık|daire|villa|ev|mülk|proje|rezidans|arsa|satın al|yazlık|penthouse|real estate|property|properties|apartment|apartments|villas|house|houses|flat|flats|buy property|for sale|wohnung|wohnungen|immobilien|kaufen)(?:[^\p{L}\p{N}]|$)/ui
+      regex: /(?:^|[^\p{L}\p{N}])(купить квартиру|купить апартаменты|купить дом|купить виллу|купить жилье|купить|покупк|покупка|недвижим|недвижимость|недвижимости|квартир|квартира|квартиры|квартиру|вилл|вилла|виллы|новостройк|новостройка|новостройки|жк|жилой комплекс|апартамент|апартаменты|застройщик|застройщика|собственност|собственность|satılık daire|satılık konut|satılık villa|satılık mülk|satılık ev|kiralık daire|kiralık villa|konut projeleri|emlak|gayrimenkul|satılık|kiralık|daire|villa|ev|mülk|proje|rezidans|arsa|satın al|yazlık|penthouse|real estate|property|properties|apartment|apartments|villas|house|houses|flat|flats|buy property|for sale|wohnung|wohnungen|immobilien|kaufen|شراء شقة|شقق للبيع|فلل للبيع|بيوت للبيع|عقارات للبيع|للبيع|للإيجار|شقق|شقة|فلل|فيلا|بيوت|بيت|عقار|عقارات|شراء عقار|مجمع سكني|مشروع|خرید ملک|خرید آپارتمان|خرید خانه|خرید ویلا|املاک|آپارتمان|ویلا|خانه|ملک|برای فروش|اجاره|پروژه)(?:[^\p{L}\p{N}]|$)/ui
     },
-    // 4. Hukuk & Danışmanlık Hizmetleri (Legal, Lawyers & Professional Help)
-    {
-      id: 'stag_legal_services',
-      name: '⚖️ Hukuk, Avukat & Danışmanlık',
-      icon: '⚖️',
-      regex: /(?:^|[^\p{L}\p{N}])(юрист|юристы|юриста|адвокат|адвокаты|агентств|агентство|услуг|услуги|консультац|консультация|помощь|сопровожден|сопровождение|под ключ|специалист|эксперт|avukat|danışmanlık|danışmanı|hukuk|hukuk bürosu|ajans|ajansı|hizmet|hizmetleri|müşavirlik|lawyer|legal|services|agency|firm|consulting|consultant|attorney|expert|turnkey|anwalt|beratung|agentur)(?:[^\p{L}\p{N}]|$)/ui
-    },
-    // 5. Başvuru, Evrak & Statü Kontrolü (Application, Documents & Status)
-    {
-      id: 'stag_application_process',
-      name: '📜 Başvuru, Evrak & Statü Kontrolü',
-      icon: '📜',
-      regex: /(?:^|[^\p{L}\p{N}])(проверить статус|статус внж|статус|проверить|проверка|список документов|документ|документы|документов|пакет документов|подать|подача|подача заявления|анкета|сроки|срок действия|отказ|продлен|продление|şart|şartlar|şartları|evrak|evraklar|gerekli belgeler|gerekli|süreç|nasıl alınır|başvuru|başvurusu|başvuruları|status|requirements|conditions|documents|process|procedure|how to get|how to apply|eligibility|antrag|beantragen|voraussetzungen|dokumente)(?:[^\p{L}\p{N}]|$)/ui
-    },
-    // 6. Turistik İkamet & Tatil (Tourist Residency & Travel)
-    {
-      id: 'stag_tourist_permit',
-      name: '🏖️ Turistik İkamet (ВНЖ)',
-      icon: '🏖️',
-      regex: /(?:^|[^\p{L}\p{N}])(туристическ|туристический|туристического|туризм|турист|путешеств|отдых|отпуск|отель|гостиница|turistik|turizm|tatil|konaklama|otel|tourist|tourism|vacation|holiday|hotel|urlaub|ferien)(?:[^\p{L}\p{N}]|$)/ui
-    },
-    // 7. Göç, Yaşam & Türkiye Rehberi (Living, Relocation & Life in Turkey)
-    {
-      id: 'stag_relocation_life',
-      name: '🌍 Göç, Yaşam & Relokasyon',
-      icon: '🌍',
-      regex: /(?:^|[^\p{L}\p{N}])(жизнь в|жизнь|жизни|уровень жизни|переезд|переехать|эмиграц|эмиграция|иммиграц|иммиграция|релокац|релокация|россияне в|русские в|как переехать|yaşam|yaşam şartları|göç|yerleşim|living in|relocation|relocate|immigrate|leben in|auswandern)(?:[^\p{L}\p{N}]|$)/ui
-    },
-    // 8. En İyi, Yorumlar & Tecrübeler (Reviews, Experiences & Best)
-    {
-      id: 'stag_reviews',
-      name: '⭐ En İyi, Yorumlar & Tecrübeler',
-      icon: '⭐',
-      regex: /(?:^|[^\p{L}\p{N}])(отзывы|отзыв|лучший|лучшие|лучш|рейтинг|плюсы и минусы|опыт|форум|надежн|надежный|проверенный|сравнение|реальный опыт|истории|история|en iyi|en uygun|tavsiye|tavsiyeleri|yorum|yorumları|yorumlar|şikayet|karşılaştırma|güvenilir|tecrübe|deneyim|best|top|top rated|reviews|review|before and after|rating|ratings|comparison|compare|pros and cons|trusted|experience|forum|testimonials|erfahrungen|bewertung|erfahrung|vergleich)(?:[^\p{L}\p{N}]|$)/ui
-    },
-    // 9. Türk Vatandaşlığı & Pasaport (Citizenship & Passport)
+    // 4. Türk Vatandaşlığı & Pasaport (Citizenship & Passport)
     {
       id: 'stag_citizenship_passport',
       name: '🏛️ Türk Vatandaşlığı & Pasaport',
       icon: '🏛️',
-      regex: /(?:^|[^\p{L}\p{N}])(гражданств|гражданство|гражданства|паспорт|паспорта|турецкое гражданство|паспорт турции|vatandaşlık|vatandaslik|pasaport|türk vatandaşlığı|citizenship|passport|turkish citizenship|turkish passport|staatsbürgerschaft|pass|reisepass)(?:[^\p{L}\p{N}]|$)/ui
+      regex: /(?:^|[^\p{L}\p{N}])(гражданств|гражданство|гражданства|паспорт|паспорта|турецкое гражданство|паспорт турции|vatandaşlık|vatandaslik|pasaport|türk vatandaşlığı|citizenship|passport|turkish citizenship|turkish passport|staatsbürgerschaft|pass|reisepass|الجنسية التركية|جواز سفر تركي|جواز السفر|الجنسية|جنسية|جواز سفر|شهروندی ترکیه|پاسپورت ترکیه|شهروندی|تابعیت|پاسپورت)(?:[^\p{L}\p{N}]|$)/ui
     },
-    // 10. İkamet İzni & Oturum (Residency & Residence Permit / ВНЖ и ПМЖ)
+    // 5. İkamet İzni & Oturum (Residency & Residence Permit / ВНЖ и ПМЖ)
     {
       id: 'stag_residency_permit',
       name: '🪪 İkamet İzni & Oturum (ВНЖ)',
       icon: '🪪',
-      regex: /(?:^|[^\p{L}\p{N}])(внж|пмж|икамет|вид на жительство|ikamet|oturum|oturum izni|ikamet izni|residence permit|residency|residence|aufenthalt|aufenthaltstitel|residenz)(?:[^\p{L}\p{N}]|$)/ui
+      regex: /(?:^|[^\p{L}\p{N}])(внж|пмж|икамет|вид на жительство|ikamet|oturum|oturum izni|ikamet izni|residence permit|residency|residence|aufenthalt|aufenthaltstitel|residenz|إقامة|اقامة|إقامة سياحية|إقامة عقارية|تصريح إقامة|إقامة في تركيا|اقامت|اقامت ترکیه|اقامت توریستی|اقامت ملکی|کارت کیملیک)(?:[^\p{L}\p{N}]|$)/ui
     },
-    // 11. Lokasyon: Alanya, Antalya & Bölge (Location Specific)
+    // 6. Lokasyon: İstanbul, Alanya, Antalya & Bölge (Location Specific)
     {
       id: 'stag_locations',
-      name: '📍 Lokasyon: Alanya, Antalya & Bölge',
+      name: '📍 Lokasyon: İstanbul, Alanya, Antalya & Bölge',
       icon: '📍',
-      regex: /(?:^|[^\p{L}\p{N}])(алань|аланья|аланье|аланьи|аланью|анталь|анталья|анталии|анталию|стамбул|стамбуле|бодрум|мерсин|махмутlar|оба|кестель|каргыджак|авсалlar|у моря|первая линия|alanya|antalya|istanbul|bodrum|mersin|denize sıfır|seafront|beachfront)(?:[^\p{L}\p{N}]|$)/ui
+      regex: /(?:^|[^\p{L}\p{N}])(алань|аланья|аланье|аланьи|аланью|анталь|анталья|анталии|анталию|стамбул|стамбуле|бодрум|мерсин|махмутlar|оба|кестель|каргыджак|авсалlar|у моря|первая линия|alanya|antalya|istanbul|bodrum|mersin|denize sıfır|seafront|beachfront|اسطنبول|إسطنبول|انطاليا|أنطاليا|الانيا|ألانيا|مرسين|بودروم|بورصة|يلوا|طرابزون|تركيا|استانبول|آنتالیا|آلانیا|مرسین|بدروم|بورسا|ترکیه)(?:[^\p{L}\p{N}]|$)/ui
     },
-    // 12. Otel, Konaklama & Tatil (Hotels & Vacation)
+    // 7. Hukuk & Danışmanlık Hizmetleri (Legal, Lawyers & Professional Help)
+    {
+      id: 'stag_legal_services',
+      name: '⚖️ Hukuk, Avukat & Danışmanlık',
+      icon: '⚖️',
+      regex: /(?:^|[^\p{L}\p{N}])(юрист|юристы|юриста|адвокат|адвокаты|агентств|агентство|услуг|услуги|консультац|консультация|помощь|сопровожден|сопровождение|под ключ|специалист|эксперт|avukat|danışmanlık|danışmanı|hukuk|hukuk bürosu|ajans|ajansı|hizmet|hizmetleri|müşavirlik|lawyer|legal|services|agency|firm|consulting|consultant|attorney|expert|turnkey|anwalt|beratung|agentur|محامي|محامين|استشارة|استشارات|خدمات|مكتب محاماة|وكالة|وكيل|مستشار|وکیل|وکلا|مشاوره|مشاور|دفتر حقوقی|خدمات حقوقی|آژانس)(?:[^\p{L}\p{N}]|$)/ui
+    },
+    // 8. Başvuru, Evrak & Statü Kontrolü (Application, Documents & Status)
+    {
+      id: 'stag_application_process',
+      name: '📜 Başvuru, Evrak & Statü Kontrolü',
+      icon: '📜',
+      regex: /(?:^|[^\p{L}\p{N}])(проверить статус|статус внж|статус|проверить|проверка|список документов|документ|документы|документов|пакет документов|подать|подача|подача заявления|анкета|сроки|срок действия|отказ|продлен|продление|şart|şartlar|şartları|evrak|evraklar|gerekli belgeler|gerekli|süreç|nasıl alınır|başvuru|başvurusu|başvuruları|status|requirements|conditions|documents|process|procedure|how to get|how to apply|eligibility|antrag|beantragen|voraussetzungen|dokumente|شروط|الأوراق المطلوبة|أوراق|مستندات|وثائق|إجراءات|تقديم طلب|استعلام|معاملة|شرایط|مدارک لازم|مدارک|مراحل|نحوه دریافت|درخواست)(?:[^\p{L}\p{N}]|$)/ui
+    },
+    // 9. Göç, Yaşam & Türkiye Rehberi (Living, Relocation & Life in Turkey)
+    {
+      id: 'stag_relocation_life',
+      name: '🌍 Göç, Yaşam & Relokasyon',
+      icon: '🌍',
+      regex: /(?:^|[^\p{L}\p{N}])(жизнь в|жизнь|жизни|уровень жизни|переезд|переехать|эмиграц|эмиграция|иммиграц|иммиграция|релокац|релокация|россияне в|русские в|как переехать|yaşam|yaşam şartları|göç|yerleşim|living in|relocation|relocate|immigrate|leben in|auswandern|العيش في تركيا|الحياة في تركيا|الهجرة إلى تركيا|هجرة|زندگی در ترکیه|مهاجرت به ترکیه|مهاجرت)(?:[^\p{L}\p{N}]|$)/ui
+    },
+    // 10. En İyi, Yorumlar & Tecrübeler (Reviews, Experiences & Best)
+    {
+      id: 'stag_reviews',
+      name: '⭐ En İyi, Yorumlar & Tecrübeler',
+      icon: '⭐',
+      regex: /(?:^|[^\p{L}\p{N}])(отзывы|отзыв|лучший|лучшие|лучш|рейтинг|плюсы и минусы|опыт|форум|надежн|надежный|проверенный|сравнение|реальный опыт|истории|история|en iyi|en uygun|tavsiye|tavsiyeleri|yorum|yorumları|yorumlar|şikayet|karşılaştırma|güvenilir|tecrübe|deneyim|best|top|top rated|reviews|review|before and after|rating|ratings|comparison|compare|pros and cons|trusted|experience|forum|testimonials|erfahrungen|bewertung|erfahrung|vergleich|افضل|تجارب|تقييم|اراء|نصائح|بهترین|نظرات|تجربه|بررسی)(?:[^\p{L}\p{N}]|$)/ui
+    },
+    // 11. Otel, Konaklama & Tatil (Hotels & Vacation)
     {
       id: 'stag_hotel_tourism',
       name: '🏨 Otel, Konaklama & Tatil',
       icon: '🏨',
-      regex: /(?:^|[^\p{L}\p{N}])(hotel|hotels|otel|otelleri|resort|resorts|pansiyon|pansiyonlar|butik otel|boutique hotel|apart otel|apart|all inclusive|her şey dahil|oda kahvaltı|bungalov|glamping|accommodation|stay)(?:[^\p{L}\p{N}]|$)/ui
+      regex: /(?:^|[^\p{L}\p{N}])(hotel|hotels|otel|otelleri|resort|resorts|pansiyon|pansiyonlar|butik otel|boutique hotel|apart otel|apart|all inclusive|her şey dahil|oda kahvaltı|bungalov|glamping|accommodation|stay|فندق|فنادق|منتجع|حجز فندقي|هتل|رزرو هتل|اقامتگاه)(?:[^\p{L}\p{N}]|$)/ui
     },
-    // 13. Klinik, Hastane & Uzmanlar (Medical & Clinics)
+    // 12. Klinik, Hastane & Sağlık (Medical & Clinics)
     {
       id: 'stag_clinics_medical',
       name: '🏥 Klinik, Hastane & Uzmanlar',
       icon: '🏥',
-      regex: /(?:^|[^\p{L}\p{N}])(klinik|kliniği|klinikleri|hastane|hastanesi|doktor|doktoru|doktorları|uzman doktor|cerrah|cerrahı|diş hekimi|sağlık merkezi|tıp merkezi|estetik merkezi|saç ekim merkezi|saç ekimi|diş|estetik|tedavi|ameliyat|clinic|clinics|hospital|hospitals|surgeon|surgeons|physician|hair transplant|dental|aesthetic|surgery|treatment|medical|arzt|zahn|behandlung|клиник|клиника|больниц|больница|врач|хирург|пересадка волос|стоматолог|лечение|операция)(?:[^\p{L}\p{N}]|$)/ui
+      regex: /(?:^|[^\p{L}\p{N}])(klinik|kliniği|klinikleri|hastane|hastanesi|doktor|doktoru|doktorları|uzman doktor|cerrah|cerrahı|diş hekimi|sağlık merkezi|tıp merkezi|estetik merkezi|saç ekim merkezi|saç ekimi|diş|estetik|tedavi|ameliyat|clinic|clinics|hospital|hospitals|surgeon|surgeons|physician|hair transplant|dental|aesthetic|surgery|treatment|medical|arzt|zahn|behandlung|клиник|клиника|больниц|больница|врач|хирург|пересадка волос|стоматолог|лечение|операция|مستشفى|عيادة|طبيب|دكتور|زراعة اسنان|زراعة شعر|تجميل|علاج|کلینیک|بیمارستان|پزشک|دکتر|کاشت مو|ایمپلنت|زیبایی)(?:[^\p{L}\p{N}]|$)/ui
     },
-    // 14. Eğitim, Okul & Kurslar (Education & Schools)
+    // 13. Eğitim, Okul & Kurslar (Education & Schools)
     {
       id: 'stag_education',
       name: '🎓 Eğitim, Okul & Kurslar',
       icon: '🎓',
-      regex: /(?:^|[^\p{L}\p{N}])(okul|okulu|okulları|ilkokul|ortaokul|lise|kolej|koleji|özel okul|butik okul|kurs|kursu|kursları|eğitim|eğitimi|eğitimleri|akademi|dershane|üniversite|öğrenci|school|schul|education|academy|college|university|student|tuition|schule|kolleg|ausbildung|школ|школа|колледж|курс|курсы|обучение|образование|академия|университет|студент)(?:[^\p{L}\p{N}]|$)/ui
-    },
-    // 15. Kariyer & İş İlanları (Careers & Jobs)
-    {
-      id: 'stag_careers',
-      name: '💼 Kariyer & İş İlanları',
-      icon: '💼',
-      regex: /(?:^|[^\p{L}\p{N}])(iş ilanı|iş ilanları|iş arama|eleman ilanı|eleman arayanlar|iş başvurusu|kariyer|istihdam|eleman|personel|job|jobs|career|careers|hiring|recruitment|employment|vacancy|vacancies|karriere|stellenangebot|stellenangebote|arbeit|bewerbung|работ|работа|ваканси|вакансии|трудоустройство|поиск работы|резюме|зарплата)(?:[^\p{L}\p{N}]|$)/ui
-    },
-    // 16. Otomotiv, Yazılım & Performans (Automotive & Tuning)
-    {
-      id: 'stag_automotive',
-      name: '🏎️ Otomotiv, Yazılım & Performans',
-      icon: '🏎️',
-      regex: /(?:^|[^\p{L}\p{N}])(pedalbox|chip tuning|chiptuning|gaz pedalı|gaz pedal|gaz tepki|motor güç|araç yazılım|araç performans|dte systems|тюнинг|чип тюнинг|автомобиль|авто)(?:[^\p{L}\p{N}]|$)/ui
+      regex: /(?:^|[^\p{L}\p{N}])(okul|okulu|okulları|ilkokul|ortaokul|lise|kolej|koleji|özel okul|butik okul|kurs|kursu|kursları|eğitim|eğitimi|eğitimleri|akademi|dershane|üniversite|öğrenci|school|schul|education|academy|college|university|student|tuition|schule|kolleg|ausbildung|школ|школа|колледж|курс|курсы|обучение|образование|академия|университет|студент|جامعة|مدرسة|دورات|تعليم|دراسة|دانشگاه|مدرسه|دوره|آموزش|تحصیل)(?:[^\p{L}\p{N}]|$)/ui
     }
   ];
 
@@ -454,8 +433,59 @@ export const groupKeywordsSemantically = (kwList: KeywordMetric[]): KeywordClust
     }
   }
 
-  // Core Service Variations (Unassigned)
-  if (unassigned.length > 0) {
+  // Dynamic Semantic N-Gram Sub-Clustering for Unassigned Keywords (Guarantees zero grouping failure across any language)
+  if (unassigned.length >= 4) {
+    const stopWords = new Set(['في', 'من', 'على', 'إلى', 'عن', 'مع', 'هذا', 'هذه', 'التي', 'الذي', 'و', 'یا', 'در', 'به', 'از', 'با', 'برای', 'که', 'این', 'آن', 'the', 'in', 'for', 'to', 'at', 'and', 'of', 'a', 'an', 've', 'ile', 'için', 'bir', 'de', 'da', 'bu', 'şu', 'и', 'в', 'на', 'с', 'по', 'для', 'как', 'und', 'der', 'die', 'das', 'mit', 'für', 'von']);
+    const tokenFreq = new Map<string, number>();
+    
+    for (const k of unassigned) {
+      const words = k.keyword.toLowerCase().split(/\s+/).filter(w => w.length >= 3 && !stopWords.has(w));
+      for (const w of words) {
+        tokenFreq.set(w, (tokenFreq.get(w) || 0) + 1);
+      }
+    }
+
+    const sortedTokens = Array.from(tokenFreq.entries())
+      .filter(([_, count]) => count >= 3)
+      .sort((a, b) => b[1] - a[1]);
+
+    const claimedIds = new Set<string>();
+
+    for (const [token] of sortedTokens) {
+      const matched = unassigned.filter(k => !claimedIds.has(k.id) && k.keyword.toLowerCase().includes(token));
+      if (matched.length >= 3) {
+        matched.forEach(k => claimedIds.add(k.id));
+        const capName = token.charAt(0).toUpperCase() + token.slice(1);
+        const vol = matched.reduce((s, k) => s + k.monthlyVolume, 0);
+        const cpcSum = matched.reduce((s, k) => s + ((k.lowCpc + k.highCpc) / 2), 0);
+        clusters.push({
+          id: 'stag_dyn_' + token.replace(/[^a-z0-9]/gi, '_'),
+          name: '✨ ' + capName + ' Teması',
+          icon: '✨',
+          keywords: matched,
+          totalVolume: vol,
+          avgCpc: matched.length > 0 ? cpcSum / matched.length : 0,
+          selectedCount: 0
+        });
+      }
+    }
+
+    // Retain only truly unclustered lone keywords
+    const remainingUnassigned = unassigned.filter(k => !claimedIds.has(k.id));
+    if (remainingUnassigned.length > 0) {
+      const vol = remainingUnassigned.reduce((s, k) => s + k.monthlyVolume, 0);
+      const cpcSum = remainingUnassigned.reduce((s, k) => s + ((k.lowCpc + k.highCpc) / 2), 0);
+      clusters.push({
+        id: 'stag_core_variations',
+        name: '🎯 Genel Varyasyonlar & Diğer',
+        icon: '🎯',
+        keywords: remainingUnassigned,
+        totalVolume: vol,
+        avgCpc: remainingUnassigned.length > 0 ? cpcSum / remainingUnassigned.length : 0,
+        selectedCount: 0
+      });
+    }
+  } else if (unassigned.length > 0) {
     const vol = unassigned.reduce((s, k) => s + k.monthlyVolume, 0);
     const cpcSum = unassigned.reduce((s, k) => s + ((k.lowCpc + k.highCpc) / 2), 0);
     clusters.push({
