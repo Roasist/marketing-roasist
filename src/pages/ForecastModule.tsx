@@ -1270,6 +1270,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         language: targetLanguage !== 'auto' ? targetLanguage : undefined,
         countryCode: selectedLocations[0]?.countryCode || undefined,
         geoTargetConstants: selectedLocations.map(l => l.id),
+        locations: selectedLocations,
       });
 
       clearTimeout(timer1);

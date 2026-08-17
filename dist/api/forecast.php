@@ -2346,9 +2346,10 @@ if ($action === 'discover' && $method === 'POST') {
     }
 
     // Official Real Location Breakdown Calculation from Google Ads API
+    $requestedLocations = $input['locations'] ?? [];
     $locationBreakdown = [];
     if (!empty($requestedGeoTargetConstants) && is_array($requestedGeoTargetConstants) && count($requestedGeoTargetConstants) > 1) {
-        $locationBreakdown = calculateOfficialLocationBreakdown($apiKeys, $query, $actualMode, $officialKeywords, $requestedGeoTargetConstants, $langInfo['code']);
+        $locationBreakdown = calculateOfficialLocationBreakdown($apiKeys, $query, $actualMode, $officialKeywords, $requestedGeoTargetConstants, $langInfo['code'], $requestedLocations);
     }
 
     $result = [
