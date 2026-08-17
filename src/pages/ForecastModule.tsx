@@ -235,77 +235,84 @@ export const groupKeywordsSemantically = (kwList: KeywordMetric[]): KeywordClust
 
   const clusters: KeywordCluster[] = [];
 
-  // 2. High-converting STAG Theme Rules (Strict Priority Order - Each keyword belongs to EXACTLY ONE group)
+  // 2. High-converting Multi-Lingual STAG Theme Rules (Russian, Turkish, English, German, Arabic)
   const stagRules = [
-    // 1. Pricing, Costs, Packages & Fees (Global / Multi-lingual)
+    // 1. Yatırım, Vatandaşlık & İkamet (Citizenship, Passport & Residency / ВНЖ и Гражданство)
+    {
+      id: 'stag_citizenship_investment',
+      name: '🏛️ Yatırım, Vatandaşlık & İkamet (ВНЖ)',
+      icon: '🏛️',
+      regex: /(?:^|[^\p{L}\p{N}])(гражданств|гражданство|паспорт|внж|пмж|икамет|инвестиц|инвестиции|инвестор|вид на жительство|резидент|резидентство|миграц|переезд|эмиграц|турецкий паспорт|паспорт турции|vatandaşlık|vatandaslik|pasaport|yatırım|yatirim|ikamet|oturum|oturum izni|ikamet izni|yatırımcı|citizenship|passport|investment|investor|residency|residence permit|golden visa|cbi|immigrate|immigration|staatsbürgerschaft|pass|reisepass|investition|aufenthalt|aufenthaltstitel|residenz|einbürgerung)(?:[^\p{L}\p{N}]|$)/ui
+    },
+    // 2. Pricing, Costs, Packages & Fees (Цены, Расходы & Стоимость / Fiyat & Maliyet)
     {
       id: 'stag_pricing',
       name: '💰 Fiyat, Paket & Maliyetler',
       icon: '💰',
-      regex: /\b(fiyat|fiyatı|fiyatları|fiyat listesi|ücret|ücreti|ücretleri|maliyet|maliyeti|paket|paketleri|price|prices|pricing|cost|costs|fee|fees|package|packages|how much|preise|preis|kosten|цена|цены|стоимость|angebot|teklif al)\b/i
+      regex: /(?:^|[^\p{L}\p{N}])(fiyat|fiyatı|fiyatları|fiyat listesi|ücret|ücreti|ücretleri|maliyet|maliyeti|paket|paketleri|kaç para|ne kadar|masraf|harç|teklif al|bütçe|hesaplama|price|prices|pricing|cost|costs|fee|fees|package|packages|how much|budget|cheap|affordable|quote|rates|calculator|preise|preis|kosten|gebühr|gebühren|цена|цены|цену|ценам|стоимост|стоимость|сколько стоит|расход|расходы|пошлин|пошлина|пошлины|тариф|тарифы|дешев|дешево|недорог|недорого|прайс|angebot)(?:[^\p{L}\p{N}]|$)/ui
     },
-    // 2. Reviews, Best, Recommendations & Comparisons
-    {
-      id: 'stag_reviews',
-      name: '⭐ En İyi, Tavsiye & Yorumlar',
-      icon: '⭐',
-      regex: /\b(best|top|top rated|reviews|review|before and after|before & after|rating|ratings|en iyi|tavsiye|tavsiyeleri|yorum|yorumları|yorumlar|erfahrungen|bewertung|erfahrung|отзывы|лучший|kaliteli)\b/i
-    },
-    // 3. Lead Generation, Booking, Appointments & Admissions
-    {
-      id: 'stag_booking_leads',
-      name: '🪝 Rezervasyon, Randevu & Başvuru',
-      icon: '🪝',
-      regex: /\b(rezervasyon|booking|randevu|randevu al|ön kayıt|bursluluk|bursluluk sınavı|kayıt|kayıtları|başvuru|başvurusu|appointment|free consultation|consultation|quote|buchen|anmelden|beratung)\b/i
-    },
-    // 4. Hotel, Resorts, Vacation & Accommodation
-    {
-      id: 'stag_hotel_tourism',
-      name: '🏨 Otel, Konaklama & Tatil',
-      icon: '🏨',
-      regex: /\b(hotel|hotels|otel|otelleri|resort|resorts|tatil|konaklama|pansiyon|pansiyonlar|butik otel|boutique hotel|apart otel|apart|all inclusive|her şey dahil|oda kahvaltı|bungalov|glamping|urlaub|ferien|отель|гостиница)\b/i
-    },
-    // 5. Medical Clinics, Hospitals, Doctors & Surgeons (Strict medical terms - NO standalone "merkez"!)
-    {
-      id: 'stag_clinics_medical',
-      name: '🏥 Klinik, Hastane & Uzmanlar',
-      icon: '🏥',
-      regex: /\b(klinik|kliniği|klinikleri|hastane|hastanesi|doktor|doktoru|doktorları|uzman doktor|cerrah|cerrahı|diş hekimi|sağlık merkezi|tıp merkezi|estetik merkezi|saç ekim merkezi|clinic|clinics|hospital|hospitals|surgeon|surgeons|physician)\b/i
-    },
-    // 6. Real Estate, Apartments, Villas & Investments
+    // 3. Real Estate, Apartments, Villas & Property (Недвижимость & Квартиры / Gayrimenkul & Konut)
     {
       id: 'stag_realestate',
-      name: '🏢 Gayrimenkul, Konut & Emlak',
+      name: '🏢 Gayrimenkul, Konut & Daireler',
       icon: '🏢',
-      regex: /\b(satılık daire|satılık konut|satılık villa|satılık mülk|satılık ev|kiralık daire|kiralık villa|konut projeleri|emlak|gayrimenkul|property|properties|real estate|wohnung|immobilien|citizenship|vatandaşlık|pasaport)\b/i
+      regex: /(?:^|[^\p{L}\p{N}])(satılık daire|satılık konut|satılık villa|satılık mülk|satılık ev|kiralık daire|kiralık villa|konut projeleri|emlak|gayrimenkul|satılık|kiralık|daire|villa|ev|mülk|proje|rezidans|arsa|satın al|yazlık|penthouse|недвижим|недвижимость|недвижимости|квартир|квартира|квартиры|квартиру|вилл|вилла|виллы|дом|дома|жиль|жилье|новостройк|новостройка|новостройки|жк|жилой комплекс|апартамент|апартаменты|купить|покупк|покупка|застройщик|property|properties|real estate|wohnung|wohnungen|immobilien|apartment|apartments|villas|house|houses|flat|flats|buy property|for sale)(?:[^\p{L}\p{N}]|$)/ui
     },
-    // 7. Education, Schools & Courses
+    // 4. Lead Generation, Booking, Legal, Application & Admissions (Оформление, Условия & Юристы)
     {
-      id: 'stag_education',
-      name: '🎓 Eğitim, Okul & Kurslar',
-      icon: '🎓',
-      regex: /\b(okul|okulu|okulları|ilkokul|ortaokul|lise|kolej|koleji|özel okul|butik okul|kurs|kursu|kursları|eğitim|eğitimi|eğitimleri|akademi|dershane|school|schul|education|academy)\b/i
+      id: 'stag_booking_leads',
+      name: '🪝 Başvuru, Şartlar & Danışmanlık',
+      icon: '🪝',
+      regex: /(?:^|[^\p{L}\p{N}])(rezervasyon|booking|randevu|randevu al|ön kayıt|bursluluk|bursluluk sınavı|kayıt|kayıtları|başvuru|başvurusu|başvuruları|şart|şartlar|şartları|evrak|evraklar|gerekli|süreç|nasıl alınır|danışmanlık|avukat|hizmet|hizmetleri|işlemleri|hukuk|koşulları|appointment|free consultation|consultation|consulting|lawyer|legal|services|agency|firm|quote|status|requirements|conditions|documents|process|procedure|how to get|how to apply|eligibility|turnkey|buchen|anmelden|beratung|antrag|beantragen|voraussetzungen|dokumente|оформлен|оформление|получен|получение|получить|подать|подача|услови|условия|требован|требования|документ|документы|закон|процедур|процедура|как получить|консультац|консультация|юрист|адвокат|агентств|агентство|услуг|услуги|под ключ|сроки|статус|проверить|проверка)(?:[^\p{L}\p{N}]|$)/ui
     },
-    // 8. Careers, Jobs & Recruitment
-    {
-      id: 'stag_careers',
-      name: '💼 Kariyer & İş İlanları',
-      icon: '💼',
-      regex: /\b(iş ilanı|iş ilanları|iş arama|eleman ilanı|eleman arayanlar|iş başvurusu|kariyer|istihdam|job|jobs|career|karriere|stellenangebot|bewerbung)\b/i
-    },
-    // 9. Automotive, Performance & Tuning
-    {
-      id: 'stag_automotive',
-      name: '🏎️ Otomotiv, Yazılım & Performans',
-      icon: '🏎️',
-      regex: /\b(pedalbox|chip tuning|chiptuning|gaz pedalı|gaz pedal|gaz tepki|motor güç|araç yazılım|araç performans|dte systems)\b/i
-    },
-    // 10. Geographic & Location Specific Targeting
+    // 5. Geographic & Location Specific Targeting (Города, Регионы & Локации)
     {
       id: 'stag_locations',
       name: '📍 Lokasyon, Şehir & Bölge Odaklı',
       icon: '📍',
-      regex: /\b(istanbul|antalya|alanya|bodrum|çeşme|fethiye|marmaris|izmir|ankara|bursa|kocaeli|izmit|yahya kaptan|başiskele|trabzon|adana|eskişehir|cyprus|kıbrıs|girne|kyrenia|dubai|berlin|münih|münchen|frankfurt|köln|hamburg|london|uk|türkiye|turkey|merkez|şehir merkezi|denize sıfır|sahil|kale içi|kleopatra)\b/i
+      regex: /(?:^|[^\p{L}\p{N}])(istanbul|antalya|alanya|bodrum|çeşme|fethiye|marmaris|izmir|ankara|bursa|kocaeli|izmit|yahya kaptan|başiskele|trabzon|adana|eskişehir|cyprus|kıbrıs|girne|kyrenia|dubai|berlin|münih|münchen|frankfurt|köln|hamburg|london|uk|türkiye|turkey|turkish|türkei|türkisch|merkez|şehir merkezi|denize sıfır|sahil|kale içi|kleopatra|mahmutlar|oba|kestel|kargıcak|avsallar|seafront|beachfront|downtown|турци|турция|турции|турцию|турецк|турецкий|турецкая|алань|аланья|аланье|аланьи|аланью|анталь|анталья|анталии|анталию|стамбул|стамбуле|бодрум|мерсин|кипр|дубай|махмутлар|оба|кестель|каргыджак|авсаллар|у моря|первая линия)(?:[^\p{L}\p{N}]|$)/ui
+    },
+    // 6. Reviews, Best, Recommendations & Comparisons (Лучшие, Отзывы & Опыт)
+    {
+      id: 'stag_reviews',
+      name: '⭐ En İyi, Tavsiye & Yorumlar',
+      icon: '⭐',
+      regex: /(?:^|[^\p{L}\p{N}])(best|top|top rated|reviews|review|before and after|before & after|rating|ratings|comparison|compare|pros and cons|trusted|experience|forum|testimonials|en iyi|en uygun|tavsiye|tavsiyeleri|yorum|yorumları|yorumlar|şikayet|karşılaştırma|güvenilir|tecrübe|deneyim|erfahrungen|bewertung|erfahrung|vergleich|отзывы|отзыв|лучший|лучшие|лучш|рейтинг|плюсы и минусы|опыт|форум|надежн|надежный|проверенный|сравнение|реальный опыт|kaliteli)(?:[^\p{L}\p{N}]|$)/ui
+    },
+    // 7. Hotel, Resorts, Vacation & Accommodation (Отели & Отдых)
+    {
+      id: 'stag_hotel_tourism',
+      name: '🏨 Otel, Konaklama & Tatil',
+      icon: '🏨',
+      regex: /(?:^|[^\p{L}\p{N}])(hotel|hotels|otel|otelleri|resort|resorts|tatil|konaklama|pansiyon|pansiyonlar|butik otel|boutique hotel|apart otel|apart|all inclusive|her şey dahil|oda kahvaltı|bungalov|glamping|vacation|holiday|accommodation|stay|urlaub|ferien|отель|отели|гостиница|гостиницы|курорт|отдых|отпуск|проживание|бронирование|все включено)(?:[^\p{L}\p{N}]|$)/ui
+    },
+    // 8. Medical Clinics, Hospitals, Doctors & Surgeons (Медицина & Клиники)
+    {
+      id: 'stag_clinics_medical',
+      name: '🏥 Klinik, Hastane & Uzmanlar',
+      icon: '🏥',
+      regex: /(?:^|[^\p{L}\p{N}])(klinik|kliniği|klinikleri|hastane|hastanesi|doktor|doktoru|doktorları|uzman doktor|cerrah|cerrahı|diş hekimi|sağlık merkezi|tıp merkezi|estetik merkezi|saç ekim merkezi|saç ekimi|diş|estetik|tedavi|ameliyat|clinic|clinics|hospital|hospitals|surgeon|surgeons|physician|hair transplant|dental|aesthetic|surgery|treatment|medical|arzt|zahn|behandlung|клиник|клиника|больниц|больница|врач|хирург|пересадка волос|стоматолог|лечение|операция)(?:[^\p{L}\p{N}]|$)/ui
+    },
+    // 9. Education, Schools & Courses (Образование & Курсы)
+    {
+      id: 'stag_education',
+      name: '🎓 Eğitim, Okul & Kurslar',
+      icon: '🎓',
+      regex: /(?:^|[^\p{L}\p{N}])(okul|okulu|okulları|ilkokul|ortaokul|lise|kolej|koleji|özel okul|butik okul|kurs|kursu|kursları|eğitim|eğitimi|eğitimleri|akademi|dershane|üniversite|öğrenci|school|schul|education|academy|college|university|student|tuition|schule|kolleg|ausbildung|школ|школа|колледж|курс|курсы|обучение|образование|академия|университет|студент)(?:[^\p{L}\p{N}]|$)/ui
+    },
+    // 10. Careers, Jobs & Recruitment (Работа & Вакансии)
+    {
+      id: 'stag_careers',
+      name: '💼 Kariyer & İş İlanları',
+      icon: '💼',
+      regex: /(?:^|[^\p{L}\p{N}])(iş ilanı|iş ilanları|iş arama|eleman ilanı|eleman arayanlar|iş başvurusu|kariyer|istihdam|eleman|personel|job|jobs|career|careers|hiring|recruitment|employment|vacancy|vacancies|karriere|stellenangebot|stellenangebote|arbeit|bewerbung|работ|работа|ваканси|вакансии|трудоустройство|поиск работы|резюме|зарплата)(?:[^\p{L}\p{N}]|$)/ui
+    },
+    // 11. Automotive, Performance & Tuning (Авто & Тюнинг)
+    {
+      id: 'stag_automotive',
+      name: '🏎️ Otomotiv, Yazılım & Performans',
+      icon: '🏎️',
+      regex: /(?:^|[^\p{L}\p{N}])(pedalbox|chip tuning|chiptuning|gaz pedalı|gaz pedal|gaz tepki|motor güç|araç yazılım|araç performans|dte systems|тюнинг|чип тюнинг|автомобиль|авто)(?:[^\p{L}\p{N}]|$)/ui
     }
   ];
 
@@ -313,7 +320,7 @@ export const groupKeywordsSemantically = (kwList: KeywordMetric[]): KeywordClust
   stagRules.forEach(r => assigned.set(r.id, []));
   const unassigned: KeywordMetric[] = [];
 
-  // SINGLE-PASS MUTUALLY EXCLUSIVE CLASSIFIER
+  // SINGLE-PASS MUTUALLY EXCLUSIVE CLASSIFIER WITH UNICODE MATCHING
   for (const kw of uniqueKwList) {
     let matched = false;
     for (const rule of stagRules) {

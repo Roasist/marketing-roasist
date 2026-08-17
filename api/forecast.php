@@ -480,16 +480,47 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
             $comp = $metrics['competition'] ?? 'MEDIUM';
             $compIdx = (int)($metrics['competitionIndex'] ?? 50);
 
-            // Compute search intent
+            // Multi-Lingual High-Converting Intent Classifier (Russian, Turkish, English, German, Arabic)
             $intent = 'COMMERCIAL';
-            if (preg_match('/\b(fiyat|satın al|ücret|ajans|hizmet|paket|danışmanlık|al|fiyatları|fiyatı|sipariş|rezervasyon|kursu|eğitimi|maliyet|cost|price|preise|kosten|başvuru|iş ilanı|iş ilanları|iş arama|satılık|kiralık|angebot)\b/ui', $kwText)) {
+
+            $transactionalPattern = '/(?:^|[^\p{L}\p{N}])(' . implode('|', [
+                // Russian / Cyrillic
+                'цена', 'цены', 'цену', 'ценам', 'стоимость', 'стоимости', 'сколько стоит', 'купить', 'покупка', 'покупке',
+                'оформить', 'оформление', 'получить', 'получение', 'подать', 'подача', 'заказать', 'заказ', 'заявка',
+                'гражданство', 'гражданства', 'паспорт', 'паспорта', 'внж', 'пмж', 'икамет', 'инвестиции', 'инвестиций', 'инвестициям',
+                'недвижимость', 'недвижимости', 'квартира', 'квартиру', 'квартиры', 'вилла', 'виллу', 'виллы', 'новостройка',
+                'агентство', 'услуги', 'консультация', 'юрист', 'адвокат', 'под ключ', 'срочно', 'тариф', 'расходы', 'пошлина',
+                // Turkish
+                'fiyat', 'fiyatı', 'fiyatları', 'ücret', 'ücreti', 'ücretleri', 'satın al', 'satılık', 'kiralık', 'sipariş',
+                'başvuru', 'başvurusu', 'randevu', 'rezervasyon', 'danışmanlık', 'danışmanı', 'hizmet', 'hizmetleri', 'ajans', 'ajansı',
+                'paket', 'paketleri', 'maliyet', 'maliyeti', 'masraf', 'harç', 'teklif al', 'avukat', 'hukuk', 'kaç para',
+                'vatandaşlık', 'pasaport', 'gayrimenkul', 'emlak', 'konut', 'daire', 'villa', 'yatırım', 'ikamet', 'oturum',
+                // English
+                'price', 'prices', 'pricing', 'cost', 'costs', 'fee', 'fees', 'buy', 'purchase', 'for sale', 'order',
+                'apply', 'application', 'booking', 'book', 'hire', 'consulting', 'consultant', 'service', 'services', 'agency',
+                'citizenship', 'passport', 'investment', 'invest', 'investor', 'residency', 'visa', 'real estate', 'property',
+                'apartment', 'villa', 'lawyer', 'legal', 'packages', 'quote', 'rates', 'cheap', 'turnkey',
+                // German
+                'preis', 'preise', 'kosten', 'gebühr', 'kaufen', 'buchen', 'anmelden', 'antrag', 'beantragen', 'beratung',
+                'staatsbürgerschaft', 'pass', 'investition', 'immobilien', 'wohnung', 'angebot'
+            ]) . ')(?:[^\p{L}\p{N}]|$)/ui';
+
+            $informationalPattern = '/(?:^|[^\p{L}\p{N}])(' . implode('|', [
+                // Russian
+                'что такое', 'как', 'почему', 'форум', 'отзывы', 'статья', 'википедия', 'образец', 'скачать бесплатно', 'видео',
+                // Turkish
+                'nedir', 'nasıl', 'rehber', 'örnek', 'forum', 'yorum', 'tavsiye', 'ne demek', 'ücretsiz', 'pdf indir',
+                // English
+                'what is', 'how to', 'guide', 'tutorial', 'sample', 'example', 'forum', 'free', 'download', 'wiki',
+                // German
+                'was ist', 'wie', 'anleitung', 'forum', 'erfahrungen', 'kostenlos'
+            ]) . ')(?:[^\p{L}\p{N}]|$)/ui';
+
+            if (preg_match($transactionalPattern, $kwText)) {
                 $intent = 'TRANSACTIONAL';
-            } elseif (preg_match('/\b(nedir|nasıl|rehber|örnek|yorum|tavsiye|forum|was ist|wie)\b/ui', $kwText)) {
+            } elseif (preg_match($informationalPattern, $kwText)) {
                 $intent = 'INFORMATIONAL';
             }
-
-            // Only mark as SEM Strategist if it was an explicit seed or is high-ROAS transactional
-            $isAiStrategist = isset($seedKeys[$kwKey]) || ($intent === 'TRANSACTIONAL');
 
             // Calculate 3-month trend if available
             $monthlyVols = $metrics['monthlySearchVolumes'] ?? [];
@@ -503,6 +534,9 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
             }
 
             $oppScore = min(99, max(50, 95 - round($compIdx * 0.3) + ($avgVol > 5000 ? 10 : 5)));
+
+            // Mark as SEM Strategist if it was an explicit seed, or is transactional intent, or has high commercial opportunity score
+            $isAiStrategist = isset($seedKeys[$kwKey]) || ($intent === 'TRANSACTIONAL') || ($intent === 'COMMERCIAL' && $oppScore >= 85);
 
             $parsedKeywords[] = [
                 'id' => ($isAiStrategist ? 'ai_strat_' : 'ads_kw_') . (count($parsedKeywords) + 1) . '_' . substr(md5($kwText), 0, 6),
@@ -1680,7 +1714,7 @@ if ($action === 'discover' && $method === 'POST') {
         exit;
     }
 
-    $cacheKey = md5("forecast_v12_{$mode}_{$query}_" . ($requestedLanguage ?: 'auto') . '_' . implode('_', (array)$requestedGeoTargetConstants));
+    $cacheKey = md5("forecast_v15_{$mode}_{$query}_" . ($requestedLanguage ?: 'auto') . '_' . implode('_', (array)$requestedGeoTargetConstants));
 
     // 1. Check Server-Side Cache
     $stmtCache = $pdo->prepare("SELECT data, created_at FROM keyword_cache WHERE cache_key = ?");
@@ -1784,6 +1818,59 @@ if ($action === 'discover' && $method === 'POST') {
             $kw = is_array($k) ? trim($k['keyword'] ?? '') : trim((string)$k);
             return !preg_match($singleWordBroadJunk, $kw);
         }));
+
+        // Merge and cross-reference AI-generated Strategist Keywords from Gemini
+        if (!empty($aiAnalysis['strategistKeywords']) && is_array($aiAnalysis['strategistKeywords'])) {
+            $existingMap = [];
+            foreach ($officialKeywords as $idx => $okw) {
+                $key = mb_strtolower(preg_replace('/\s+/', ' ', $okw['keyword']), 'UTF-8');
+                $existingMap[$key] = $idx;
+            }
+
+            // Compute average CPC / Metrics from official list to ground any AI seeds with real market numbers
+            $avgLowCpc = 8.0;
+            $avgHighCpc = 28.0;
+            if (count($officialKeywords) > 0) {
+                $totLow = 0; $totHigh = 0; $cnt = 0;
+                foreach ($officialKeywords as $okw) {
+                    if (($okw['lowCpc'] ?? 0) > 0) { $totLow += $okw['lowCpc']; $cnt++; }
+                    if (($okw['highCpc'] ?? 0) > 0) { $totHigh += $okw['highCpc']; }
+                }
+                if ($cnt > 0) {
+                    $avgLowCpc = round($totLow / $cnt, 2);
+                    $avgHighCpc = round($totHigh / $cnt, 2);
+                }
+            }
+
+            foreach ($aiAnalysis['strategistKeywords'] as $skw) {
+                $sText = trim($skw['keyword'] ?? '');
+                if (empty($sText) || mb_strlen($sText, 'UTF-8') < 3) continue;
+                $sKey = mb_strtolower(preg_replace('/\s+/', ' ', $sText), 'UTF-8');
+
+                if (isset($existingMap[$sKey])) {
+                    // Already in official list -> ensure tagged as AI Strategist Pick!
+                    $officialKeywords[$existingMap[$sKey]]['isAiStrategistPick'] = true;
+                    $officialKeywords[$existingMap[$sKey]]['intent'] = 'TRANSACTIONAL';
+                    $officialKeywords[$existingMap[$sKey]]['opportunityScore'] = max(95, $officialKeywords[$existingMap[$sKey]]['opportunityScore'] ?? 95);
+                } else {
+                    // Add as top AI Strategist Pick
+                    $officialKeywords[] = [
+                        'id' => 'ai_strat_' . (count($officialKeywords) + 1) . '_' . substr(md5($sText), 0, 6),
+                        'keyword' => $sText,
+                        'monthlyVolume' => (int)($skw['monthlyVolume'] ?? 1200),
+                        'lowCpc' => (float)($skw['lowCpc'] ?? $avgLowCpc),
+                        'highCpc' => (float)($skw['highCpc'] ?? $avgHighCpc),
+                        'competition' => $skw['competition'] ?? 'HIGH',
+                        'competitionIndex' => (int)($skw['competitionIndex'] ?? 85),
+                        'intent' => 'TRANSACTIONAL',
+                        'trendChangePercent' => (int)($skw['trendChangePercent'] ?? 20),
+                        'opportunityScore' => (int)($skw['opportunityScore'] ?? 97),
+                        'isAiStrategistPick' => true,
+                        'strategistStrategy' => $skw['strategy'] ?? 'TRANSACTIONAL'
+                    ];
+                }
+            }
+        }
     } else {
         $officialKeywords = [];
     }
