@@ -2112,11 +2112,27 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   // Scoped keywords adapted to chosen location (or aggregated if ALL)
   const scopedKeywords = useMemo(() => {
     if (activeLocationScope === 'ALL' || !activeScopeMetric) return keywords;
+    const targetGeoId = String(activeScopeMetric.id || activeScopeLocation?.id);
     const share = (activeScopeMetric.sharePercent || (100 / Math.max(1, selectedLocations.length))) / 100;
     const cpcScale = avgTopPageCpc > 0 && activeScopeMetric.avgCpc > 0 ? (activeScopeMetric.avgCpc / avgTopPageCpc) : 1.0;
 
     return keywords.map(k => {
-      const locVol = Math.max(10, Math.round(k.monthlyVolume * share));
+      // 1. Direct official Google Ads volume for this exact location if available
+      const directLocVol = k.geoVolumes ? k.geoVolumes[targetGeoId] : undefined;
+      const directLocLowCpc = k.geoCpc ? k.geoCpc[targetGeoId]?.lowCpc : undefined;
+      const directLocHighCpc = k.geoCpc ? k.geoCpc[targetGeoId]?.highCpc : undefined;
+
+      if (directLocVol !== undefined) {
+        return {
+          ...k,
+          monthlyVolume: directLocVol,
+          lowCpc: directLocLowCpc !== undefined && directLocLowCpc > 0 ? directLocLowCpc : (k.lowCpc > 0 ? Math.round(k.lowCpc * cpcScale * 100) / 100 : 0),
+          highCpc: directLocHighCpc !== undefined && directLocHighCpc > 0 ? directLocHighCpc : (k.highCpc > 0 ? Math.round(k.highCpc * cpcScale * 100) / 100 : 0),
+        };
+      }
+
+      // 2. Proportional fallback only if per-keyword breakdown was not returned
+      const locVol = Math.round(k.monthlyVolume * share);
       const locLowCpc = Math.round(k.lowCpc * cpcScale * 100) / 100;
       const locHighCpc = Math.round(k.highCpc * cpcScale * 100) / 100;
       return {
@@ -2126,7 +2142,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         highCpc: locHighCpc,
       };
     });
-  }, [keywords, activeLocationScope, activeScopeMetric, selectedLocations.length, avgTopPageCpc]);
+  }, [keywords, activeLocationScope, activeScopeMetric, activeScopeLocation, selectedLocations.length, avgTopPageCpc]);
 
   // Scoped clusters (Ad Group Themes)
   const keywordClusters = useMemo(() => {

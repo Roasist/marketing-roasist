@@ -15,6 +15,8 @@ export interface KeywordMetric {
   isSelected?: boolean;
   isAiStrategistPick?: boolean;
   strategistStrategy?: 'TRANSACTIONAL' | 'LOCAL_GEO' | 'CONSIDERATION' | 'LEAD_MAGNET';
+  geoVolumes?: Record<string, number>;
+  geoCpc?: Record<string, { lowCpc: number; highCpc: number }>;
 }
 
 export interface CountryOption {

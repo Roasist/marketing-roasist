@@ -53,8 +53,8 @@ git push origin main
 echo "⚡ [4/5] Canlı sunucuya Doğrudan HTTPS Paketi (Direct Payload) ile dağıtılıyor..."
 PAYLOAD_ZIP="/tmp/roasist_deploy_payload.zip"
 rm -f "$PAYLOAD_ZIP"
-(cd dist && zip -rq "$PAYLOAD_ZIP" .)
-(cd api && zip -rq "$PAYLOAD_ZIP" .) 2>/dev/null || true
+(cd dist && zip -rq "$PAYLOAD_ZIP" . -x "*.db" "*data/*.db" "*data/*")
+(cd api && zip -rq "$PAYLOAD_ZIP" . -x "*.db" "*data/*.db" "*data/*") 2>/dev/null || true
 DEPLOY_RES=$(curl -s -X POST -F "payload=@$PAYLOAD_ZIP" "https://marketing.roasist.com/deploy_webhook.php?secret=roasist_marketing_deploy_secret_2026")
 echo "Deploy Yanıtı: $DEPLOY_RES"
 rm -f "$PAYLOAD_ZIP"

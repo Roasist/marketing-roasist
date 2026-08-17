@@ -51,8 +51,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['payload']) && $_FILE
                 if ($item->isDir()) {
                     if (!is_dir($dest)) @mkdir($dest, 0755, true);
                 } else {
-                    if ($subPath === 'deploy_config.php' && file_exists($dest)) {
-                        continue;
+                    if (($subPath === 'deploy_config.php' || strpos($subPath, 'roasist_marketing.db') !== false || substr($subPath, -3) === '.db') && file_exists($dest)) {
+                        continue; // NEVER overwrite production SQLite database!
                     }
                     @copy($item->getPathname(), $dest);
                     $filesCopied++;

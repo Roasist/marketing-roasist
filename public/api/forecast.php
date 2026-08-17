@@ -582,6 +582,7 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
 
     $breakdown = [];
     $totalBreakdownVol = 0;
+    $keywordGeoMap = [];
 
     foreach ($curlHandles as $geo => $chLoc) {
         $geoId = preg_replace('/[^0-9]/', '', $geo);
@@ -607,6 +608,16 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
                 $cpcSum += $high;
                 $lowCpcSum += $low;
                 $cpcCnt++;
+            }
+
+            $kwText = $r['text'] ?? '';
+            if (!empty($kwText)) {
+                $kwNorm = mb_strtolower(preg_replace('/\s+/', ' ', trim($kwText)), 'UTF-8');
+                $keywordGeoMap[$kwNorm][$geoId] = [
+                    'monthlyVolume' => $v,
+                    'lowCpc' => $low,
+                    'highCpc' => $high
+                ];
             }
         }
 
@@ -685,7 +696,10 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
         return $b['monthlyVolume'] <=> $a['monthlyVolume'];
     });
 
-    return $breakdown;
+    return [
+        'breakdown' => $breakdown,
+        'keywordGeoMap' => $keywordGeoMap
+    ];
 }
 
 // -------------------------------------------------------------
@@ -2575,7 +2589,29 @@ if ($action === 'discover' && $method === 'POST') {
     $requestedLocations = $input['locations'] ?? [];
     $locationBreakdown = [];
     if (!empty($requestedGeoTargetConstants) && is_array($requestedGeoTargetConstants) && count($requestedGeoTargetConstants) > 1) {
-        $locationBreakdown = calculateOfficialLocationBreakdown($apiKeys, $query, $actualMode, $officialKeywords, $requestedGeoTargetConstants, $langInfo['code'], $requestedLocations);
+        $locRes = calculateOfficialLocationBreakdown($apiKeys, $query, $actualMode, $officialKeywords, $requestedGeoTargetConstants, $langInfo['code'], $requestedLocations);
+        $locationBreakdown = $locRes['breakdown'] ?? [];
+        $keywordGeoMap = $locRes['keywordGeoMap'] ?? [];
+
+        // Attach exact official per-location search volumes & CPC to each keyword
+        if (!empty($keywordGeoMap)) {
+            foreach ($officialKeywords as &$kw) {
+                $kwText = is_array($kw) ? ($kw['keyword'] ?? '') : (string)$kw;
+                $kwNorm = mb_strtolower(preg_replace('/\s+/', ' ', trim($kwText)), 'UTF-8');
+                if (isset($keywordGeoMap[$kwNorm])) {
+                    $kw['geoVolumes'] = [];
+                    $kw['geoCpc'] = [];
+                    foreach ($keywordGeoMap[$kwNorm] as $gId => $gMetrics) {
+                        $kw['geoVolumes'][(string)$gId] = (int)$gMetrics['monthlyVolume'];
+                        $kw['geoCpc'][(string)$gId] = [
+                            'lowCpc' => (float)$gMetrics['lowCpc'],
+                            'highCpc' => (float)$gMetrics['highCpc']
+                        ];
+                    }
+                }
+            }
+            unset($kw);
+        }
     }
 
     $result = [
