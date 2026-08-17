@@ -1862,7 +1862,7 @@ if ($action === 'discover' && $method === 'POST') {
         exit;
     }
 
-    $cacheKey = md5("forecast_v20_{$mode}_{$query}_" . ($requestedLanguage ?: 'auto') . '_' . ($requestedCountryCode ?: 'auto') . '_' . implode('_', (array)$requestedGeoTargetConstants));
+    $cacheKey = md5("forecast_v21_{$mode}_{$query}_" . ($requestedLanguage ?: 'auto') . '_' . ($requestedCountryCode ?: 'auto') . '_' . implode('_', (array)$requestedGeoTargetConstants));
 
     // 1. Check Server-Side Cache
     $stmtCache = $pdo->prepare("SELECT data, created_at FROM keyword_cache WHERE cache_key = ?");
