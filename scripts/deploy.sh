@@ -50,9 +50,14 @@ COMMIT_MSG="${1:-auto deploy update}"
 git commit -m "$COMMIT_MSG" || echo "Değişiklik bulunamadı veya commit edildi."
 git push origin main
 
-echo "⚡ [4/5] Canlı sunucuda Deploy Webhook tetikleniyor..."
-DEPLOY_RES=$(curl -s "https://marketing.roasist.com/deploy_webhook.php?secret=roasist_marketing_deploy_secret_2026")
+echo "⚡ [4/5] Canlı sunucuya Doğrudan HTTPS Paketi (Direct Payload) ile dağıtılıyor..."
+PAYLOAD_ZIP="/tmp/roasist_deploy_payload.zip"
+rm -f "$PAYLOAD_ZIP"
+(cd dist && zip -rq "$PAYLOAD_ZIP" .)
+(cd api && zip -rq "$PAYLOAD_ZIP" .) 2>/dev/null || true
+DEPLOY_RES=$(curl -s -X POST -F "payload=@$PAYLOAD_ZIP" "https://marketing.roasist.com/deploy_webhook.php?secret=roasist_marketing_deploy_secret_2026")
 echo "Deploy Yanıtı: $DEPLOY_RES"
+rm -f "$PAYLOAD_ZIP"
 
 echo "🧹 [5/5] OPcache & LiteSpeed önbelleği temizleniyor..."
 CACHE_RES=$(curl -s "https://marketing.roasist.com/opcache_clear.php?secret=roasist_marketing_deploy_secret_2026")
