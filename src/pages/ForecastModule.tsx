@@ -707,43 +707,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   const [newMasterTagInput, setNewMasterTagInput] = useState<string>('');
 
   // Multi-Campaign Sub-Campaigns State
-  const [subCampaigns, setSubCampaigns] = useState<SubCampaignItem[]>([
-    {
-      id: 'sub_1',
-      name: 'Google Search (EN - UK)',
-      platform: 'GOOGLE',
-      objective: 'GOOGLE_SEARCH',
-      languageCode: 'en',
-      languageName: 'İngilizce',
-      languageFlag: '🇬🇧',
-      targetLocations: [
-        { id: '2826', resourceName: 'geoTargetConstants/2826', name: 'Birleşik Krallık', canonicalName: 'Birleşik Krallık', countryCode: 'GB', targetType: 'Country', reach: 67000000, flag: '🇬🇧', cpcMultiplier: 3.2, volumeMultiplier: 1.3 }
-      ],
-      monthlyBudget: 35000,
-      selectedKeywords: [],
-      discoveredKeywords: [],
-      negativeCategories: [],
-      businessModel: 'LEAD_GEN',
-      parameters: {
-        targetImpressionShare: 70,
-        expectedCtr: 7.5,
-        searchLeadCr: 3.5,
-        searchHealthyLeadRate: 50,
-        searchCloseRate: 10,
-        metaCpm: 75,
-        metaCtr: 1.6,
-        metaLeadCr: 4.5,
-        metaHealthyLeadRate: 50,
-        metaCloseRate: 15,
-        youtubeCpv: 0.45,
-        youtubeVtr: 32,
-        youtubeActionRate: 1.2,
-        gdnCpm: 18,
-        gdnCtr: 0.60,
-        gdnAssistedCr: 1.2
-      }
-    }
-  ]);
+  const [subCampaigns, setSubCampaigns] = useState<SubCampaignItem[]>([]);
   const [activeSubCampaignId, setActiveSubCampaignId] = useState<string | null>(null);
   const [isAddCampaignModalOpen, setIsAddCampaignModalOpen] = useState<boolean>(false);
 
@@ -1102,32 +1066,43 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     setPlanPeriod(plan.period || formatCampaignDates(plan.startDate, plan.endDate, plan.period));
     if (plan.tags) setPlanTags(plan.tags);
 
-    if (plan.subCampaigns && plan.subCampaigns.length > 0) {
+    if (Array.isArray(plan.subCampaigns)) {
       setSubCampaigns(plan.subCampaigns);
-      const chosenSub = targetSubId 
-        ? (plan.subCampaigns.find(c => c.id === targetSubId) || plan.subCampaigns[0])
-        : plan.subCampaigns[0];
-      
-      setActiveSubCampaignId(chosenSub.id);
-      setKeywords(chosenSub.discoveredKeywords || plan.selectedKeywords || []);
-      setSelectedKeywordIds(new Set((chosenSub.selectedKeywords || plan.selectedKeywords || []).map(k => k.id)));
-      setNegativeCategories(chosenSub.negativeCategories || plan.negativeKeywords || []);
-      if (chosenSub.targetLocations && chosenSub.targetLocations.length > 0) {
-        setSelectedLocations(chosenSub.targetLocations);
-      }
-      if (chosenSub.languageCode) setTargetLanguage(chosenSub.languageCode);
-      if (chosenSub.monthlyBudget) setMonthlyBudget(chosenSub.monthlyBudget);
-      if (chosenSub.targetUrl || chosenSub.seedKeywords) {
-        setQuery(chosenSub.targetUrl || chosenSub.seedKeywords || '');
-        setMode(chosenSub.targetUrl ? 'URL' : 'KEYWORDS');
-      }
+      if (plan.subCampaigns.length > 0) {
+        const chosenSub = targetSubId 
+          ? (plan.subCampaigns.find(c => c.id === targetSubId) || plan.subCampaigns[0])
+          : plan.subCampaigns[0];
+        
+        setActiveSubCampaignId(chosenSub.id);
+        setKeywords(chosenSub.discoveredKeywords || plan.selectedKeywords || []);
+        setSelectedKeywordIds(new Set((chosenSub.selectedKeywords || plan.selectedKeywords || []).map(k => k.id)));
+        setNegativeCategories(chosenSub.negativeCategories || plan.negativeKeywords || []);
+        if (chosenSub.targetLocations && chosenSub.targetLocations.length > 0) {
+          setSelectedLocations(chosenSub.targetLocations);
+        }
+        if (chosenSub.languageCode) setTargetLanguage(chosenSub.languageCode);
+        if (chosenSub.monthlyBudget) setMonthlyBudget(chosenSub.monthlyBudget);
+        if (chosenSub.targetUrl || chosenSub.seedKeywords) {
+          setQuery(chosenSub.targetUrl || chosenSub.seedKeywords || '');
+          setMode(chosenSub.targetUrl ? 'URL' : 'KEYWORDS');
+        }
 
-      if (chosenSub.platform === 'META') setActiveChannelTab('META_ADS');
-      else if (chosenSub.platform === 'YOUTUBE') setActiveChannelTab('YOUTUBE');
-      else if (chosenSub.platform === 'GOOGLE') setActiveChannelTab('GOOGLE_SEARCH');
-      else setActiveChannelTab('OMNICHANNEL');
+        if (chosenSub.platform === 'META') setActiveChannelTab('META_ADS');
+        else if (chosenSub.platform === 'YOUTUBE') setActiveChannelTab('YOUTUBE');
+        else if (chosenSub.platform === 'GOOGLE') setActiveChannelTab('GOOGLE_SEARCH');
+        else setActiveChannelTab('OMNICHANNEL');
+      } else {
+        // Plan has 0 sub-campaigns: keep clean empty state!
+        setActiveSubCampaignId(null);
+        setKeywords([]);
+        setSelectedKeywordIds(new Set());
+        setNegativeCategories([]);
+        setMonthlyBudget(0);
+        setQuery('');
+        setActiveChannelTab('OMNICHANNEL');
+      }
     } else {
-      // Legacy single plan
+      // Legacy single plan (only if subCampaigns property was never an array)
       const legacySub: SubCampaignItem = {
         id: 'sub_legacy_' + plan.id,
         name: plan.name || 'Ana Kampanya',
