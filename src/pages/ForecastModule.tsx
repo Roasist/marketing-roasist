@@ -2557,7 +2557,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                         Toplam Aylık Medya Bütçesi
                       </label>
                       <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                        Günlük ortalama: <strong>~₺{Math.round(monthlyBudget / 30.4).toLocaleString('tr-TR')}</strong> / gün
+                        Günlük ortalama: <strong>₺{Math.round(monthlyBudget / 30.4).toLocaleString('tr-TR')}</strong> / gün
                       </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -2666,7 +2666,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                           <GoogleIcon size={15} /> Google Search (%{allocGoogleSearch})
                         </span>
                         <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginLeft: '6px' }}>
-                          (~₺{Math.round(omnichannelMix.googleSearchSpend / 30.4).toLocaleString('tr-TR')}/gün)
+                          (₺{Math.round(omnichannelMix.googleSearchSpend / 30.4).toLocaleString('tr-TR')}/gün)
                         </span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -2724,7 +2724,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                           <MetaIcon size={15} /> Meta Ads (FB & IG) (%{allocMetaAds})
                         </span>
                         <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginLeft: '6px' }}>
-                          (~₺{Math.round(omnichannelMix.metaAdsSpend / 30.4).toLocaleString('tr-TR')}/gün)
+                          (₺{Math.round(omnichannelMix.metaAdsSpend / 30.4).toLocaleString('tr-TR')}/gün)
                         </span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -2782,7 +2782,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                           <YouTubeIcon size={15} /> YouTube Video (%{allocYouTube})
                         </span>
                         <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginLeft: '6px' }}>
-                          (~₺{Math.round(omnichannelMix.youtubeSpend / 30.4).toLocaleString('tr-TR')}/gün)
+                          (₺{Math.round(omnichannelMix.youtubeSpend / 30.4).toLocaleString('tr-TR')}/gün)
                         </span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -2840,7 +2840,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                           <GdnIcon size={15} /> Google GDN (%{allocGdn})
                         </span>
                         <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginLeft: '6px' }}>
-                          (~₺{Math.round(omnichannelMix.gdnSpend / 30.4).toLocaleString('tr-TR')}/gün)
+                          (₺{Math.round(omnichannelMix.gdnSpend / 30.4).toLocaleString('tr-TR')}/gün)
                         </span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -2946,7 +2946,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       {omnichannelMix.totalClicks.toLocaleString('tr-TR')}
                     </div>
                     <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
-                      Karma TO: %{omnichannelMix.blendedCtr} • Günlük ~{Math.max(1, Math.round(omnichannelMix.totalClicks / 30.4))} Ziyaret
+                      Karma TO: %{omnichannelMix.blendedCtr} • Günlük {Math.max(1, Math.round(omnichannelMix.totalClicks / 30.4))} Ziyaret
                     </div>
                   </div>
 
@@ -2995,7 +2995,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                         {omnichannelMix.blendedRoas}x
                       </div>
                       <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                        Tahmini Satış: <strong>~{omnichannelMix.totalDeals} Sipariş</strong> • CPA / CAC: <strong>₺{omnichannelMix.blendedCac}</strong>
+                        Tahmini Satış: <strong>{omnichannelMix.totalDeals} Sipariş</strong> • CPA / CAC: <strong>₺{omnichannelMix.blendedCac}</strong>
                       </div>
                     </div>
 
@@ -3037,7 +3037,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                           <td style={{ textAlign: 'right' }}>{Math.round(simulation.estImpressions * (allocGoogleSearch / 100)).toLocaleString('tr-TR')}</td>
                           <td style={{ textAlign: 'right' }}>{Math.round(simulation.estClicks * (allocGoogleSearch / 100)).toLocaleString('tr-TR')}</td>
                           <td style={{ textAlign: 'right' }}>₺{simulation.avgCpc.toFixed(2)} TBM</td>
-                          <td style={{ textAlign: 'right', fontWeight: 600, color: '#16a34a' }}>~{Math.round((simulation.estDeals || 0) * (allocGoogleSearch / 100))}</td>
+                          <td style={{ textAlign: 'right', fontWeight: 600, color: '#16a34a' }}>{Math.round((simulation.estDeals || 0) * (allocGoogleSearch / 100))}</td>
                         </tr>
                         <tr>
                           <td>
@@ -3049,7 +3049,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                           <td style={{ textAlign: 'right' }}>{metaSimulation.impressions.toLocaleString('tr-TR')}</td>
                           <td style={{ textAlign: 'right' }}>{metaSimulation.clicks.toLocaleString('tr-TR')}</td>
                           <td style={{ textAlign: 'right' }}>₺{metaSimulation.cpm} CPM</td>
-                          <td style={{ textAlign: 'right', fontWeight: 600, color: '#16a34a' }}>~{metaSimulation.healthyLeads}</td>
+                          <td style={{ textAlign: 'right', fontWeight: 600, color: '#16a34a' }}>{metaSimulation.healthyLeads}</td>
                         </tr>
                         <tr>
                           <td>
@@ -3061,7 +3061,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                           <td style={{ textAlign: 'right' }}>{youtubeSimulation.impressions.toLocaleString('tr-TR')}</td>
                           <td style={{ textAlign: 'right' }}>{youtubeSimulation.videoViews.toLocaleString('tr-TR')} İzlenme</td>
                           <td style={{ textAlign: 'right' }}>₺{youtubeSimulation.cpv} CPV</td>
-                          <td style={{ textAlign: 'right', color: 'var(--text-secondary)' }}>~{youtubeSimulation.actions} Eylem</td>
+                          <td style={{ textAlign: 'right', color: 'var(--text-secondary)' }}>{youtubeSimulation.actions} Eylem</td>
                         </tr>
                         <tr>
                           <td>
@@ -3073,7 +3073,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                           <td style={{ textAlign: 'right' }}>{gdnSimulation.impressions.toLocaleString('tr-TR')}</td>
                           <td style={{ textAlign: 'right' }}>{gdnSimulation.clicks.toLocaleString('tr-TR')}</td>
                           <td style={{ textAlign: 'right' }}>₺{gdnSimulation.cpm} CPM</td>
-                          <td style={{ textAlign: 'right', color: 'var(--text-secondary)' }}>~{gdnSimulation.assistedConversions} Asist</td>
+                          <td style={{ textAlign: 'right', color: 'var(--text-secondary)' }}>{gdnSimulation.assistedConversions} Asist</td>
                         </tr>
                       </tbody>
                     </table>
@@ -3465,7 +3465,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                         {metaSimulation.roas}x
                       </div>
                       <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                        Tahmini Satış: <strong>~{metaSimulation.deals} Adet</strong> • CAC: <strong>₺{metaSimulation.cac}</strong>
+                        Tahmini Satış: <strong>{metaSimulation.deals} Adet</strong> • CAC: <strong>₺{metaSimulation.cac}</strong>
                       </div>
                     </div>
 
@@ -3565,7 +3565,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                           Google Search Ayrılan Bütçe (%{allocGoogleSearch})
                         </label>
                         <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                          Toplam ₺{monthlyBudget.toLocaleString('tr-TR')} medya bütçesinin %{allocGoogleSearch}'i • <strong>Günlük: ~₺{Math.round(Math.round((monthlyBudget * allocGoogleSearch) / 100) / 30.4).toLocaleString('tr-TR')}/gün</strong> • <strong>Tahmini Gösterim Payı: %{simulation.targetImpressionShare}</strong>
+                          Toplam ₺{monthlyBudget.toLocaleString('tr-TR')} medya bütçesinin %{allocGoogleSearch}'i • <strong>Günlük: ₺{Math.round(Math.round((monthlyBudget * allocGoogleSearch) / 100) / 30.4).toLocaleString('tr-TR')}/gün</strong> • <strong>Tahmini Gösterim Payı: %{simulation.targetImpressionShare}</strong>
                         </div>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -3982,7 +3982,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                   <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
                     <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 600 }}>SAĞLIKLI LEAD</div>
                     <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
-                      ~{simulation.estDeals} Nitelikli
+                      {simulation.estDeals} Nitelikli
                     </div>
                   </div>
                 </div>
@@ -4179,7 +4179,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                   <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
                     <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Kazanılan Eylemler (Tıklama/Form)</div>
                     <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
-                      ~{youtubeSimulation.actions}
+                      {youtubeSimulation.actions}
                     </div>
                   </div>
                 </div>
@@ -4362,7 +4362,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                   <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
                     <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Asist Edilen Dönüşümler</div>
                     <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#34d399', marginTop: '2px' }}>
-                      ~{gdnSimulation.assistedConversions}
+                      {gdnSimulation.assistedConversions}
                     </div>
                   </div>
                 </div>
