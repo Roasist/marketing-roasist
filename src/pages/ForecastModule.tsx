@@ -25,7 +25,8 @@ import {
   Layers,
   Tag,
   Calendar,
-  Building2
+  Building2,
+  Bookmark
 } from 'lucide-react';
 import { 
   KeywordMetric, 
@@ -40,6 +41,7 @@ import {
   YouTubeSimulation,
   OmnichannelMediaMix,
   GeoTargetLocation,
+  SavedLocationPreset,
   GrowthScenario,
   CampaignPlatform,
   CampaignObjective,
@@ -536,6 +538,20 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   const [locationSearchQuery, setLocationSearchQuery] = useState<string>('');
   const [locationSearchResults, setLocationSearchResults] = useState<GeoTargetLocation[]>([]);
   const [isSearchingLocations, setIsSearchingLocations] = useState<boolean>(false);
+
+  // Saved Custom Location Presets State
+  const [savedLocationPresets, setSavedLocationPresets] = useState<SavedLocationPreset[]>(() => {
+    try {
+      const raw = localStorage.getItem('roasist_saved_location_presets');
+      if (raw) return JSON.parse(raw);
+    } catch (e) {
+      console.error('Error loading saved location presets:', e);
+    }
+    return [];
+  });
+  const [newPresetName, setNewPresetName] = useState<string>('');
+  const [isSavingPreset, setIsSavingPreset] = useState<boolean>(false);
+  const [presetSaveSuccessMessage, setPresetSaveSuccessMessage] = useState<string>('');
 
   // Growth Scenario Projection (Muhafazakar / Beklenen / Agresif)
   const [growthScenario, setGrowthScenario] = useState<GrowthScenario>('REALISTIC');
@@ -1435,6 +1451,53 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       if (prev.length === 1) return prev;
       return prev.filter(l => l.id !== id);
     });
+  };
+
+  const handleSaveLocationPreset = () => {
+    const name = newPresetName.trim();
+    if (!name || selectedLocations.length === 0) return;
+
+    const newPreset: SavedLocationPreset = {
+      id: 'preset_' + Date.now(),
+      name,
+      locations: [...selectedLocations],
+      createdAt: Date.now()
+    };
+
+    const updated = [newPreset, ...savedLocationPresets.filter(p => p.name.toLowerCase() !== name.toLowerCase())];
+    setSavedLocationPresets(updated);
+    try {
+      localStorage.setItem('roasist_saved_location_presets', JSON.stringify(updated));
+    } catch (e) {
+      console.error('Error saving preset:', e);
+    }
+    setNewPresetName('');
+    setIsSavingPreset(false);
+    setPresetSaveSuccessMessage(`"${name}" paketi (${selectedLocations.length} bölge) başarıyla kaydedildi!`);
+    setTimeout(() => setPresetSaveSuccessMessage(''), 3500);
+  };
+
+  const handleDeleteLocationPreset = (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const updated = savedLocationPresets.filter(p => p.id !== id);
+    setSavedLocationPresets(updated);
+    try {
+      localStorage.setItem('roasist_saved_location_presets', JSON.stringify(updated));
+    } catch (e) {
+      console.error('Error deleting preset:', e);
+    }
+  };
+
+  const handleApplyLocationPreset = (preset: SavedLocationPreset) => {
+    if (preset.locations && preset.locations.length > 0) {
+      setSelectedLocations(preset.locations);
+      setPresetSaveSuccessMessage(`"${preset.name}" paketi yüklendi (${preset.locations.length} bölge).`);
+      setTimeout(() => setPresetSaveSuccessMessage(''), 2500);
+    }
+  };
+
+  const handleClearAllLocations = () => {
+    setSelectedLocations([DEFAULT_LOCATIONS[0]]);
   };
 
   // Strategic Scenario Multiplier
@@ -6623,17 +6686,122 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
               )}
             </div>
 
-            {/* Selected Locations Chips */}
+            {/* Selected Locations Chips & Save Preset Action */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                  Seçili Hedef Lokasyonlar ({selectedLocations.length}):
-                </label>
-                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                  Ağırlıklı TBM Çarpanı: <strong style={{ color: 'var(--brand-primary)' }}>{blendedCpcMultiplier.toFixed(2)}x</strong>
-                </span>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.4rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                    Seçili Hedef Lokasyonlar ({selectedLocations.length}):
+                  </label>
+                  {selectedLocations.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={handleClearAllLocations}
+                      className="btn-ghost"
+                      style={{ fontSize: '0.7rem', color: 'var(--text-muted)', padding: '2px 6px', borderRadius: 'var(--radius-xs)' }}
+                    >
+                      Tümünü Temizle
+                    </button>
+                  )}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                    Ağırlıklı TBM: <strong style={{ color: 'var(--brand-primary)' }}>{blendedCpcMultiplier.toFixed(2)}x</strong>
+                  </span>
+                  {!isSavingPreset ? (
+                    <button
+                      type="button"
+                      onClick={() => setIsSavingPreset(true)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.35rem',
+                        fontSize: '0.74rem',
+                        fontWeight: 600,
+                        padding: '0.25rem 0.65rem',
+                        borderRadius: 'var(--radius-xs)',
+                        border: '1px solid var(--brand-primary)',
+                        backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                        color: 'var(--brand-primary)',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <Bookmark size={13} /> Bu Seti Kaydet
+                    </button>
+                  ) : null}
+                </div>
               </div>
 
+              {/* Inline Save Preset Form */}
+              {isSavingPreset && (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  padding: '0.6rem 0.8rem',
+                  backgroundColor: 'rgba(37, 99, 235, 0.08)',
+                  border: '1.5px solid var(--brand-primary)',
+                  borderRadius: 'var(--radius-xs)',
+                  marginTop: '0.1rem'
+                }}>
+                  <Bookmark size={16} color="var(--brand-primary)" />
+                  <input
+                    type="text"
+                    placeholder="Lokasyon Paketi Adı (örn: BDT & Orta Asya 14 Şehir, Körfez Ülkeleri...)"
+                    value={newPresetName}
+                    onChange={(e) => setNewPresetName(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSaveLocationPreset()}
+                    autoFocus
+                    style={{
+                      flex: 1,
+                      height: '32px',
+                      fontSize: '0.8rem',
+                      padding: '0 0.65rem',
+                      backgroundColor: 'var(--bg-surface)',
+                      border: '1px solid var(--border-default)',
+                      borderRadius: 'var(--radius-xs)'
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleSaveLocationPreset}
+                    disabled={!newPresetName.trim()}
+                    className="btn-primary"
+                    style={{ padding: '0.35rem 0.75rem', fontSize: '0.75rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.3rem' }}
+                  >
+                    <Save size={13} /> Kaydet
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setIsSavingPreset(false); setNewPresetName(''); }}
+                    className="btn-ghost"
+                    style={{ padding: '0.35rem 0.5rem', fontSize: '0.75rem' }}
+                  >
+                    İptal
+                  </button>
+                </div>
+              )}
+
+              {/* Feedback Success Message */}
+              {presetSaveSuccessMessage && (
+                <div style={{
+                  padding: '0.4rem 0.65rem',
+                  backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                  border: '1px solid #10b981',
+                  borderRadius: 'var(--radius-xs)',
+                  color: '#10b981',
+                  fontSize: '0.76rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  fontWeight: 600
+                }}>
+                  <CheckCircle2 size={14} />
+                  <span>{presetSaveSuccessMessage}</span>
+                </div>
+              )}
+
+              {/* Selected Chips */}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.45rem', minHeight: '38px', padding: '0.5rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-default)' }}>
                 {selectedLocations.map(loc => (
                   <div
@@ -6669,10 +6837,82 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
               </div>
             </div>
 
-            {/* Quick Presets */}
+            {/* Custom Saved Presets Section */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+              <div style={{ fontSize: '0.74rem', color: 'var(--text-primary)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <span>⭐ Özel Kayıtlı Lokasyon Paketlerim ({savedLocationPresets.length}):</span>
+              </div>
+              {savedLocationPresets.length > 0 ? (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                  {savedLocationPresets.map(preset => (
+                    <div
+                      key={preset.id}
+                      onClick={() => handleApplyLocationPreset(preset)}
+                      title={`Tıkla ve Uygula: ${preset.locations.map(l => (l.flag || '📍') + ' ' + l.name).join(', ')}`}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.45rem',
+                        padding: '0.3rem 0.65rem',
+                        backgroundColor: 'rgba(37, 99, 235, 0.08)',
+                        border: '1.5px solid rgba(37, 99, 235, 0.35)',
+                        borderRadius: 'var(--radius-full)',
+                        fontSize: '0.76rem',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <span style={{ color: '#f59e0b', fontSize: '0.85rem' }}>⭐</span>
+                      <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{preset.name}</span>
+                      <span className="badge badge-active" style={{ fontSize: '0.65rem', padding: '1px 6px' }}>
+                        {preset.locations.length} Bölge
+                      </span>
+                      <button
+                        type="button"
+                        onClick={(e) => handleDeleteLocationPreset(preset.id, e)}
+                        title="Bu kayıtlı paketi sil"
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: '2px',
+                          borderRadius: '50%',
+                          border: 'none',
+                          background: 'transparent',
+                          color: 'var(--text-muted)',
+                          cursor: 'pointer',
+                          marginLeft: '2px'
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.color = '#ef4444')}
+                        onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{
+                  fontSize: '0.73rem',
+                  color: 'var(--text-muted)',
+                  padding: '0.45rem 0.65rem',
+                  backgroundColor: 'var(--bg-surface-elevated)',
+                  borderRadius: 'var(--radius-xs)',
+                  border: '1px dashed var(--border-default)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem'
+                }}>
+                  <Bookmark size={13} color="var(--brand-primary)" />
+                  <span>Henüz özel kayıtlı paketiniz yok. Şehir veya ülkeleri seçtikten sonra yukarıdaki <strong>"Bu Seti Kaydet"</strong> butonuyla kendi hazır lokasyon grubunuzu oluşturabilirsiniz.</span>
+                </div>
+              )}
+            </div>
+
+            {/* Quick System Presets */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
               <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-                Hızlı Önerilen Pazar Paketleri & Şehirler:
+                ⚡ Hızlı Hazır Sistem Paketleri:
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
                 {[

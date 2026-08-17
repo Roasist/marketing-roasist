@@ -40,6 +40,13 @@ export interface GeoTargetLocation {
   volumeMultiplier?: number;
 }
 
+export interface SavedLocationPreset {
+  id: string;
+  name: string;
+  locations: GeoTargetLocation[];
+  createdAt: number;
+}
+
 export type GrowthScenario = 'CONSERVATIVE' | 'REALISTIC' | 'AGGRESSIVE';
 
 export interface CountryMetric {
