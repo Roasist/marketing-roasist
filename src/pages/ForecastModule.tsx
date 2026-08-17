@@ -2552,17 +2552,41 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                 {/* Total Monthly Budget */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <label style={{ fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                      Toplam Aylık Medya Bütçesi
-                    </label>
-                    <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                      ₺{monthlyBudget.toLocaleString('tr-TR')}
+                    <div>
+                      <label style={{ fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                        Toplam Aylık Medya Bütçesi
+                      </label>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                        Günlük ortalama: <strong>~₺{Math.round(monthlyBudget / 30.4).toLocaleString('tr-TR')}</strong> / gün
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <span style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-secondary)' }}>₺</span>
+                      <input
+                        type="number"
+                        min={1000}
+                        max={2000000}
+                        step={1000}
+                        value={monthlyBudget}
+                        onChange={(e) => setMonthlyBudget(Math.max(1000, Number(e.target.value)))}
+                        style={{
+                          width: '115px',
+                          padding: '3px 8px',
+                          fontSize: '1.1rem',
+                          fontWeight: 800,
+                          textAlign: 'right',
+                          borderRadius: 'var(--radius-xs)',
+                          border: '1px solid var(--border-default)',
+                          backgroundColor: 'var(--bg-surface)',
+                          color: 'var(--text-primary)'
+                        }}
+                      />
                     </div>
                   </div>
                   <input
                     type="range"
                     min={5000}
-                    max={250000}
+                    max={500000}
                     step={2500}
                     value={monthlyBudget}
                     onChange={(e) => setMonthlyBudget(Number(e.target.value))}
@@ -2570,7 +2594,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       width: '100%',
                       accentColor: '#2563eb',
                       cursor: 'pointer',
-                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.round((monthlyBudget / 250000) * 100)}%, var(--border-default) ${Math.round((monthlyBudget / 250000) * 100)}%, var(--border-default) 100%)`,
+                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.min(100, Math.max(0, Math.round(((monthlyBudget - 5000) / 495000) * 100)))}%, var(--border-default) ${Math.min(100, Math.max(0, Math.round(((monthlyBudget - 5000) / 495000) * 100)))}%, var(--border-default) 100%)`,
                       height: '6px',
                       borderRadius: 'var(--radius-full)'
                     }}
@@ -2580,6 +2604,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     <span>₺50.000</span>
                     <span>₺125.000</span>
                     <span>₺250.000</span>
+                    <span>₺500.000</span>
                   </div>
                 </div>
 
@@ -2636,10 +2661,42 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                   {/* Google Search Allocation */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.78rem' }}>
-                      <span style={{ fontWeight: 600, color: 'var(--text-primary)', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
-                        <GoogleIcon size={15} /> Google Search (%{allocGoogleSearch})
-                      </span>
-                      <strong>₺{omnichannelMix.googleSearchSpend.toLocaleString('tr-TR')}</strong>
+                      <div>
+                        <span style={{ fontWeight: 600, color: 'var(--text-primary)', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                          <GoogleIcon size={15} /> Google Search (%{allocGoogleSearch})
+                        </span>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginLeft: '6px' }}>
+                          (~₺{Math.round(omnichannelMix.googleSearchSpend / 30.4).toLocaleString('tr-TR')}/gün)
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>₺</span>
+                        <input
+                          type="number"
+                          min={0}
+                          max={monthlyBudget}
+                          step={250}
+                          value={omnichannelMix.googleSearchSpend}
+                          onChange={(e) => {
+                            const newSpend = Number(e.target.value);
+                            if (monthlyBudget > 0) {
+                              const newAlloc = Math.max(0, Math.min(100, Math.round((newSpend / monthlyBudget) * 100)));
+                              updateChannelAllocation('google', newAlloc);
+                            }
+                          }}
+                          style={{
+                            width: '82px',
+                            padding: '2px 5px',
+                            fontSize: '0.8rem',
+                            fontWeight: 700,
+                            textAlign: 'right',
+                            borderRadius: 'var(--radius-xs)',
+                            border: '1px solid var(--border-default)',
+                            backgroundColor: 'var(--bg-surface)',
+                            color: 'var(--text-primary)'
+                          }}
+                        />
+                      </div>
                     </div>
                     <input
                       type="range"
@@ -2662,10 +2719,42 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                   {/* Meta Ads Allocation */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.78rem' }}>
-                      <span style={{ fontWeight: 600, color: 'var(--text-primary)', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
-                        <MetaIcon size={15} /> Meta Ads (FB & IG) (%{allocMetaAds})
-                      </span>
-                      <strong>₺{omnichannelMix.metaAdsSpend.toLocaleString('tr-TR')}</strong>
+                      <div>
+                        <span style={{ fontWeight: 600, color: 'var(--text-primary)', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                          <MetaIcon size={15} /> Meta Ads (FB & IG) (%{allocMetaAds})
+                        </span>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginLeft: '6px' }}>
+                          (~₺{Math.round(omnichannelMix.metaAdsSpend / 30.4).toLocaleString('tr-TR')}/gün)
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>₺</span>
+                        <input
+                          type="number"
+                          min={0}
+                          max={monthlyBudget}
+                          step={250}
+                          value={omnichannelMix.metaAdsSpend}
+                          onChange={(e) => {
+                            const newSpend = Number(e.target.value);
+                            if (monthlyBudget > 0) {
+                              const newAlloc = Math.max(0, Math.min(100, Math.round((newSpend / monthlyBudget) * 100)));
+                              updateChannelAllocation('meta', newAlloc);
+                            }
+                          }}
+                          style={{
+                            width: '82px',
+                            padding: '2px 5px',
+                            fontSize: '0.8rem',
+                            fontWeight: 700,
+                            textAlign: 'right',
+                            borderRadius: 'var(--radius-xs)',
+                            border: '1px solid var(--border-default)',
+                            backgroundColor: 'var(--bg-surface)',
+                            color: 'var(--text-primary)'
+                          }}
+                        />
+                      </div>
                     </div>
                     <input
                       type="range"
@@ -2688,10 +2777,42 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                   {/* YouTube Allocation */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.78rem' }}>
-                      <span style={{ fontWeight: 600, color: 'var(--text-primary)', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
-                        <YouTubeIcon size={15} /> YouTube Video (%{allocYouTube})
-                      </span>
-                      <strong>₺{omnichannelMix.youtubeSpend.toLocaleString('tr-TR')}</strong>
+                      <div>
+                        <span style={{ fontWeight: 600, color: 'var(--text-primary)', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                          <YouTubeIcon size={15} /> YouTube Video (%{allocYouTube})
+                        </span>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginLeft: '6px' }}>
+                          (~₺{Math.round(omnichannelMix.youtubeSpend / 30.4).toLocaleString('tr-TR')}/gün)
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>₺</span>
+                        <input
+                          type="number"
+                          min={0}
+                          max={monthlyBudget}
+                          step={250}
+                          value={omnichannelMix.youtubeSpend}
+                          onChange={(e) => {
+                            const newSpend = Number(e.target.value);
+                            if (monthlyBudget > 0) {
+                              const newAlloc = Math.max(0, Math.min(100, Math.round((newSpend / monthlyBudget) * 100)));
+                              updateChannelAllocation('youtube', newAlloc);
+                            }
+                          }}
+                          style={{
+                            width: '82px',
+                            padding: '2px 5px',
+                            fontSize: '0.8rem',
+                            fontWeight: 700,
+                            textAlign: 'right',
+                            borderRadius: 'var(--radius-xs)',
+                            border: '1px solid var(--border-default)',
+                            backgroundColor: 'var(--bg-surface)',
+                            color: 'var(--text-primary)'
+                          }}
+                        />
+                      </div>
                     </div>
                     <input
                       type="range"
@@ -2714,10 +2835,42 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                   {/* GDN Allocation */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.78rem' }}>
-                      <span style={{ fontWeight: 600, color: 'var(--text-primary)', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
-                        <GdnIcon size={15} /> Google GDN (%{allocGdn})
-                      </span>
-                      <strong>₺{omnichannelMix.gdnSpend.toLocaleString('tr-TR')}</strong>
+                      <div>
+                        <span style={{ fontWeight: 600, color: 'var(--text-primary)', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                          <GdnIcon size={15} /> Google GDN (%{allocGdn})
+                        </span>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginLeft: '6px' }}>
+                          (~₺{Math.round(omnichannelMix.gdnSpend / 30.4).toLocaleString('tr-TR')}/gün)
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>₺</span>
+                        <input
+                          type="number"
+                          min={0}
+                          max={monthlyBudget}
+                          step={250}
+                          value={omnichannelMix.gdnSpend}
+                          onChange={(e) => {
+                            const newSpend = Number(e.target.value);
+                            if (monthlyBudget > 0) {
+                              const newAlloc = Math.max(0, Math.min(100, Math.round((newSpend / monthlyBudget) * 100)));
+                              updateChannelAllocation('gdn', newAlloc);
+                            }
+                          }}
+                          style={{
+                            width: '82px',
+                            padding: '2px 5px',
+                            fontSize: '0.8rem',
+                            fontWeight: 700,
+                            textAlign: 'right',
+                            borderRadius: 'var(--radius-xs)',
+                            border: '1px solid var(--border-default)',
+                            backgroundColor: 'var(--bg-surface)',
+                            color: 'var(--text-primary)'
+                          }}
+                        />
+                      </div>
                     </div>
                     <input
                       type="range"
@@ -3412,11 +3565,30 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                           Google Search Ayrılan Bütçe (%{allocGoogleSearch})
                         </label>
                         <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                          Toplam ₺{monthlyBudget.toLocaleString('tr-TR')} medya bütçesinin %{allocGoogleSearch}'i • <strong>Tahmini Gösterim Payı: %{simulation.targetImpressionShare}</strong>
+                          Toplam ₺{monthlyBudget.toLocaleString('tr-TR')} medya bütçesinin %{allocGoogleSearch}'i • <strong>Günlük: ~₺{Math.round(Math.round((monthlyBudget * allocGoogleSearch) / 100) / 30.4).toLocaleString('tr-TR')}/gün</strong> • <strong>Tahmini Gösterim Payı: %{simulation.targetImpressionShare}</strong>
                         </div>
                       </div>
-                      <div style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                        ₺{Math.round((monthlyBudget * allocGoogleSearch) / 100).toLocaleString('tr-TR')}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-secondary)' }}>₺</span>
+                        <input
+                          type="number"
+                          min={100}
+                          max={Math.max(1000, monthlyBudget)}
+                          step={250}
+                          value={Math.round((monthlyBudget * allocGoogleSearch) / 100)}
+                          onChange={(e) => handleGoogleBudgetChange(Number(e.target.value))}
+                          style={{
+                            width: '90px',
+                            padding: '3px 6px',
+                            fontSize: '0.95rem',
+                            fontWeight: 800,
+                            textAlign: 'right',
+                            borderRadius: 'var(--radius-xs)',
+                            border: '1px solid var(--border-default)',
+                            backgroundColor: 'var(--bg-surface)',
+                            color: 'var(--text-primary)'
+                          }}
+                        />
                       </div>
                     </div>
                     <input
