@@ -951,7 +951,10 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
         return ($adsCode === 200) ? json_decode($adsRes, true) : null;
     };
 
-    $parseResults = function($adsJson, $isFromSeedCall = false) use (&$parsedKeywords, &$seenKeywords, $seedKeys) {
+    $keywordIndexMap = [];
+    $parsedKeywords = [];
+
+    $parseResults = function($adsJson, $isFromSeedCall = false) use (&$parsedKeywords, &$keywordIndexMap, $seedKeys) {
         if (empty($adsJson['results'])) return;
         foreach ($adsJson['results'] as $idx => $r) {
             $kwText = trim($r['text'] ?? '');
@@ -959,15 +962,24 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
             
             // Normalize key for 100% airtight deduplication
             $kwKey = mb_strtolower(preg_replace('/\s+/', ' ', $kwText), 'UTF-8');
-            if (isset($seenKeywords[$kwKey])) continue;
-            $seenKeywords[$kwKey] = true;
-
             $metrics = $r['keywordIdeaMetrics'] ?? [];
             $avgVol = (int)($metrics['avgMonthlySearches'] ?? 0);
             $lowBid = isset($metrics['lowTopOfPageBidMicros']) ? round($metrics['lowTopOfPageBidMicros'] / 1000000, 2) : 0;
             $highBid = isset($metrics['highTopOfPageBidMicros']) ? round($metrics['highTopOfPageBidMicros'] / 1000000, 2) : 0;
             $comp = $metrics['competition'] ?? 'MEDIUM';
             $compIdx = (int)($metrics['competitionIndex'] ?? 50);
+
+            if (isset($keywordIndexMap[$kwKey])) {
+                $pos = $keywordIndexMap[$kwKey];
+                $parsedKeywords[$pos]['monthlyVolume'] += $avgVol;
+                if ($lowBid > 0) {
+                    $parsedKeywords[$pos]['lowCpc'] = $parsedKeywords[$pos]['lowCpc'] > 0 ? min($parsedKeywords[$pos]['lowCpc'], $lowBid) : $lowBid;
+                }
+                if ($highBid > 0) {
+                    $parsedKeywords[$pos]['highCpc'] = max($parsedKeywords[$pos]['highCpc'], $highBid);
+                }
+                continue;
+            }
 
             // Multi-Lingual High-Converting Intent Classifier (Russian, Turkish, English, German, Arabic)
             $intent = 'COMMERCIAL';
@@ -1025,6 +1037,7 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
                               ($intent === 'TRANSACTIONAL' && $oppScore >= 80) || 
                               ($intent === 'COMMERCIAL' && $oppScore >= 94);
 
+            $keywordIndexMap[$kwKey] = count($parsedKeywords);
             $parsedKeywords[] = [
                 'id' => ($isAiStrategist ? 'ai_strat_' : 'ads_kw_') . (count($parsedKeywords) + 1) . '_' . substr(md5($kwText), 0, 6),
                 'keyword' => $kwText,
@@ -2693,6 +2706,21 @@ if ($action === 'discover' && $method === 'POST') {
                 }
             }
             unset($kw);
+
+            // Re-sort with official multi-location volumes
+            usort($officialKeywords, function($a, $b) {
+                $isStratA = !empty($a['isAiStrategistPick']) ? 1 : 0;
+                $isStratB = !empty($b['isAiStrategistPick']) ? 1 : 0;
+                if ($isStratA !== $isStratB) return $isStratB - $isStratA;
+
+                $scoreA = is_array($a) ? ($a['opportunityScore'] ?? 50) : 50;
+                $scoreB = is_array($b) ? ($b['opportunityScore'] ?? 50) : 50;
+                if ($scoreA !== $scoreB) return $scoreB - $scoreA;
+
+                $volA = is_array($a) ? ($a['monthlyVolume'] ?? 0) : 0;
+                $volB = is_array($b) ? ($b['monthlyVolume'] ?? 0) : 0;
+                return $volB - $volA;
+            });
         }
     }
 
