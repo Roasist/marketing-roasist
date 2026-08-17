@@ -2766,13 +2766,7 @@ if ($action === 'location_presets') {
         $presets = $input['presets'] ?? [];
         $jsonPresets = json_encode($presets, JSON_UNESCAPED_UNICODE);
 
-        $stmt = $pdo->prepare("
-            INSERT INTO app_settings (setting_key, setting_value, updated_at) 
-            VALUES (?, ?, datetime('now'))
-            ON CONFLICT(setting_key) DO UPDATE SET 
-                setting_value = excluded.setting_value,
-                updated_at = datetime('now')
-        ");
+        $stmt = $pdo->prepare("INSERT OR REPLACE INTO app_settings (setting_key, setting_value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)");
         $stmt->execute([$settingKey, $jsonPresets]);
         echo json_encode(['status' => 'success', 'message' => 'Lokasyon paketleri başarıyla kaydedildi!'], JSON_UNESCAPED_UNICODE);
         exit;
