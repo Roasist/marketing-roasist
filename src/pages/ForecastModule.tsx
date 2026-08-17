@@ -2089,21 +2089,12 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         (loc.canonicalName && b.canonicalName && b.canonicalName.toLowerCase() === loc.canonicalName.toLowerCase())
       );
       
-      let cVol = off?.monthlyVolume;
-      let cCpc = off?.avgCpc;
-      let share = (off?.sharePercent !== undefined && off.sharePercent > 0) ? (off.sharePercent / 100) : 0;
+      const cVol = off?.monthlyVolume ?? 0;
+      const cCpc = off?.avgCpc ?? 0;
+      const share = (totalOfficialVol > 0 && cVol > 0) ? (cVol / totalOfficialVol) : ((off?.sharePercent !== undefined && off.sharePercent > 0) ? (off.sharePercent / 100) : 0);
 
-      if (cVol === undefined || cVol === null || (totalOfficialVol === 0 && selectedLocations.length > 1)) {
-        const volMult = loc.volumeMultiplier ?? 1.0;
-        const totalWeight = selectedLocations.reduce((s, c) => s + (c.volumeMultiplier ?? 1.0), 0);
-        share = totalWeight > 0 ? (volMult / totalWeight) : (1 / selectedLocations.length);
-        cVol = Math.round(baseSearchVolume * share);
-        const cpcMult = loc.cpcMultiplier ?? (loc.countryCode === 'TR' ? 1.0 : 2.5);
-        cCpc = Math.round((avgTopPageCpc / blendedCpcMultiplier) * cpcMult * 100) / 100;
-      }
-
-      const cClicks = Math.round((simulation.estClicks || 0) * (share || (1 / selectedLocations.length)));
-      const cConvs = Math.round((simulation.estConversions || 0) * (share || (1 / selectedLocations.length)));
+      const cClicks = Math.round((simulation.estClicks || 0) * (share || 0));
+      const cConvs = Math.round((simulation.estConversions || 0) * (share || 0));
 
       return {
         id: String(loc.id),
@@ -2111,7 +2102,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         name: loc.name,
         canonicalName: loc.canonicalName || loc.name,
         flag: loc.flag || '🌍',
-        sharePercent: Math.round((share || (1 / selectedLocations.length)) * 100),
+        sharePercent: Math.round(share * 100),
         monthlyVolume: cVol,
         avgCpc: cCpc || avgTopPageCpc,
         estClicks: cClicks,
@@ -2120,7 +2111,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     });
 
     return items.sort((a, b) => b.monthlyVolume - a.monthlyVolume);
-  }, [selectedLocations, officialLocationBreakdown, baseSearchVolume, avgTopPageCpc, blendedCpcMultiplier, simulation]);
+  }, [selectedLocations, officialLocationBreakdown, avgTopPageCpc, simulation]);
 
   // -------------------------------------------------------------
   // LOCATION SCOPE ADAPTIVE KEYWORD & GROUP METRICS
@@ -2143,7 +2134,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   const scopedKeywords = useMemo(() => {
     const activeGeoIds = new Set(selectedLocations.map(l => String(l.id)));
 
-    if (activeLocationScope === 'ALL' || !activeScopeMetric) {
+    if (activeLocationScope === 'ALL' || !activeScopeLocation) {
       return keywords.map(k => {
         if (k.geoVolumes && Object.keys(k.geoVolumes).length > 0) {
           let sumGeo = 0;
@@ -2165,13 +2156,11 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       });
     }
 
-    const targetGeoId = String(activeScopeMetric.id || activeScopeLocation?.id || '');
+    const targetGeoId = String(activeScopeMetric?.id || activeScopeLocation?.id || '');
     const cleanGeoId = targetGeoId.replace(/[^0-9]/g, '');
-    const share = (activeScopeMetric.sharePercent || (100 / Math.max(1, selectedLocations.length))) / 100;
-    const cpcScale = avgTopPageCpc > 0 && activeScopeMetric.avgCpc > 0 ? (activeScopeMetric.avgCpc / avgTopPageCpc) : 1.0;
 
     return keywords.map(k => {
-      // 1. Direct official Google Ads volume for this exact location if available
+      // 1. Direct official Google Ads volume for this exact location
       const directLocVol = k.geoVolumes ? (
         k.geoVolumes[cleanGeoId] !== undefined ? k.geoVolumes[cleanGeoId] :
         (k.geoVolumes[targetGeoId] !== undefined ? k.geoVolumes[targetGeoId] :
@@ -2187,23 +2176,20 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         return {
           ...k,
           monthlyVolume: directLocVol,
-          lowCpc: directLocLowCpc !== undefined && directLocLowCpc > 0 ? directLocLowCpc : (k.lowCpc > 0 ? Math.round(k.lowCpc * cpcScale * 100) / 100 : 0),
-          highCpc: directLocHighCpc !== undefined && directLocHighCpc > 0 ? directLocHighCpc : (k.highCpc > 0 ? Math.round(k.highCpc * cpcScale * 100) / 100 : 0),
+          lowCpc: directLocLowCpc !== undefined && directLocLowCpc > 0 ? directLocLowCpc : k.lowCpc,
+          highCpc: directLocHighCpc !== undefined && directLocHighCpc > 0 ? directLocHighCpc : k.highCpc,
         };
       }
 
-      // 2. Proportional fallback only if per-keyword breakdown was not returned
-      const locVol = Math.round(k.monthlyVolume * share);
-      const locLowCpc = Math.round(k.lowCpc * cpcScale * 100) / 100;
-      const locHighCpc = Math.round(k.highCpc * cpcScale * 100) / 100;
+      // STRICT ZERO ESTIMATES: If no official Google Ads data exists for this specific location, volume is 0
       return {
         ...k,
-        monthlyVolume: locVol,
-        lowCpc: locLowCpc,
-        highCpc: locHighCpc,
+        monthlyVolume: 0,
+        lowCpc: 0,
+        highCpc: 0,
       };
     });
-  }, [keywords, activeLocationScope, activeScopeMetric, activeScopeLocation, selectedLocations, avgTopPageCpc]);
+  }, [keywords, activeLocationScope, activeScopeMetric, activeScopeLocation, selectedLocations]);
 
   // Scoped clusters (Ad Group Themes)
   const keywordClusters = useMemo(() => {
