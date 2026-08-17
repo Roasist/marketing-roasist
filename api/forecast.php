@@ -322,6 +322,182 @@ function batchSearchGoogleAdsLocations($apiKeys, $queries, $locale = 'tr') {
     ];
 }
 
+function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKeywords, $geoConstants, $langCode = 'tr') {
+    $clientId = $apiKeys['googleClientId'] ?? '';
+    $clientSecret = $apiKeys['googleClientSecret'] ?? '';
+    $refreshToken = $apiKeys['googleRefreshToken'] ?? '';
+    $devToken = $apiKeys['googleAdsDevToken'] ?? '';
+    $customerId = preg_replace('/[^0-9]/', '', $apiKeys['googleAdsCustomerId'] ?? '');
+
+    if (empty($clientId) || empty($clientSecret) || empty($refreshToken) || empty($devToken) || empty($customerId) || empty($geoConstants)) {
+        return [];
+    }
+
+    $ch = curl_init('https://oauth2.googleapis.com/token');
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query([
+        'client_id' => $clientId,
+        'client_secret' => $clientSecret,
+        'refresh_token' => $refreshToken,
+        'grant_type' => 'refresh_token'
+    ]));
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 6);
+    $res = curl_exec($ch);
+    curl_close($ch);
+
+    $json = json_decode($res, true);
+    if (empty($json['access_token'])) {
+        return [];
+    }
+    $accessToken = $json['access_token'];
+
+    $langMap = [
+        'tr' => 'languageConstants/1037',
+        'en' => 'languageConstants/1000',
+        'de' => 'languageConstants/1001',
+        'ru' => 'languageConstants/1031',
+        'ar' => 'languageConstants/1019'
+    ];
+    $normLangCode = strtolower(trim($langCode));
+    if (is_numeric($normLangCode)) {
+        $langConst = 'languageConstants/' . $normLangCode;
+    } else {
+        $langConst = $langMap[$normLangCode] ?? 'languageConstants/1037';
+    }
+
+    $topSeeds = [];
+    if (!empty($officialKeywords) && is_array($officialKeywords)) {
+        foreach (array_slice($officialKeywords, 0, 10) as $okw) {
+            if (is_array($okw) && !empty($okw['keyword'])) {
+                $topSeeds[] = trim($okw['keyword']);
+            }
+        }
+    }
+    if (empty($topSeeds) && !empty($query) && !preg_match('/^https?:\/\//i', $query)) {
+        $topSeeds = array_map('trim', explode(',', $query));
+    }
+
+    $flagMap = [
+        'TR' => '🇹🇷', 'DE' => '🇩🇪', 'GB' => '🇬🇧', 'US' => '🇺🇸',
+        'RU' => '🇷🇺', 'AE' => '🇦🇪', 'KZ' => '🇰🇿', 'FR' => '🇫🇷',
+        'IT' => '🇮🇹', 'ES' => '🇪🇸', 'NL' => '🇳🇱', 'SA' => '🇸🇦',
+        'QA' => '🇶🇦', 'AZ' => '🇦🇿', 'UA' => '🇺🇦', 'CH' => '🇨🇭',
+        'AT' => '🇦🇹', 'SE' => '🇸🇪', 'NO' => '🇳🇴', 'CA' => '🇨🇦',
+        'KG' => '🇰🇬', 'UZ' => '🇺🇿'
+    ];
+
+    $mh = curl_multi_init();
+    $curlHandles = [];
+
+    foreach ($geoConstants as $geo) {
+        $geoResource = strpos($geo, 'geoTargetConstants/') === 0 ? $geo : "geoTargetConstants/{$geo}";
+        
+        $payload = [
+            "keywordPlanNetwork" => "GOOGLE_SEARCH",
+            "language" => $langConst,
+            "geoTargetConstants" => [$geoResource]
+        ];
+
+        if ($mode === 'URL' && !empty($query) && preg_match('/^https?:\/\//i', $query)) {
+            $payload["urlSeed"] = ["url" => $query];
+        } elseif (!empty($topSeeds)) {
+            $payload["keywordSeed"] = ["keywords" => array_slice($topSeeds, 0, 10)];
+        } else {
+            $cleanSite = preg_replace('/^https?:\/\//i', '', $query);
+            $cleanSite = preg_replace('/^www\./i', '', $cleanSite);
+            $cleanSite = explode('/', $cleanSite)[0];
+            $payload["siteSeed"] = ["siteUrl" => "https://{$cleanSite}"];
+        }
+
+        $chLoc = curl_init("https://googleads.googleapis.com/v22/customers/{$customerId}:generateKeywordIdeas");
+        curl_setopt($chLoc, CURLOPT_POST, true);
+        curl_setopt($chLoc, CURLOPT_POSTFIELDS, json_encode($payload));
+        curl_setopt($chLoc, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($chLoc, CURLOPT_TIMEOUT, 8);
+        curl_setopt($chLoc, CURLOPT_HTTPHEADER, [
+            "Authorization: Bearer {$accessToken}",
+            "developer-token: {$devToken}",
+            "Content-Type: application/json"
+        ]);
+
+        curl_multi_add_handle($mh, $chLoc);
+        $curlHandles[$geo] = $chLoc;
+    }
+
+    $running = null;
+    do {
+        curl_multi_exec($mh, $running);
+        curl_multi_select($mh);
+    } while ($running > 0);
+
+    $breakdown = [];
+    $totalBreakdownVol = 0;
+
+    foreach ($curlHandles as $geo => $chLoc) {
+        $geoId = preg_replace('/[^0-9]/', '', $geo);
+        $resp = curl_multi_getcontent($chLoc);
+        curl_multi_remove_handle($mh, $chLoc);
+        curl_close($chLoc);
+
+        $json = json_decode($resp, true);
+        $results = $json['results'] ?? [];
+
+        $vol = 0;
+        $cpcSum = 0;
+        $cpcCnt = 0;
+        $lowCpcSum = 0;
+
+        foreach ($results as $r) {
+            $m = $r['keywordIdeaMetrics'] ?? [];
+            $v = (int)($m['avgMonthlySearches'] ?? 0);
+            $high = (float)(($m['highTopOfPageBidMicros'] ?? 0) / 1000000);
+            $low = (float)(($m['lowTopOfPageBidMicros'] ?? 0) / 1000000);
+            $vol += $v;
+            if ($high > 0) {
+                $cpcSum += $high;
+                $lowCpcSum += $low;
+                $cpcCnt++;
+            }
+        }
+
+        $avgCpc = $cpcCnt > 0 ? round($cpcSum / $cpcCnt, 2) : 0.0;
+        $lowCpc = $cpcCnt > 0 ? round($lowCpcSum / $cpcCnt, 2) : 0.0;
+        $totalBreakdownVol += $vol;
+
+        $locMeta = searchGoogleAdsLocations($apiKeys, $geoId, $langCode)[0] ?? null;
+        $name = $locMeta['name'] ?? "Bölge {$geoId}";
+        $canonical = $locMeta['canonicalName'] ?? $name;
+        $cc = $locMeta['countryCode'] ?? 'TR';
+        $flag = $locMeta['flag'] ?? ($flagMap[$cc] ?? '🌍');
+
+        $breakdown[] = [
+            'id' => (string)$geoId,
+            'code' => $cc,
+            'geoTargetConstant' => "geoTargetConstants/{$geoId}",
+            'name' => $name,
+            'canonicalName' => $canonical,
+            'flag' => $flag,
+            'monthlyVolume' => $vol,
+            'avgCpc' => $avgCpc,
+            'lowCpc' => $lowCpc,
+            'highCpc' => $avgCpc
+        ];
+    }
+    curl_multi_close($mh);
+
+    foreach ($breakdown as &$b) {
+        $b['sharePercent'] = $totalBreakdownVol > 0 ? round(($b['monthlyVolume'] / $totalBreakdownVol) * 100, 1) : round(100 / max(1, count($breakdown)), 1);
+    }
+    unset($b);
+
+    usort($breakdown, function($a, $b) {
+        return $b['monthlyVolume'] <=> $a['monthlyVolume'];
+    });
+
+    return $breakdown;
+}
+
 // -------------------------------------------------------------
 // HELPER: OFFICIAL GOOGLE ADS API KEYWORD PLANNER SERVICE
 // -------------------------------------------------------------
@@ -1931,6 +2107,31 @@ if ($action === 'batch_search_locations' && $method === 'POST') {
 }
 
 // -------------------------------------------------------------
+// ACTION: LOCATION BREAKDOWN (OFFICIAL GOOGLE ADS METRICS PER LOCATION)
+// -------------------------------------------------------------
+if ($action === 'location_breakdown' && $method === 'POST') {
+    $input = json_decode(file_get_contents('php://input'), true) ?? [];
+    $query = trim($input['query'] ?? '');
+    $mode = trim($input['mode'] ?? 'URL');
+    $language = trim($input['language'] ?? 'tr');
+    $geoTargetConstants = $input['geoTargetConstants'] ?? [];
+    $keywords = $input['keywords'] ?? [];
+    $apiKeys = getApiKeys($pdo);
+
+    if (empty($geoTargetConstants) || !is_array($geoTargetConstants)) {
+        echo json_encode(['status' => 'error', 'message' => 'Lütfen en az bir lokasyon belirtin.']);
+        exit;
+    }
+
+    $breakdown = calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $keywords, $geoTargetConstants, $language);
+    echo json_encode([
+        'status' => 'success',
+        'locationBreakdown' => $breakdown
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+// -------------------------------------------------------------
 // ACTION: DISCOVER & ANALYZE KEYWORDS (WITH AUTO-LANGUAGE & SMART AUTO-ROUTING)
 // -------------------------------------------------------------
 if ($action === 'discover' && $method === 'POST') {
@@ -2131,6 +2332,12 @@ if ($action === 'discover' && $method === 'POST') {
         exit;
     }
 
+    // Official Real Location Breakdown Calculation from Google Ads API
+    $locationBreakdown = [];
+    if (!empty($requestedGeoTargetConstants) && is_array($requestedGeoTargetConstants) && count($requestedGeoTargetConstants) > 1) {
+        $locationBreakdown = calculateOfficialLocationBreakdown($apiKeys, $query, $actualMode, $officialKeywords, $requestedGeoTargetConstants, $langInfo['code']);
+    }
+
     $result = [
         'query' => $query,
         'mode' => $actualMode,
@@ -2142,6 +2349,7 @@ if ($action === 'discover' && $method === 'POST') {
         'pageTitle' => $pageDetails['title'] ?? $query,
         'pageSummary' => 'Resmi Google Ads Keyword Planner servisinden çekilen, 2. kontrol yapay zeka süzgecinden geçmiş ve ek fırsat kelimeleriyle zenginleştirilmiş resmi veriler.',
         'suggestedCountries' => $suggestedCountries,
+        'locationBreakdown' => $locationBreakdown,
         'totalCount' => count($officialKeywords),
         'keywords' => $officialKeywords,
         'timestamp' => date('c')

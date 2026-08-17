@@ -38,6 +38,11 @@ export interface GeoTargetLocation {
   flag?: string;
   cpcMultiplier?: number;
   volumeMultiplier?: number;
+  monthlyVolume?: number; // Official Google Ads monthly search volume for this geo
+  avgCpc?: number; // Official Google Ads average CPC for this geo
+  lowCpc?: number;
+  highCpc?: number;
+  sharePercent?: number;
 }
 
 export interface SavedLocationPreset {

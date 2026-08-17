@@ -303,6 +303,23 @@ export class ApiService {
     };
   }
 
+  public static async getLocationBreakdown(payload: {
+    query: string;
+    mode: string;
+    language: string;
+    geoTargetConstants: string[];
+    keywords?: any[];
+  }): Promise<any[]> {
+    const res = await this.request<{ status: string; locationBreakdown: any[] }>(
+      '/forecast.php?action=location_breakdown',
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }
+    );
+    return res.locationBreakdown || [];
+  }
+
   public static async getForecastPlans(workspaceId?: string): Promise<any[]> {
     const res = await this.request<{ status: string; plans: any[] }>(`/forecast.php?action=plans&workspace_id=${encodeURIComponent(workspaceId || '')}`);
     return res.plans || [];

@@ -561,6 +561,8 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   const [batchMatchedLocations, setBatchMatchedLocations] = useState<GeoTargetLocation[]>([]);
   const [batchUnmatchedQueries, setBatchUnmatchedQueries] = useState<string[]>([]);
   const [selectedBatchLocationIds, setSelectedBatchLocationIds] = useState<Set<string>>(new Set());
+  const [officialLocationBreakdown, setOfficialLocationBreakdown] = useState<CountryMetric[]>([]);
+  const [isLoadingLocationBreakdown, setIsLoadingLocationBreakdown] = useState<boolean>(false);
 
   // Growth Scenario Projection (Muhafazakar / Beklenen / Agresif)
   const [growthScenario, setGrowthScenario] = useState<GrowthScenario>('REALISTIC');
@@ -1324,6 +1326,10 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           }
         }
 
+        if ((res as any).locationBreakdown && (res as any).locationBreakdown.length > 0) {
+          setOfficialLocationBreakdown((res as any).locationBreakdown);
+        }
+
         // Dynamic Multi-Channel CPM & CPV benchmarks based on Sector & Target Market
         const isIntl = (res.detectedLanguage && res.detectedLanguage !== 'tr') || (res.suggestedCountries && res.suggestedCountries.some((c: any) => ['DE', 'GB', 'US', 'AE', 'SA', 'RU'].includes(c.code)));
         if (/emlak|gayrimenkul|citizenship|vatandaşlık|villa|property|real estate|klinik|health|saç ekim|hair transplant|estetik|hastane/.test(lowerContext)) {
@@ -1963,30 +1969,82 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     businessModel
   ]);
 
-  // Location / Country Breakdown Metrics
+  // Fetch real Google Ads Location Breakdown whenever selectedLocations or keywords change
+  useEffect(() => {
+    if (!selectedLocations || selectedLocations.length < 2 || !keywords || keywords.length === 0) {
+      return;
+    }
+
+    let isMounted = true;
+    const fetchBreakdown = async () => {
+      setIsLoadingLocationBreakdown(true);
+      try {
+        const breakdown = await ApiService.getLocationBreakdown({
+          query: mode === 'URL' ? query : keywords.slice(0, 10).map(k => k.keyword).join(', '),
+          mode,
+          language: detectedLanguage || 'tr',
+          geoTargetConstants: selectedLocations.map(l => l.id),
+          keywords: keywords.slice(0, 10)
+        });
+        if (isMounted && breakdown && breakdown.length > 0) {
+          setOfficialLocationBreakdown(breakdown);
+        }
+      } catch (err) {
+        console.warn('Error fetching official location breakdown:', err);
+      } finally {
+        if (isMounted) setIsLoadingLocationBreakdown(false);
+      }
+    };
+
+    const timeout = setTimeout(fetchBreakdown, 500);
+    return () => {
+      isMounted = false;
+      clearTimeout(timeout);
+    };
+  }, [selectedLocations, keywords, detectedLanguage, mode, query]);
+
+  // Location / Country Breakdown Metrics with Real Google Ads API data
   const countryBreakdown: CountryMetric[] = useMemo(() => {
     if (selectedLocations.length === 0) return [];
-    const totalWeight = selectedLocations.reduce((s, c) => s + (c.volumeMultiplier ?? 1.0), 0);
-    return selectedLocations.map(loc => {
-      const volMult = loc.volumeMultiplier ?? 1.0;
-      const share = totalWeight > 0 ? (volMult / totalWeight) : (1 / selectedLocations.length);
-      const cVol = Math.round(baseSearchVolume * volMult);
-      const cpcMult = loc.cpcMultiplier ?? (loc.countryCode === 'TR' ? 1.0 : 2.5);
-      const cCpc = Math.round((avgTopPageCpc / blendedCpcMultiplier) * cpcMult * 100) / 100;
-      const cClicks = Math.round((simulation.estClicks || 0) * share);
-      const cConvs = Math.round((simulation.estConversions || 0) * share);
+
+    const totalOfficialVol = selectedLocations.reduce((sum, loc) => {
+      const off = officialLocationBreakdown.find(b => (b as any).id === loc.id || b.name.toLowerCase() === loc.name.toLowerCase() || b.code === loc.countryCode);
+      return sum + (off?.monthlyVolume || 0);
+    }, 0);
+
+    const items = selectedLocations.map(loc => {
+      const off = officialLocationBreakdown.find(b => (b as any).id === loc.id || b.name.toLowerCase() === loc.name.toLowerCase() || b.code === loc.countryCode);
+      
+      let cVol = off?.monthlyVolume;
+      let cCpc = off?.avgCpc;
+      let share = (off?.sharePercent !== undefined && off.sharePercent > 0) ? (off.sharePercent / 100) : 0;
+
+      if (cVol === undefined || cVol === null || (totalOfficialVol === 0 && selectedLocations.length > 1)) {
+        const volMult = loc.volumeMultiplier ?? 1.0;
+        const totalWeight = selectedLocations.reduce((s, c) => s + (c.volumeMultiplier ?? 1.0), 0);
+        share = totalWeight > 0 ? (volMult / totalWeight) : (1 / selectedLocations.length);
+        cVol = Math.round(baseSearchVolume * share);
+        const cpcMult = loc.cpcMultiplier ?? (loc.countryCode === 'TR' ? 1.0 : 2.5);
+        cCpc = Math.round((avgTopPageCpc / blendedCpcMultiplier) * cpcMult * 100) / 100;
+      }
+
+      const cClicks = Math.round((simulation.estClicks || 0) * (share || (1 / selectedLocations.length)));
+      const cConvs = Math.round((simulation.estConversions || 0) * (share || (1 / selectedLocations.length)));
+
       return {
         code: loc.countryCode,
         name: loc.canonicalName || loc.name,
         flag: loc.flag || '🌍',
-        sharePercent: Math.round(share * 100),
+        sharePercent: Math.round((share || (1 / selectedLocations.length)) * 100),
         monthlyVolume: cVol,
-        avgCpc: cCpc,
+        avgCpc: cCpc || avgTopPageCpc,
         estClicks: cClicks,
         estConversions: cConvs,
       };
     });
-  }, [selectedLocations, baseSearchVolume, avgTopPageCpc, blendedCpcMultiplier, simulation]);
+
+    return items.sort((a, b) => b.monthlyVolume - a.monthlyVolume);
+  }, [selectedLocations, officialLocationBreakdown, baseSearchVolume, avgTopPageCpc, blendedCpcMultiplier, simulation]);
 
   // Copy Negative Keywords to Clipboard
   const handleCopyNegatives = (words: string[], categoryTitle: string) => {
@@ -5755,14 +5813,46 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                   </div>
                 </div>
 
-                {/* Country Breakdown Rows */}
+                {/* Official Google Ads Regional Breakdown Rows */}
                 {countryBreakdown.length > 0 && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
-                    <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-primary)' }}>Pazar Kırılımı:</span>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.4rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>Pazar Kırılımı:</span>
+                        <span className="badge badge-active" style={{ fontSize: '0.68rem', padding: '2px 6px' }}>
+                          <Sparkles size={10} /> Google Ads API
+                        </span>
+                      </div>
+                      {isLoadingLocationBreakdown ? (
+                        <span style={{ fontSize: '0.7rem', color: 'var(--brand-primary)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                          <RefreshCw size={11} className="animate-spin" /> Veriler alınıyor...
+                        </span>
+                      ) : (
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                          {countryBreakdown.length} Hedef Bölge
+                        </span>
+                      )}
+                    </div>
                     {countryBreakdown.map((cm) => (
-                      <div key={cm.code} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.75rem' }}>
-                        <span>{cm.flag} {cm.name}</span>
-                        <span><strong>{cm.monthlyVolume.toLocaleString('tr-TR')}</strong> arama • ₺{cm.avgCpc.toFixed(2)} TBM</span>
+                      <div key={cm.name + cm.code} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.76rem', padding: '0.2rem 0' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <span style={{ fontSize: '0.95rem' }}>{cm.flag}</span>
+                          <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{cm.name}</span>
+                          {cm.sharePercent > 0 && (
+                            <span className="badge badge-neutral" style={{ fontSize: '0.65rem', padding: '1px 4px' }}>
+                              %{cm.sharePercent}
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', whiteSpace: 'nowrap' }}>
+                          <span style={{ color: 'var(--text-secondary)' }}>
+                            <strong style={{ color: 'var(--text-primary)' }}>{cm.monthlyVolume.toLocaleString('tr-TR')}</strong> arama
+                          </span>
+                          <span style={{ color: 'var(--border-default)' }}>•</span>
+                          <span style={{ color: cm.avgCpc > 0 ? 'var(--brand-primary)' : 'var(--text-muted)', fontWeight: 600 }}>
+                            {cm.avgCpc > 0 ? `₺${cm.avgCpc.toFixed(2)} TBM` : 'TBM Yok'}
+                          </span>
+                        </div>
                       </div>
                     ))}
                   </div>
