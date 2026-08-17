@@ -33,6 +33,12 @@ if (empty($GITHUB_TOKEN) && defined('DEPLOY_TOKEN')) {
     $GITHUB_TOKEN = DEPLOY_TOKEN;
 }
 
+// Allow passing / updating token in request
+if (!empty($_GET['token'])) {
+    $GITHUB_TOKEN = trim($_GET['token']);
+    @file_put_contents($configFile, "<?php\nreturn ['github_token' => " . var_export($GITHUB_TOKEN, true) . "];\n");
+}
+
 $githubApiUrl = 'https://api.github.com/repos/Roasist/marketing-roasist/zipball/main';
 $tempZip = $targetDir . '/_temp_deploy.zip';
 $extractDir = $targetDir . '/_temp_extracted';
@@ -48,7 +54,7 @@ if (!empty($GITHUB_TOKEN)) {
     curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
     curl_setopt($ch, CURLOPT_MAXREDIRS, 5);
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'Authorization: Bearer ' . trim($GITHUB_TOKEN),
+        'Authorization: token ' . trim($GITHUB_TOKEN),
         'User-Agent: Roasist-AutoDeployer',
         'Accept: application/vnd.github+json',
         'X-GitHub-Api-Version: 2022-11-28'
@@ -62,6 +68,9 @@ if (!empty($GITHUB_TOKEN)) {
 
     $debug['http_code'] = $httpCode;
     $debug['download_size'] = @filesize($tempZip);
+    if ($httpCode !== 200) {
+        $debug['error_body'] = @file_get_contents($tempZip);
+    }
 
     if (class_exists('ZipArchive') && file_exists($tempZip) && filesize($tempZip) > 1000) {
         $zip = new ZipArchive();
