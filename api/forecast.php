@@ -1112,6 +1112,10 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
                 "geoTargetConstants" => [$primaryGeo],
                 "keywordSeed" => ["keywords" => $uniqueSeeds]
             ];
+            $primarySeedRes = $callGoogleAdsApi($primarySeedPayload);
+            $parseResults($primarySeedRes, true);
+        }
+
         if (empty($parsedKeywords)) {
             $domainSeeds = extractLocationAndSmartSeeds(['title' => $cleanSiteUrl, 'textSnippet' => $url], $url, $normLangCode);
             if (!empty($domainSeeds)) {
