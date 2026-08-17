@@ -1984,7 +1984,8 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           mode,
           language: detectedLanguage || 'tr',
           geoTargetConstants: selectedLocations.map(l => l.id),
-          keywords: keywords.slice(0, 10)
+          keywords: keywords.slice(0, 10),
+          locations: selectedLocations
         });
         if (isMounted && breakdown && breakdown.length > 0) {
           setOfficialLocationBreakdown(breakdown);

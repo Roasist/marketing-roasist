@@ -309,6 +309,7 @@ export class ApiService {
     language: string;
     geoTargetConstants: string[];
     keywords?: any[];
+    locations?: any[];
   }): Promise<any[]> {
     const res = await this.request<{ status: string; locationBreakdown: any[] }>(
       '/forecast.php?action=location_breakdown',

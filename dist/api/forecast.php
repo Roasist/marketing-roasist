@@ -322,7 +322,7 @@ function batchSearchGoogleAdsLocations($apiKeys, $queries, $locale = 'tr') {
     ];
 }
 
-function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKeywords, $geoConstants, $langCode = 'tr') {
+function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKeywords, $geoConstants, $langCode = 'tr', $locationsMeta = []) {
     $clientId = $apiKeys['googleClientId'] ?? '';
     $clientSecret = $apiKeys['googleClientSecret'] ?? '';
     $refreshToken = $apiKeys['googleRefreshToken'] ?? '';
@@ -331,6 +331,15 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
 
     if (empty($clientId) || empty($clientSecret) || empty($refreshToken) || empty($devToken) || empty($customerId) || empty($geoConstants)) {
         return [];
+    }
+
+    $locMetaMap = [];
+    if (!empty($locationsMeta) && is_array($locationsMeta)) {
+        foreach ($locationsMeta as $lm) {
+            if (!empty($lm['id'])) {
+                $locMetaMap[(string)$lm['id']] = $lm;
+            }
+        }
     }
 
     $ch = curl_init('https://oauth2.googleapis.com/token');
@@ -465,7 +474,10 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
         $lowCpc = $cpcCnt > 0 ? round($lowCpcSum / $cpcCnt, 2) : 0.0;
         $totalBreakdownVol += $vol;
 
-        $locMeta = searchGoogleAdsLocations($apiKeys, $geoId, $langCode)[0] ?? null;
+        $locMeta = $locMetaMap[(string)$geoId] ?? null;
+        if (!$locMeta) {
+            $locMeta = searchGoogleAdsLocations($apiKeys, $geoId, $langCode)[0] ?? null;
+        }
         $name = $locMeta['name'] ?? "Bölge {$geoId}";
         $canonical = $locMeta['canonicalName'] ?? $name;
         $cc = $locMeta['countryCode'] ?? 'TR';
@@ -2123,7 +2135,8 @@ if ($action === 'location_breakdown' && $method === 'POST') {
         exit;
     }
 
-    $breakdown = calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $keywords, $geoTargetConstants, $language);
+    $locationsMeta = $input['locations'] ?? [];
+    $breakdown = calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $keywords, $geoTargetConstants, $language, $locationsMeta);
     echo json_encode([
         'status' => 'success',
         'locationBreakdown' => $breakdown
