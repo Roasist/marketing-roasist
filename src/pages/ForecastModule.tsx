@@ -2955,14 +2955,33 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     <label style={{ fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                       Sektörel Ortalama CPM (1.000 Gösterim Maliyeti ₺)
                     </label>
-                    <div style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                      ₺{metaCpm}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>₺</span>
+                      <input
+                        type="number"
+                        min={5}
+                        max={3000}
+                        step={1}
+                        value={metaCpm}
+                        onChange={(e) => setMetaCpm(Math.max(1, Number(e.target.value)))}
+                        style={{
+                          width: '74px',
+                          padding: '2px 6px',
+                          fontSize: '0.85rem',
+                          fontWeight: 700,
+                          textAlign: 'right',
+                          borderRadius: 'var(--radius-xs)',
+                          border: '1px solid var(--border-default)',
+                          backgroundColor: 'var(--bg-surface)',
+                          color: 'var(--text-primary)'
+                        }}
+                      />
                     </div>
                   </div>
                   <input
                     type="range"
-                    min={20}
-                    max={600}
+                    min={10}
+                    max={1000}
                     step={5}
                     value={metaCpm}
                     onChange={(e) => setMetaCpm(Number(e.target.value))}
@@ -2970,7 +2989,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       width: '100%',
                       accentColor: '#2563eb',
                       cursor: 'pointer',
-                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.round((metaCpm / 600) * 100)}%, var(--border-default) ${Math.round((metaCpm / 600) * 100)}%, var(--border-default) 100%)`,
+                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.min(100, Math.max(0, Math.round(((metaCpm - 10) / 990) * 100)))}%, var(--border-default) ${Math.min(100, Math.max(0, Math.round(((metaCpm - 10) / 990) * 100)))}%, var(--border-default) 100%)`,
                       height: '6px',
                       borderRadius: 'var(--radius-full)'
                     }}
@@ -2990,14 +3009,33 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     <label style={{ fontSize: '0.825rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
                       Ortalama Tıklama Oranı (CTR / TO %)
                     </label>
-                    <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                      %{metaCtr}
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>%</span>
+                      <input
+                        type="number"
+                        min={0.1}
+                        max={50.0}
+                        step={0.1}
+                        value={metaCtr}
+                        onChange={(e) => setMetaCtr(Math.max(0.1, Number(e.target.value)))}
+                        style={{
+                          width: '64px',
+                          padding: '2px 6px',
+                          fontSize: '0.85rem',
+                          fontWeight: 700,
+                          textAlign: 'right',
+                          borderRadius: 'var(--radius-xs)',
+                          border: '1px solid var(--border-default)',
+                          backgroundColor: 'var(--bg-surface)',
+                          color: 'var(--text-primary)'
+                        }}
+                      />
+                    </div>
                   </div>
                   <input
                     type="range"
-                    min={0.5}
-                    max={4.0}
+                    min={0.2}
+                    max={20.0}
                     step={0.1}
                     value={metaCtr}
                     onChange={(e) => setMetaCtr(Number(e.target.value))}
@@ -3005,7 +3043,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       width: '100%',
                       accentColor: '#2563eb',
                       cursor: 'pointer',
-                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.round(((metaCtr - 0.5) / 3.5) * 100)}%, var(--border-default) ${Math.round(((metaCtr - 0.5) / 3.5) * 100)}%, var(--border-default) 100%)`,
+                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.min(100, Math.max(0, Math.round(((metaCtr - 0.2) / 19.8) * 100)))}%, var(--border-default) ${Math.min(100, Math.max(0, Math.round(((metaCtr - 0.2) / 19.8) * 100)))}%, var(--border-default) 100%)`,
                       height: '6px',
                       borderRadius: 'var(--radius-full)'
                     }}
@@ -3021,22 +3059,41 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     <label style={{ fontSize: '0.825rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
                       Form & Talep Dönüşüm Oranı (Lead CR %)
                     </label>
-                    <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                      %{metaLeadCr}
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>%</span>
+                      <input
+                        type="number"
+                        min={0.1}
+                        max={80.0}
+                        step={0.1}
+                        value={metaLeadCr}
+                        onChange={(e) => setMetaLeadCr(Math.max(0.1, Number(e.target.value)))}
+                        style={{
+                          width: '64px',
+                          padding: '2px 6px',
+                          fontSize: '0.85rem',
+                          fontWeight: 700,
+                          textAlign: 'right',
+                          borderRadius: 'var(--radius-xs)',
+                          border: '1px solid var(--border-default)',
+                          backgroundColor: 'var(--bg-surface)',
+                          color: 'var(--text-primary)'
+                        }}
+                      />
+                    </div>
                   </div>
                   <input
                     type="range"
-                    min={1.0}
-                    max={15.0}
-                    step={0.5}
+                    min={0.5}
+                    max={35.0}
+                    step={0.1}
                     value={metaLeadCr}
                     onChange={(e) => setMetaLeadCr(Number(e.target.value))}
                     style={{
                       width: '100%',
                       accentColor: '#2563eb',
                       cursor: 'pointer',
-                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.round(((metaLeadCr - 1) / 14) * 100)}%, var(--border-default) ${Math.round(((metaLeadCr - 1) / 14) * 100)}%, var(--border-default) 100%)`,
+                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.min(100, Math.max(0, Math.round(((metaLeadCr - 0.5) / 34.5) * 100)))}%, var(--border-default) ${Math.min(100, Math.max(0, Math.round(((metaLeadCr - 0.5) / 34.5) * 100)))}%, var(--border-default) 100%)`,
                       height: '6px',
                       borderRadius: 'var(--radius-full)'
                     }}
@@ -3052,22 +3109,41 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     <label style={{ fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                       Sağlıklı & Nitelikli Lead Oranı (Healthy Lead %)
                     </label>
-                    <span style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                      %{metaHealthyLeadRate}
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>%</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={100}
+                        step={1}
+                        value={metaHealthyLeadRate}
+                        onChange={(e) => setMetaHealthyLeadRate(Math.max(1, Math.min(100, Number(e.target.value))))}
+                        style={{
+                          width: '64px',
+                          padding: '2px 6px',
+                          fontSize: '0.85rem',
+                          fontWeight: 700,
+                          textAlign: 'right',
+                          borderRadius: 'var(--radius-xs)',
+                          border: '1px solid var(--border-default)',
+                          backgroundColor: 'var(--bg-surface)',
+                          color: 'var(--text-primary)'
+                        }}
+                      />
+                    </div>
                   </div>
                   <input
                     type="range"
-                    min={10}
-                    max={90}
-                    step={5}
+                    min={5}
+                    max={100}
+                    step={1}
                     value={metaHealthyLeadRate}
                     onChange={(e) => setMetaHealthyLeadRate(Number(e.target.value))}
                     style={{
                       width: '100%',
                       accentColor: '#2563eb',
                       cursor: 'pointer',
-                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.round(((metaHealthyLeadRate - 10) / 80) * 100)}%, var(--border-default) ${Math.round(((metaHealthyLeadRate - 10) / 80) * 100)}%, var(--border-default) 100%)`,
+                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.min(100, Math.max(0, Math.round(((metaHealthyLeadRate - 5) / 95) * 100)))}%, var(--border-default) ${Math.min(100, Math.max(0, Math.round(((metaHealthyLeadRate - 5) / 95) * 100)))}%, var(--border-default) 100%)`,
                       height: '6px',
                       borderRadius: 'var(--radius-full)'
                     }}
@@ -3083,14 +3159,33 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     <label style={{ fontSize: '0.825rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
                       Sağlıklı Lead'den Satışa Kapanış Oranı (%)
                     </label>
-                    <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                      %{metaCloseRate}
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>%</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={100}
+                        step={1}
+                        value={metaCloseRate}
+                        onChange={(e) => setMetaCloseRate(Math.max(1, Math.min(100, Number(e.target.value))))}
+                        style={{
+                          width: '64px',
+                          padding: '2px 6px',
+                          fontSize: '0.85rem',
+                          fontWeight: 700,
+                          textAlign: 'right',
+                          borderRadius: 'var(--radius-xs)',
+                          border: '1px solid var(--border-default)',
+                          backgroundColor: 'var(--bg-surface)',
+                          color: 'var(--text-primary)'
+                        }}
+                      />
+                    </div>
                   </div>
                   <input
                     type="range"
-                    min={2}
-                    max={40}
+                    min={1}
+                    max={100}
                     step={1}
                     value={metaCloseRate}
                     onChange={(e) => setMetaCloseRate(Number(e.target.value))}
@@ -3098,7 +3193,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       width: '100%',
                       accentColor: '#2563eb',
                       cursor: 'pointer',
-                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.round(((metaCloseRate - 2) / 38) * 100)}%, var(--border-default) ${Math.round(((metaCloseRate - 2) / 38) * 100)}%, var(--border-default) 100%)`,
+                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.min(100, Math.max(0, Math.round(((metaCloseRate - 1) / 99) * 100)))}%, var(--border-default) ${Math.min(100, Math.max(0, Math.round(((metaCloseRate - 1) / 99) * 100)))}%, var(--border-default) 100%)`,
                       height: '6px',
                       borderRadius: 'var(--radius-full)'
                     }}
@@ -3352,22 +3447,41 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                           Ayrılan Bütçe: <strong>₺{Math.round((monthlyBudget * allocGoogleSearch) / 100).toLocaleString('tr-TR')}</strong>/ay (%{allocGoogleSearch})
                         </div>
                       </div>
-                      <div style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                        %{targetImpressionShare}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>%</span>
+                        <input
+                          type="number"
+                          min={5}
+                          max={95}
+                          step={1}
+                          value={targetImpressionShare}
+                          onChange={(e) => handleImpressionShareChange(Math.max(5, Math.min(95, Number(e.target.value))))}
+                          style={{
+                            width: '64px',
+                            padding: '2px 6px',
+                            fontSize: '0.85rem',
+                            fontWeight: 700,
+                            textAlign: 'right',
+                            borderRadius: 'var(--radius-xs)',
+                            border: '1px solid var(--border-default)',
+                            backgroundColor: 'var(--bg-surface)',
+                            color: 'var(--text-primary)'
+                          }}
+                        />
                       </div>
                     </div>
                     <input
                       type="range"
-                      min={10}
+                      min={5}
                       max={95}
-                      step={5}
+                      step={1}
                       value={targetImpressionShare}
                       onChange={(e) => handleImpressionShareChange(Number(e.target.value))}
                       style={{
                         width: '100%',
                         accentColor: '#2563eb',
                         cursor: 'pointer',
-                        background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${targetImpressionShare}%, var(--border-default) ${targetImpressionShare}%, var(--border-default) 100%)`,
+                        background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.min(100, Math.max(0, Math.round(((targetImpressionShare - 5) / 90) * 100)))}%, var(--border-default) ${Math.min(100, Math.max(0, Math.round(((targetImpressionShare - 5) / 90) * 100)))}%, var(--border-default) 100%)`,
                         height: '6px',
                         borderRadius: 'var(--radius-full)'
                       }}
@@ -3398,22 +3512,41 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     <label style={{ fontSize: '0.825rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
                       Tahmini Arama Ağı Tıklama Oranı (CTR / TO %)
                     </label>
-                    <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                      %{expectedCtr}
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>%</span>
+                      <input
+                        type="number"
+                        min={0.1}
+                        max={80.0}
+                        step={0.1}
+                        value={expectedCtr}
+                        onChange={(e) => handleExpectedCtrChange(Math.max(0.1, Number(e.target.value)))}
+                        style={{
+                          width: '64px',
+                          padding: '2px 6px',
+                          fontSize: '0.85rem',
+                          fontWeight: 700,
+                          textAlign: 'right',
+                          borderRadius: 'var(--radius-xs)',
+                          border: '1px solid var(--border-default)',
+                          backgroundColor: 'var(--bg-surface)',
+                          color: 'var(--text-primary)'
+                        }}
+                      />
+                    </div>
                   </div>
                   <input
                     type="range"
-                    min={3.0}
-                    max={15.0}
-                    step={0.5}
+                    min={1.0}
+                    max={40.0}
+                    step={0.1}
                     value={expectedCtr}
                     onChange={(e) => handleExpectedCtrChange(Number(e.target.value))}
                     style={{
                       width: '100%',
                       accentColor: '#2563eb',
                       cursor: 'pointer',
-                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.round(((expectedCtr - 3) / 12) * 100)}%, var(--border-default) ${Math.round(((expectedCtr - 3) / 12) * 100)}%, var(--border-default) 100%)`,
+                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.min(100, Math.max(0, Math.round(((expectedCtr - 1.0) / 39.0) * 100)))}%, var(--border-default) ${Math.min(100, Math.max(0, Math.round(((expectedCtr - 1.0) / 39.0) * 100)))}%, var(--border-default) 100%)`,
                       height: '6px',
                       borderRadius: 'var(--radius-full)'
                     }}
@@ -3426,22 +3559,41 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     <label style={{ fontSize: '0.825rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
                       Form & Talep Dönüşüm Oranı (Lead CR %)
                     </label>
-                    <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                      %{leadConversionRate}
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>%</span>
+                      <input
+                        type="number"
+                        min={0.1}
+                        max={80.0}
+                        step={0.1}
+                        value={leadConversionRate}
+                        onChange={(e) => setLeadConversionRate(Math.max(0.1, Number(e.target.value)))}
+                        style={{
+                          width: '64px',
+                          padding: '2px 6px',
+                          fontSize: '0.85rem',
+                          fontWeight: 700,
+                          textAlign: 'right',
+                          borderRadius: 'var(--radius-xs)',
+                          border: '1px solid var(--border-default)',
+                          backgroundColor: 'var(--bg-surface)',
+                          color: 'var(--text-primary)'
+                        }}
+                      />
+                    </div>
                   </div>
                   <input
                     type="range"
                     min={0.5}
-                    max={12.0}
-                    step={0.5}
+                    max={35.0}
+                    step={0.1}
                     value={leadConversionRate}
                     onChange={(e) => setLeadConversionRate(Number(e.target.value))}
                     style={{
                       width: '100%',
                       accentColor: '#2563eb',
                       cursor: 'pointer',
-                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.round(((leadConversionRate - 0.5) / 11.5) * 100)}%, var(--border-default) ${Math.round(((leadConversionRate - 0.5) / 11.5) * 100)}%, var(--border-default) 100%)`,
+                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.min(100, Math.max(0, Math.round(((leadConversionRate - 0.5) / 34.5) * 100)))}%, var(--border-default) ${Math.min(100, Math.max(0, Math.round(((leadConversionRate - 0.5) / 34.5) * 100)))}%, var(--border-default) 100%)`,
                       height: '6px',
                       borderRadius: 'var(--radius-full)'
                     }}
@@ -3456,14 +3608,33 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                         <label style={{ fontSize: '0.825rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
                           Sağlıklı Lead Oranı (% Healthy Lead)
                         </label>
-                        <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                          %{leadCloseRate}
-                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                          <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>%</span>
+                          <input
+                            type="number"
+                            min={1}
+                            max={100}
+                            step={1}
+                            value={leadCloseRate}
+                            onChange={(e) => setLeadCloseRate(Math.max(1, Math.min(100, Number(e.target.value))))}
+                            style={{
+                              width: '64px',
+                              padding: '2px 6px',
+                              fontSize: '0.85rem',
+                              fontWeight: 700,
+                              textAlign: 'right',
+                              borderRadius: 'var(--radius-xs)',
+                              border: '1px solid var(--border-default)',
+                              backgroundColor: 'var(--bg-surface)',
+                              color: 'var(--text-primary)'
+                            }}
+                          />
+                        </div>
                       </div>
                       <input
                         type="range"
                         min={1}
-                        max={40}
+                        max={100}
                         step={1}
                         value={leadCloseRate}
                         onChange={(e) => setLeadCloseRate(Number(e.target.value))}
@@ -3471,7 +3642,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                           width: '100%',
                           accentColor: '#2563eb',
                           cursor: 'pointer',
-                          background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.round(((leadCloseRate - 1) / 39) * 100)}%, var(--border-default) ${Math.round(((leadCloseRate - 1) / 39) * 100)}%, var(--border-default) 100%)`,
+                          background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.min(100, Math.max(0, Math.round(((leadCloseRate - 1) / 99) * 100)))}%, var(--border-default) ${Math.min(100, Math.max(0, Math.round(((leadCloseRate - 1) / 99) * 100)))}%, var(--border-default) 100%)`,
                           height: '6px',
                           borderRadius: 'var(--radius-full)'
                         }}
@@ -3500,22 +3671,41 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                         <label style={{ fontSize: '0.825rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
                           Sipariş Dönüşüm Oranı (%)
                         </label>
-                        <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                          %{ecommerceConversionRate}
-                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                          <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>%</span>
+                          <input
+                            type="number"
+                            min={0.1}
+                            max={50.0}
+                            step={0.1}
+                            value={ecommerceConversionRate}
+                            onChange={(e) => setEcommerceConversionRate(Math.max(0.1, Number(e.target.value)))}
+                            style={{
+                              width: '64px',
+                              padding: '2px 6px',
+                              fontSize: '0.85rem',
+                              fontWeight: 700,
+                              textAlign: 'right',
+                              borderRadius: 'var(--radius-xs)',
+                              border: '1px solid var(--border-default)',
+                              backgroundColor: 'var(--bg-surface)',
+                              color: 'var(--text-primary)'
+                            }}
+                          />
+                        </div>
                       </div>
                       <input
                         type="range"
-                        min={0.5}
-                        max={8.0}
-                        step={0.25}
+                        min={0.2}
+                        max={20.0}
+                        step={0.1}
                         value={ecommerceConversionRate}
                         onChange={(e) => setEcommerceConversionRate(Number(e.target.value))}
                         style={{
                           width: '100%',
                           accentColor: '#2563eb',
                           cursor: 'pointer',
-                          background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.round(((ecommerceConversionRate - 0.5) / 7.5) * 100)}%, var(--border-default) ${Math.round(((ecommerceConversionRate - 0.5) / 7.5) * 100)}%, var(--border-default) 100%)`,
+                          background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.min(100, Math.max(0, Math.round(((ecommerceConversionRate - 0.2) / 19.8) * 100)))}%, var(--border-default) ${Math.min(100, Math.max(0, Math.round(((ecommerceConversionRate - 0.2) / 19.8) * 100)))}%, var(--border-default) 100%)`,
                           height: '6px',
                           borderRadius: 'var(--radius-full)'
                         }}
@@ -3663,22 +3853,41 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     <label style={{ fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                       Ortalama CPV (Görüntüleme Başı Maliyet ₺)
                     </label>
-                    <span style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                      ₺{youtubeCpv.toFixed(2)}
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>₺</span>
+                      <input
+                        type="number"
+                        min={0.01}
+                        max={20.00}
+                        step={0.01}
+                        value={youtubeCpv}
+                        onChange={(e) => setYoutubeCpv(Math.max(0.01, Number(e.target.value)))}
+                        style={{
+                          width: '74px',
+                          padding: '2px 6px',
+                          fontSize: '0.85rem',
+                          fontWeight: 700,
+                          textAlign: 'right',
+                          borderRadius: 'var(--radius-xs)',
+                          border: '1px solid var(--border-default)',
+                          backgroundColor: 'var(--bg-surface)',
+                          color: 'var(--text-primary)'
+                        }}
+                      />
+                    </div>
                   </div>
                   <input
                     type="range"
-                    min={0.10}
-                    max={1.50}
-                    step={0.05}
+                    min={0.05}
+                    max={3.00}
+                    step={0.01}
                     value={youtubeCpv}
                     onChange={(e) => setYoutubeCpv(Number(e.target.value))}
                     style={{
                       width: '100%',
                       accentColor: '#2563eb',
                       cursor: 'pointer',
-                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.round(((youtubeCpv - 0.1) / 1.4) * 100)}%, var(--border-default) ${Math.round(((youtubeCpv - 0.1) / 1.4) * 100)}%, var(--border-default) 100%)`,
+                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.min(100, Math.max(0, Math.round(((youtubeCpv - 0.05) / 2.95) * 100)))}%, var(--border-default) ${Math.min(100, Math.max(0, Math.round(((youtubeCpv - 0.05) / 2.95) * 100)))}%, var(--border-default) 100%)`,
                       height: '6px',
                       borderRadius: 'var(--radius-full)'
                     }}
@@ -3690,14 +3899,33 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     <label style={{ fontSize: '0.825rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
                       Video İzleme Oranı (VTR / View Rate %)
                     </label>
-                    <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                      %{youtubeVtr}
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>%</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={95}
+                        step={1}
+                        value={youtubeVtr}
+                        onChange={(e) => setYoutubeVtr(Math.max(1, Math.min(95, Number(e.target.value))))}
+                        style={{
+                          width: '64px',
+                          padding: '2px 6px',
+                          fontSize: '0.85rem',
+                          fontWeight: 700,
+                          textAlign: 'right',
+                          borderRadius: 'var(--radius-xs)',
+                          border: '1px solid var(--border-default)',
+                          backgroundColor: 'var(--bg-surface)',
+                          color: 'var(--text-primary)'
+                        }}
+                      />
+                    </div>
                   </div>
                   <input
                     type="range"
-                    min={15}
-                    max={55}
+                    min={5}
+                    max={85}
                     step={1}
                     value={youtubeVtr}
                     onChange={(e) => setYoutubeVtr(Number(e.target.value))}
@@ -3705,7 +3933,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       width: '100%',
                       accentColor: '#2563eb',
                       cursor: 'pointer',
-                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.round(((youtubeVtr - 15) / 40) * 100)}%, var(--border-default) ${Math.round(((youtubeVtr - 15) / 40) * 100)}%, var(--border-default) 100%)`,
+                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.min(100, Math.max(0, Math.round(((youtubeVtr - 5) / 80) * 100)))}%, var(--border-default) ${Math.min(100, Math.max(0, Math.round(((youtubeVtr - 5) / 80) * 100)))}%, var(--border-default) 100%)`,
                       height: '6px',
                       borderRadius: 'var(--radius-full)'
                     }}
@@ -3717,14 +3945,33 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     <label style={{ fontSize: '0.825rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
                       Video Tıklama & Eylem Oranı (%)
                     </label>
-                    <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                      %{youtubeActionRate}
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>%</span>
+                      <input
+                        type="number"
+                        min={0.1}
+                        max={30.0}
+                        step={0.1}
+                        value={youtubeActionRate}
+                        onChange={(e) => setYoutubeActionRate(Math.max(0.1, Number(e.target.value)))}
+                        style={{
+                          width: '64px',
+                          padding: '2px 6px',
+                          fontSize: '0.85rem',
+                          fontWeight: 700,
+                          textAlign: 'right',
+                          borderRadius: 'var(--radius-xs)',
+                          border: '1px solid var(--border-default)',
+                          backgroundColor: 'var(--bg-surface)',
+                          color: 'var(--text-primary)'
+                        }}
+                      />
+                    </div>
                   </div>
                   <input
                     type="range"
-                    min={0.2}
-                    max={3.0}
+                    min={0.1}
+                    max={10.0}
                     step={0.1}
                     value={youtubeActionRate}
                     onChange={(e) => setYoutubeActionRate(Number(e.target.value))}
@@ -3732,7 +3979,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       width: '100%',
                       accentColor: '#2563eb',
                       cursor: 'pointer',
-                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.round(((youtubeActionRate - 0.2) / 2.8) * 100)}%, var(--border-default) ${Math.round(((youtubeActionRate - 0.2) / 2.8) * 100)}%, var(--border-default) 100%)`,
+                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.min(100, Math.max(0, Math.round(((youtubeActionRate - 0.1) / 9.9) * 100)))}%, var(--border-default) ${Math.min(100, Math.max(0, Math.round(((youtubeActionRate - 0.1) / 9.9) * 100)))}%, var(--border-default) 100%)`,
                       height: '6px',
                       borderRadius: 'var(--radius-full)'
                     }}
@@ -3788,22 +4035,41 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     <label style={{ fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                       GDN Ortalama CPM (1.000 Banner Gösterimi ₺)
                     </label>
-                    <span style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                      ₺{gdnCpm}
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>₺</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={1000}
+                        step={1}
+                        value={gdnCpm}
+                        onChange={(e) => setGdnCpm(Math.max(1, Number(e.target.value)))}
+                        style={{
+                          width: '74px',
+                          padding: '2px 6px',
+                          fontSize: '0.85rem',
+                          fontWeight: 700,
+                          textAlign: 'right',
+                          borderRadius: 'var(--radius-xs)',
+                          border: '1px solid var(--border-default)',
+                          backgroundColor: 'var(--bg-surface)',
+                          color: 'var(--text-primary)'
+                        }}
+                      />
+                    </div>
                   </div>
                   <input
                     type="range"
-                    min={8}
-                    max={90}
-                    step={2}
+                    min={5}
+                    max={200}
+                    step={1}
                     value={gdnCpm}
                     onChange={(e) => setGdnCpm(Number(e.target.value))}
                     style={{
                       width: '100%',
                       accentColor: '#2563eb',
                       cursor: 'pointer',
-                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.round(((gdnCpm - 8) / 82) * 100)}%, var(--border-default) ${Math.round(((gdnCpm - 8) / 82) * 100)}%, var(--border-default) 100%)`,
+                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.min(100, Math.max(0, Math.round(((gdnCpm - 5) / 195) * 100)))}%, var(--border-default) ${Math.min(100, Math.max(0, Math.round(((gdnCpm - 5) / 195) * 100)))}%, var(--border-default) 100%)`,
                       height: '6px',
                       borderRadius: 'var(--radius-full)'
                     }}
@@ -3815,22 +4081,41 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     <label style={{ fontSize: '0.825rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
                       GDN Tıklama Oranı (CTR / TO %)
                     </label>
-                    <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                      %{gdnCtr}
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>%</span>
+                      <input
+                        type="number"
+                        min={0.05}
+                        max={20.00}
+                        step={0.05}
+                        value={gdnCtr}
+                        onChange={(e) => setGdnCtr(Math.max(0.05, Number(e.target.value)))}
+                        style={{
+                          width: '64px',
+                          padding: '2px 6px',
+                          fontSize: '0.85rem',
+                          fontWeight: 700,
+                          textAlign: 'right',
+                          borderRadius: 'var(--radius-xs)',
+                          border: '1px solid var(--border-default)',
+                          backgroundColor: 'var(--bg-surface)',
+                          color: 'var(--text-primary)'
+                        }}
+                      />
+                    </div>
                   </div>
                   <input
                     type="range"
-                    min={0.2}
-                    max={2.0}
-                    step={0.1}
+                    min={0.1}
+                    max={5.0}
+                    step={0.05}
                     value={gdnCtr}
                     onChange={(e) => setGdnCtr(Number(e.target.value))}
                     style={{
                       width: '100%',
                       accentColor: '#2563eb',
                       cursor: 'pointer',
-                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.round(((gdnCtr - 0.2) / 1.8) * 100)}%, var(--border-default) ${Math.round(((gdnCtr - 0.2) / 1.8) * 100)}%, var(--border-default) 100%)`,
+                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.min(100, Math.max(0, Math.round(((gdnCtr - 0.1) / 4.9) * 100)))}%, var(--border-default) ${Math.min(100, Math.max(0, Math.round(((gdnCtr - 0.1) / 4.9) * 100)))}%, var(--border-default) 100%)`,
                       height: '6px',
                       borderRadius: 'var(--radius-full)'
                     }}
@@ -3842,14 +4127,34 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     <label style={{ fontSize: '0.825rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
                       GDN Destekli Dönüşüm Katkısı (%)
                     </label>
-                    <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                      +{gdnAssistedCr}%
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>+</span>
+                      <input
+                        type="number"
+                        min={0.1}
+                        max={50.0}
+                        step={0.1}
+                        value={gdnAssistedCr}
+                        onChange={(e) => setGdnAssistedCr(Math.max(0.1, Number(e.target.value)))}
+                        style={{
+                          width: '64px',
+                          padding: '2px 6px',
+                          fontSize: '0.85rem',
+                          fontWeight: 700,
+                          textAlign: 'right',
+                          borderRadius: 'var(--radius-xs)',
+                          border: '1px solid var(--border-default)',
+                          backgroundColor: 'var(--bg-surface)',
+                          color: 'var(--text-primary)'
+                        }}
+                      />
+                      <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>%</span>
+                    </div>
                   </div>
                   <input
                     type="range"
-                    min={0.2}
-                    max={3.0}
+                    min={0.1}
+                    max={15.0}
                     step={0.1}
                     value={gdnAssistedCr}
                     onChange={(e) => setGdnAssistedCr(Number(e.target.value))}
@@ -3857,7 +4162,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       width: '100%',
                       accentColor: '#2563eb',
                       cursor: 'pointer',
-                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.round(((gdnAssistedCr - 0.2) / 2.8) * 100)}%, var(--border-default) ${Math.round(((gdnAssistedCr - 0.2) / 2.8) * 100)}%, var(--border-default) 100%)`,
+                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.min(100, Math.max(0, Math.round(((gdnAssistedCr - 0.1) / 14.9) * 100)))}%, var(--border-default) ${Math.min(100, Math.max(0, Math.round(((gdnAssistedCr - 0.1) / 14.9) * 100)))}%, var(--border-default) 100%)`,
                       height: '6px',
                       borderRadius: 'var(--radius-full)'
                     }}
