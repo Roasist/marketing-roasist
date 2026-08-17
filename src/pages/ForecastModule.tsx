@@ -751,6 +751,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   const [planPeriod, setPlanPeriod] = useState<string>(formatCampaignDates(initialMonthDates.start, initialMonthDates.end));
   const [planTags, setPlanTags] = useState<string[]>(['#Temmuz2026', '#SağlıkTurizmi']);
   const [newTagInput, setNewTagInput] = useState<string>('');
+  const [currentPlanId, setCurrentPlanId] = useState<string | null>(null);
 
   // Master Plan Creation Modal State (Master Level only: Name, Client, Start/End Dates, Tags)
   const [isAddMasterPlanModalOpen, setIsAddMasterPlanModalOpen] = useState<boolean>(false);
@@ -974,6 +975,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     try {
       const formattedPeriod = formatCampaignDates(planStartDate, planEndDate, planPeriod);
       await ApiService.saveForecastPlan({
+        id: currentPlanId || undefined,
         workspaceId,
         name: planName.trim() || `${clientName} - ${formattedPeriod} Medya Planı`,
         clientName: clientName.trim(),
@@ -1020,6 +1022,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       try {
         const formattedPeriod = formatCampaignDates(planStartDate, planEndDate, planPeriod);
         await ApiService.saveForecastPlan({
+          id: currentPlanId || undefined,
           workspaceId,
           name: planName.trim() || `${clientName} - ${formattedPeriod} Medya Planı`,
           clientName: clientName.trim(),
@@ -1082,6 +1085,8 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     const tags = newMasterTags.length > 0 ? newMasterTags : ['#YeniKampanya'];
 
     // State setup: pure Master Plan without automatic sub-campaign
+    const newMasterId = 'plan_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+    setCurrentPlanId(newMasterId);
     setPlanName(pName);
     setClientName(cName);
     setPlanStartDate(sDate);
@@ -1109,6 +1114,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     // Immediately save Master Plan to Database so user sees it in Portfolio Hub without needing sub-campaigns!
     try {
       await ApiService.saveForecastPlan({
+        id: newMasterId,
         workspaceId,
         name: pName,
         clientName: cName,
@@ -1138,6 +1144,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
   // Open Master Plan & Target Sub Campaign in Studio
   const handleOpenMasterPlanStudio = (plan: ForecastPlan, targetSubId?: string) => {
+    setCurrentPlanId(plan.id);
     if (plan.name) setPlanName(plan.name);
     if (plan.clientName) setClientName(plan.clientName);
     if (plan.startDate) setPlanStartDate(plan.startDate);
@@ -1221,6 +1228,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   const handleBackToPortfolio = () => {
     syncActiveSubCampaign();
     loadSavedPlans();
+    setCurrentPlanId(null);
     setViewMode('PORTFOLIO');
   };
 
@@ -2294,6 +2302,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
       const formattedPeriod = formatCampaignDates(planStartDate, planEndDate, planPeriod);
       await ApiService.saveForecastPlan({
+        id: currentPlanId || undefined,
         workspaceId,
         name: planName.trim() || `${clientName} - ${formattedPeriod} Medya Planı`,
         clientName: clientName.trim(),
