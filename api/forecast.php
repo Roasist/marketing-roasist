@@ -933,12 +933,12 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
         }
     }
 
-    // Multi-cURL Parallel Request Executor for Individual Locations
+    // Robust Single-Location Request Executor with 60ms Pacing & 429 Retry
     $executeParallelGoogleAdsCalls = function($requests) use ($customerId, $accessToken, $devToken) {
         if (empty($requests)) return [];
-        $mh = curl_multi_init();
-        $handles = [];
-        foreach ($requests as $key => $req) {
+        $results = [];
+
+        foreach ($requests as $req) {
             $ch = curl_init("https://googleads.googleapis.com/v22/customers/{$customerId}:generateKeywordIdeas");
             curl_setopt($ch, CURLOPT_POST, true);
             curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($req['payload']));
@@ -948,49 +948,36 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
                 'developer-token: ' . $devToken,
                 'Content-Type: application/json'
             ]);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 20);
-            curl_multi_add_handle($mh, $ch);
-            $handles[$key] = [
-                'ch' => $ch,
-                'geoId' => $req['geoId'],
-                'isSeed' => $req['isSeed'] ?? false
-            ];
-        }
-
-        $active = null;
-        do {
-            $mrc = curl_multi_exec($mh, $active);
-        } while ($mrc == CURLM_CALL_MULTI_PERFORM);
-
-        while ($active && $mrc == CURLM_OK) {
-            if (curl_multi_select($mh, 0.5) != -1) {
-                do {
-                    $mrc = curl_multi_exec($mh, $active);
-                } while ($mrc == CURLM_CALL_MULTI_PERFORM);
-            } else {
-                usleep(25000);
-                do {
-                    $mrc = curl_multi_exec($mh, $active);
-                } while ($mrc == CURLM_CALL_MULTI_PERFORM);
-            }
-        }
-
-        $results = [];
-        foreach ($handles as $key => $hData) {
-            $ch = $hData['ch'];
-            $resp = curl_multi_getcontent($ch);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+            $resp = curl_exec($ch);
             $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            curl_multi_remove_handle($mh, $ch);
             curl_close($ch);
 
             $json = ($httpCode === 200) ? json_decode($resp, true) : null;
+            if ($httpCode === 429) {
+                usleep(350000); // 350ms backoff on rate limit
+                $chRetry = curl_init("https://googleads.googleapis.com/v22/customers/{$customerId}:generateKeywordIdeas");
+                curl_setopt($chRetry, CURLOPT_POST, true);
+                curl_setopt($chRetry, CURLOPT_POSTFIELDS, json_encode($req['payload']));
+                curl_setopt($chRetry, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($chRetry, CURLOPT_HTTPHEADER, [
+                    'Authorization: Bearer ' . $accessToken,
+                    'developer-token: ' . $devToken,
+                    'Content-Type: application/json'
+                ]);
+                curl_setopt($chRetry, CURLOPT_TIMEOUT, 15);
+                $retryResp = curl_exec($chRetry);
+                curl_close($chRetry);
+                $json = json_decode($retryResp, true);
+            }
+
             $results[] = [
                 'json' => $json,
-                'geoId' => $hData['geoId'],
-                'isSeed' => $hData['isSeed']
+                'geoId' => $req['geoId'],
+                'isSeed' => $req['isSeed'] ?? false
             ];
+            usleep(60000); // 60ms pacing to stay comfortably within quota
         }
-        curl_multi_close($mh);
         return $results;
     };
 
