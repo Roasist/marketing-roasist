@@ -744,7 +744,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       }
     }
   ]);
-  const [activeSubCampaignId, setActiveSubCampaignId] = useState<string>('sub_1');
+  const [activeSubCampaignId, setActiveSubCampaignId] = useState<string | null>(null);
   const [isAddCampaignModalOpen, setIsAddCampaignModalOpen] = useState<boolean>(false);
 
   // New Sub-Campaign Wizard Form State
@@ -857,7 +857,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   };
 
   // Create new Sub-Campaign
-  const handleCreateNewSubCampaign = () => {
+  const handleCreateNewSubCampaign = async () => {
     syncActiveSubCampaign();
     const langObj = GOOGLE_ADS_LANGUAGES.find(l => l.code === newCampLang) || { code: newCampLang, name: newCampLang, nativeName: newCampLang, flag: '🌐' };
     
@@ -909,7 +909,8 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       }
     };
 
-    setSubCampaigns(prev => [...prev, newCamp]);
+    const updatedSubs = [...subCampaigns, newCamp];
+    setSubCampaigns(updatedSubs);
     setActiveSubCampaignId(newId);
     setKeywords([]);
     setSelectedKeywordIds(new Set());
@@ -925,20 +926,79 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     if (newCampPlatform === 'META') setActiveChannelTab('META_ADS');
     else if (newCampPlatform === 'YOUTUBE') setActiveChannelTab('YOUTUBE');
     else if (newCampPlatform === 'GOOGLE') setActiveChannelTab('GOOGLE_SEARCH');
+
+    // Persist updated plan with new sub-campaign immediately
+    try {
+      const formattedPeriod = formatCampaignDates(planStartDate, planEndDate, planPeriod);
+      await ApiService.saveForecastPlan({
+        workspaceId,
+        name: planName.trim() || `${clientName} - ${formattedPeriod} Medya Planı`,
+        clientName: clientName.trim(),
+        startDate: planStartDate,
+        endDate: planEndDate,
+        period: formattedPeriod,
+        tags: planTags,
+        targetUrl: mode === 'URL' ? query : '',
+        seedKeywords: mode === 'KEYWORDS' ? query : '',
+        detectedLanguage: newCampLang,
+        detectedLanguageName: langObj.name,
+        monthlyBudget: updatedSubs.reduce((acc, curr) => acc + (curr.monthlyBudget || 0), 0),
+        selectedKeywords: [],
+        simulationResult: simulation,
+        negativeKeywords: [],
+        targetCountries: defaultLocs.map(c => c.name),
+        countryBreakdown,
+        subCampaigns: updatedSubs
+      });
+      loadSavedPlans();
+    } catch (err) {
+      console.error('Sub-campaign saving error:', err);
+    }
   };
 
   // Delete Sub-Campaign
-  const handleDeleteSubCampaign = (campId: string, e: React.MouseEvent) => {
+  const handleDeleteSubCampaign = async (campId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (subCampaigns.length <= 1) {
-      alert('En az bir alt kampanya bulunmalıdır.');
-      return;
-    }
     if (window.confirm('Bu alt kampanyayı silmek istediğinize emin misiniz?')) {
       const remaining = subCampaigns.filter(c => c.id !== campId);
       setSubCampaigns(remaining);
       if (activeSubCampaignId === campId) {
-        handleSelectSubCampaign(remaining[0].id);
+        if (remaining.length > 0) {
+          handleSelectSubCampaign(remaining[0].id);
+        } else {
+          setActiveSubCampaignId(null);
+          setKeywords([]);
+          setSelectedKeywordIds(new Set());
+          setMonthlyBudget(0);
+        }
+      }
+
+      // Persist plan after deletion
+      try {
+        const formattedPeriod = formatCampaignDates(planStartDate, planEndDate, planPeriod);
+        await ApiService.saveForecastPlan({
+          workspaceId,
+          name: planName.trim() || `${clientName} - ${formattedPeriod} Medya Planı`,
+          clientName: clientName.trim(),
+          startDate: planStartDate,
+          endDate: planEndDate,
+          period: formattedPeriod,
+          tags: planTags,
+          targetUrl: '',
+          seedKeywords: '',
+          detectedLanguage,
+          detectedLanguageName,
+          monthlyBudget: remaining.reduce((acc, curr) => acc + (curr.monthlyBudget || 0), 0),
+          selectedKeywords: [],
+          simulationResult: simulation,
+          negativeKeywords: [],
+          targetCountries: activeCountries.map(c => c.name),
+          countryBreakdown,
+          subCampaigns: remaining
+        });
+        loadSavedPlans();
+      } catch (err) {
+        console.error('Plan update error after sub-campaign deletion:', err);
       }
     }
   };
@@ -969,8 +1029,8 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     setNewMasterTags(prev => prev.filter(t => t !== tagToRemove));
   };
 
-  // Create new Master Plan from scratch (Clean Master: Dates & Client only; Language & Budget belong to sub-campaigns)
-  const handleCreateNewMasterPlan = () => {
+  // Create new Master Plan from scratch: Pure Master (0 sub-campaigns) and immediately save to database!
+  const handleCreateNewMasterPlan = async () => {
     const sDate = newMasterStartDate || initialMonthDates.start;
     const eDate = newMasterEndDate || initialMonthDates.end;
     const formattedPeriod = formatCampaignDates(sDate, eDate, newMasterPeriod);
@@ -978,62 +1038,59 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     const pName = newMasterName.trim() || `${cName} - ${formattedPeriod} Kampanyası`;
     const tags = newMasterTags.length > 0 ? newMasterTags : ['#YeniKampanya'];
 
-    // Initial clean default sub-campaign
-    const subId = 'sub_' + Date.now();
-    const initialSub: SubCampaignItem = {
-      id: subId,
-      name: 'Google Search (TR)',
-      platform: 'GOOGLE',
-      objective: 'GOOGLE_SEARCH',
-      languageCode: 'tr',
-      languageName: 'Türkçe',
-      languageFlag: '🇹🇷',
-      targetLocations: DEFAULT_LOCATIONS,
-      monthlyBudget: 25000,
-      selectedKeywords: [],
-      discoveredKeywords: [],
-      negativeCategories: [],
-      businessModel: 'LEAD_GEN',
-      parameters: {
-        targetImpressionShare: 70,
-        expectedCtr: 7.5,
-        searchLeadCr: 3.5,
-        searchHealthyLeadRate: 50,
-        searchCloseRate: 10,
-        metaCpm: 75,
-        metaCtr: 1.6,
-        metaLeadCr: 4.5,
-        metaHealthyLeadRate: 50,
-        metaCloseRate: 15,
-        youtubeCpv: 0.45,
-        youtubeVtr: 32,
-        youtubeActionRate: 1.2,
-        gdnCpm: 18,
-        gdnCtr: 0.60,
-        gdnAssistedCr: 1.2
-      }
-    };
-
+    // State setup: pure Master Plan without automatic sub-campaign
     setPlanName(pName);
     setClientName(cName);
     setPlanStartDate(sDate);
     setPlanEndDate(eDate);
     setPlanPeriod(formattedPeriod);
     setPlanTags(tags);
-    setSubCampaigns([initialSub]);
-    setActiveSubCampaignId(subId);
+    setSubCampaigns([]);
+    setActiveSubCampaignId(null);
     setKeywords([]);
     setSelectedKeywordIds(new Set());
     setNegativeCategories([]);
     setSelectedLocations(DEFAULT_LOCATIONS);
-    setTargetLanguage('tr');
-    setMonthlyBudget(25000);
+    setTargetLanguage('auto');
+    setMonthlyBudget(0);
     setQuery('');
 
     setActiveChannelTab('OMNICHANNEL');
     setCurrentStep(2);
     setIsAddMasterPlanModalOpen(false);
     setViewMode('STUDIO');
+    setNewMasterName('');
+    setNewMasterClient('');
+    setNewMasterTags([]);
+
+    // Immediately save Master Plan to Database so user sees it in Portfolio Hub without needing sub-campaigns!
+    try {
+      await ApiService.saveForecastPlan({
+        workspaceId,
+        name: pName,
+        clientName: cName,
+        startDate: sDate,
+        endDate: eDate,
+        period: formattedPeriod,
+        tags,
+        targetUrl: '',
+        seedKeywords: '',
+        detectedLanguage: 'tr',
+        detectedLanguageName: 'Türkçe',
+        monthlyBudget: 0,
+        selectedKeywords: [],
+        simulationResult: simulation,
+        negativeKeywords: [],
+        targetCountries: ['Türkiye'],
+        countryBreakdown: [],
+        subCampaigns: []
+      });
+      setPlanSaveSuccess(true);
+      setTimeout(() => setPlanSaveSuccess(false), 2500);
+      loadSavedPlans();
+    } catch (err) {
+      console.error('Master plan initial save error:', err);
+    }
   };
 
   // Open Master Plan & Target Sub Campaign in Studio
@@ -2493,8 +2550,14 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', overflowX: 'auto', flex: 1, paddingBottom: '2px' }}>
           <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', marginRight: '0.35rem', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-            <Layers size={14} color="var(--brand-primary)" /> Alt Kampanyalar:
+            <Layers size={14} color="var(--brand-primary)" /> Alt Kampanyalar ({subCampaigns.length}):
           </span>
+
+          {subCampaigns.length === 0 && (
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic', marginRight: '0.4rem' }}>
+              💡 Henüz alt kampanya oluşturulmadı.
+            </span>
+          )}
 
           {subCampaigns.map((camp) => {
             const isActive = camp.id === activeSubCampaignId;
@@ -2534,24 +2597,22 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                   ₺{camp.monthlyBudget?.toLocaleString('tr-TR')}
                 </span>
 
-                {subCampaigns.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={(e) => handleDeleteSubCampaign(camp.id, e)}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      cursor: 'pointer',
-                      padding: '1px',
-                      marginLeft: '2px',
-                      display: 'flex',
-                      color: 'var(--text-muted)'
-                    }}
-                    title="Bu alt kampanyayı sil"
-                  >
-                    <X size={12} />
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={(e) => handleDeleteSubCampaign(camp.id, e)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    padding: '1px',
+                    marginLeft: '2px',
+                    display: 'flex',
+                    color: 'var(--text-muted)'
+                  }}
+                  title="Bu alt kampanyayı sil"
+                >
+                  <X size={12} />
+                </button>
               </div>
             );
           })}
@@ -3966,6 +4027,44 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                   {growthScenario === 'CONSERVATIVE' ? 'Temkinli Bütçe' : (growthScenario === 'AGGRESSIVE' ? 'Yüksek Ölçek' : 'Standart')}
                 </span>
               </div>
+
+              {/* If no sub-campaigns created yet, show an encouraging Action Banner */}
+              {subCampaigns.length === 0 && (
+                <div 
+                  className="card" 
+                  style={{ 
+                    padding: '1.75rem', 
+                    textAlign: 'center', 
+                    backgroundColor: 'rgba(37, 99, 235, 0.04)', 
+                    border: '1.5px dashed var(--brand-primary)',
+                    borderRadius: 'var(--radius-sm)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '0.75rem'
+                  }}
+                >
+                  <div style={{ fontSize: '2.2rem' }}>🚀</div>
+                  <h4 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                    Bu Çatı Kampanyaya Henüz Bir Alt Kampanya Eklenmedi
+                  </h4>
+                  <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', maxWidth: '520px', margin: 0, lineHeight: 1.5 }}>
+                    Google Arama, Meta Ads (Instagram/Facebook), TikTok veya YouTube gibi hedef kanallarınız için bütçe, dil ve hedef kitle tanımlamak üzere ilk alt kampanyanızı oluşturun.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewCampName(`Kampanya 1`);
+                      setIsAddCampaignModalOpen(true);
+                    }}
+                    className="btn-primary"
+                    style={{ fontSize: '0.85rem', padding: '0.55rem 1.25rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.35rem' }}
+                  >
+                    <Plus size={15} />
+                    <span>İlk Alt Kampanyayı Ekle</span>
+                  </button>
+                </div>
+              )}
 
               {/* Business Model & Goal Selector */}
               <div className="card" style={{ padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', backgroundColor: 'var(--bg-surface-elevated)' }}>
