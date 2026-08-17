@@ -562,11 +562,23 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
         $curlHandles[$geo] = $chLoc;
     }
 
-    $running = null;
+    $active = null;
     do {
-        curl_multi_exec($mh, $running);
-        curl_multi_select($mh);
-    } while ($running > 0);
+        $mrc = curl_multi_exec($mh, $active);
+    } while ($mrc == CURLM_CALL_MULTI_PERFORM);
+
+    while ($active && $mrc == CURLM_OK) {
+        if (curl_multi_select($mh, 0.5) != -1) {
+            do {
+                $mrc = curl_multi_exec($mh, $active);
+            } while ($mrc == CURLM_CALL_MULTI_PERFORM);
+        } else {
+            usleep(25000);
+            do {
+                $mrc = curl_multi_exec($mh, $active);
+            } while ($mrc == CURLM_CALL_MULTI_PERFORM);
+        }
+    }
 
     $breakdown = [];
     $totalBreakdownVol = 0;
@@ -2530,7 +2542,7 @@ if ($action === 'discover' && $method === 'POST') {
         // STRICT ZERO FAKE DATA: Show clean transparent error instead of fake Gemini estimates!
         echo json_encode([
             'status' => 'error',
-            'message' => 'Google Ads Keyword Planner servisinden resmi veri alınamadı: Girilen web sitesi veya anahtar kelimeye ait resmi arama hacmi bulunamadı. Lütfen geçerli bir web sitesi veya farklı tohum kelimeler deneyin. [DEBUG: lang=' . ($langInfo['code'] ?? 'null') . ', seeds=' . count($smartSeeds ?? []) . ', title=' . substr($pageDetails['title'] ?? '', 0, 30) . ', isActualUrl=' . ($isActualUrl ? '1' : '0') . ']'
+            'message' => 'Google Ads Keyword Planner servisinden resmi veri alınamadı: Girilen web sitesi veya anahtar kelimeye ait resmi arama hacmi bulunamadı. Lütfen geçerli bir web sitesi veya farklı tohum kelimeler deneyin.'
         ], JSON_UNESCAPED_UNICODE);
         exit;
     }
