@@ -1672,11 +1672,35 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     return weightedSum / totalVol;
   }, [selectedLocations]);
 
+  // Keywords normalized with exact multi-location summed volume if geoVolumes exists
+  const normalizedKeywords = useMemo(() => {
+    const activeGeoIds = new Set(selectedLocations.map(l => String(l.id)));
+    return keywords.map(k => {
+      if (k.geoVolumes && Object.keys(k.geoVolumes).length > 0) {
+        let sumGeo = 0;
+        let hasMatchingGeo = false;
+        for (const [gId, vol] of Object.entries(k.geoVolumes)) {
+          if (activeGeoIds.size === 0 || activeGeoIds.has(String(gId))) {
+            sumGeo += (Number(vol) || 0);
+            hasMatchingGeo = true;
+          }
+        }
+        if (hasMatchingGeo && sumGeo > 0) {
+          return {
+            ...k,
+            monthlyVolume: sumGeo
+          };
+        }
+      }
+      return k;
+    });
+  }, [keywords, selectedLocations]);
+
   // Selected Keyword Pool for Simulation
   const selectedKeywordsPool = useMemo(() => {
-    if (selectedKeywordIds.size === 0) return keywords;
-    return keywords.filter(k => selectedKeywordIds.has(k.id));
-  }, [keywords, selectedKeywordIds]);
+    if (selectedKeywordIds.size === 0) return normalizedKeywords;
+    return normalizedKeywords.filter(k => selectedKeywordIds.has(k.id));
+  }, [normalizedKeywords, selectedKeywordIds]);
 
   // Overall Aggregate KPIs (Scaled with Active Target Countries)
   const baseSearchVolume = useMemo(() => {
@@ -2119,7 +2143,30 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
   // Scoped keywords adapted to chosen location (or aggregated if ALL)
   const scopedKeywords = useMemo(() => {
-    if (activeLocationScope === 'ALL' || !activeScopeMetric) return keywords;
+    const activeGeoIds = new Set(selectedLocations.map(l => String(l.id)));
+
+    if (activeLocationScope === 'ALL' || !activeScopeMetric) {
+      return keywords.map(k => {
+        if (k.geoVolumes && Object.keys(k.geoVolumes).length > 0) {
+          let sumGeo = 0;
+          let hasMatchingGeo = false;
+          for (const [gId, vol] of Object.entries(k.geoVolumes)) {
+            if (activeGeoIds.size === 0 || activeGeoIds.has(String(gId))) {
+              sumGeo += (Number(vol) || 0);
+              hasMatchingGeo = true;
+            }
+          }
+          if (hasMatchingGeo && sumGeo > 0) {
+            return {
+              ...k,
+              monthlyVolume: sumGeo
+            };
+          }
+        }
+        return k;
+      });
+    }
+
     const targetGeoId = String(activeScopeMetric.id || activeScopeLocation?.id);
     const share = (activeScopeMetric.sharePercent || (100 / Math.max(1, selectedLocations.length))) / 100;
     const cpcScale = avgTopPageCpc > 0 && activeScopeMetric.avgCpc > 0 ? (activeScopeMetric.avgCpc / avgTopPageCpc) : 1.0;
@@ -2150,7 +2197,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         highCpc: locHighCpc,
       };
     });
-  }, [keywords, activeLocationScope, activeScopeMetric, activeScopeLocation, selectedLocations.length, avgTopPageCpc]);
+  }, [keywords, activeLocationScope, activeScopeMetric, activeScopeLocation, selectedLocations, avgTopPageCpc]);
 
   // Scoped clusters (Ad Group Themes)
   const keywordClusters = useMemo(() => {
