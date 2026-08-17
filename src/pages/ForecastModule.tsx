@@ -50,81 +50,18 @@ import {
 } from '../types/forecast';
 import { ApiService } from '../services/apiService';
 
-export const CORE_GEO_ENTITIES: Record<string, GeoTargetLocation> = {
-  TR: { id: '2792', resourceName: 'geoTargetConstants/2792', name: 'Türkiye', canonicalName: 'Türkiye', countryCode: 'TR', targetType: 'Country', reach: 85000000, flag: '🇹🇷', cpcMultiplier: 1.0, volumeMultiplier: 1.0 },
-  TR_IST: { id: '1012782', resourceName: 'geoTargetConstants/1012782', name: 'İstanbul', canonicalName: 'Istanbul, Turkey', countryCode: 'TR', targetType: 'City', reach: 16000000, flag: '🇹🇷', cpcMultiplier: 1.05, volumeMultiplier: 1.0 },
-  TR_ANTALYA: { id: '1012763', resourceName: 'geoTargetConstants/1012763', name: 'Antalya', canonicalName: 'Antalya, Turkey', countryCode: 'TR', targetType: 'City', reach: 2600000, flag: '🇹🇷', cpcMultiplier: 1.0, volumeMultiplier: 1.0 },
-  TR_ALANYA: { id: '9199343', resourceName: 'geoTargetConstants/9199343', name: 'Alanya', canonicalName: 'Alanya, Antalya, Turkey', countryCode: 'TR', targetType: 'District', reach: 350000, flag: '🇹🇷', cpcMultiplier: 1.0, volumeMultiplier: 1.0 },
-  TR_ANKARA: { id: '1012764', resourceName: 'geoTargetConstants/1012764', name: 'Ankara', canonicalName: 'Ankara, Turkey', countryCode: 'TR', targetType: 'City', reach: 5800000, flag: '🇹🇷', cpcMultiplier: 1.0, volumeMultiplier: 1.0 },
-  TR_IZMIR: { id: '1012783', resourceName: 'geoTargetConstants/1012783', name: 'İzmir', canonicalName: 'Izmir, Turkey', countryCode: 'TR', targetType: 'City', reach: 4500000, flag: '🇹🇷', cpcMultiplier: 1.0, volumeMultiplier: 1.0 },
-  TR_BODRUM: { id: '9199587', resourceName: 'geoTargetConstants/9199587', name: 'Bodrum', canonicalName: 'Bodrum, Mugla, Turkey', countryCode: 'TR', targetType: 'District', reach: 200000, flag: '🇹🇷', cpcMultiplier: 1.1, volumeMultiplier: 1.0 },
-  DE: { id: '2276', resourceName: 'geoTargetConstants/2276', name: 'Almanya', canonicalName: 'Germany', countryCode: 'DE', targetType: 'Country', reach: 83000000, flag: '🇩🇪', cpcMultiplier: 2.1, volumeMultiplier: 1.0 },
-  AT: { id: '2040', resourceName: 'geoTargetConstants/2040', name: 'Avusturya', canonicalName: 'Austria', countryCode: 'AT', targetType: 'Country', reach: 9000000, flag: '🇦🇹', cpcMultiplier: 2.0, volumeMultiplier: 1.0 },
-  CH: { id: '2756', resourceName: 'geoTargetConstants/2756', name: 'İsviçre', canonicalName: 'Switzerland', countryCode: 'CH', targetType: 'Country', reach: 8700000, flag: '🇨🇭', cpcMultiplier: 2.5, volumeMultiplier: 1.0 },
-  NL: { id: '2528', resourceName: 'geoTargetConstants/2528', name: 'Hollanda', canonicalName: 'Netherlands', countryCode: 'NL', targetType: 'Country', reach: 17800000, flag: '🇳🇱', cpcMultiplier: 2.2, volumeMultiplier: 1.0 },
-  UK: { id: '2826', resourceName: 'geoTargetConstants/2826', name: 'Birleşik Krallık (İngiltere)', canonicalName: 'United Kingdom', countryCode: 'GB', targetType: 'Country', reach: 67000000, flag: '🇬🇧', cpcMultiplier: 2.3, volumeMultiplier: 1.0 },
-  US: { id: '2840', resourceName: 'geoTargetConstants/2840', name: 'Amerika Birleşik Devletleri', canonicalName: 'United States', countryCode: 'US', targetType: 'Country', reach: 330000000, flag: '🇺🇸', cpcMultiplier: 2.8, volumeMultiplier: 1.0 },
-  AE: { id: '2784', resourceName: 'geoTargetConstants/2784', name: 'Birleşik Arap Emirlikleri', canonicalName: 'United Arab Emirates', countryCode: 'AE', targetType: 'Country', reach: 9500000, flag: '🇦🇪', cpcMultiplier: 1.8, volumeMultiplier: 1.0 },
-  AE_DUBAI: { id: '1000013', resourceName: 'geoTargetConstants/1000013', name: 'Dubai', canonicalName: 'Dubai, United Arab Emirates', countryCode: 'AE', targetType: 'City', reach: 3500000, flag: '🇦🇪', cpcMultiplier: 1.9, volumeMultiplier: 1.0 },
-  SA: { id: '2682', resourceName: 'geoTargetConstants/2682', name: 'Suudi Arabistan', canonicalName: 'Saudi Arabia', countryCode: 'SA', targetType: 'Country', reach: 36000000, flag: '🇸🇦', cpcMultiplier: 1.7, volumeMultiplier: 1.0 },
-  QA: { id: '2634', resourceName: 'geoTargetConstants/2634', name: 'Katar', canonicalName: 'Qatar', countryCode: 'QA', targetType: 'Country', reach: 2800000, flag: '🇶🇦', cpcMultiplier: 1.8, volumeMultiplier: 1.0 },
-  KW: { id: '2414', resourceName: 'geoTargetConstants/2414', name: 'Kuveyt', canonicalName: 'Kuwait', countryCode: 'KW', targetType: 'Country', reach: 4300000, flag: '🇰🇼', cpcMultiplier: 1.7, volumeMultiplier: 1.0 },
-  RU: { id: '2643', resourceName: 'geoTargetConstants/2643', name: 'Rusya', canonicalName: 'Russia', countryCode: 'RU', targetType: 'Country', reach: 144000000, flag: '🇷🇺', cpcMultiplier: 0.9, volumeMultiplier: 1.0 },
-  UA: { id: '2804', resourceName: 'geoTargetConstants/2804', name: 'Ukrayna', canonicalName: 'Ukraine', countryCode: 'UA', targetType: 'Country', reach: 38000000, flag: '🇺🇦', cpcMultiplier: 0.8, volumeMultiplier: 1.0 },
-  UA_KYIV: { id: '1012852', resourceName: 'geoTargetConstants/1012852', name: 'Kiev (Kyiv)', canonicalName: 'Kyiv, Ukraine', countryCode: 'UA', targetType: 'City', reach: 3000000, flag: '🇺🇦', cpcMultiplier: 0.85, volumeMultiplier: 1.0 },
-  UA_ODESA: { id: '1012861', resourceName: 'geoTargetConstants/1012861', name: 'Odessa (Odesa)', canonicalName: 'Odesa, Ukraine', countryCode: 'UA', targetType: 'City', reach: 1000000, flag: '🇺🇦', cpcMultiplier: 0.8, volumeMultiplier: 1.0 },
-  KZ: { id: '2398', resourceName: 'geoTargetConstants/2398', name: 'Kazakistan', canonicalName: 'Kazakhstan', countryCode: 'KZ', targetType: 'Country', reach: 19500000, flag: '🇰🇿', cpcMultiplier: 0.85, volumeMultiplier: 1.0 },
-  UZ: { id: '2860', resourceName: 'geoTargetConstants/2860', name: 'Özbekistan', canonicalName: 'Uzbekistan', countryCode: 'UZ', targetType: 'Country', reach: 35000000, flag: '🇺🇿', cpcMultiplier: 0.75, volumeMultiplier: 1.0 },
-  AZ: { id: '2031', resourceName: 'geoTargetConstants/2031', name: 'Azerbaycan', canonicalName: 'Azerbaijan', countryCode: 'AZ', targetType: 'Country', reach: 10200000, flag: '🇦🇿', cpcMultiplier: 0.8, volumeMultiplier: 1.0 },
-  CY: { id: '2196', resourceName: 'geoTargetConstants/2196', name: 'Kıbrıs (Kuzey & Güney)', canonicalName: 'Cyprus', countryCode: 'CY', targetType: 'Country', reach: 1250000, flag: '🇨🇾', cpcMultiplier: 1.4, volumeMultiplier: 1.0 }
-};
-
 export const DEFAULT_LOCATIONS: GeoTargetLocation[] = [
-  CORE_GEO_ENTITIES.TR
-];
-
-export const SYSTEM_LOCATION_PRESETS = [
   {
-    id: 'sys_tr_all',
-    name: '🇹🇷 Tüm Türkiye',
-    description: 'Türkiye genel pazar aramaları',
-    locs: [CORE_GEO_ENTITIES.TR]
-  },
-  {
-    id: 'sys_tr_major',
-    name: '🇹🇷 Türkiye Metropol & Akdeniz',
-    description: 'İstanbul, Antalya, Alanya, İzmir, Ankara, Bodrum',
-    locs: [CORE_GEO_ENTITIES.TR_IST, CORE_GEO_ENTITIES.TR_ANTALYA, CORE_GEO_ENTITIES.TR_ALANYA, CORE_GEO_ENTITIES.TR_IZMIR, CORE_GEO_ENTITIES.TR_ANKARA, CORE_GEO_ENTITIES.TR_BODRUM]
-  },
-  {
-    id: 'sys_dach_europe',
-    name: '🇩🇪 DACH & Avrupa Diasporası',
-    description: 'Almanya, Avusturya, İsviçre, Hollanda, Birleşik Krallık',
-    locs: [CORE_GEO_ENTITIES.DE, CORE_GEO_ENTITIES.AT, CORE_GEO_ENTITIES.CH, CORE_GEO_ENTITIES.NL, CORE_GEO_ENTITIES.UK]
-  },
-  {
-    id: 'sys_cis_russian',
-    name: '🌐 BDT & Rusça Konuşan Ülkeler',
-    description: 'Rusya, Ukrayna, Kazakistan, Özbekistan, Azerbaycan',
-    locs: [CORE_GEO_ENTITIES.RU, CORE_GEO_ENTITIES.UA, CORE_GEO_ENTITIES.KZ, CORE_GEO_ENTITIES.UZ, CORE_GEO_ENTITIES.AZ]
-  },
-  {
-    id: 'sys_gcc_gulf',
-    name: '🇦🇪 Körfez (GCC) & Dubai',
-    description: 'BAE/Dubai, Suudi Arabistan, Katar, Kuveyt',
-    locs: [CORE_GEO_ENTITIES.AE, CORE_GEO_ENTITIES.SA, CORE_GEO_ENTITIES.QA, CORE_GEO_ENTITIES.KW]
-  },
-  {
-    id: 'sys_global_invest',
-    name: '🇺🇸 Global Yatırımcı & Diaspora',
-    description: 'ABD, Birleşik Krallık, Almanya, BAE',
-    locs: [CORE_GEO_ENTITIES.US, CORE_GEO_ENTITIES.UK, CORE_GEO_ENTITIES.DE, CORE_GEO_ENTITIES.AE]
-  },
-  {
-    id: 'sys_cyprus_med',
-    name: '🇨🇾 Kıbrıs & Doğu Akdeniz',
-    description: 'Kıbrıs, Türkiye, Birleşik Krallık',
-    locs: [CORE_GEO_ENTITIES.CY, CORE_GEO_ENTITIES.TR, CORE_GEO_ENTITIES.UK]
+    id: '2792',
+    resourceName: 'geoTargetConstants/2792',
+    name: 'Türkiye',
+    canonicalName: 'Türkiye',
+    countryCode: 'TR',
+    targetType: 'Country',
+    reach: 85000000,
+    flag: '🇹🇷',
+    cpcMultiplier: 1.0,
+    volumeMultiplier: 1.0
   }
 ];
 
@@ -553,35 +490,6 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   const [newPresetName, setNewPresetName] = useState<string>('');
   const [isSavingPreset, setIsSavingPreset] = useState<boolean>(false);
   const [presetSaveSuccessMessage, setPresetSaveSuccessMessage] = useState<string>('');
-
-  // Cloud & LocalStorage Sync for Location Presets (Prevents data loss across browser sessions/cPanel edits)
-  useEffect(() => {
-    let isMounted = true;
-    const syncPresets = async () => {
-      try {
-        const cloudPresets = await ApiService.getLocationPresets(workspaceId);
-        if (isMounted && cloudPresets && cloudPresets.length > 0) {
-          setSavedLocationPresets(cloudPresets);
-          try {
-            localStorage.setItem('roasist_saved_location_presets', JSON.stringify(cloudPresets));
-          } catch (e) {}
-        } else {
-          // If cloud has no presets, sync local presets to cloud
-          const raw = localStorage.getItem('roasist_saved_location_presets');
-          if (raw) {
-            const local = JSON.parse(raw);
-            if (Array.isArray(local) && local.length > 0) {
-              ApiService.saveLocationPresets(local, workspaceId).catch(() => {});
-            }
-          }
-        }
-      } catch (e) {
-        console.error('Error syncing location presets with server:', e);
-      }
-    };
-    syncPresets();
-    return () => { isMounted = false; };
-  }, [workspaceId]);
 
   // Bulk Location Input State
   const [locationInputMode, setLocationInputMode] = useState<'SINGLE' | 'BULK'>('SINGLE');
@@ -1514,11 +1422,8 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     try {
       localStorage.setItem('roasist_saved_location_presets', JSON.stringify(updated));
     } catch (e) {
-      console.error('Error saving preset locally:', e);
+      console.error('Error saving preset:', e);
     }
-    // Cloud persist
-    ApiService.saveLocationPresets(updated, workspaceId).catch(err => console.error('Cloud preset save error:', err));
-
     setNewPresetName('');
     setIsSavingPreset(false);
     setPresetSaveSuccessMessage(`"${name}" paketi (${selectedLocations.length} bölge) başarıyla kaydedildi!`);
@@ -1532,10 +1437,8 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     try {
       localStorage.setItem('roasist_saved_location_presets', JSON.stringify(updated));
     } catch (e) {
-      console.error('Error deleting preset locally:', e);
+      console.error('Error deleting preset:', e);
     }
-    // Cloud persist
-    ApiService.saveLocationPresets(updated, workspaceId).catch(err => console.error('Cloud preset delete error:', err));
   };
 
   const handleApplyLocationPreset = (preset: SavedLocationPreset) => {
@@ -7639,39 +7542,36 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
             </div>
 
             {/* Quick System Presets */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                <Sparkles size={12} color="var(--brand-primary)" />
-                <span>⚡ Hızlı Hazır Sistem Paketleri:</span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                ⚡ Hızlı Hazır Sistem Paketleri:
               </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-                {SYSTEM_LOCATION_PRESETS.map(preset => (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+                {[
+                  { name: '🇹🇷 Tüm Türkiye', locs: [DEFAULT_LOCATIONS[0]] },
+                  { name: '🇹🇷 İstanbul', locs: [DEFAULT_LOCATIONS[1]] },
+                  { name: '🇹🇷 Antalya & Alanya', locs: [DEFAULT_LOCATIONS[2], DEFAULT_LOCATIONS[3]] },
+                  { name: '🇹🇷 İzmir & Ege', locs: [DEFAULT_LOCATIONS[5], DEFAULT_LOCATIONS[6]] },
+                  { name: '🇩🇪 Almanya (Gurbetçi & Diaspora)', locs: [DEFAULT_LOCATIONS[7]] },
+                  { name: '🇬🇧 Birleşik Krallık', locs: [DEFAULT_LOCATIONS[8]] },
+                  { name: '🇺🇸 ABD (Global Yatırım)', locs: [DEFAULT_LOCATIONS[9]] },
+                  { name: '🇦🇪 Dubai / BAE', locs: [DEFAULT_LOCATIONS[10]] },
+                  { name: '🇷🇺 Rusya & BDT', locs: [DEFAULT_LOCATIONS[11], DEFAULT_LOCATIONS[12]] }
+                ].map(preset => (
                   <button
-                    key={preset.id}
+                    key={preset.name}
                     type="button"
-                    onClick={() => {
-                      setSelectedLocations(preset.locs);
-                      setPresetSaveSuccessMessage(`"${preset.name}" paketi seçildi (${preset.locs.length} bölge).`);
-                      setTimeout(() => setPresetSaveSuccessMessage(''), 2500);
-                    }}
+                    onClick={() => setSelectedLocations(preset.locs)}
                     className="btn-ghost"
-                    title={preset.description}
                     style={{
-                      fontSize: '0.74rem',
-                      padding: '0.3rem 0.65rem',
+                      fontSize: '0.72rem',
+                      padding: '0.25rem 0.6rem',
                       border: '1px solid var(--border-default)',
                       borderRadius: 'var(--radius-full)',
-                      backgroundColor: 'var(--bg-surface-elevated)',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.35rem',
-                      cursor: 'pointer'
+                      backgroundColor: 'var(--bg-surface-elevated)'
                     }}
                   >
-                    <span>{preset.name}</span>
-                    <span style={{ fontSize: '0.65rem', opacity: 0.75, backgroundColor: 'var(--bg-app)', padding: '1px 5px', borderRadius: '4px', border: '1px solid var(--border-subtle)' }}>
-                      {preset.locs.length}
-                    </span>
+                    + {preset.name}
                   </button>
                 ))}
               </div>

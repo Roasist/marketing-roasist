@@ -45,9 +45,6 @@ function getApiKeys($pdo) {
 // -------------------------------------------------------------
 // HELPER: GOOGLE ADS GEOTARGETCONSTANTS SEARCH & SUGGEST SERVICE
 // -------------------------------------------------------------
-// -------------------------------------------------------------
-// HELPER: GOOGLE ADS GEOTARGETCONSTANTS SEARCH & SUGGEST SERVICE
-// -------------------------------------------------------------
 function fetchGoogleAdsGeoTargetConstants($apiKeys, $query, $locale = 'tr') {
     $clientId = $apiKeys['googleClientId'] ?? '';
     $clientSecret = $apiKeys['googleClientSecret'] ?? '';
@@ -77,50 +74,10 @@ function fetchGoogleAdsGeoTargetConstants($apiKeys, $query, $locale = 'tr') {
     }
     $accessToken = $json['access_token'];
 
-    $normQ = mb_strtolower(trim($query), 'UTF-8');
-    $searchTerms = [$query];
-
-    // Common multilingual translation & alias mappings to ensure Google Ads API returns official geo entities
-    $aliasMap = [
-        'ukrayna' => 'Ukraine', 'ukr' => 'Ukraine', 'ukraine' => 'Ukraine',
-        'kiev' => 'Kyiv', 'kyiv' => 'Kyiv', 'odesa' => 'Odesa', 'odessa' => 'Odesa', 'harkiv' => 'Kharkiv', 'kharkiv' => 'Kharkiv', 'lviv' => 'Lviv', 'dnipro' => 'Dnipro',
-        'rusya' => 'Russia', 'russia' => 'Russia', 'moskova' => 'Moscow', 'st. petersburg' => 'Saint Petersburg', 'st petersburg' => 'Saint Petersburg',
-        'kazakistan' => 'Kazakhstan', 'almatı' => 'Almaty', 'almaty' => 'Almaty', 'astana' => 'Astana', 'nur-sultan' => 'Astana',
-        'özbekistan' => 'Uzbekistan', 'ozbekistan' => 'Uzbekistan', 'taşkent' => 'Tashkent', 'tashkent' => 'Tashkent', 'semerkand' => 'Samarkand',
-        'kırgızistan' => 'Kyrgyzstan', 'kirgizistan' => 'Kyrgyzstan', 'bişkek' => 'Bishkek', 'bishkek' => 'Bishkek',
-        'azerbaycan' => 'Azerbaijan', 'bakü' => 'Baku', 'baku' => 'Baku',
-        'gürcistan' => 'Georgia', 'tiflis' => 'Tbilisi', 'batum' => 'Batumi',
-        'belarus' => 'Belarus', 'beyaz rusya' => 'Belarus', 'minsk' => 'Minsk',
-        'almanya' => 'Germany', 'germany' => 'Germany', 'münih' => 'Munich', 'köln' => 'Cologne', 'frankfurt' => 'Frankfurt', 'düsseldorf' => 'Dusseldorf',
-        'ingiltere' => 'United Kingdom', 'birleşik krallık' => 'United Kingdom', 'londra' => 'London',
-        'amerika' => 'United States', 'abd' => 'United States', 'new york' => 'New York',
-        'fransa' => 'France', 'paris' => 'Paris',
-        'italya' => 'Italy', 'roma' => 'Rome', 'milano' => 'Milan',
-        'ispanya' => 'Spain', 'madrid' => 'Madrid', 'barselona' => 'Barcelona',
-        'hollanda' => 'Netherlands', 'amsterdam' => 'Amsterdam',
-        'isviçre' => 'Switzerland', 'zürih' => 'Zurich', 'cenevre' => 'Geneva',
-        'avusturya' => 'Austria', 'viyana' => 'Vienna',
-        'yunanistan' => 'Greece', 'atina' => 'Athens',
-        'polonya' => 'Poland', 'varşova' => 'Warsaw',
-        'romanya' => 'Romania', 'bükreş' => 'Bucharest',
-        'bulgaristan' => 'Bulgaria', 'sofya' => 'Sofia',
-        'bae' => 'United Arab Emirates', 'dubai' => 'Dubai', 'abu dabi' => 'Abu Dhabi',
-        'suudi arabistan' => 'Saudi Arabia', 'riyad' => 'Riyadh', 'cidde' => 'Jeddah',
-        'katar' => 'Qatar', 'doha' => 'Doha',
-        'kuveyt' => 'Kuwait', 'israil' => 'Israel', 'kıbrıs' => 'Cyprus'
-    ];
-
-    foreach ($aliasMap as $k => $v) {
-        if ($normQ === $k || mb_strpos($normQ, $k) !== false || mb_strpos($k, $normQ) !== false) {
-            $searchTerms[] = $v;
-        }
-    }
-    $searchTerms = array_values(array_unique($searchTerms));
-
     $payload = [
         'locale' => $locale,
         'locationNames' => [
-            'names' => $searchTerms
+            'names' => [$query]
         ]
     ];
 
@@ -151,14 +108,11 @@ function fetchGoogleAdsGeoTargetConstants($apiKeys, $query, $locale = 'tr') {
         'RU' => '🇷🇺', 'AE' => '🇦🇪', 'KZ' => '🇰🇿', 'FR' => '🇫🇷',
         'IT' => '🇮🇹', 'ES' => '🇪🇸', 'NL' => '🇳🇱', 'SA' => '🇸🇦',
         'QA' => '🇶🇦', 'AZ' => '🇦🇿', 'UA' => '🇺🇦', 'CH' => '🇨🇭',
-        'AT' => '🇦🇹', 'SE' => '🇸🇪', 'NO' => '🇳🇴', 'CA' => '🇨🇦',
-        'UZ' => '🇺🇿', 'KG' => '🇰🇬', 'GE' => '🇬🇪', 'BY' => '🇧🇾',
-        'PL' => '🇵🇱', 'RO' => '🇷🇴', 'BG' => '🇧🇬', 'GR' => '🇬🇷',
-        'CY' => '🇨🇾', 'KW' => '🇰🇼', 'BH' => '🇧🇭', 'OM' => '🇴🇲',
-        'IL' => '🇮🇱', 'AU' => '🇦🇺', 'BR' => '🇧🇷', 'IN' => '🇮🇳'
+        'AT' => '🇦🇹', 'SE' => '🇸🇪', 'NO' => '🇳🇴', 'CA' => '🇨🇦'
     ];
 
     $validSuggestions = [];
+    $normQ = mb_strtolower(trim($query), 'UTF-8');
 
     foreach ($suggestions as $s) {
         $c = $s['geoTargetConstant'] ?? [];
@@ -167,8 +121,9 @@ function fetchGoogleAdsGeoTargetConstants($apiKeys, $query, $locale = 'tr') {
         $type = $c['targetType'] ?? 'City';
         $typeLower = strtolower($type);
         
-        // Exclude microscopic sub-district boundaries (Neighborhood, Sublocality)
-        if (in_array($typeLower, ['neighborhood', 'sublocality', 'postal code'])) {
+        // Google Keyword Planner only allows Country, Province/State/Region, and City
+        // It excludes legacy administrative sub-district boundaries (District/County) so Alanya City 391K is kept instead of District 807K
+        if (in_array($typeLower, ['district', 'county', 'borough', 'neighborhood', 'sublocality', 'postal code'])) {
             continue;
         }
 
@@ -189,31 +144,18 @@ function fetchGoogleAdsGeoTargetConstants($apiKeys, $query, $locale = 'tr') {
         $nameLower = mb_strtolower($cleanName, 'UTF-8');
         $canonicalLower = mb_strtolower($cleanCanonical, 'UTF-8');
 
-        // Calculate Query Relevance Score
+        // Calculate Query Relevance Score (Results MUST be related to search query string)
         $relevanceScore = 0;
         if ($nameLower === $normQ) {
-            $relevanceScore = 10000;
+            $relevanceScore = 10000; // Exact Match (e.g. "Alanya" === "alanya")
         } else if (mb_strpos($nameLower, $normQ) === 0) {
-            $relevanceScore = 8000;
+            $relevanceScore = 8000;  // Starts with search query
         } else if (mb_strpos($nameLower, $normQ) !== false) {
-            $relevanceScore = 6000;
+            $relevanceScore = 6000;  // Contains in name (e.g. "North Ossetia-Alania")
         } else if (mb_strpos($canonicalLower, $normQ) !== false) {
-            $relevanceScore = 4000;
+            $relevanceScore = 4000;  // Contains in canonical path (e.g. "Payallar, Alanya, Antalya")
         } else {
-            // Check if matches any of the expanded aliases (e.g. Ukraine for ukrayna/ukr)
-            foreach ($searchTerms as $st) {
-                $stLower = mb_strtolower($st, 'UTF-8');
-                if ($nameLower === $stLower || mb_strpos($nameLower, $stLower) === 0) {
-                    $relevanceScore = 9000;
-                    break;
-                } elseif (mb_strpos($canonicalLower, $stLower) !== false) {
-                    $relevanceScore = 5000;
-                    break;
-                }
-            }
-        }
-
-        if ($relevanceScore === 0) {
+            // Unrelated fuzzy suggestion from Google Ads API (e.g. Samsun for "alanya") -> skip!
             continue;
         }
 
@@ -226,7 +168,7 @@ function fetchGoogleAdsGeoTargetConstants($apiKeys, $query, $locale = 'tr') {
         ];
     }
 
-    // Sort by Relevance Score DESC, then Reach DESC
+    // Sort by Relevance Score DESC, then Reach DESC (e.g. Antalya Province 5.98M > City 4.7M)
     usort($validSuggestions, function($a, $b) {
         if ($b['relevanceScore'] !== $a['relevanceScore']) {
             return $b['relevanceScore'] <=> $a['relevanceScore'];
@@ -265,7 +207,6 @@ function fetchGoogleAdsGeoTargetConstants($apiKeys, $query, $locale = 'tr') {
 
 function searchGoogleAdsLocations($apiKeys, $query, $locale = 'tr') {
     $catalog = [
-        // Türkiye & Cities
         ['id' => '2792', 'name' => 'Türkiye', 'canonicalName' => 'Türkiye', 'countryCode' => 'TR', 'targetType' => 'Country', 'reach' => 85000000, 'flag' => '🇹🇷'],
         ['id' => '1012782', 'name' => 'Alanya', 'canonicalName' => 'Alanya, Antalya, Türkiye', 'countryCode' => 'TR', 'targetType' => 'City', 'reach' => 391000, 'flag' => '🇹🇷'],
         ['id' => '1012783', 'name' => 'Antalya', 'canonicalName' => 'Antalya, Türkiye', 'countryCode' => 'TR', 'targetType' => 'City', 'reach' => 2600000, 'flag' => '🇹🇷'],
@@ -292,75 +233,25 @@ function searchGoogleAdsLocations($apiKeys, $query, $locale = 'tr') {
         ['id' => '1012776', 'name' => 'Sakarya', 'canonicalName' => 'Sakarya, Türkiye', 'countryCode' => 'TR', 'targetType' => 'City', 'reach' => 1060000, 'flag' => '🇹🇷'],
         ['id' => '1012777', 'name' => 'Denizli', 'canonicalName' => 'Denizli, Türkiye', 'countryCode' => 'TR', 'targetType' => 'City', 'reach' => 1050000, 'flag' => '🇹🇷'],
         ['id' => '1012778', 'name' => 'Muğla', 'canonicalName' => 'Muğla, Türkiye', 'countryCode' => 'TR', 'targetType' => 'City', 'reach' => 1020000, 'flag' => '🇹🇷'],
-        
-        // Ukrayna & Cities (Ukraine)
-        ['id' => '2804', 'name' => 'Ukrayna', 'canonicalName' => 'Ukraine', 'countryCode' => 'UA', 'targetType' => 'Country', 'reach' => 24900000, 'flag' => '🇺🇦'],
-        ['id' => '1012852', 'name' => 'Kiev (Kyiv)', 'canonicalName' => 'Kyiv, Kyiv city, Ukraine', 'countryCode' => 'UA', 'targetType' => 'City', 'reach' => 10600000, 'flag' => '🇺🇦'],
-        ['id' => '1012854', 'name' => 'Odessa', 'canonicalName' => 'Odesa, Odesa Oblast, Ukraine', 'countryCode' => 'UA', 'targetType' => 'City', 'reach' => 2500000, 'flag' => '🇺🇦'],
-        ['id' => '1012853', 'name' => 'Harkiv (Kharkiv)', 'canonicalName' => 'Kharkiv, Kharkiv Oblast, Ukraine', 'countryCode' => 'UA', 'targetType' => 'City', 'reach' => 2300000, 'flag' => '🇺🇦'],
-        ['id' => '1012855', 'name' => 'Lviv', 'canonicalName' => 'Lviv, Lviv Oblast, Ukraine', 'countryCode' => 'UA', 'targetType' => 'City', 'reach' => 1800000, 'flag' => '🇺🇦'],
-        ['id' => '1012856', 'name' => 'Dnipro', 'canonicalName' => 'Dnipro, Dnipropetrovsk Oblast, Ukraine', 'countryCode' => 'UA', 'targetType' => 'City', 'reach' => 1900000, 'flag' => '🇺🇦'],
-        ['id' => '1012857', 'name' => 'Zaporijya', 'canonicalName' => 'Zaporizhzhia, Ukraine', 'countryCode' => 'UA', 'targetType' => 'City', 'reach' => 800000, 'flag' => '🇺🇦'],
-
-        // Almanya & Cities (Germany)
         ['id' => '2276', 'name' => 'Almanya', 'canonicalName' => 'Almanya', 'countryCode' => 'DE', 'targetType' => 'Country', 'reach' => 84000000, 'flag' => '🇩🇪'],
         ['id' => '1004054', 'name' => 'Berlin', 'canonicalName' => 'Berlin, Almanya', 'countryCode' => 'DE', 'targetType' => 'City', 'reach' => 3700000, 'flag' => '🇩🇪'],
         ['id' => '1004118', 'name' => 'Münih (Munich)', 'canonicalName' => 'Munich, Bavyera, Almanya', 'countryCode' => 'DE', 'targetType' => 'City', 'reach' => 1500000, 'flag' => '🇩🇪'],
         ['id' => '1004092', 'name' => 'Frankfurt', 'canonicalName' => 'Frankfurt, Hesse, Almanya', 'countryCode' => 'DE', 'targetType' => 'City', 'reach' => 760000, 'flag' => '🇩🇪'],
         ['id' => '1004071', 'name' => 'Köln (Cologne)', 'canonicalName' => 'Köln, Almanya', 'countryCode' => 'DE', 'targetType' => 'City', 'reach' => 1080000, 'flag' => '🇩🇪'],
         ['id' => '1004080', 'name' => 'Düsseldorf', 'canonicalName' => 'Düsseldorf, Almanya', 'countryCode' => 'DE', 'targetType' => 'City', 'reach' => 620000, 'flag' => '🇩🇪'],
-        ['id' => '1004098', 'name' => 'Hamburg', 'canonicalName' => 'Hamburg, Almanya', 'countryCode' => 'DE', 'targetType' => 'City', 'reach' => 1850000, 'flag' => '🇩🇪'],
-        ['id' => '1004134', 'name' => 'Stuttgart', 'canonicalName' => 'Stuttgart, Almanya', 'countryCode' => 'DE', 'targetType' => 'City', 'reach' => 635000, 'flag' => '🇩🇪'],
-
-        // Kazakistan & Cities (Kazakhstan)
-        ['id' => '2398', 'name' => 'Kazakistan', 'canonicalName' => 'Kazakistan', 'countryCode' => 'KZ', 'targetType' => 'Country', 'reach' => 19500000, 'flag' => '🇰🇿'],
-        ['id' => '1009804', 'name' => 'Almatı', 'canonicalName' => 'Almatı, Kazakistan', 'countryCode' => 'KZ', 'targetType' => 'City', 'reach' => 2000000, 'flag' => '🇰🇿'],
-        ['id' => '1009805', 'name' => 'Astana', 'canonicalName' => 'Astana, Kazakistan', 'countryCode' => 'KZ', 'targetType' => 'City', 'reach' => 1200000, 'flag' => '🇰🇿'],
-        ['id' => '1009806', 'name' => 'Çimkent (Shymkent)', 'canonicalName' => 'Shymkent, Kazakistan', 'countryCode' => 'KZ', 'targetType' => 'City', 'reach' => 1100000, 'flag' => '🇰🇿'],
-
-        // Özbekistan & Cities (Uzbekistan)
-        ['id' => '2860', 'name' => 'Özbekistan', 'canonicalName' => 'Uzbekistan', 'countryCode' => 'UZ', 'targetType' => 'Country', 'reach' => 36000000, 'flag' => '🇺🇿'],
-        ['id' => '1028308', 'name' => 'Taşkent (Tashkent)', 'canonicalName' => 'Tashkent, Uzbekistan', 'countryCode' => 'UZ', 'targetType' => 'City', 'reach' => 2900000, 'flag' => '🇺🇿'],
-        ['id' => '1028309', 'name' => 'Semerkand (Samarkand)', 'canonicalName' => 'Samarkand, Uzbekistan', 'countryCode' => 'UZ', 'targetType' => 'City', 'reach' => 600000, 'flag' => '🇺🇿'],
-
-        // Kırgızistan & Cities (Kyrgyzstan)
-        ['id' => '2417', 'name' => 'Kırgızistan', 'canonicalName' => 'Kyrgyzstan', 'countryCode' => 'KG', 'targetType' => 'Country', 'reach' => 7000000, 'flag' => '🇰🇬'],
-        ['id' => '1009831', 'name' => 'Bişkek (Bishkek)', 'canonicalName' => 'Bishkek, Kyrgyzstan', 'countryCode' => 'KG', 'targetType' => 'City', 'reach' => 1100000, 'flag' => '🇰🇬'],
-        ['id' => '1009832', 'name' => 'Oş (Osh)', 'canonicalName' => 'Osh, Kyrgyzstan', 'countryCode' => 'KG', 'targetType' => 'City', 'reach' => 350000, 'flag' => '🇰🇬'],
-
-        // Rusya & Cities (Russia)
-        ['id' => '2643', 'name' => 'Rusya', 'canonicalName' => 'Rusya Federasyonu', 'countryCode' => 'RU', 'targetType' => 'Country', 'reach' => 145000000, 'flag' => '🇷🇺'],
-        ['id' => '1011982', 'name' => 'Moskova', 'canonicalName' => 'Moskova, Rusya', 'countryCode' => 'RU', 'targetType' => 'City', 'reach' => 12500000, 'flag' => '🇷🇺'],
-        ['id' => '1012040', 'name' => 'St. Petersburg', 'canonicalName' => 'St. Petersburg, Rusya', 'countryCode' => 'RU', 'targetType' => 'City', 'reach' => 5400000, 'flag' => '🇷🇺'],
-        ['id' => '1012000', 'name' => 'Kazan', 'canonicalName' => 'Kazan, Rusya', 'countryCode' => 'RU', 'targetType' => 'City', 'reach' => 1300000, 'flag' => '🇷🇺'],
-        ['id' => '1012015', 'name' => 'Yekaterinburg', 'canonicalName' => 'Yekaterinburg, Rusya', 'countryCode' => 'RU', 'targetType' => 'City', 'reach' => 1500000, 'flag' => '🇷🇺'],
-
-        // Azerbaycan & Gürcistan
-        ['id' => '2031', 'name' => 'Azerbaycan', 'canonicalName' => 'Azerbaycan', 'countryCode' => 'AZ', 'targetType' => 'Country', 'reach' => 10000000, 'flag' => '🇦🇿'],
-        ['id' => '1000280', 'name' => 'Bakü', 'canonicalName' => 'Bakü, Azerbaycan', 'countryCode' => 'AZ', 'targetType' => 'City', 'reach' => 2300000, 'flag' => '🇦🇿'],
-        ['id' => '2268', 'name' => 'Gürcistan', 'canonicalName' => 'Georgia', 'countryCode' => 'GE', 'targetType' => 'Country', 'reach' => 3700000, 'flag' => '🇬🇪'],
-        ['id' => '1006198', 'name' => 'Tiflis (Tbilisi)', 'canonicalName' => 'Tbilisi, Georgia', 'countryCode' => 'GE', 'targetType' => 'City', 'reach' => 1200000, 'flag' => '🇬🇪'],
-        ['id' => '1006200', 'name' => 'Batum (Batumi)', 'canonicalName' => 'Batumi, Georgia', 'countryCode' => 'GE', 'targetType' => 'City', 'reach' => 180000, 'flag' => '🇬🇪'],
-
-        // Birleşik Krallık & ABD
         ['id' => '2826', 'name' => 'Birleşik Krallık (İngiltere)', 'canonicalName' => 'Birleşik Krallık', 'countryCode' => 'GB', 'targetType' => 'Country', 'reach' => 67000000, 'flag' => '🇬🇧'],
         ['id' => '1006886', 'name' => 'Londra (London)', 'canonicalName' => 'London, Birleşik Krallık', 'countryCode' => 'GB', 'targetType' => 'City', 'reach' => 9000000, 'flag' => '🇬🇧'],
         ['id' => '2840', 'name' => 'Amerika Birleşik Devletleri (ABD)', 'canonicalName' => 'Amerika Birleşik Devletleri', 'countryCode' => 'US', 'targetType' => 'Country', 'reach' => 335000000, 'flag' => '🇺🇸'],
         ['id' => '1023191', 'name' => 'New York', 'canonicalName' => 'New York, Amerika Birleşik Devletleri', 'countryCode' => 'US', 'targetType' => 'City', 'reach' => 8400000, 'flag' => '🇺🇸'],
-        ['id' => '1014221', 'name' => 'Los Angeles', 'canonicalName' => 'Los Angeles, California, ABD', 'countryCode' => 'US', 'targetType' => 'City', 'reach' => 4000000, 'flag' => '🇺🇸'],
-        ['id' => '1015024', 'name' => 'Miami', 'canonicalName' => 'Miami, Florida, ABD', 'countryCode' => 'US', 'targetType' => 'City', 'reach' => 500000, 'flag' => '🇺🇸'],
-
-        // BAE & Orta Doğu
         ['id' => '2784', 'name' => 'Birleşik Arap Emirlikleri (BAE / Dubai)', 'canonicalName' => 'Birleşik Arap Emirlikleri', 'countryCode' => 'AE', 'targetType' => 'Country', 'reach' => 9900000, 'flag' => '🇦🇪'],
         ['id' => '1000010', 'name' => 'Dubai', 'canonicalName' => 'Dubai, Birleşik Arap Emirlikleri', 'countryCode' => 'AE', 'targetType' => 'City', 'reach' => 3400000, 'flag' => '🇦🇪'],
         ['id' => '1000013', 'name' => 'Abu Dabi', 'canonicalName' => 'Abu Dabi, Birleşik Arap Emirlikleri', 'countryCode' => 'AE', 'targetType' => 'City', 'reach' => 1500000, 'flag' => '🇦🇪'],
-        ['id' => '2682', 'name' => 'Suudi Arabistan', 'canonicalName' => 'Saudi Arabia', 'countryCode' => 'SA', 'targetType' => 'Country', 'reach' => 35000000, 'flag' => '🇸🇦'],
-        ['id' => '1011883', 'name' => 'Riyad (Riyadh)', 'canonicalName' => 'Riyadh, Saudi Arabia', 'countryCode' => 'SA', 'targetType' => 'City', 'reach' => 7000000, 'flag' => '🇸🇦'],
-        ['id' => '2634', 'name' => 'Katar', 'canonicalName' => 'Qatar', 'countryCode' => 'QA', 'targetType' => 'Country', 'reach' => 2900000, 'flag' => '🇶🇦'],
-        ['id' => '1011746', 'name' => 'Doha', 'canonicalName' => 'Doha, Qatar', 'countryCode' => 'QA', 'targetType' => 'City', 'reach' => 1200000, 'flag' => '🇶🇦'],
-        ['id' => '2414', 'name' => 'Kuveyt', 'canonicalName' => 'Kuwait', 'countryCode' => 'KW', 'targetType' => 'Country', 'reach' => 4300000, 'flag' => '🇰🇼'],
-
-        // Avrupa Ülkeleri
+        ['id' => '2643', 'name' => 'Rusya', 'canonicalName' => 'Rusya Federasyonu', 'countryCode' => 'RU', 'targetType' => 'Country', 'reach' => 145000000, 'flag' => '🇷🇺'],
+        ['id' => '1011982', 'name' => 'Moskova', 'canonicalName' => 'Moskova, Rusya', 'countryCode' => 'RU', 'targetType' => 'City', 'reach' => 12500000, 'flag' => '🇷🇺'],
+        ['id' => '1012040', 'name' => 'St. Petersburg', 'canonicalName' => 'St. Petersburg, Rusya', 'countryCode' => 'RU', 'targetType' => 'City', 'reach' => 5400000, 'flag' => '🇷🇺'],
+        ['id' => '2398', 'name' => 'Kazakistan', 'canonicalName' => 'Kazakistan', 'countryCode' => 'KZ', 'targetType' => 'Country', 'reach' => 19500000, 'flag' => '🇰🇿'],
+        ['id' => '1009804', 'name' => 'Almatı', 'canonicalName' => 'Almatı, Kazakistan', 'countryCode' => 'KZ', 'targetType' => 'City', 'reach' => 2000000, 'flag' => '🇰🇿'],
+        ['id' => '1009805', 'name' => 'Astana', 'canonicalName' => 'Astana, Kazakistan', 'countryCode' => 'KZ', 'targetType' => 'City', 'reach' => 1200000, 'flag' => '🇰🇿'],
         ['id' => '2250', 'name' => 'Fransa', 'canonicalName' => 'Fransa', 'countryCode' => 'FR', 'targetType' => 'Country', 'reach' => 68000000, 'flag' => '🇫🇷'],
         ['id' => '1006094', 'name' => 'Paris', 'canonicalName' => 'Paris, Fransa', 'countryCode' => 'FR', 'targetType' => 'City', 'reach' => 2160000, 'flag' => '🇫🇷'],
         ['id' => '2380', 'name' => 'İtalya', 'canonicalName' => 'İtalya', 'countryCode' => 'IT', 'targetType' => 'Country', 'reach' => 59000000, 'flag' => '🇮🇹'],
@@ -371,22 +262,8 @@ function searchGoogleAdsLocations($apiKeys, $query, $locale = 'tr') {
         ['id' => '1005424', 'name' => 'Barselona', 'canonicalName' => 'Barselona, İspanya', 'countryCode' => 'ES', 'targetType' => 'City', 'reach' => 1620000, 'flag' => '🇪🇸'],
         ['id' => '2528', 'name' => 'Hollanda', 'canonicalName' => 'Hollanda', 'countryCode' => 'NL', 'targetType' => 'Country', 'reach' => 17500000, 'flag' => '🇳🇱'],
         ['id' => '1010543', 'name' => 'Amsterdam', 'canonicalName' => 'Amsterdam, Hollanda', 'countryCode' => 'NL', 'targetType' => 'City', 'reach' => 870000, 'flag' => '🇳🇱'],
-        ['id' => '2756', 'name' => 'İsviçre', 'canonicalName' => 'Switzerland', 'countryCode' => 'CH', 'targetType' => 'Country', 'reach' => 8700000, 'flag' => '🇨🇭'],
-        ['id' => '1026481', 'name' => 'Zürih (Zurich)', 'canonicalName' => 'Zurich, Switzerland', 'countryCode' => 'CH', 'targetType' => 'City', 'reach' => 430000, 'flag' => '🇨🇭'],
-        ['id' => '2040', 'name' => 'Avusturya', 'canonicalName' => 'Austria', 'countryCode' => 'AT', 'targetType' => 'Country', 'reach' => 9000000, 'flag' => '🇦🇹'],
-        ['id' => '1000858', 'name' => 'Viyana (Vienna)', 'canonicalName' => 'Vienna, Austria', 'countryCode' => 'AT', 'targetType' => 'City', 'reach' => 1900000, 'flag' => '🇦🇹'],
-        ['id' => '2616', 'name' => 'Polonya', 'canonicalName' => 'Poland', 'countryCode' => 'PL', 'targetType' => 'Country', 'reach' => 38000000, 'flag' => '🇵🇱'],
-        ['id' => '1011640', 'name' => 'Varşova (Warsaw)', 'canonicalName' => 'Warsaw, Poland', 'countryCode' => 'PL', 'targetType' => 'City', 'reach' => 1800000, 'flag' => '🇵🇱'],
-        ['id' => '2300', 'name' => 'Yunanistan', 'canonicalName' => 'Greece', 'countryCode' => 'GR', 'targetType' => 'Country', 'reach' => 10500000, 'flag' => '🇬🇷'],
-        ['id' => '1007297', 'name' => 'Atina (Athens)', 'canonicalName' => 'Athens, Greece', 'countryCode' => 'GR', 'targetType' => 'City', 'reach' => 3100000, 'flag' => '🇬🇷'],
-        ['id' => '2196', 'name' => 'Kıbrıs (Cyprus)', 'canonicalName' => 'Cyprus', 'countryCode' => 'CY', 'targetType' => 'Country', 'reach' => 1200000, 'flag' => '🇨🇾'],
-        ['id' => '2100', 'name' => 'Bulgaristan', 'canonicalName' => 'Bulgaria', 'countryCode' => 'BG', 'targetType' => 'Country', 'reach' => 6900000, 'flag' => '🇧🇬'],
-        ['id' => '2642', 'name' => 'Romanya', 'canonicalName' => 'Romania', 'countryCode' => 'RO', 'targetType' => 'Country', 'reach' => 19000000, 'flag' => '🇷🇴'],
-        ['id' => '2752', 'name' => 'İsveç', 'canonicalName' => 'Sweden', 'countryCode' => 'SE', 'targetType' => 'Country', 'reach' => 10500000, 'flag' => '🇸🇪'],
-        ['id' => '2578', 'name' => 'Norveç', 'canonicalName' => 'Norway', 'countryCode' => 'NO', 'targetType' => 'Country', 'reach' => 5400000, 'flag' => '🇳🇴'],
-        ['id' => '2208', 'name' => 'Danimarka', 'canonicalName' => 'Denmark', 'countryCode' => 'DK', 'targetType' => 'Country', 'reach' => 5900000, 'flag' => '🇩🇰'],
-        ['id' => '2246', 'name' => 'Finlandiya', 'canonicalName' => 'Finland', 'countryCode' => 'FI', 'targetType' => 'Country', 'reach' => 5500000, 'flag' => '🇫🇮'],
-        ['id' => '2124', 'name' => 'Kanada', 'canonicalName' => 'Canada', 'countryCode' => 'CA', 'targetType' => 'Country', 'reach' => 39000000, 'flag' => '🇨🇦']
+        ['id' => '2031', 'name' => 'Azerbaycan', 'canonicalName' => 'Azerbaycan', 'countryCode' => 'AZ', 'targetType' => 'Country', 'reach' => 10000000, 'flag' => '🇦🇿'],
+        ['id' => '1000280', 'name' => 'Bakü', 'canonicalName' => 'Bakü, Azerbaycan', 'countryCode' => 'AZ', 'targetType' => 'City', 'reach' => 2300000, 'flag' => '🇦🇿']
     ];
 
     if (!empty($query)) {
@@ -396,7 +273,7 @@ function searchGoogleAdsLocations($apiKeys, $query, $locale = 'tr') {
         }
 
         $filtered = [];
-        $normQ = mb_strtolower(trim($query), 'UTF-8');
+        $normQ = mb_strtolower($query, 'UTF-8');
         foreach ($catalog as $item) {
             $nameMatch = mb_stripos(mb_strtolower($item['name'], 'UTF-8'), $normQ) !== false;
             $canonicalMatch = mb_stripos(mb_strtolower($item['canonicalName'], 'UTF-8'), $normQ) !== false;
@@ -562,23 +439,11 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
         $curlHandles[$geo] = $chLoc;
     }
 
-    $active = null;
+    $running = null;
     do {
-        $mrc = curl_multi_exec($mh, $active);
-    } while ($mrc == CURLM_CALL_MULTI_PERFORM);
-
-    while ($active && $mrc == CURLM_OK) {
-        if (curl_multi_select($mh, 0.5) != -1) {
-            do {
-                $mrc = curl_multi_exec($mh, $active);
-            } while ($mrc == CURLM_CALL_MULTI_PERFORM);
-        } else {
-            usleep(25000);
-            do {
-                $mrc = curl_multi_exec($mh, $active);
-            } while ($mrc == CURLM_CALL_MULTI_PERFORM);
-        }
-    }
+        curl_multi_exec($mh, $running);
+        curl_multi_select($mh);
+    } while ($running > 0);
 
     $breakdown = [];
     $totalBreakdownVol = 0;
@@ -769,27 +634,7 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
         'lv' => 'languageConstants/1029', // Latvian
         'lt' => 'languageConstants/1026'  // Lithuanian
     ];
-
     $normLangCode = strtolower(trim($langCode));
-    $langNameAliases = [
-        'russian' => 'ru', 'rusça' => 'ru', 'rusca' => 'ru', 'rus' => 'ru', 'ru-ru' => 'ru', 'русский' => 'ru',
-        'turkish' => 'tr', 'türkçe' => 'tr', 'turkce' => 'tr', 'tr-tr' => 'tr',
-        'english' => 'en', 'ingilizce' => 'en', 'en-us' => 'en', 'en-gb' => 'en',
-        'german' => 'de', 'almanca' => 'de', 'de-de' => 'de', 'deutsch' => 'de',
-        'arabic' => 'ar', 'arapça' => 'ar', 'arapca' => 'ar', 'ar-ae' => 'ar', 'ar-sa' => 'ar',
-        'ukrainian' => 'uk', 'ukraynaca' => 'uk', 'ukr' => 'uk',
-        'french' => 'fr', 'fransızca' => 'fr', 'fransizca' => 'fr',
-        'spanish' => 'es', 'ispanyolca' => 'es',
-        'italian' => 'it', 'italyanca' => 'it',
-        'dutch' => 'nl', 'felemenkçe' => 'nl', 'felemenkce' => 'nl',
-        'azerbaijani' => 'az', 'azerbaycanca' => 'az',
-        'kazakh' => 'kk', 'kazakça' => 'kk', 'kazakca' => 'kk',
-        'uzbek' => 'uz', 'özbekçe' => 'uz', 'ozbekce' => 'uz'
-    ];
-    if (isset($langNameAliases[$normLangCode])) {
-        $normLangCode = $langNameAliases[$normLangCode];
-    }
-
     if (is_numeric($normLangCode)) {
         $langConst = 'languageConstants/' . $normLangCode;
         $codeMap = array_flip($langMap);
@@ -806,21 +651,7 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
         'AE' => 'geoTargetConstants/2784',
         'GB' => 'geoTargetConstants/2826',
         'US' => 'geoTargetConstants/2840',
-        'KZ' => 'geoTargetConstants/2398',
-        'UA' => 'geoTargetConstants/2804',
-        'UZ' => 'geoTargetConstants/2860',
-        'KG' => 'geoTargetConstants/2417',
-        'AZ' => 'geoTargetConstants/2031',
-        'GE' => 'geoTargetConstants/2268',
-        'FR' => 'geoTargetConstants/2250',
-        'IT' => 'geoTargetConstants/2380',
-        'ES' => 'geoTargetConstants/2724',
-        'NL' => 'geoTargetConstants/2528',
-        'PL' => 'geoTargetConstants/2616',
-        'CH' => 'geoTargetConstants/2756',
-        'AT' => 'geoTargetConstants/2040',
-        'SA' => 'geoTargetConstants/2682',
-        'QA' => 'geoTargetConstants/2634'
+        'KZ' => 'geoTargetConstants/2398'
     ];
     $geoConst = $geoMap[strtoupper($countryCode)] ?? 'geoTargetConstants/2792';
 
@@ -839,6 +670,37 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
     if (empty($finalGeoList)) {
         $finalGeoList = [$geoConst];
     }
+
+    // Step 2: Configure payload mirroring official Google Ads Keyword Planner UI
+    $payload = [
+        "keywordPlanNetwork" => "GOOGLE_SEARCH",
+        "language" => $langConst,
+        "geoTargetConstants" => $finalGeoList
+    ];
+
+    if (!empty($url)) {
+        if (!preg_match('/^https?:\/\//i', $url)) {
+            $url = 'https://' . $url;
+        }
+        // Mirror Google Ads Keyword Planner UI: "Start with a website" uses urlSeed
+        $payload["urlSeed"] = ["url" => $url];
+    } elseif (!empty($keywords)) {
+        $payload["keywordSeed"] = ["keywords" => is_array($keywords) ? array_slice($keywords, 0, 20) : [$keywords]];
+    }
+
+    $chAds = curl_init("https://googleads.googleapis.com/v22/customers/{$customerId}:generateKeywordIdeas");
+    curl_setopt($chAds, CURLOPT_POST, true);
+    curl_setopt($chAds, CURLOPT_POSTFIELDS, json_encode($payload));
+    curl_setopt($chAds, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($chAds, CURLOPT_HTTPHEADER, [
+        'Authorization: Bearer ' . $accessToken,
+        'developer-token: ' . $devToken,
+        'Content-Type: application/json'
+    ]);
+    curl_setopt($chAds, CURLOPT_TIMEOUT, 25);
+    $adsRes = curl_exec($chAds);
+    $adsCode = curl_getinfo($chAds, CURLINFO_HTTP_CODE);
+    curl_close($chAds);
 
     $parsedKeywords = [];
     $seenKeywords = [];
@@ -1294,11 +1156,6 @@ function fetchLandingPageDetails($url) {
 // Detect language from text and title using weighted token scoring
 function detectPageLanguage($title, $text) {
     $full = $title . ' ' . $text;
-
-    // 0. Russian transliteration cues in URL or text (e.g. grazhdanstvo, nedvizhimost, kvartira, turtsiya)
-    if (preg_match('/(grazhdanstv|nedvizhim|kvartir|turtsiy|turtsii|investits|pasport|vnzh)/i', $full)) {
-        return ['code' => 'ru', 'name' => 'Rusça'];
-    }
     
     // 1. Script checks
     preg_match_all('/[\p{Cyrillic}]/u', $full, $cyr);
@@ -1761,30 +1618,27 @@ function extractLocationAndSmartSeeds($pageDetails, $query, $langCode = 'en') {
 
     // 4. Detect Turkey Citizenship & Real Estate in Russian, Turkish, Arabic, German, English
     $isRussianCyrillic = preg_match('/[\p{Cyrillic}]/u', $full);
-    $isRussianTranslit = preg_match('/(grazhdanstv|nedvizhim|kvartir|turtsiy|turtsii|investits|pasport|vnzh)/i', $full);
-    if ($langCode === 'ru' || $isRussianCyrillic || $isRussianTranslit) {
-        if (preg_match('/(grazhdanstv|nedvizhim|kvartir|turtsiy|investits|гражданств|внж|паспорт|недвижим|квартир|вилл|инвестиц|турци|алань|анталь|стамбул|23projects|23square)/ui', $full)) {
-            return [
-                'гражданство турции за инвестиции',
-                'гражданство турции при покупке недвижимости',
-                'внж в турции при покупке недвижимости',
-                'купить квартиру в турции и получить гражданство',
-                'гражданство турции через инвестиции',
-                'паспорт турции за инвестиции',
-                'недвижимость в турции для гражданства',
-                'внж в турции',
-                'купить квартиру в аланье',
-                'купить квартиру в анталии',
-                'купить недвижимость в турции',
-                'оформление внж в турции',
-                'внж турции за инвестиции',
-                'пмж в турции',
-                'гражданство за инвестиции турция',
-                'инвестиции в недвижимость турции',
-                'купить квартиру в стамбуле',
-                'турецкое гражданство за покупку недвижимости'
-            ];
-        }
+    if ($isRussianCyrillic && preg_match('/(гражданств|внж|паспорт|недвижим|квартир|вилл|инвестиц|турци|алань|анталь|стамбул|23projects|23square)/ui', $full)) {
+        return [
+            'гражданство турции за инвестиции',
+            'гражданство турции при покупке недвижимости',
+            'внж в турции при покупке недвижимости',
+            'купить квартиру в турции и получить гражданство',
+            'гражданство турции через инвестиции',
+            'паспорт турции за инвестиции',
+            'недвижимость в турции для гражданства',
+            'внж в турции',
+            'купить квартиру в аланье',
+            'купить квартиру в анталии',
+            'купить недвижимость в турции',
+            'оформление внж в турции',
+            'внж турции за инвестиции',
+            'пмж в турции',
+            'гражданство за инвестиции турция',
+            'инвестиции в недвижимость турции',
+            'купить квартиру в стамбуле',
+            'турецкое гражданство за покупку недвижимости'
+        ];
     }
 
     if (preg_match('/\b(turkish citizenship|citizenship by investment|vatandaşlık|real estate|gayrimenkul|property for sale|properties for sale|satılık daire|satılık ev|satılık mülk|konut projesi|summer homes|23projects|23 projects|23square)\b/ui', $full)) {
@@ -2401,36 +2255,34 @@ if ($action === 'discover' && $method === 'POST') {
         $aiSeeds = array_merge($aiSeeds, $cleanUserSeeds);
     }
 
-    // Determine Language: Deterministic text detection has highest fidelity for script/alphabet
-    $deterministicLang = detectPageLanguage(($pageDetails['title'] ?? '') . ' ' . $query, $pageDetails['textSnippet'] ?? '');
-
-    if (!empty($requestedLanguage) && strtolower($requestedLanguage) !== 'auto') {
-        $langNames = ['tr' => 'Türkçe', 'en' => 'İngilizce', 'de' => 'Almanca', 'ru' => 'Rusça', 'ar' => 'Arapça', 'uk' => 'Ukraynaca', 'fr' => 'Fransızca', 'es' => 'İspanyolca', 'it' => 'İtalyanca', 'nl' => 'Felemenkçe', 'az' => 'Azerbaycanca', 'kk' => 'Kazakça', 'uz' => 'Özbekçe'];
+    if (!empty($requestedLanguage)) {
+        $langNames = ['tr' => 'Türkçe', 'en' => 'İngilizce', 'de' => 'Almanca', 'ru' => 'Rusça', 'ar' => 'Arapça'];
         $langInfo = [
             'code' => $requestedLanguage,
             'name' => $langNames[$requestedLanguage] ?? 'Seçili Dil'
         ];
-    } elseif ($deterministicLang && in_array($deterministicLang['code'], ['ru', 'ar', 'de', 'tr', 'uk'])) {
-        $langInfo = $deterministicLang;
-    } elseif ($aiAnalysis && !empty($aiAnalysis['detectedLanguage']) && $aiAnalysis['detectedLanguage'] !== 'auto') {
+        $sectorTitle = $aiAnalysis['sector'] ?? ($pageDetails['title'] ?? 'Google Ads Kampanyası');
+        $suggestedCountries = !empty($aiAnalysis['suggestedCountries']) ? $aiAnalysis['suggestedCountries'] : getSuggestedCountriesByLang($langInfo['code']);
+    } elseif ($aiAnalysis && !empty($aiAnalysis['detectedLanguage'])) {
         $langInfo = [
             'code' => $aiAnalysis['detectedLanguage'],
             'name' => $aiAnalysis['detectedLanguageName'] ?? 'Otomatik'
         ];
-    } else {
-        $langInfo = $deterministicLang ?: ['code' => 'en', 'name' => 'İngilizce'];
-    }
-
-    $sectorTitle = $aiAnalysis['sector'] ?? ($pageDetails['title'] ?? 'Google Ads Kampanyası');
-    $suggestedCountries = !empty($aiAnalysis['suggestedCountries']) ? $aiAnalysis['suggestedCountries'] : getSuggestedCountriesByLang($langInfo['code']);
-    
-    if (!empty($aiAnalysis['highIntentSeeds'])) {
-        $aiSeeds = array_merge($aiSeeds, $aiAnalysis['highIntentSeeds']);
-    }
-    if (!empty($aiAnalysis['strategistKeywords'])) {
-        foreach ($aiAnalysis['strategistKeywords'] as $ak) {
-            if (!empty($ak['keyword'])) $aiSeeds[] = $ak['keyword'];
+        $sectorTitle = $aiAnalysis['sector'] ?? ($pageDetails['title'] ?? 'Google Ads Kampanyası');
+        $suggestedCountries = !empty($aiAnalysis['suggestedCountries']) ? $aiAnalysis['suggestedCountries'] : getSuggestedCountriesByLang($langInfo['code']);
+        
+        if (!empty($aiAnalysis['highIntentSeeds'])) {
+            $aiSeeds = array_merge($aiSeeds, $aiAnalysis['highIntentSeeds']);
         }
+        if (!empty($aiAnalysis['strategistKeywords'])) {
+            foreach ($aiAnalysis['strategistKeywords'] as $ak) {
+                if (!empty($ak['keyword'])) $aiSeeds[] = $ak['keyword'];
+            }
+        }
+    } else {
+        $langInfo = detectPageLanguage($pageDetails['title'] ?? '', $pageDetails['textSnippet'] ?? '');
+        $suggestedCountries = getSuggestedCountriesByLang($langInfo['code']);
+        $sectorTitle = $pageDetails['title'] ?? 'Google Ads Kampanyası';
     }
 
     $smartSeeds = !empty($aiSeeds) ? array_values(array_unique(array_filter($aiSeeds))) : extractLocationAndSmartSeeds($pageDetails, $query, $langInfo['code']);
@@ -2510,27 +2362,6 @@ if ($action === 'discover' && $method === 'POST') {
         }
     } else {
         $officialKeywords = [];
-        // If official call was empty but AI Strategist extracted keywords:
-        if (!empty($aiAnalysis['strategistKeywords']) && is_array($aiAnalysis['strategistKeywords'])) {
-            foreach ($aiAnalysis['strategistKeywords'] as $skw) {
-                $sText = trim($skw['keyword'] ?? '');
-                if (empty($sText) || mb_strlen($sText, 'UTF-8') < 3) continue;
-                $officialKeywords[] = [
-                    'id' => 'ai_strat_' . (count($officialKeywords) + 1) . '_' . substr(md5($sText), 0, 6),
-                    'keyword' => $sText,
-                    'monthlyVolume' => (int)($skw['monthlyVolume'] ?? 1200),
-                    'lowCpc' => (float)($skw['lowCpc'] ?? 7.5),
-                    'highCpc' => (float)($skw['highCpc'] ?? 25.0),
-                    'competition' => $skw['competition'] ?? 'HIGH',
-                    'competitionIndex' => (int)($skw['competitionIndex'] ?? 85),
-                    'intent' => 'TRANSACTIONAL',
-                    'trendChangePercent' => (int)($skw['trendChangePercent'] ?? 20),
-                    'opportunityScore' => (int)($skw['opportunityScore'] ?? 97),
-                    'isAiStrategistPick' => true,
-                    'strategistStrategy' => $skw['strategy'] ?? 'TRANSACTIONAL'
-                ];
-            }
-        }
     }
 
     // Sort: prioritize AI Performance Strategist keywords first, then highest contextual relevance score, then search volume
@@ -2742,35 +2573,6 @@ if ($action === 'list_models') {
         'raw' => $json
     ]);
     exit;
-}
-
-// -------------------------------------------------------------
-// ACTION: SAVE / GET CUSTOM LOCATION PRESETS (Persistent Storage)
-// -------------------------------------------------------------
-if ($action === 'location_presets') {
-    $workspaceId = $_GET['workspace_id'] ?? 'default';
-    $settingKey = 'custom_location_presets_' . preg_replace('/[^a-zA-Z0-9_-]/', '', $workspaceId);
-
-    if ($method === 'GET') {
-        $stmt = $pdo->prepare("SELECT setting_value FROM app_settings WHERE setting_key = ?");
-        $stmt->execute([$settingKey]);
-        $row = $stmt->fetch();
-        $presets = $row ? json_decode($row['setting_value'] ?? '[]', true) : [];
-        if (!is_array($presets)) $presets = [];
-        echo json_encode(['status' => 'success', 'presets' => $presets], JSON_UNESCAPED_UNICODE);
-        exit;
-    }
-
-    if ($method === 'POST') {
-        $input = json_decode(file_get_contents('php://input'), true) ?? [];
-        $presets = $input['presets'] ?? [];
-        $jsonPresets = json_encode($presets, JSON_UNESCAPED_UNICODE);
-
-        $stmt = $pdo->prepare("INSERT OR REPLACE INTO app_settings (setting_key, setting_value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)");
-        $stmt->execute([$settingKey, $jsonPresets]);
-        echo json_encode(['status' => 'success', 'message' => 'Lokasyon paketleri başarıyla kaydedildi!'], JSON_UNESCAPED_UNICODE);
-        exit;
-    }
 }
 
 // -------------------------------------------------------------
