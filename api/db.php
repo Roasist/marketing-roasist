@@ -189,6 +189,12 @@ class Database {
             $pdo->exec("ALTER TABLE forecast_plans ADD COLUMN period TEXT");
         } catch (Exception $e) {}
         try {
+            $pdo->exec("ALTER TABLE forecast_plans ADD COLUMN start_date TEXT");
+        } catch (Exception $e) {}
+        try {
+            $pdo->exec("ALTER TABLE forecast_plans ADD COLUMN end_date TEXT");
+        } catch (Exception $e) {}
+        try {
             $pdo->exec("ALTER TABLE forecast_plans ADD COLUMN tags TEXT");
         } catch (Exception $e) {}
         try {

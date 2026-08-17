@@ -185,7 +185,9 @@ export interface MasterMediaPlan {
   workspaceId?: string;
   name: string; // e.g. "Temmuz 2026 Global Kampanyası"
   clientName: string; // e.g. "Acme Sağlık Turizmi"
-  period: string; // e.g. "Temmuz 2026"
+  startDate?: string; // e.g. "2026-07-01"
+  endDate?: string; // e.g. "2026-07-31"
+  period: string; // e.g. "01.07.2026 — 31.07.2026"
   tags: string[]; // e.g. ["#Temmuz2026", "#SağlıkTurizmi"]
   totalBudget: number;
   subCampaigns: SubCampaignItem[];
@@ -199,6 +201,8 @@ export interface ForecastPlan {
   workspaceId?: string;
   name: string;
   clientName?: string;
+  startDate?: string;
+  endDate?: string;
   period?: string;
   tags?: string[];
   targetUrl?: string;

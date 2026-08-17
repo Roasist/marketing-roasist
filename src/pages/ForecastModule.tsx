@@ -18,6 +18,7 @@ import {
   ArrowLeft, 
   Plus, 
   X, 
+  ChevronRight,
   FolderTree, 
   BarChart3, 
   ArrowUpDown,
@@ -595,24 +596,73 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   const [viewMode, setViewMode] = useState<'PORTFOLIO' | 'STUDIO'>('PORTFOLIO');
   const [portfolioSearchQuery, setPortfolioSearchQuery] = useState<string>('');
 
+  // Date helper utilities for campaign start & end dates
+  const getMonthDateRange = (offsetMonths = 0) => {
+    const d = new Date();
+    d.setMonth(d.getMonth() + offsetMonths);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const lastDay = new Date(year, d.getMonth() + 1, 0).getDate();
+    return {
+      start: `${year}-${month}-01`,
+      end: `${year}-${month}-${String(lastDay).padStart(2, '0')}`
+    };
+  };
+
+  const getQuarterDateRange = (quarterOffset = 0) => {
+    const now = new Date();
+    const year = now.getFullYear();
+    let currentQuarter = Math.floor(now.getMonth() / 3) + quarterOffset;
+    let targetYear = year;
+    if (currentQuarter > 3) {
+      targetYear += Math.floor(currentQuarter / 4);
+      currentQuarter = currentQuarter % 4;
+    }
+    const startMonth = String(currentQuarter * 3 + 1).padStart(2, '0');
+    const endMonthNum = currentQuarter * 3 + 3;
+    const lastDay = new Date(targetYear, endMonthNum, 0).getDate();
+    const endMonth = String(endMonthNum).padStart(2, '0');
+    return {
+      start: `${targetYear}-${startMonth}-01`,
+      end: `${targetYear}-${endMonth}-${String(lastDay).padStart(2, '0')}`
+    };
+  };
+
+  const formatCampaignDates = (startDate?: string, endDate?: string, period?: string): string => {
+    if (startDate && endDate) {
+      try {
+        const s = new Date(startDate);
+        const e = new Date(endDate);
+        if (!isNaN(s.getTime()) && !isNaN(e.getTime())) {
+          const sStr = s.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+          const eStr = e.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+          return `${sStr} — ${eStr}`;
+        }
+      } catch (_) {}
+    }
+    return period || startDate || 'Tarih Belirtilmedi';
+  };
+
+  const initialMonthDates = getMonthDateRange(0);
+
   // Master Plan Metadata & Tagging State
   const [planName, setPlanName] = useState<string>('Temmuz 2026 Büyüme Kampanyası');
   const [clientName, setClientName] = useState<string>('Acme Sağlık Turizmi');
-  const [planPeriod, setPlanPeriod] = useState<string>('Temmuz 2026');
+  const [planStartDate, setPlanStartDate] = useState<string>(initialMonthDates.start);
+  const [planEndDate, setPlanEndDate] = useState<string>(initialMonthDates.end);
+  const [planPeriod, setPlanPeriod] = useState<string>(formatCampaignDates(initialMonthDates.start, initialMonthDates.end));
   const [planTags, setPlanTags] = useState<string[]>(['#Temmuz2026', '#SağlıkTurizmi']);
   const [newTagInput, setNewTagInput] = useState<string>('');
 
-  // Master Plan Creation Modal State
+  // Master Plan Creation Modal State (Master Level only: Name, Client, Start/End Dates, Tags)
   const [isAddMasterPlanModalOpen, setIsAddMasterPlanModalOpen] = useState<boolean>(false);
   const [newMasterName, setNewMasterName] = useState<string>('');
   const [newMasterClient, setNewMasterClient] = useState<string>('');
-  const [newMasterPeriod, setNewMasterPeriod] = useState<string>('Temmuz 2026');
+  const [newMasterStartDate, setNewMasterStartDate] = useState<string>(initialMonthDates.start);
+  const [newMasterEndDate, setNewMasterEndDate] = useState<string>(initialMonthDates.end);
+  const [newMasterPeriod, setNewMasterPeriod] = useState<string>('');
   const [newMasterTags, setNewMasterTags] = useState<string[]>(['#Temmuz2026']);
   const [newMasterTagInput, setNewMasterTagInput] = useState<string>('');
-  const [newMasterSubPlatform, setNewMasterSubPlatform] = useState<CampaignPlatform>('GOOGLE');
-  const [newMasterSubObjective, setNewMasterSubObjective] = useState<CampaignObjective>('GOOGLE_SEARCH');
-  const [newMasterSubLang, setNewMasterSubLang] = useState<string>('tr');
-  const [newMasterSubBudget, setNewMasterSubBudget] = useState<number>(35000);
 
   // Multi-Campaign Sub-Campaigns State
   const [subCampaigns, setSubCampaigns] = useState<SubCampaignItem[]>([
@@ -877,41 +927,31 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     setNewMasterTags(prev => prev.filter(t => t !== tagToRemove));
   };
 
-  // Create new Master Plan from scratch
+  // Create new Master Plan from scratch (Clean Master: Dates & Client only; Language & Budget belong to sub-campaigns)
   const handleCreateNewMasterPlan = () => {
-    const pName = newMasterName.trim() || `${newMasterClient.trim() || 'Yeni Müşteri'} - ${newMasterPeriod} Kampanyası`;
+    const sDate = newMasterStartDate || initialMonthDates.start;
+    const eDate = newMasterEndDate || initialMonthDates.end;
+    const formattedPeriod = formatCampaignDates(sDate, eDate, newMasterPeriod);
     const cName = newMasterClient.trim() || 'Genel Müşteri';
-    const period = newMasterPeriod.trim() || 'Temmuz 2026';
+    const pName = newMasterName.trim() || `${cName} - ${formattedPeriod} Kampanyası`;
     const tags = newMasterTags.length > 0 ? newMasterTags : ['#YeniKampanya'];
 
-    const langObj = GOOGLE_ADS_LANGUAGES.find(l => l.code === newMasterSubLang) || { code: newMasterSubLang, name: newMasterSubLang, nativeName: newMasterSubLang, flag: '🌐' };
-
-    let defaultLocs = DEFAULT_LOCATIONS;
-    if (newMasterSubLang === 'en') {
-      defaultLocs = [{ id: '2826', resourceName: 'geoTargetConstants/2826', name: 'Birleşik Krallık', canonicalName: 'Birleşik Krallık', countryCode: 'GB', targetType: 'Country', reach: 67000000, flag: '🇬🇧', cpcMultiplier: 3.2, volumeMultiplier: 1.3 }];
-    } else if (newMasterSubLang === 'ru') {
-      defaultLocs = [{ id: '2643', resourceName: 'geoTargetConstants/2643', name: 'Rusya', canonicalName: 'Rusya', countryCode: 'RU', targetType: 'Country', reach: 145000000, flag: '🇷🇺', cpcMultiplier: 1.6, volumeMultiplier: 1.8 }];
-    } else if (newMasterSubLang === 'ar') {
-      defaultLocs = [{ id: '1000010', resourceName: 'geoTargetConstants/1000010', name: 'Dubai', canonicalName: 'Dubai, Birleşik Arap Emirlikleri', countryCode: 'AE', targetType: 'City', reach: 3400000, flag: '🇦🇪', cpcMultiplier: 2.4, volumeMultiplier: 0.8 }];
-    } else if (newMasterSubLang === 'de') {
-      defaultLocs = [{ id: '2276', resourceName: 'geoTargetConstants/2276', name: 'Almanya', canonicalName: 'Almanya', countryCode: 'DE', targetType: 'Country', reach: 84000000, flag: '🇩🇪', cpcMultiplier: 2.8, volumeMultiplier: 1.4 }];
-    }
-
+    // Initial clean default sub-campaign
     const subId = 'sub_' + Date.now();
     const initialSub: SubCampaignItem = {
       id: subId,
-      name: `${newMasterSubPlatform} (${langObj.name})`,
-      platform: newMasterSubPlatform,
-      objective: newMasterSubObjective,
-      languageCode: newMasterSubLang,
-      languageName: langObj.name,
-      languageFlag: langObj.flag,
-      targetLocations: defaultLocs,
-      monthlyBudget: newMasterSubBudget,
+      name: 'Google Search (TR)',
+      platform: 'GOOGLE',
+      objective: 'GOOGLE_SEARCH',
+      languageCode: 'tr',
+      languageName: 'Türkçe',
+      languageFlag: '🇹🇷',
+      targetLocations: DEFAULT_LOCATIONS,
+      monthlyBudget: 25000,
       selectedKeywords: [],
       discoveredKeywords: [],
       negativeCategories: [],
-      businessModel: newMasterSubObjective.includes('SALES') ? 'ECOMMERCE' : 'LEAD_GEN',
+      businessModel: 'LEAD_GEN',
       parameters: {
         targetImpressionShare: 70,
         expectedCtr: 7.5,
@@ -934,22 +974,22 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
     setPlanName(pName);
     setClientName(cName);
-    setPlanPeriod(period);
+    setPlanStartDate(sDate);
+    setPlanEndDate(eDate);
+    setPlanPeriod(formattedPeriod);
     setPlanTags(tags);
     setSubCampaigns([initialSub]);
     setActiveSubCampaignId(subId);
     setKeywords([]);
     setSelectedKeywordIds(new Set());
     setNegativeCategories([]);
-    setSelectedLocations(defaultLocs);
-    setTargetLanguage(newMasterSubLang);
-    setMonthlyBudget(newMasterSubBudget);
+    setSelectedLocations(DEFAULT_LOCATIONS);
+    setTargetLanguage('tr');
+    setMonthlyBudget(25000);
     setQuery('');
 
-    if (newMasterSubPlatform === 'META') setActiveChannelTab('META_ADS');
-    else if (newMasterSubPlatform === 'YOUTUBE') setActiveChannelTab('YOUTUBE');
-    else setActiveChannelTab('GOOGLE_SEARCH');
-
+    setActiveChannelTab('OMNICHANNEL');
+    setCurrentStep(2);
     setIsAddMasterPlanModalOpen(false);
     setViewMode('STUDIO');
   };
@@ -958,7 +998,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   const handleOpenMasterPlanStudio = (plan: ForecastPlan, targetSubId?: string) => {
     if (plan.name) setPlanName(plan.name);
     if (plan.clientName) setClientName(plan.clientName);
-    if (plan.period) setPlanPeriod(plan.period);
+    if (plan.startDate) setPlanStartDate(plan.startDate);
+    if (plan.endDate) setPlanEndDate(plan.endDate);
+    setPlanPeriod(plan.period || formatCampaignDates(plan.startDate, plan.endDate, plan.period));
     if (plan.tags) setPlanTags(plan.tags);
 
     if (plan.subCampaigns && plan.subCampaigns.length > 0) {
@@ -1032,6 +1074,18 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   // Load Saved Master Plan
   const handleLoadSavedMasterPlan = (plan: ForecastPlan) => {
     handleOpenMasterPlanStudio(plan);
+  };
+
+  // Delete Plan
+  const handleDeletePlan = async (id: string, name?: string) => {
+    if (window.confirm(`"${name || 'Bu plan'}" planını silmek istediğinize emin misiniz?`)) {
+      try {
+        await ApiService.deleteForecastPlan(id);
+        loadSavedPlans();
+      } catch (err: any) {
+        alert('Plan silinirken hata: ' + err.message);
+      }
+    }
   };
 
   // Load Saved Plans on Workspace change
@@ -1754,11 +1808,14 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         };
       });
 
+      const formattedPeriod = formatCampaignDates(planStartDate, planEndDate, planPeriod);
       await ApiService.saveForecastPlan({
         workspaceId,
-        name: planName.trim() || `${clientName} - ${planPeriod} Medya Planı`,
+        name: planName.trim() || `${clientName} - ${formattedPeriod} Medya Planı`,
         clientName: clientName.trim(),
-        period: planPeriod.trim(),
+        startDate: planStartDate,
+        endDate: planEndDate,
+        period: formattedPeriod,
         tags: planTags,
         targetUrl: mode === 'URL' ? query : '',
         seedKeywords: mode === 'KEYWORDS' ? query : '',
@@ -1851,9 +1908,12 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
             <button
               type="button"
               onClick={() => {
+                const curDates = getMonthDateRange(0);
                 setNewMasterName(`Master Kampanya ${savedPlans.length + 1}`);
                 setNewMasterClient(clientName || '');
-                setNewMasterPeriod(planPeriod || 'Temmuz 2026');
+                setNewMasterStartDate(curDates.start);
+                setNewMasterEndDate(curDates.end);
+                setNewMasterPeriod(formatCampaignDates(curDates.start, curDates.end));
                 setIsAddMasterPlanModalOpen(true);
               }}
               className="btn-primary"
@@ -1944,9 +2004,12 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
               <button
                 type="button"
                 onClick={() => {
+                  const curDates = getMonthDateRange(0);
                   setNewMasterName(`Temmuz 2026 Büyüme Kampanyası`);
                   setNewMasterClient(`Acme Sağlık Turizmi`);
-                  setNewMasterPeriod(`Temmuz 2026`);
+                  setNewMasterStartDate(curDates.start);
+                  setNewMasterEndDate(curDates.end);
+                  setNewMasterPeriod(formatCampaignDates(curDates.start, curDates.end));
                   setIsAddMasterPlanModalOpen(true);
                 }}
                 className="btn-primary"
@@ -2011,9 +2074,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                               <Building2 size={12} color="var(--brand-primary)" /> {plan.clientName}
                             </span>
                           )}
-                          {plan.period && (
+                          {(plan.startDate || plan.endDate || plan.period) && (
                             <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontWeight: 500 }}>
-                              <Calendar size={12} color="var(--brand-primary)" /> {plan.period}
+                              <Calendar size={12} color="var(--brand-primary)" /> {formatCampaignDates(plan.startDate, plan.endDate, plan.period)}
                             </span>
                           )}
                         </div>
@@ -2056,64 +2119,66 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'space-between',
-                              padding: '0.45rem 0.65rem',
-                              borderRadius: 'var(--radius-xs)',
+                              padding: '6px 10px',
                               backgroundColor: 'var(--bg-surface-elevated)',
-                              border: '1px solid var(--border-default)',
-                              fontSize: '0.78rem',
+                              borderRadius: 'var(--radius-xs)',
+                              border: '1px solid var(--border-subtle)',
                               cursor: 'pointer',
                               transition: 'all 0.15s ease'
                             }}
-                            onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'var(--brand-primary)')}
-                            onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--border-default)')}
-                            title="Bu alt kampanyanın içine gir ve simüle et"
+                            onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--brand-primary)'}
+                            onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border-subtle)'}
+                            title={`${sc.name} alt kampanyasını stüdyoda aç`}
                           >
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                              <span>{sc.languageFlag || '🌐'}</span>
-                              {getPlatformIcon(sc.platform, 13)}
-                              <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{sc.name}</span>
+                              {getPlatformIcon(sc.platform, 14)}
+                              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                                {sc.name}
+                              </span>
+                              <span style={{ fontSize: '0.7rem' }}>
+                                {sc.languageFlag || '🌐'}
+                              </span>
                             </div>
 
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                              <span style={{ fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
-                                ₺{sc.monthlyBudget?.toLocaleString('tr-TR')}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--brand-primary)' }}>
+                                ₺{(sc.monthlyBudget || 0).toLocaleString('tr-TR')}
                               </span>
-                              <ArrowRight size={13} color="var(--brand-primary)" />
+                              <ChevronRight size={12} color="var(--text-muted)" />
                             </div>
                           </div>
                         ))}
                       </div>
                     </div>
 
-                    {/* Card Actions Footer */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid var(--border-default)', paddingTop: '0.75rem', marginTop: 'auto' }}>
-                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                        {plan.createdAt ? new Date(plan.createdAt).toLocaleDateString('tr-TR') : ''}
+                    {/* Card Footer Actions */}
+                    <div style={{ borderTop: '1px solid var(--border-default)', paddingTop: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                        ID: #{plan.id.slice(-6)}
                       </span>
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
                         <button
                           type="button"
-                          onClick={() => handleOpenMasterPlanStudio(plan)}
-                          className="btn-primary"
-                          style={{ fontSize: '0.78rem', padding: '0.4rem 0.85rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeletePlan(plan.id);
+                          }}
+                          className="btn-ghost"
+                          style={{ padding: '4px 8px', fontSize: '0.72rem', color: '#ef4444' }}
+                          title="Planı Sil"
                         >
-                          <span>👉 Kampanyayı Aç & Yönet</span>
+                          <Trash2 size={13} />
                         </button>
 
                         <button
                           type="button"
-                          onClick={async () => {
-                            if (window.confirm(`"${plan.name}" planını silmek istediğinize emin misiniz?`)) {
-                              await ApiService.deleteForecastPlan(plan.id);
-                              loadSavedPlans();
-                            }
-                          }}
-                          className="btn-ghost"
-                          style={{ color: 'var(--danger)', padding: '0.35rem 0.5rem' }}
-                          title="Planı Sil"
+                          onClick={() => handleOpenMasterPlanStudio(plan)}
+                          className="btn-primary"
+                          style={{ padding: '0.4rem 0.85rem', fontSize: '0.78rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
                         >
-                          <Trash2 size={14} />
+                          <span>Stüdyoyu Aç</span>
+                          <ChevronRight size={14} />
                         </button>
                       </div>
                     </div>
@@ -2127,23 +2192,24 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         </div>
       ) : (
         /* ========================================================================= */
-        /* VIEW 2: FOCUSED CAMPAIGN STUDIO WORKSPACE                                 */
+        /* VIEW 2: STUDIO WORKSPACE (FOCUSED MASTER + SUB-CAMPAIGNS WORKSPACE)        */
         /* ========================================================================= */
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-
-          {/* 0. MASTER MEDIA PLAN & CLIENT HIERARCHY BAR */}
+          
+          {/* Master Campaign Top Identity & Navigation Bar */}
           <div 
             className="card" 
             style={{ 
-              padding: '1.1rem 1.25rem', 
+              padding: '0.85rem 1.25rem', 
+              display: 'flex', 
+              flexDirection: 'column', 
+              gap: '0.85rem',
               background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.05) 0%, rgba(147, 51, 234, 0.05) 100%)',
               border: '1px solid rgba(37, 99, 235, 0.2)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '0.85rem'
+              boxShadow: '0 2px 10px rgba(0,0,0,0.03)'
             }}
           >
-            {/* Top Row: Master Plan Title, Client, Period & Actions */}
+            {/* Top Row: Master Plan Title, Client, Dates & Actions */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
               
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
@@ -2209,24 +2275,47 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                   />
                 </div>
 
-                {/* Period */}
+                {/* Campaign Start & End Dates */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', backgroundColor: 'var(--bg-surface)', padding: '4px 10px', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-default)', fontSize: '0.8rem' }}>
                   <Calendar size={14} color="var(--brand-primary)" />
-                  <span style={{ color: 'var(--text-muted)' }}>Dönem:</span>
+                  <span style={{ color: 'var(--text-muted)' }}>Tarihler:</span>
                   <input
-                    type="text"
-                    value={planPeriod}
-                    onChange={(e) => setPlanPeriod(e.target.value)}
-                    placeholder="Temmuz 2026"
+                    type="date"
+                    value={planStartDate}
+                    onChange={(e) => {
+                      setPlanStartDate(e.target.value);
+                      setPlanPeriod(formatCampaignDates(e.target.value, planEndDate));
+                    }}
+                    title="Başlangıç Tarihi"
                     style={{
                       fontWeight: 600,
                       color: 'var(--text-primary)',
                       backgroundColor: 'transparent',
                       border: 'none',
                       outline: 'none',
-                      width: '100px',
-                      fontSize: '0.82rem',
-                      padding: 0
+                      fontSize: '0.78rem',
+                      padding: 0,
+                      cursor: 'pointer'
+                    }}
+                  />
+                  <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>—</span>
+                  <input
+                    type="date"
+                    value={planEndDate}
+                    onChange={(e) => {
+                      setPlanEndDate(e.target.value);
+                      setPlanPeriod(formatCampaignDates(planStartDate, e.target.value));
+                    }}
+                    title="Bitiş Tarihi"
+                    style={{
+                      fontWeight: 600,
+                      color: 'var(--text-primary)',
+                      backgroundColor: 'transparent',
+                      border: 'none',
+                      outline: 'none',
+                      fontSize: '0.78rem',
+                      padding: 0,
+                      cursor: 'pointer'
                     }}
                   />
                 </div>
@@ -6115,39 +6204,97 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
               />
             </div>
 
-            {/* Client & Period Inputs */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-              <div>
-                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)', display: 'block', marginBottom: '0.35rem' }}>
-                  Müşteri / Marka:
+            {/* Client / Brand */}
+            <div>
+              <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)', display: 'block', marginBottom: '0.35rem' }}>
+                Müşteri / Marka Adı:
+              </label>
+              <input
+                type="text"
+                value={newMasterClient}
+                onChange={(e) => setNewMasterClient(e.target.value)}
+                placeholder="Örn: Acme Sağlık Turizmi"
+                style={{ width: '100%', fontSize: '0.85rem' }}
+              />
+            </div>
+
+            {/* Campaign Start & End Dates with Quick Preset Shortcuts */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                  Kampanya Planlama Tarihleri:
                 </label>
-                <input
-                  type="text"
-                  value={newMasterClient}
-                  onChange={(e) => setNewMasterClient(e.target.value)}
-                  placeholder="Örn: Acme Sağlık"
-                  style={{ width: '100%', fontSize: '0.85rem' }}
-                />
+                <span style={{ fontSize: '0.72rem', color: 'var(--brand-primary)', fontWeight: 600 }}>
+                  {formatCampaignDates(newMasterStartDate, newMasterEndDate)}
+                </span>
               </div>
 
-              <div>
-                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)', display: 'block', marginBottom: '0.35rem' }}>
-                  Planlama Dönemi:
-                </label>
-                <input
-                  type="text"
-                  value={newMasterPeriod}
-                  onChange={(e) => setNewMasterPeriod(e.target.value)}
-                  placeholder="Örn: Temmuz 2026"
-                  style={{ width: '100%', fontSize: '0.85rem' }}
-                />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                <div>
+                  <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginBottom: '0.2rem' }}>
+                    Başlangıç Tarihi:
+                  </label>
+                  <input
+                    type="date"
+                    value={newMasterStartDate}
+                    onChange={(e) => {
+                      setNewMasterStartDate(e.target.value);
+                      setNewMasterPeriod(formatCampaignDates(e.target.value, newMasterEndDate));
+                    }}
+                    style={{ width: '100%', fontSize: '0.82rem' }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginBottom: '0.2rem' }}>
+                    Bitiş Tarihi:
+                  </label>
+                  <input
+                    type="date"
+                    value={newMasterEndDate}
+                    onChange={(e) => {
+                      setNewMasterEndDate(e.target.value);
+                      setNewMasterPeriod(formatCampaignDates(newMasterStartDate, e.target.value));
+                    }}
+                    style={{ width: '100%', fontSize: '0.82rem' }}
+                  />
+                </div>
+              </div>
+
+              {/* Date Quick Shortcuts */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap', marginTop: '0.25rem' }}>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Hızlı Seçim:</span>
+                {[
+                  { label: 'Bu Ay', fn: () => getMonthDateRange(0) },
+                  { label: 'Gelecek Ay', fn: () => getMonthDateRange(1) },
+                  { label: '3 Aylık (Çeyrek)', fn: () => getQuarterDateRange(0) },
+                  { label: 'Yıllık', fn: () => {
+                    const y = new Date().getFullYear();
+                    return { start: `${y}-01-01`, end: `${y}-12-31` };
+                  }}
+                ].map(preset => (
+                  <button
+                    key={preset.label}
+                    type="button"
+                    onClick={() => {
+                      const range = preset.fn();
+                      setNewMasterStartDate(range.start);
+                      setNewMasterEndDate(range.end);
+                      setNewMasterPeriod(formatCampaignDates(range.start, range.end));
+                    }}
+                    className="btn-ghost"
+                    style={{ fontSize: '0.7rem', padding: '2px 7px', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-full)' }}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
               </div>
             </div>
 
             {/* Tags */}
             <div>
               <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)', display: 'block', marginBottom: '0.35rem' }}>
-                Etiketler:
+                Kampanya Etiketleri:
               </label>
               <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '0.4rem' }}>
                 {newMasterTags.map(t => (
@@ -6162,7 +6309,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
               <div style={{ display: 'flex', gap: '0.4rem' }}>
                 <input
                   type="text"
-                  placeholder="+ Etiket (#Temmuz2026, #B2B)..."
+                  placeholder="+ Etiket (#Temmuz2026, #B2B, #Sağlık)..."
                   value={newMasterTagInput}
                   onChange={(e) => setNewMasterTagInput(e.target.value)}
                   onKeyDown={(e) => {
@@ -6184,90 +6331,12 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
               </div>
             </div>
 
-            {/* Initial Sub-Campaign Config */}
-            <div style={{ borderTop: '1px solid var(--border-default)', paddingTop: '0.85rem' }}>
-              <label style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--brand-primary)', display: 'block', marginBottom: '0.5rem' }}>
-                🎯 İlk Alt Kampanya Yapılandırması:
-              </label>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.45rem', marginBottom: '0.65rem' }}>
-                {[
-                  { id: 'GOOGLE', label: 'Google Ads', icon: <GoogleIcon size={16} /> },
-                  { id: 'META', label: 'Meta Ads', icon: <MetaIcon size={16} /> },
-                  { id: 'TIKTOK', label: 'TikTok Ads', icon: <TikTokIcon size={16} /> },
-                  { id: 'YANDEX', label: 'Yandex Direct', icon: <YandexIcon size={16} /> },
-                  { id: 'YOUTUBE', label: 'YouTube Video', icon: <YouTubeIcon size={16} /> },
-                  { id: 'BING', label: 'Bing Search', icon: <BingIcon size={16} /> },
-                ].map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => {
-                      setNewMasterSubPlatform(p.id as CampaignPlatform);
-                      if (p.id === 'GOOGLE') setNewMasterSubObjective('GOOGLE_SEARCH');
-                      else if (p.id === 'META') setNewMasterSubObjective('META_LEADS');
-                      else if (p.id === 'TIKTOK') setNewMasterSubObjective('TIKTOK_LEADS');
-                      else if (p.id === 'YANDEX') setNewMasterSubObjective('YANDEX_SEARCH');
-                      else if (p.id === 'YOUTUBE') setNewMasterSubObjective('GOOGLE_YOUTUBE');
-                    }}
-                    style={{
-                      padding: '0.5rem 0.35rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '0.35rem',
-                      borderRadius: 'var(--radius-xs)',
-                      border: newMasterSubPlatform === p.id ? '2px solid var(--brand-primary)' : '1px solid var(--border-default)',
-                      backgroundColor: newMasterSubPlatform === p.id ? 'rgba(37, 99, 235, 0.12)' : 'var(--bg-surface-elevated)',
-                      color: newMasterSubPlatform === p.id ? 'var(--brand-primary)' : 'var(--text-secondary)',
-                      fontWeight: newMasterSubPlatform === p.id ? 700 : 500,
-                      fontSize: '0.75rem',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    {p.icon}
-                    <span>{p.label}</span>
-                  </button>
-                ))}
-              </div>
-
-              {/* Language & Budget */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                <div>
-                  <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: '0.25rem' }}>
-                    Hedef Dil:
-                  </label>
-                  <select
-                    value={newMasterSubLang}
-                    onChange={(e) => setNewMasterSubLang(e.target.value)}
-                    style={{ width: '100%', fontSize: '0.8rem' }}
-                  >
-                    <option value="tr">🇹🇷 Türkçe</option>
-                    <option value="en">🇬🇧 İngilizce (English)</option>
-                    <option value="ru">🇷🇺 Rusça (Русский)</option>
-                    <option value="de">🇩🇪 Almanca (Deutsch)</option>
-                    <option value="ar">🇸🇦 Arapça (العربية)</option>
-                    <option value="fr">🇫🇷 Fransızca (Français)</option>
-                    <option value="es">🇪🇸 İspanyolca (Español)</option>
-                    <option value="fa">🇮🇷 Farsça (فارسی)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: '0.25rem' }}>
-                    Aylık Başlangıç Bütçesi (₺):
-                  </label>
-                  <input
-                    type="number"
-                    value={newMasterSubBudget}
-                    onChange={(e) => setNewMasterSubBudget(Number(e.target.value))}
-                    step={1000}
-                    min={1000}
-                    style={{ width: '100%', fontSize: '0.8rem' }}
-                  />
-                </div>
-              </div>
-
+            {/* Info Notice about Sub-Campaigns */}
+            <div style={{ padding: '0.65rem 0.85rem', borderRadius: 'var(--radius-xs)', backgroundColor: 'var(--bg-surface-elevated)', border: '1px solid var(--border-default)', fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+              <span>💡</span>
+              <span>
+                <strong>Not:</strong> Reklam dili, hedef pazarlar/lokasyonlar ve kanal bütçeleri oluşturduktan sonra alt kampanyalar içerisinde ayrı ayrı yönetilecektir.
+              </span>
             </div>
 
             {/* Modal Footer */}
@@ -6287,7 +6356,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                 className="btn-primary"
                 style={{ fontSize: '0.82rem', padding: '0.5rem 1.15rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
               >
-                <span>👑 Çatı Kampanyayı Oluştur & Çalışmaya Başla</span>
+                <span>👑 Çatı Kampanyayı Oluştur & Stüdyoyu Aç</span>
               </button>
             </div>
 

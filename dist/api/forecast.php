@@ -2014,6 +2014,8 @@ if ($action === 'plans') {
                 'workspaceId' => $r['workspace_id'],
                 'name' => $r['name'],
                 'clientName' => $r['client_name'] ?? ($planData['clientName'] ?? ''),
+                'startDate' => $r['start_date'] ?? ($planData['startDate'] ?? ''),
+                'endDate' => $r['end_date'] ?? ($planData['endDate'] ?? ''),
                 'period' => $r['period'] ?? ($planData['period'] ?? ''),
                 'tags' => json_decode($r['tags'] ?? '[]', true) ?: ($planData['tags'] ?? []),
                 'targetUrl' => $r['target_url'],
@@ -2037,7 +2039,9 @@ if ($action === 'plans') {
         $planId = $input['id'] ?? ('plan_' . time() . '_' . rand(100, 999));
         $name = trim($input['name'] ?? ('Forecast Planı ' . date('d.m.Y H:i')));
         $clientName = trim($input['clientName'] ?? '');
-        $period = trim($input['period'] ?? date('F Y'));
+        $startDate = trim($input['startDate'] ?? '');
+        $endDate = trim($input['endDate'] ?? '');
+        $period = trim($input['period'] ?? ($startDate && $endDate ? "{$startDate} — {$endDate}" : date('F Y')));
         $tags = json_encode($input['tags'] ?? [], JSON_UNESCAPED_UNICODE);
         $targetUrl = trim($input['targetUrl'] ?? '');
         $seedKeywords = trim($input['seedKeywords'] ?? '');
@@ -2049,6 +2053,8 @@ if ($action === 'plans') {
 
         $planData = json_encode([
             'clientName' => $clientName,
+            'startDate' => $startDate,
+            'endDate' => $endDate,
             'period' => $period,
             'tags' => $input['tags'] ?? [],
             'subCampaigns' => $input['subCampaigns'] ?? [],
@@ -2057,14 +2063,16 @@ if ($action === 'plans') {
 
         $stmt = $pdo->prepare("
             INSERT OR REPLACE INTO forecast_plans 
-            (id, workspace_id, name, client_name, period, tags, target_url, seed_keywords, monthly_budget, selected_keywords, simulation_result, negative_keywords, plan_data, created_by)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (id, workspace_id, name, client_name, start_date, end_date, period, tags, target_url, seed_keywords, monthly_budget, selected_keywords, simulation_result, negative_keywords, plan_data, created_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
         $stmt->execute([
             $planId,
             $wsId,
             $name,
             $clientName,
+            $startDate,
+            $endDate,
             $period,
             $tags,
             $targetUrl,
