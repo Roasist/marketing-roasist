@@ -4417,11 +4417,19 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                                             {activeLocationScope === 'ALL' ? kw.monthlyVolume.toLocaleString('tr-TR') : `${kw.monthlyVolume.toLocaleString('tr-TR')} (${activeScopeLocation?.name})`}
                                           </span>
                                         </div>
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', maxHeight: '180px', overflowY: 'auto' }}>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', maxHeight: '220px', overflowY: 'auto' }}>
                                           {countryBreakdown.map(loc => {
-                                            const baseKwVol = (keywords.find(k => k.id === kw.id)?.monthlyVolume) || kw.monthlyVolume;
-                                            const locVol = Math.max(1, Math.round(baseKwVol * (loc.sharePercent / 100)));
-                                            const isThisLocActive = activeLocationScope === String(loc.id);
+                                            const cleanId = String(loc.id).replace(/[^0-9]/g, "");
+                                            const officialKw = keywords.find(k => k.id === kw.id) || kw;
+                                            const exactLocVol = officialKw.geoVolumes ? (
+                                              officialKw.geoVolumes[cleanId] !== undefined ? officialKw.geoVolumes[cleanId] :
+                                              (officialKw.geoVolumes[String(loc.id)] !== undefined ? officialKw.geoVolumes[String(loc.id)] :
+                                              officialKw.geoVolumes["geoTargetConstants/" + cleanId])
+                                            ) : undefined;
+                                            const locVol = exactLocVol !== undefined ? exactLocVol : 0;
+                                            const totalVol = officialKw.monthlyVolume || 1;
+                                            const exactShare = totalVol > 0 ? Math.round((locVol / totalVol) * 100) : 0;
+                                            const isThisLocActive = activeLocationScope === String(loc.id) || activeLocationScope === cleanId;
                                             return (
                                               <div key={loc.code + loc.name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.68rem', gap: '0.5rem', fontWeight: isThisLocActive ? 700 : 400, color: isThisLocActive ? 'var(--brand-primary)' : 'inherit' }}>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -4429,8 +4437,8 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                                                   <span style={{ color: isThisLocActive ? 'var(--brand-primary)' : 'var(--text-secondary)' }}>{loc.name}</span>
                                                 </div>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-                                                  <span style={{ fontWeight: 600, color: isThisLocActive ? 'var(--brand-primary)' : 'var(--text-primary)' }}>{locVol.toLocaleString('tr-TR')}</span>
-                                                  <span style={{ color: 'var(--text-muted)', fontSize: '0.62rem' }}>(%{loc.sharePercent})</span>
+                                                  <span style={{ fontWeight: 600, color: isThisLocActive ? 'var(--brand-primary)' : (locVol > 0 ? 'var(--text-primary)' : 'var(--text-muted)') }}>{locVol.toLocaleString('tr-TR')}</span>
+                                                  <span style={{ color: 'var(--text-muted)', fontSize: '0.62rem' }}>(%{exactShare})</span>
                                                 </div>
                                               </div>
                                             );
