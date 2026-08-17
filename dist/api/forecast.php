@@ -2401,34 +2401,36 @@ if ($action === 'discover' && $method === 'POST') {
         $aiSeeds = array_merge($aiSeeds, $cleanUserSeeds);
     }
 
+    // Determine Language: Deterministic text detection has highest fidelity for script/alphabet
+    $deterministicLang = detectPageLanguage(($pageDetails['title'] ?? '') . ' ' . $query, $pageDetails['textSnippet'] ?? '');
+
     if (!empty($requestedLanguage) && strtolower($requestedLanguage) !== 'auto') {
         $langNames = ['tr' => 'Türkçe', 'en' => 'İngilizce', 'de' => 'Almanca', 'ru' => 'Rusça', 'ar' => 'Arapça', 'uk' => 'Ukraynaca', 'fr' => 'Fransızca', 'es' => 'İspanyolca', 'it' => 'İtalyanca', 'nl' => 'Felemenkçe', 'az' => 'Azerbaycanca', 'kk' => 'Kazakça', 'uz' => 'Özbekçe'];
         $langInfo = [
             'code' => $requestedLanguage,
             'name' => $langNames[$requestedLanguage] ?? 'Seçili Dil'
         ];
-        $sectorTitle = $aiAnalysis['sector'] ?? ($pageDetails['title'] ?? 'Google Ads Kampanyası');
-        $suggestedCountries = !empty($aiAnalysis['suggestedCountries']) ? $aiAnalysis['suggestedCountries'] : getSuggestedCountriesByLang($langInfo['code']);
+    } elseif ($deterministicLang && in_array($deterministicLang['code'], ['ru', 'ar', 'de', 'tr', 'uk'])) {
+        $langInfo = $deterministicLang;
     } elseif ($aiAnalysis && !empty($aiAnalysis['detectedLanguage']) && $aiAnalysis['detectedLanguage'] !== 'auto') {
         $langInfo = [
             'code' => $aiAnalysis['detectedLanguage'],
             'name' => $aiAnalysis['detectedLanguageName'] ?? 'Otomatik'
         ];
-        $sectorTitle = $aiAnalysis['sector'] ?? ($pageDetails['title'] ?? 'Google Ads Kampanyası');
-        $suggestedCountries = !empty($aiAnalysis['suggestedCountries']) ? $aiAnalysis['suggestedCountries'] : getSuggestedCountriesByLang($langInfo['code']);
-        
-        if (!empty($aiAnalysis['highIntentSeeds'])) {
-            $aiSeeds = array_merge($aiSeeds, $aiAnalysis['highIntentSeeds']);
-        }
-        if (!empty($aiAnalysis['strategistKeywords'])) {
-            foreach ($aiAnalysis['strategistKeywords'] as $ak) {
-                if (!empty($ak['keyword'])) $aiSeeds[] = $ak['keyword'];
-            }
-        }
     } else {
-        $langInfo = detectPageLanguage(($pageDetails['title'] ?? '') . ' ' . $query, $pageDetails['textSnippet'] ?? '');
-        $suggestedCountries = getSuggestedCountriesByLang($langInfo['code']);
-        $sectorTitle = $pageDetails['title'] ?? 'Google Ads Kampanyası';
+        $langInfo = $deterministicLang ?: ['code' => 'en', 'name' => 'İngilizce'];
+    }
+
+    $sectorTitle = $aiAnalysis['sector'] ?? ($pageDetails['title'] ?? 'Google Ads Kampanyası');
+    $suggestedCountries = !empty($aiAnalysis['suggestedCountries']) ? $aiAnalysis['suggestedCountries'] : getSuggestedCountriesByLang($langInfo['code']);
+    
+    if (!empty($aiAnalysis['highIntentSeeds'])) {
+        $aiSeeds = array_merge($aiSeeds, $aiAnalysis['highIntentSeeds']);
+    }
+    if (!empty($aiAnalysis['strategistKeywords'])) {
+        foreach ($aiAnalysis['strategistKeywords'] as $ak) {
+            if (!empty($ak['keyword'])) $aiSeeds[] = $ak['keyword'];
+        }
     }
 
     $smartSeeds = !empty($aiSeeds) ? array_values(array_unique(array_filter($aiSeeds))) : extractLocationAndSmartSeeds($pageDetails, $query, $langInfo['code']);
