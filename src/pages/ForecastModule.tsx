@@ -441,9 +441,11 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   const [step1SortBy, setStep1SortBy] = useState<'VOLUME' | 'CPC_LOW' | 'CPC_HIGH' | 'ALPHABETICAL'>('VOLUME');
   const [step1SearchFilter, setStep1SearchFilter] = useState('');
   const [step1IntentFilter, setStep1IntentFilter] = useState<string>('ALL');
+  const [activeLocationScope, setActiveLocationScope] = useState<string>('ALL');
+  const [hoveredKwGeoId, setHoveredKwGeoId] = useState<string | null>(null);
 
-  // Semantic Clusters (Grouped Ideas)
-  const keywordClusters = useMemo(() => {
+  // Semantic Clusters (Base Raw Clusters)
+  const baseKeywordClusters = useMemo(() => {
     const rawClusters = groupKeywordsSemantically(keywords);
     return rawClusters.map(cluster => {
       const selectedInCluster = cluster.keywords.filter(k => selectedKeywordIds.has(k.id)).length;
@@ -454,72 +456,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     });
   }, [keywords, selectedKeywordIds]);
 
-  // Active Cluster details for Step 1
-  const activeCluster = useMemo(() => {
-    if (activeClusterId === 'ALL') {
-      const totalVol = keywords.reduce((s, k) => s + k.monthlyVolume, 0);
-      const cpcSum = keywords.reduce((s, k) => s + ((k.lowCpc + k.highCpc) / 2), 0);
-      const transactionalCount = keywords.filter(k => k.intent === 'TRANSACTIONAL').length;
-      return {
-        id: 'ALL',
-        name: 'Tüm Anahtar Kelimeler',
-        icon: '✨',
-        keywords: keywords,
-        totalVolume: totalVol,
-        avgCpc: keywords.length > 0 ? cpcSum / keywords.length : 0,
-        selectedCount: selectedKeywordIds.size,
-        transactionalCount
-      };
-    }
-    const found = keywordClusters.find(c => c.id === activeClusterId);
-    if (found) {
-      const transactionalCount = found.keywords.filter(k => k.intent === 'TRANSACTIONAL').length;
-      return { ...found, transactionalCount };
-    }
-    return {
-      id: 'ALL',
-      name: 'Tüm Anahtar Kelimeler',
-      icon: '✨',
-      keywords: keywords,
-      totalVolume: 0,
-      avgCpc: 0,
-      selectedCount: 0,
-      transactionalCount: 0
-    };
-  }, [activeClusterId, keywordClusters, keywords, selectedKeywordIds]);
 
-  // Count of strategist picks in the current view
-  const strategistCountInView = useMemo(() => {
-    const baseList = activeCluster ? activeCluster.keywords : keywords;
-    return baseList.filter(k => !!k.isAiStrategistPick || k.id?.startsWith('ai_strat_') || k.id?.startsWith('ai_alt_')).length;
-  }, [activeCluster, keywords]);
-
-  // Filtered & Sorted Keywords for the active right-side data grid
-  const activeKeywordsGrid = useMemo(() => {
-    const baseList = activeCluster ? activeCluster.keywords : keywords;
-    const searchLower = step1SearchFilter.toLowerCase().trim();
-
-    return baseList
-      .filter(k => {
-        const matchesSearch = !searchLower || k.keyword.toLowerCase().includes(searchLower);
-        const isStrategistKw = !!k.isAiStrategistPick || k.id?.startsWith('ai_strat_') || k.id?.startsWith('ai_alt_');
-        const matchesIntent = 
-          step1IntentFilter === 'ALL' || 
-          (step1IntentFilter === 'STRATEGIST' ? isStrategistKw : k.intent === step1IntentFilter);
-        return matchesSearch && matchesIntent;
-      })
-      .sort((a, b) => {
-        if (step1SortBy === 'VOLUME') return b.monthlyVolume - a.monthlyVolume;
-        if (step1SortBy === 'CPC_LOW') return ((a.lowCpc + a.highCpc) / 2) - ((b.lowCpc + b.highCpc) / 2);
-        if (step1SortBy === 'CPC_HIGH') return ((b.lowCpc + b.highCpc) / 2) - ((a.lowCpc + a.highCpc) / 2);
-        if (step1SortBy === 'ALPHABETICAL') return a.keyword.localeCompare(b.keyword);
-        return 0;
-      });
-  }, [activeCluster, keywords, step1SearchFilter, step1IntentFilter, step1SortBy]);
-
-  const maxVolumeInGrid = useMemo(() => {
-    return Math.max(...activeKeywordsGrid.map(k => k.monthlyVolume), 1);
-  }, [activeKeywordsGrid]);
 
   const toggleGroupSelection = (cluster: { id: string; keywords: KeywordMetric[] }) => {
     const next = new Set(selectedKeywordIds);
@@ -2042,8 +1979,10 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       const cConvs = Math.round((simulation.estConversions || 0) * (share || (1 / selectedLocations.length)));
 
       return {
+        id: String(loc.id),
         code: loc.countryCode,
-        name: loc.canonicalName || loc.name,
+        name: loc.name,
+        canonicalName: loc.canonicalName || loc.name,
         flag: loc.flag || '🌍',
         sharePercent: Math.round((share || (1 / selectedLocations.length)) * 100),
         monthlyVolume: cVol,
@@ -2055,6 +1994,138 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
     return items.sort((a, b) => b.monthlyVolume - a.monthlyVolume);
   }, [selectedLocations, officialLocationBreakdown, baseSearchVolume, avgTopPageCpc, blendedCpcMultiplier, simulation]);
+
+  // -------------------------------------------------------------
+  // LOCATION SCOPE ADAPTIVE KEYWORD & GROUP METRICS
+  // -------------------------------------------------------------
+  const activeScopeLocation = useMemo(() => {
+    if (activeLocationScope === 'ALL') return null;
+    return selectedLocations.find(l => String(l.id) === String(activeLocationScope)) || null;
+  }, [activeLocationScope, selectedLocations]);
+
+  const activeScopeMetric = useMemo(() => {
+    if (activeLocationScope === 'ALL' || !activeScopeLocation) return null;
+    return countryBreakdown.find(c => 
+      String(c.id) === String(activeScopeLocation.id) || 
+      c.name.toLowerCase() === activeScopeLocation.name.toLowerCase() ||
+      (activeScopeLocation.canonicalName && c.canonicalName && c.canonicalName.toLowerCase() === activeScopeLocation.canonicalName.toLowerCase())
+    ) || null;
+  }, [activeLocationScope, activeScopeLocation, countryBreakdown]);
+
+  // Scoped keywords adapted to chosen location (or aggregated if ALL)
+  const scopedKeywords = useMemo(() => {
+    if (activeLocationScope === 'ALL' || !activeScopeMetric) return keywords;
+    const share = (activeScopeMetric.sharePercent || (100 / Math.max(1, selectedLocations.length))) / 100;
+    const cpcScale = avgTopPageCpc > 0 && activeScopeMetric.avgCpc > 0 ? (activeScopeMetric.avgCpc / avgTopPageCpc) : 1.0;
+
+    return keywords.map(k => {
+      const locVol = Math.max(10, Math.round(k.monthlyVolume * share));
+      const locLowCpc = Math.round(k.lowCpc * cpcScale * 100) / 100;
+      const locHighCpc = Math.round(k.highCpc * cpcScale * 100) / 100;
+      return {
+        ...k,
+        monthlyVolume: locVol,
+        lowCpc: locLowCpc,
+        highCpc: locHighCpc,
+      };
+    });
+  }, [keywords, activeLocationScope, activeScopeMetric, selectedLocations.length, avgTopPageCpc]);
+
+  // Scoped clusters (Ad Group Themes)
+  const keywordClusters = useMemo(() => {
+    const kwMap = new Map(scopedKeywords.map(k => [k.id, k]));
+    return baseKeywordClusters.map(cluster => {
+      const cKws = cluster.keywords.map(k => kwMap.get(k.id) || k);
+      const totalVol = cKws.reduce((s, k) => s + k.monthlyVolume, 0);
+      const cpcSum = cKws.reduce((s, k) => s + ((k.lowCpc + k.highCpc) / 2), 0);
+      const avgCpc = cKws.length > 0 ? (cpcSum / cKws.length) : 0;
+      const selectedCount = cKws.filter(k => selectedKeywordIds.has(k.id)).length;
+      return {
+        ...cluster,
+        keywords: cKws,
+        totalVolume: totalVol,
+        avgCpc: Math.round(avgCpc * 100) / 100,
+        selectedCount
+      };
+    });
+  }, [baseKeywordClusters, scopedKeywords, selectedKeywordIds]);
+
+  // Active Cluster details for Step 1
+  const activeCluster = useMemo(() => {
+    const activeKwList = scopedKeywords;
+    if (activeClusterId === 'ALL') {
+      const totalVol = activeKwList.reduce((s, k) => s + k.monthlyVolume, 0);
+      const cpcSum = activeKwList.reduce((s, k) => s + ((k.lowCpc + k.highCpc) / 2), 0);
+      const transactionalCount = activeKwList.filter(k => k.intent === 'TRANSACTIONAL').length;
+      return {
+        id: 'ALL',
+        name: 'Tüm Anahtar Kelimeler',
+        icon: '✨',
+        keywords: activeKwList,
+        totalVolume: totalVol,
+        avgCpc: activeKwList.length > 0 ? cpcSum / activeKwList.length : 0,
+        selectedCount: selectedKeywordIds.size,
+        transactionalCount
+      };
+    }
+    const found = keywordClusters.find(c => c.id === activeClusterId);
+    if (found) {
+      const transactionalCount = found.keywords.filter(k => k.intent === 'TRANSACTIONAL').length;
+      return { ...found, transactionalCount };
+    }
+    return {
+      id: 'ALL',
+      name: 'Tüm Anahtar Kelimeler',
+      icon: '✨',
+      keywords: activeKwList,
+      totalVolume: 0,
+      avgCpc: 0,
+      selectedCount: 0,
+      transactionalCount: 0
+    };
+  }, [activeClusterId, keywordClusters, scopedKeywords, selectedKeywordIds]);
+
+  // Count of strategist picks in the current view
+  const strategistCountInView = useMemo(() => {
+    const baseList = activeCluster ? activeCluster.keywords : scopedKeywords;
+    return baseList.filter(k => !!k.isAiStrategistPick || k.id?.startsWith('ai_strat_') || k.id?.startsWith('ai_alt_')).length;
+  }, [activeCluster, scopedKeywords]);
+
+  // Filtered & Sorted Keywords for the active right-side data grid
+  const activeKeywordsGrid = useMemo(() => {
+    const baseList = activeCluster ? activeCluster.keywords : scopedKeywords;
+    const searchLower = step1SearchFilter.toLowerCase().trim();
+
+    return baseList
+      .filter(k => {
+        const matchesSearch = !searchLower || k.keyword.toLowerCase().includes(searchLower);
+        const isStrategistKw = !!k.isAiStrategistPick || k.id?.startsWith('ai_strat_') || k.id?.startsWith('ai_alt_');
+        const matchesIntent = 
+          step1IntentFilter === 'ALL' || 
+          (step1IntentFilter === 'STRATEGIST' ? isStrategistKw : k.intent === step1IntentFilter);
+        return matchesSearch && matchesIntent;
+      })
+      .sort((a, b) => {
+        if (step1SortBy === 'VOLUME') return b.monthlyVolume - a.monthlyVolume;
+        if (step1SortBy === 'CPC_LOW') return ((a.lowCpc + a.highCpc) / 2) - ((b.lowCpc + b.highCpc) / 2);
+        if (step1SortBy === 'CPC_HIGH') return ((b.lowCpc + b.highCpc) / 2) - ((a.lowCpc + a.highCpc) / 2);
+        if (step1SortBy === 'ALPHABETICAL') return a.keyword.localeCompare(b.keyword);
+        return 0;
+      });
+  }, [activeCluster, scopedKeywords, step1SearchFilter, step1IntentFilter, step1SortBy]);
+
+  const maxVolumeInGrid = useMemo(() => {
+    return Math.max(...activeKeywordsGrid.map(k => k.monthlyVolume), 1);
+  }, [activeKeywordsGrid]);
+
+  const scopedTotalVolume = useMemo(() => {
+    return scopedKeywords.reduce((s, k) => s + k.monthlyVolume, 0);
+  }, [scopedKeywords]);
+
+  const scopedAvgCpc = useMemo(() => {
+    if (scopedKeywords.length === 0) return 0;
+    return scopedKeywords.reduce((s, k) => s + ((k.lowCpc + k.highCpc) / 2), 0) / scopedKeywords.length;
+  }, [scopedKeywords]);
 
   // Copy Negative Keywords to Clipboard
   const handleCopyNegatives = (words: string[], categoryTitle: string) => {
@@ -3560,23 +3631,76 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     <Globe size={16} color="var(--brand-primary)" />
                     <span>Hedef Lokasyonlar ({selectedLocations.length}):</span>
                   </div>
+
+                  {/* 🌐 All Locations Button */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
-                    {selectedLocations.map(loc => (
-                      <span key={loc.id} className="badge badge-active" style={{ fontSize: '0.75rem', padding: '3px 8px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                        <span>{loc.flag || '📍'}</span>
-                        <strong>{loc.name}</strong>
-                        <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>({getLocationTypeLabel(loc.targetType)})</span>
-                        {selectedLocations.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => removeLocation(loc.id)}
-                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginLeft: '2px', display: 'flex', alignItems: 'center', color: 'var(--text-muted)' }}
-                          >
-                            <X size={12} />
-                          </button>
-                        )}
-                      </span>
-                    ))}
+                    <button
+                      type="button"
+                      onClick={() => setActiveLocationScope('ALL')}
+                      className={`badge ${activeLocationScope === 'ALL' ? 'badge-primary' : 'badge-neutral'}`}
+                      style={{
+                        cursor: 'pointer',
+                        fontSize: '0.75rem',
+                        padding: '4px 10px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                        border: activeLocationScope === 'ALL' ? '1.5px solid var(--brand-primary)' : '1px solid var(--border-default)',
+                        backgroundColor: activeLocationScope === 'ALL' ? 'var(--brand-primary)' : 'var(--bg-surface)',
+                        color: activeLocationScope === 'ALL' ? '#ffffff' : 'var(--text-secondary)',
+                        fontWeight: activeLocationScope === 'ALL' ? 700 : 500,
+                        boxShadow: activeLocationScope === 'ALL' ? '0 0 0 2px rgba(37, 99, 235, 0.2)' : 'none',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <span>🌐</span>
+                      <span>Tüm Lokasyonlar (Toplam)</span>
+                    </button>
+
+                    {/* Individual Location Buttons */}
+                    {selectedLocations.map(loc => {
+                      const isScopeActive = activeLocationScope === String(loc.id);
+                      return (
+                        <div
+                          key={loc.id}
+                          onClick={() => setActiveLocationScope(isScopeActive ? 'ALL' : String(loc.id))}
+                          className={`badge ${isScopeActive ? 'badge-primary' : 'badge-active'}`}
+                          style={{
+                            cursor: 'pointer',
+                            fontSize: '0.75rem',
+                            padding: '4px 9px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                            border: isScopeActive ? '1.5px solid var(--brand-primary)' : '1px solid var(--border-default)',
+                            backgroundColor: isScopeActive ? 'var(--brand-primary)' : 'var(--bg-surface)',
+                            color: isScopeActive ? '#ffffff' : 'var(--text-primary)',
+                            fontWeight: isScopeActive ? 700 : 500,
+                            boxShadow: isScopeActive ? '0 0 0 2px rgba(37, 99, 235, 0.25)' : 'none',
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          <span>{loc.flag || '📍'}</span>
+                          <strong>{loc.name}</strong>
+                          <span style={{ fontSize: '0.68rem', opacity: isScopeActive ? 0.9 : 0.65 }}>({getLocationTypeLabel(loc.targetType)})</span>
+                          {selectedLocations.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (activeLocationScope === String(loc.id)) {
+                                  setActiveLocationScope('ALL');
+                                }
+                                removeLocation(loc.id);
+                              }}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginLeft: '2px', display: 'flex', alignItems: 'center', color: isScopeActive ? '#ffffff' : 'var(--text-muted)' }}
+                            >
+                              <X size={12} />
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -3595,6 +3719,31 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
               {/* Master-Detail PPC Keyword & Ad Group Manager */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+
+                {/* Active Specific Location Scope Notification Banner */}
+                {activeLocationScope !== 'ALL' && activeScopeLocation && (
+                  <div className="card" style={{ padding: '0.65rem 1rem', backgroundColor: 'rgba(37, 99, 235, 0.08)', border: '1px solid rgba(37, 99, 235, 0.25)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.65rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap', fontSize: '0.82rem' }}>
+                      <span style={{ color: 'var(--brand-primary)', fontWeight: 700 }}>📍 Aktif Lokasyon Görünümü:</span>
+                      <span className="badge badge-active" style={{ fontSize: '0.8rem', padding: '3px 9px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                        <span>{activeScopeLocation.flag}</span>
+                        <strong>{activeScopeLocation.canonicalName || activeScopeLocation.name}</strong>
+                      </span>
+                      <span className="badge badge-neutral" style={{ fontSize: '0.72rem' }}>Pazar Payı: %{activeScopeMetric?.sharePercent ?? 0}</span>
+                      <span className="badge badge-neutral" style={{ fontSize: '0.72rem' }}>Bölgesel Ort. TBM: ₺{(activeScopeMetric?.avgCpc ?? 0).toFixed(2)}</span>
+                      <span className="badge badge-neutral" style={{ fontSize: '0.72rem' }}>Arama Havuzu: {(activeScopeMetric?.monthlyVolume ?? 0).toLocaleString('tr-TR')} /ay</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setActiveLocationScope('ALL')}
+                      className="btn-secondary"
+                      style={{ fontSize: '0.75rem', padding: '0.3rem 0.7rem', display: 'flex', alignItems: 'center', gap: '4px' }}
+                    >
+                      <X size={12} />
+                      <span>Tüm Lokasyonlara Dön</span>
+                    </button>
+                  </div>
+                )}
                 
                 {/* Top Summary Stats Bar */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem' }}>
@@ -3615,9 +3764,11 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       <BarChart3 size={18} />
                     </div>
                     <div>
-                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>TOPLAM ARAMA HAVUZU</div>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                        {activeLocationScope !== 'ALL' && activeScopeLocation ? `${activeScopeLocation.name.toUpperCase()} ARAMA HAVUZU` : 'TOPLAM ARAMA HAVUZU'}
+                      </div>
                       <div style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                        {keywords.reduce((s, k) => s + k.monthlyVolume, 0).toLocaleString('tr-TR')} <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-muted)' }}>/ay</span>
+                        {scopedTotalVolume.toLocaleString('tr-TR')} <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-muted)' }}>/ay</span>
                       </div>
                     </div>
                   </div>
@@ -3627,9 +3778,11 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       <DollarSign size={18} />
                     </div>
                     <div>
-                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>ORTALAMA SAYFA ÜSTÜ TBM</div>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                        {activeLocationScope !== 'ALL' && activeScopeLocation ? `${activeScopeLocation.name.toUpperCase()} ORT. TBM` : 'ORTALAMA SAYFA ÜSTÜ TBM'}
+                      </div>
                       <div style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                        ₺{(keywords.reduce((s, k) => s + ((k.lowCpc + k.highCpc) / 2), 0) / (keywords.length || 1)).toFixed(2)}
+                        ₺{scopedAvgCpc.toFixed(2)}
                       </div>
                     </div>
                   </div>
@@ -3641,7 +3794,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     <div>
                       <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>SEÇİLİ KELİME HAVUZU</div>
                       <div style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--brand-primary)' }}>
-                        {selectedKeywordIds.size} <span style={{ fontSize: '0.78rem', fontWeight: 500, color: 'var(--text-muted)' }}>/ {keywords.length} (%{Math.round((selectedKeywordIds.size / (keywords.length || 1)) * 100)})</span>
+                        {selectedKeywordIds.size} <span style={{ fontSize: '0.78rem', fontWeight: 500, color: 'var(--text-muted)' }}>/ {scopedKeywords.length} (%{Math.round((selectedKeywordIds.size / (scopedKeywords.length || 1)) * 100)})</span>
                       </div>
                     </div>
                   </div>
@@ -3877,6 +4030,32 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                         ))}
                       </div>
 
+                      {/* Location Scope Selector Dropdown */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                        <Globe size={13} color="var(--brand-primary)" />
+                        <select
+                          value={activeLocationScope}
+                          onChange={(e) => setActiveLocationScope(e.target.value)}
+                          style={{
+                            fontSize: '0.75rem',
+                            padding: '0.35rem 0.55rem',
+                            borderRadius: 'var(--radius-xs)',
+                            border: activeLocationScope !== 'ALL' ? '1.5px solid var(--brand-primary)' : '1px solid var(--border-default)',
+                            backgroundColor: activeLocationScope !== 'ALL' ? 'rgba(37, 99, 235, 0.08)' : 'var(--bg-surface-elevated)',
+                            color: activeLocationScope !== 'ALL' ? 'var(--brand-primary)' : 'var(--text-primary)',
+                            fontWeight: 600,
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <option value="ALL">🌐 Tüm Lokasyonlar ({selectedLocations.length} Toplam)</option>
+                          {selectedLocations.map(loc => (
+                            <option key={loc.id} value={String(loc.id)}>
+                              {loc.flag || '📍'} {loc.name} ({getLocationTypeLabel(loc.targetType)})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
                       {/* Sort Dropdown */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                         <ArrowUpDown size={13} color="var(--text-muted)" />
@@ -3938,8 +4117,26 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                             </th>
                             <th style={{ padding: '0.55rem 0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>ANAHTAR KELİME</th>
                             <th style={{ padding: '0.55rem 0.75rem', fontWeight: 600, color: 'var(--text-secondary)', width: '120px' }}>ARAMA NİYETİ</th>
-                            <th style={{ padding: '0.55rem 0.75rem', fontWeight: 600, color: 'var(--text-secondary)', width: '180px' }}>AYLIK HACİM</th>
-                            <th style={{ padding: '0.55rem 0.75rem', fontWeight: 600, color: 'var(--text-secondary)', width: '160px' }}>SAYFA ÜSTÜ TBM</th>
+                            <th style={{ padding: '0.55rem 0.75rem', fontWeight: 600, color: 'var(--text-secondary)', width: '180px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <span>AYLIK HACİM</span>
+                                {activeScopeLocation && (
+                                  <span className="badge badge-primary" style={{ fontSize: '0.62rem', padding: '1px 5px' }}>
+                                    {activeScopeLocation.flag} {activeScopeLocation.name}
+                                  </span>
+                                )}
+                              </div>
+                            </th>
+                            <th style={{ padding: '0.55rem 0.75rem', fontWeight: 600, color: 'var(--text-secondary)', width: '160px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <span>SAYFA ÜSTÜ TBM</span>
+                                {activeScopeLocation && (
+                                  <span className="badge badge-primary" style={{ fontSize: '0.62rem', padding: '1px 5px' }}>
+                                    {activeScopeLocation.flag} {activeScopeLocation.name}
+                                  </span>
+                                )}
+                              </div>
+                            </th>
                             <th style={{ padding: '0.55rem 0.75rem', fontWeight: 600, color: 'var(--text-secondary)', width: '90px' }}>REKABET</th>
                             <th style={{ padding: '0.55rem 0.75rem', width: '40px', textAlign: 'center' }}></th>
                           </tr>
@@ -4021,8 +4218,12 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                                     </span>
                                   </td>
 
-                                  {/* Volume with Inline Visual Bar */}
-                                  <td style={{ padding: '0.5rem 0.75rem' }}>
+                                  {/* Volume with Inline Visual Bar & Hover Breakdown Tooltip */}
+                                  <td 
+                                    style={{ padding: '0.5rem 0.75rem', position: 'relative' }}
+                                    onMouseEnter={() => setHoveredKwGeoId(kw.id)}
+                                    onMouseLeave={() => setHoveredKwGeoId(null)}
+                                  >
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                       <div style={{ flex: 1, height: '6px', backgroundColor: 'rgba(0,0,0,0.06)', borderRadius: '3px', overflow: 'hidden' }}>
                                         <div style={{ height: '100%', width: `${volumePercent}%`, backgroundColor: isSelected ? 'var(--brand-primary)' : 'var(--text-muted)', borderRadius: '3px' }} />
@@ -4031,6 +4232,51 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                                         {kw.monthlyVolume.toLocaleString('tr-TR')}
                                       </span>
                                     </div>
+
+                                    {/* Regional Breakdown Popover on Hover */}
+                                    {hoveredKwGeoId === kw.id && selectedLocations.length > 1 && (
+                                      <div style={{
+                                        position: 'absolute',
+                                        bottom: '100%',
+                                        right: 0,
+                                        marginBottom: '6px',
+                                        backgroundColor: 'var(--bg-surface-elevated)',
+                                        border: '1px solid var(--border-default)',
+                                        borderRadius: 'var(--radius-sm)',
+                                        padding: '0.65rem 0.85rem',
+                                        boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.35), 0 8px 10px -6px rgba(0, 0, 0, 0.2)',
+                                        zIndex: 50,
+                                        minWidth: '240px',
+                                        maxWidth: '300px',
+                                        pointerEvents: 'none'
+                                      }}>
+                                        <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.4rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-default)', paddingBottom: '0.3rem' }}>
+                                          <span>🌍 Bölgesel Arama Dağılımı</span>
+                                          <span style={{ color: 'var(--brand-primary)', fontWeight: 700 }}>
+                                            {activeLocationScope === 'ALL' ? kw.monthlyVolume.toLocaleString('tr-TR') : `${kw.monthlyVolume.toLocaleString('tr-TR')} (${activeScopeLocation?.name})`}
+                                          </span>
+                                        </div>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', maxHeight: '180px', overflowY: 'auto' }}>
+                                          {countryBreakdown.map(loc => {
+                                            const baseKwVol = (keywords.find(k => k.id === kw.id)?.monthlyVolume) || kw.monthlyVolume;
+                                            const locVol = Math.max(1, Math.round(baseKwVol * (loc.sharePercent / 100)));
+                                            const isThisLocActive = activeLocationScope === String(loc.id);
+                                            return (
+                                              <div key={loc.code + loc.name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.68rem', gap: '0.5rem', fontWeight: isThisLocActive ? 700 : 400, color: isThisLocActive ? 'var(--brand-primary)' : 'inherit' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                  <span>{loc.flag}</span>
+                                                  <span style={{ color: isThisLocActive ? 'var(--brand-primary)' : 'var(--text-secondary)' }}>{loc.name}</span>
+                                                </div>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                                                  <span style={{ fontWeight: 600, color: isThisLocActive ? 'var(--brand-primary)' : 'var(--text-primary)' }}>{locVol.toLocaleString('tr-TR')}</span>
+                                                  <span style={{ color: 'var(--text-muted)', fontSize: '0.62rem' }}>(%{loc.sharePercent})</span>
+                                                </div>
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
+                                      </div>
+                                    )}
                                   </td>
 
                                   {/* Top of page CPC */}
