@@ -339,4 +339,18 @@ export class ApiService {
       method: 'DELETE',
     });
   }
+
+  public static async getLocationPresets(workspaceId?: string): Promise<any[]> {
+    const res = await this.request<{ status: string; presets: any[] }>(
+      `/forecast.php?action=location_presets&workspace_id=${encodeURIComponent(workspaceId || '')}`
+    );
+    return res.presets || [];
+  }
+
+  public static async saveLocationPresets(presets: any[], workspaceId?: string): Promise<any> {
+    return await this.request(`/forecast.php?action=location_presets&workspace_id=${encodeURIComponent(workspaceId || '')}`, {
+      method: 'POST',
+      body: JSON.stringify({ presets }),
+    });
+  }
 }

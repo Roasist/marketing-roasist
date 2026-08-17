@@ -2745,6 +2745,41 @@ if ($action === 'list_models') {
 }
 
 // -------------------------------------------------------------
+// ACTION: SAVE / GET CUSTOM LOCATION PRESETS (Persistent Storage)
+// -------------------------------------------------------------
+if ($action === 'location_presets') {
+    $workspaceId = $_GET['workspace_id'] ?? 'default';
+    $settingKey = 'custom_location_presets_' . preg_replace('/[^a-zA-Z0-9_-]/', '', $workspaceId);
+
+    if ($method === 'GET') {
+        $stmt = $pdo->prepare("SELECT setting_value FROM app_settings WHERE setting_key = ?");
+        $stmt->execute([$settingKey]);
+        $row = $stmt->fetch();
+        $presets = $row ? json_decode($row['setting_value'] ?? '[]', true) : [];
+        if (!is_array($presets)) $presets = [];
+        echo json_encode(['status' => 'success', 'presets' => $presets], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    if ($method === 'POST') {
+        $input = json_decode(file_get_contents('php://input'), true) ?? [];
+        $presets = $input['presets'] ?? [];
+        $jsonPresets = json_encode($presets, JSON_UNESCAPED_UNICODE);
+
+        $stmt = $pdo->prepare("
+            INSERT INTO app_settings (setting_key, setting_value, updated_at) 
+            VALUES (?, ?, datetime('now'))
+            ON CONFLICT(setting_key) DO UPDATE SET 
+                setting_value = excluded.setting_value,
+                updated_at = datetime('now')
+        ");
+        $stmt->execute([$settingKey, $jsonPresets]);
+        echo json_encode(['status' => 'success', 'message' => 'Lokasyon paketleri başarıyla kaydedildi!'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+}
+
+// -------------------------------------------------------------
 // ACTION: SAVE / LIST / DELETE FORECAST PLANS
 // -------------------------------------------------------------
 if ($action === 'plans') {
