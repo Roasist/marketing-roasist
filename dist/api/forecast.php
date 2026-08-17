@@ -757,7 +757,27 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
         'lv' => 'languageConstants/1029', // Latvian
         'lt' => 'languageConstants/1026'  // Lithuanian
     ];
+
     $normLangCode = strtolower(trim($langCode));
+    $langNameAliases = [
+        'russian' => 'ru', 'rusça' => 'ru', 'rusca' => 'ru', 'rus' => 'ru', 'ru-ru' => 'ru', 'русский' => 'ru',
+        'turkish' => 'tr', 'türkçe' => 'tr', 'turkce' => 'tr', 'tr-tr' => 'tr',
+        'english' => 'en', 'ingilizce' => 'en', 'en-us' => 'en', 'en-gb' => 'en',
+        'german' => 'de', 'almanca' => 'de', 'de-de' => 'de', 'deutsch' => 'de',
+        'arabic' => 'ar', 'arapça' => 'ar', 'arapca' => 'ar', 'ar-ae' => 'ar', 'ar-sa' => 'ar',
+        'ukrainian' => 'uk', 'ukraynaca' => 'uk', 'ukr' => 'uk',
+        'french' => 'fr', 'fransızca' => 'fr', 'fransizca' => 'fr',
+        'spanish' => 'es', 'ispanyolca' => 'es',
+        'italian' => 'it', 'italyanca' => 'it',
+        'dutch' => 'nl', 'felemenkçe' => 'nl', 'felemenkce' => 'nl',
+        'azerbaijani' => 'az', 'azerbaycanca' => 'az',
+        'kazakh' => 'kk', 'kazakça' => 'kk', 'kazakca' => 'kk',
+        'uzbek' => 'uz', 'özbekçe' => 'uz', 'ozbekce' => 'uz'
+    ];
+    if (isset($langNameAliases[$normLangCode])) {
+        $normLangCode = $langNameAliases[$normLangCode];
+    }
+
     if (is_numeric($normLangCode)) {
         $langConst = 'languageConstants/' . $normLangCode;
         $codeMap = array_flip($langMap);
@@ -774,7 +794,21 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
         'AE' => 'geoTargetConstants/2784',
         'GB' => 'geoTargetConstants/2826',
         'US' => 'geoTargetConstants/2840',
-        'KZ' => 'geoTargetConstants/2398'
+        'KZ' => 'geoTargetConstants/2398',
+        'UA' => 'geoTargetConstants/2804',
+        'UZ' => 'geoTargetConstants/2860',
+        'KG' => 'geoTargetConstants/2417',
+        'AZ' => 'geoTargetConstants/2031',
+        'GE' => 'geoTargetConstants/2268',
+        'FR' => 'geoTargetConstants/2250',
+        'IT' => 'geoTargetConstants/2380',
+        'ES' => 'geoTargetConstants/2724',
+        'NL' => 'geoTargetConstants/2528',
+        'PL' => 'geoTargetConstants/2616',
+        'CH' => 'geoTargetConstants/2756',
+        'AT' => 'geoTargetConstants/2040',
+        'SA' => 'geoTargetConstants/2682',
+        'QA' => 'geoTargetConstants/2634'
     ];
     $geoConst = $geoMap[strtoupper($countryCode)] ?? 'geoTargetConstants/2792';
 
@@ -793,37 +827,6 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
     if (empty($finalGeoList)) {
         $finalGeoList = [$geoConst];
     }
-
-    // Step 2: Configure payload mirroring official Google Ads Keyword Planner UI
-    $payload = [
-        "keywordPlanNetwork" => "GOOGLE_SEARCH",
-        "language" => $langConst,
-        "geoTargetConstants" => $finalGeoList
-    ];
-
-    if (!empty($url)) {
-        if (!preg_match('/^https?:\/\//i', $url)) {
-            $url = 'https://' . $url;
-        }
-        // Mirror Google Ads Keyword Planner UI: "Start with a website" uses urlSeed
-        $payload["urlSeed"] = ["url" => $url];
-    } elseif (!empty($keywords)) {
-        $payload["keywordSeed"] = ["keywords" => is_array($keywords) ? array_slice($keywords, 0, 20) : [$keywords]];
-    }
-
-    $chAds = curl_init("https://googleads.googleapis.com/v22/customers/{$customerId}:generateKeywordIdeas");
-    curl_setopt($chAds, CURLOPT_POST, true);
-    curl_setopt($chAds, CURLOPT_POSTFIELDS, json_encode($payload));
-    curl_setopt($chAds, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($chAds, CURLOPT_HTTPHEADER, [
-        'Authorization: Bearer ' . $accessToken,
-        'developer-token: ' . $devToken,
-        'Content-Type: application/json'
-    ]);
-    curl_setopt($chAds, CURLOPT_TIMEOUT, 25);
-    $adsRes = curl_exec($chAds);
-    $adsCode = curl_getinfo($chAds, CURLINFO_HTTP_CODE);
-    curl_close($chAds);
 
     $parsedKeywords = [];
     $seenKeywords = [];
