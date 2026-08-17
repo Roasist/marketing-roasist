@@ -1213,7 +1213,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   }, [savedPlans, portfolioSearchQuery]);
 
   const totalAllSubCampaigns = useMemo(() => {
-    return savedPlans.reduce((sum, p) => sum + (p.subCampaigns?.length || 1), 0);
+    return savedPlans.reduce((sum, p) => sum + (Array.isArray(p.subCampaigns) ? p.subCampaigns.length : (p.selectedKeywords && p.selectedKeywords.length > 0 ? 1 : 0)), 0);
   }, [savedPlans]);
 
   const totalAllBudget = useMemo(() => {
@@ -2123,9 +2123,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '1.25rem' }}>
               {filteredSavedPlans.map((plan) => {
-                const subs = (plan.subCampaigns && plan.subCampaigns.length > 0) 
+                const subs = Array.isArray(plan.subCampaigns) 
                   ? plan.subCampaigns 
-                  : [{
+                  : (plan.selectedKeywords && plan.selectedKeywords.length > 0 ? [{
                       id: 'legacy_' + plan.id,
                       name: plan.name || 'Ana Kampanya',
                       platform: 'GOOGLE' as CampaignPlatform,
@@ -2134,13 +2134,13 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       languageName: plan.detectedLanguageName || 'Türkçe',
                       languageFlag: '🇹🇷',
                       targetLocations: DEFAULT_LOCATIONS,
-                      monthlyBudget: plan.monthlyBudget || 35000,
+                      monthlyBudget: plan.monthlyBudget || 0,
                       selectedKeywords: plan.selectedKeywords || [],
                       negativeCategories: plan.negativeKeywords || [],
                       parameters: {}
-                    }];
+                    }] : []);
 
-                const planTotalBudget = plan.monthlyBudget || subs.reduce((s, c) => s + (c.monthlyBudget || 0), 0);
+                const planTotalBudget = subs.reduce((s, c) => s + (c.monthlyBudget || 0), 0) || (Array.isArray(plan.subCampaigns) && plan.subCampaigns.length === 0 ? 0 : (plan.monthlyBudget || 0));
 
                 return (
                   <div 
@@ -2211,45 +2211,51 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                         <Layers size={12} /> Alt Kampanyalar ({subs.length}):
                       </div>
 
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                        {subs.map((sc) => (
-                          <div
-                            key={sc.id}
-                            onClick={() => handleOpenMasterPlanStudio(plan, sc.id)}
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
-                              padding: '6px 10px',
-                              backgroundColor: 'var(--bg-surface-elevated)',
-                              borderRadius: 'var(--radius-xs)',
-                              border: '1px solid var(--border-subtle)',
-                              cursor: 'pointer',
-                              transition: 'all 0.15s ease'
-                            }}
-                            onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--brand-primary)'}
-                            onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border-subtle)'}
-                            title={`${sc.name} alt kampanyasını stüdyoda aç`}
-                          >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                              {getPlatformIcon(sc.platform, 14)}
-                              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                                {sc.name}
-                              </span>
-                              <span style={{ fontSize: '0.7rem' }}>
-                                {sc.languageFlag || '🌐'}
-                              </span>
-                            </div>
+                      {subs.length === 0 ? (
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic', padding: '6px 0' }}>
+                          Henüz alt kampanya eklenmedi.
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                          {subs.map((sc) => (
+                            <div
+                              key={sc.id}
+                              onClick={() => handleOpenMasterPlanStudio(plan, sc.id)}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                padding: '6px 10px',
+                                backgroundColor: 'var(--bg-surface-elevated)',
+                                borderRadius: 'var(--radius-xs)',
+                                border: '1px solid var(--border-subtle)',
+                                cursor: 'pointer',
+                                transition: 'all 0.15s ease'
+                              }}
+                              onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--brand-primary)'}
+                              onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border-subtle)'}
+                              title={`${sc.name} alt kampanyasını stüdyoda aç`}
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                                {getPlatformIcon(sc.platform, 14)}
+                                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                                  {sc.name}
+                                </span>
+                                <span style={{ fontSize: '0.7rem' }}>
+                                  {sc.languageFlag || '🌐'}
+                                </span>
+                              </div>
 
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                              <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--brand-primary)' }}>
-                                ₺{(sc.monthlyBudget || 0).toLocaleString('tr-TR')}
-                              </span>
-                              <ChevronRight size={12} color="var(--text-muted)" />
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--brand-primary)' }}>
+                                  ₺{(sc.monthlyBudget || 0).toLocaleString('tr-TR')}
+                                </span>
+                                <ChevronRight size={12} color="var(--text-muted)" />
+                              </div>
                             </div>
-                          </div>
-                        ))}
-                      </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                     {/* Card Footer Actions */}
@@ -6113,11 +6119,11 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       </tr>
                     ) : (
                       savedPlans.map((plan) => {
-                        const hasSubCamps = plan.subCampaigns && plan.subCampaigns.length > 0;
-                        const subCount = hasSubCamps ? plan.subCampaigns!.length : 1;
+                        const hasSubCamps = Array.isArray(plan.subCampaigns) && plan.subCampaigns.length > 0;
+                        const subCount = Array.isArray(plan.subCampaigns) ? plan.subCampaigns.length : (plan.selectedKeywords && plan.selectedKeywords.length > 0 ? 1 : 0);
                         const subSummary = hasSubCamps 
                           ? plan.subCampaigns!.map(c => `${c.languageFlag || '🌐'} ${c.name}`).join(' • ')
-                          : (plan.targetUrl || plan.seedKeywords || 'Standart Kampanya');
+                          : (subCount > 0 ? (plan.targetUrl || plan.seedKeywords || 'Standart Kampanya') : 'Henüz alt kampanya yok');
 
                         return (
                           <tr key={plan.id} style={{ borderBottom: '1px solid var(--border-default)' }}>
