@@ -1676,38 +1676,20 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     return selectedLocations;
   }, [selectedLocations]);
 
-  // Combined Multipliers for Multi-Location Targeting
-  const totalVolumeMultiplier = useMemo(() => {
-    if (selectedLocations.length === 0) return 1.0;
-    return selectedLocations.reduce((sum, loc) => sum + (loc.volumeMultiplier ?? 1.0), 0);
-  }, [selectedLocations]);
-
-  const blendedCpcMultiplier = useMemo(() => {
-    if (selectedLocations.length === 0) return 1.0;
-    const totalVol = selectedLocations.reduce((sum, loc) => sum + (loc.volumeMultiplier ?? 1.0), 0);
-    if (totalVol === 0) return 1.0;
-    const weightedSum = selectedLocations.reduce((sum, loc) => {
-      const mult = loc.cpcMultiplier ?? (loc.countryCode === 'TR' ? 1.0 : (loc.countryCode === 'DE' ? 2.8 : (loc.countryCode === 'US' || loc.countryCode === 'GB' ? 3.2 : 1.8)));
-      const vol = loc.volumeMultiplier ?? 1.0;
-      return sum + (mult * vol);
-    }, 0);
-    return weightedSum / totalVol;
-  }, [selectedLocations]);
-
-  // Selected Keyword Pool for Simulation
+  // Selected Keyword Pool for Simulation (Pure Official Google Ads metrics)
   const selectedKeywordsPool = useMemo(() => {
     if (selectedKeywordIds.size === 0) return normalizedKeywords;
     return normalizedKeywords.filter(k => selectedKeywordIds.has(k.id));
   }, [normalizedKeywords, selectedKeywordIds]);
 
-  // Overall Aggregate KPIs (Scaled with Active Target Countries)
+  // Overall Aggregate KPIs (Pure Official Sum across selected locations - Zero proportional estimation)
   const baseSearchVolume = useMemo(() => {
     return selectedKeywordsPool.reduce((sum, k) => sum + k.monthlyVolume, 0);
   }, [selectedKeywordsPool]);
 
   const totalSearchVolume = useMemo(() => {
-    return Math.round(baseSearchVolume * totalVolumeMultiplier);
-  }, [baseSearchVolume, totalVolumeMultiplier]);
+    return baseSearchVolume;
+  }, [baseSearchVolume]);
 
   const baseTopPageCpc = useMemo(() => {
     if (selectedKeywordsPool.length === 0) return 0;
@@ -1716,8 +1698,8 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   }, [selectedKeywordsPool]);
 
   const avgTopPageCpc = useMemo(() => {
-    return baseTopPageCpc * blendedCpcMultiplier;
-  }, [baseTopPageCpc, blendedCpcMultiplier]);
+    return baseTopPageCpc;
+  }, [baseTopPageCpc]);
 
   // 🎯 Active Google Search CPC with scenario multiplier
   const activeSearchCpc = useMemo(() => {
@@ -1739,37 +1721,12 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   };
 
   const handleImpressionShareChange = (newIS: number) => {
-    setTargetImpressionShare(newIS);
-    if (totalSearchVolume > 0 && expectedCtr > 0 && activeSearchCpc > 0 && monthlyBudget > 0) {
-      const clampedIS = Math.max(5, Math.min(95, newIS));
-      const impressions = totalSearchVolume * (clampedIS / 100);
-      const clicks = impressions * (expectedCtr / 100);
-      const requiredSpend = Math.round(clicks * activeSearchCpc);
-      const newAlloc = Math.max(0, Math.min(100, Math.round((requiredSpend / monthlyBudget) * 100)));
-      updateChannelAllocation('google', newAlloc);
-    }
+    const clampedIS = Math.max(5, Math.min(95, newIS));
+    setTargetImpressionShare(clampedIS);
   };
 
   const handleExpectedCtrChange = (newCtr: number) => {
     setExpectedCtr(newCtr);
-    if (budgetMode === 'BY_BUDGET') {
-      const currentGoogleSpend = Math.round((monthlyBudget * allocGoogleSearch) / 100);
-      if (activeSearchCpc > 0 && newCtr > 0 && totalSearchVolume > 0) {
-        const clicks = currentGoogleSpend / activeSearchCpc;
-        const impressions = clicks / (newCtr / 100);
-        const calculatedIS = Math.max(5, Math.min(95, Math.round((impressions / totalSearchVolume) * 100)));
-        setTargetImpressionShare(calculatedIS);
-      }
-    } else {
-      if (totalSearchVolume > 0 && newCtr > 0 && activeSearchCpc > 0 && monthlyBudget > 0) {
-        const clampedIS = Math.max(5, Math.min(95, targetImpressionShare));
-        const impressions = totalSearchVolume * (clampedIS / 100);
-        const clicks = impressions * (newCtr / 100);
-        const requiredSpend = Math.round(clicks * activeSearchCpc);
-        const newAlloc = Math.max(0, Math.min(100, Math.round((requiredSpend / monthlyBudget) * 100)));
-        updateChannelAllocation('google', newAlloc);
-      }
-    }
   };
 
   // Keep targetImpressionShare in sync when monthlyBudget or allocGoogleSearch changes from other tabs
@@ -2379,12 +2336,12 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       `"${k.keyword}"`,
       `"${detectedLanguageName}"`,
       `"${activeCountryNames}"`,
-      Math.round(k.monthlyVolume * totalVolumeMultiplier),
+      k.monthlyVolume,
       `${k.trendChangePercent}%`,
       k.competition,
-      (k.lowCpc * blendedCpcMultiplier).toFixed(2),
-      (k.highCpc * blendedCpcMultiplier).toFixed(2),
-      (((k.lowCpc + k.highCpc) / 2) * blendedCpcMultiplier).toFixed(2),
+      k.lowCpc.toFixed(2),
+      k.highCpc.toFixed(2),
+      (((k.lowCpc + k.highCpc) / 2)).toFixed(2),
       k.intent,
       k.opportunityScore
     ]);
@@ -6209,33 +6166,74 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     </div>
                   </div>
 
-                  <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
+                  <div style={{ padding: '0.8rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
                     <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Tahmini Gösterim</div>
-                    <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
+                    <div style={{ fontSize: '1.35rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
                       {simulation.estImpressions.toLocaleString('tr-TR')}
                     </div>
                   </div>
 
-                  <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
+                  <div style={{ padding: '0.8rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
                     <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Tahmini Tıklama</div>
-                    <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
+                    <div style={{ fontSize: '1.35rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
                       {simulation.estClicks.toLocaleString('tr-TR')}
                     </div>
                   </div>
 
-                  <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
-                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Arama Başı Talep (Lead)</div>
-                    <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
-                      {simulation.estConversions.toLocaleString('tr-TR')} Adet
-                    </div>
-                  </div>
+                  {businessModel === 'LEAD_GEN' ? (
+                    <>
+                      <div style={{ padding: '0.8rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Arama Başı Talep (Lead)</div>
+                        <div style={{ fontSize: '1.35rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
+                          {simulation.estConversions.toLocaleString('tr-TR')} Adet
+                        </div>
+                      </div>
 
-                  <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
-                    <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 600 }}>SAĞLIKLI LEAD</div>
-                    <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
-                      {simulation.estDeals} Nitelikli
-                    </div>
-                  </div>
+                      <div style={{ padding: '0.8rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 600 }}>SAĞLIKLI LEAD</div>
+                        <div style={{ fontSize: '1.35rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
+                          {simulation.estDeals} Nitelikli
+                        </div>
+                      </div>
+
+                      <div style={{ padding: '0.8rem', backgroundColor: 'rgba(37, 99, 235, 0.07)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(37, 99, 235, 0.25)' }}>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--brand-primary)', fontWeight: 700 }}>TAHMİNİ CPL (Lead Başı)</div>
+                        <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--brand-primary)', marginTop: '2px' }}>
+                          {simulation.cpa > 0 ? `₺${simulation.cpa.toLocaleString('tr-TR')}` : '—'}
+                        </div>
+                      </div>
+
+                      <div style={{ padding: '0.8rem', backgroundColor: 'rgba(16, 185, 129, 0.07)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(16, 185, 129, 0.25)' }}>
+                        <div style={{ fontSize: '0.72rem', color: '#059669', fontWeight: 700 }}>NİTELİKLİ CPL (Sağlıklı Lead)</div>
+                        <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#059669', marginTop: '2px' }}>
+                          {(simulation.cac || 0) > 0 ? `₺${(simulation.cac || 0).toLocaleString('tr-TR')}` : '—'}
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div style={{ padding: '0.8rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Tahmini Satış (Sipariş)</div>
+                        <div style={{ fontSize: '1.35rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
+                          {simulation.estConversions.toLocaleString('tr-TR')} Adet
+                        </div>
+                      </div>
+
+                      <div style={{ padding: '0.8rem', backgroundColor: 'rgba(37, 99, 235, 0.07)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(37, 99, 235, 0.25)' }}>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--brand-primary)', fontWeight: 700 }}>TAHMİNİ CPA (Sipariş Başı)</div>
+                        <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--brand-primary)', marginTop: '2px' }}>
+                          {simulation.cpa > 0 ? `₺${simulation.cpa.toLocaleString('tr-TR')}` : '—'}
+                        </div>
+                      </div>
+
+                      <div style={{ padding: '0.8rem', backgroundColor: 'rgba(16, 185, 129, 0.07)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(16, 185, 129, 0.25)' }}>
+                        <div style={{ fontSize: '0.72rem', color: '#059669', fontWeight: 700 }}>TAHMİNİ ROAS</div>
+                        <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#059669', marginTop: '2px' }}>
+                          {simulation.projectedRoas > 0 ? `${simulation.projectedRoas}x` : '—'}
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 {/* Official Google Ads Regional Breakdown Rows */}
@@ -7507,7 +7505,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                   <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                    Ağırlıklı TBM: <strong style={{ color: 'var(--brand-primary)' }}>{blendedCpcMultiplier.toFixed(2)}x</strong>
+                    Seçili: <strong style={{ color: 'var(--brand-primary)' }}>{selectedLocations.length} Bölge</strong>
                   </span>
                   {!isSavingPreset ? (
                     <button
