@@ -612,10 +612,47 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
         foreach ($curlHandles as $geo => $chLoc) {
             $geoId = preg_replace('/[^0-9]/', '', $geo);
             $resp = curl_multi_getcontent($chLoc);
+            $httpCode = curl_getinfo($chLoc, CURLINFO_HTTP_CODE);
             curl_multi_remove_handle($mh, $chLoc);
             curl_close($chLoc);
 
             $json = json_decode($resp, true);
+            if ($httpCode === 429 || empty($json['results'])) {
+                usleep(300000);
+                $geoResource = strpos($geo, 'geoTargetConstants/') === 0 ? $geo : "geoTargetConstants/{$geo}";
+                $retryPayload = [
+                    "keywordPlanNetwork" => "GOOGLE_SEARCH",
+                    "language" => $langConst,
+                    "geoTargetConstants" => [$geoResource]
+                ];
+                if (!empty($topSeeds)) {
+                    $retryPayload["keywordSeed"] = ["keywords" => array_slice($topSeeds, 0, 5)];
+                } elseif ($mode === 'URL' && !empty($query) && preg_match('/^https?:\/\//i', $query)) {
+                    $retryPayload["urlSeed"] = ["url" => $query];
+                } else {
+                    $cleanSite = preg_replace('/^https?:\/\//i', '', $query);
+                    $cleanSite = preg_replace('/^www\./i', '', $cleanSite);
+                    $cleanSite = explode('/', $cleanSite)[0];
+                    $retryPayload["siteSeed"] = ["siteUrl" => "https://{$cleanSite}"];
+                }
+                $retryCh = curl_init("https://googleads.googleapis.com/v22/customers/{$customerId}:generateKeywordIdeas");
+                curl_setopt($retryCh, CURLOPT_POST, true);
+                curl_setopt($retryCh, CURLOPT_POSTFIELDS, json_encode($retryPayload));
+                curl_setopt($retryCh, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($retryCh, CURLOPT_TIMEOUT, 12);
+                curl_setopt($retryCh, CURLOPT_HTTPHEADER, [
+                    "Authorization: Bearer {$accessToken}",
+                    "developer-token: {$devToken}",
+                    "Content-Type: application/json"
+                ]);
+                $retryResp = curl_exec($retryCh);
+                $retryCode = curl_getinfo($retryCh, CURLINFO_HTTP_CODE);
+                curl_close($retryCh);
+                if ($retryCode === 200) {
+                    $json = json_decode($retryResp, true);
+                }
+            }
+
             $results = $json['results'] ?? [];
 
             $vol = 0;
