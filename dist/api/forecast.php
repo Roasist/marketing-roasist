@@ -288,6 +288,40 @@ function searchGoogleAdsLocations($apiKeys, $query, $locale = 'tr') {
     return array_slice($catalog, 0, 15);
 }
 
+function batchSearchGoogleAdsLocations($apiKeys, $queries, $locale = 'tr') {
+    if (empty($queries) || !is_array($queries)) {
+        return ['matched' => [], 'unmatched' => []];
+    }
+
+    $matched = [];
+    $unmatched = [];
+    $seenIds = [];
+
+    $cleanQueries = array_values(array_unique(array_filter(array_map('trim', $queries))));
+
+    foreach ($cleanQueries as $q) {
+        if (mb_strlen($q, 'UTF-8') < 2) continue;
+        $results = searchGoogleAdsLocations($apiKeys, $q, $locale);
+        if (!empty($results) && is_array($results)) {
+            $best = $results[0];
+            if (!isset($seenIds[$best['id']])) {
+                $seenIds[$best['id']] = true;
+                $matched[] = [
+                    'query' => $q,
+                    'location' => $best
+                ];
+            }
+        } else {
+            $unmatched[] = $q;
+        }
+    }
+
+    return [
+        'matched' => $matched,
+        'unmatched' => $unmatched
+    ];
+}
+
 // -------------------------------------------------------------
 // HELPER: OFFICIAL GOOGLE ADS API KEYWORD PLANNER SERVICE
 // -------------------------------------------------------------
@@ -1874,6 +1908,24 @@ if ($action === 'search_locations') {
         'status' => 'success',
         'query' => $q,
         'locations' => $locations
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+// -------------------------------------------------------------
+// ACTION: BATCH SEARCH LOCATIONS (BULK LOCATION IMPORT)
+// -------------------------------------------------------------
+if ($action === 'batch_search_locations' && $method === 'POST') {
+    $input = json_decode(file_get_contents('php://input'), true) ?? [];
+    $queries = $input['queries'] ?? [];
+    $locale = trim($input['locale'] ?? 'tr');
+    $apiKeys = getApiKeys($pdo);
+
+    $res = batchSearchGoogleAdsLocations($apiKeys, $queries, $locale);
+    echo json_encode([
+        'status' => 'success',
+        'matched' => $res['matched'],
+        'unmatched' => $res['unmatched']
     ], JSON_UNESCAPED_UNICODE);
     exit;
 }

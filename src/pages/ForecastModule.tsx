@@ -26,7 +26,8 @@ import {
   Tag,
   Calendar,
   Building2,
-  Bookmark
+  Bookmark,
+  ListPlus
 } from 'lucide-react';
 import { 
   KeywordMetric, 
@@ -552,6 +553,14 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   const [newPresetName, setNewPresetName] = useState<string>('');
   const [isSavingPreset, setIsSavingPreset] = useState<boolean>(false);
   const [presetSaveSuccessMessage, setPresetSaveSuccessMessage] = useState<string>('');
+
+  // Bulk Location Input State
+  const [locationInputMode, setLocationInputMode] = useState<'SINGLE' | 'BULK'>('SINGLE');
+  const [bulkLocationText, setBulkLocationText] = useState<string>('');
+  const [isBatchSearchingLocations, setIsBatchSearchingLocations] = useState<boolean>(false);
+  const [batchMatchedLocations, setBatchMatchedLocations] = useState<GeoTargetLocation[]>([]);
+  const [batchUnmatchedQueries, setBatchUnmatchedQueries] = useState<string[]>([]);
+  const [selectedBatchLocationIds, setSelectedBatchLocationIds] = useState<Set<string>>(new Set());
 
   // Growth Scenario Projection (Muhafazakar / Beklenen / Agresif)
   const [growthScenario, setGrowthScenario] = useState<GrowthScenario>('REALISTIC');
@@ -1498,6 +1507,68 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
   const handleClearAllLocations = () => {
     setSelectedLocations([DEFAULT_LOCATIONS[0]]);
+  };
+
+  const handleBatchVerifyLocations = async () => {
+    const raw = bulkLocationText.trim();
+    if (!raw) return;
+
+    const lines = raw.split(/[\n,;]+/).map(s => s.trim()).filter(s => s.length >= 2);
+    if (lines.length === 0) return;
+
+    setIsBatchSearchingLocations(true);
+    setBatchMatchedLocations([]);
+    setBatchUnmatchedQueries([]);
+
+    try {
+      const res = await ApiService.batchSearchLocations(lines, detectedLanguage || 'tr');
+      const matchedLocs: GeoTargetLocation[] = (res.matched || []).map((m: any) => ({
+        id: m.location.id,
+        resourceName: m.location.resourceName || `geoTargetConstants/${m.location.id}`,
+        name: m.location.name,
+        canonicalName: m.location.canonicalName || m.location.name,
+        countryCode: m.location.countryCode || 'TR',
+        targetType: m.location.targetType || 'City',
+        reach: m.location.reach,
+        flag: m.location.flag || '📍',
+        cpcMultiplier: 1.0,
+        volumeMultiplier: 1.0
+      }));
+
+      setBatchMatchedLocations(matchedLocs);
+      setBatchUnmatchedQueries(res.unmatched || []);
+      setSelectedBatchLocationIds(new Set(matchedLocs.map(l => l.id)));
+    } catch (err) {
+      console.error('Error batch searching locations:', err);
+    } finally {
+      setIsBatchSearchingLocations(false);
+    }
+  };
+
+  const handleApplyBatchLocations = (mode: 'APPEND' | 'REPLACE' = 'APPEND') => {
+    const locsToAdd = batchMatchedLocations.filter(l => selectedBatchLocationIds.has(l.id));
+    if (locsToAdd.length === 0) return;
+
+    if (mode === 'REPLACE') {
+      setSelectedLocations(locsToAdd);
+    } else {
+      setSelectedLocations(prev => {
+        const next = [...prev];
+        locsToAdd.forEach(newLoc => {
+          if (!next.some(l => l.id === newLoc.id || l.name.toLowerCase() === newLoc.name.toLowerCase())) {
+            next.push(newLoc);
+          }
+        });
+        return next;
+      });
+    }
+
+    setPresetSaveSuccessMessage(`${locsToAdd.length} konum listeye başarıyla eklendi!`);
+    setTimeout(() => setPresetSaveSuccessMessage(''), 3000);
+    setBulkLocationText('');
+    setBatchMatchedLocations([]);
+    setBatchUnmatchedQueries([]);
+    setLocationInputMode('SINGLE');
   };
 
   // Strategic Scenario Multiplier
@@ -6570,121 +6641,336 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
               </button>
             </div>
 
-            {/* Search Input */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', position: 'relative' }}>
-              <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                Lokasyon Ara (Şehir, İlçe, Ülke veya Eyalet):
-              </label>
-              <div style={{ position: 'relative', width: '100%' }}>
-                <Search size={16} color="var(--text-muted)" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
-                <input
-                  type="text"
-                  placeholder="örn: Alanya, Kadıköy, İstanbul, Antalya, Bodrum, Berlin, Dubai, London..."
-                  value={locationSearchQuery}
-                  onChange={(e) => setLocationSearchQuery(e.target.value)}
-                  autoFocus
-                  style={{
-                    width: '100%',
-                    paddingLeft: '2.5rem',
-                    paddingRight: isSearchingLocations || locationSearchQuery ? '2.5rem' : '1rem',
-                    height: '42px',
-                    fontSize: '0.875rem',
-                    backgroundColor: 'var(--bg-surface-elevated)',
-                    border: '1.5px solid var(--brand-primary)',
-                    borderRadius: 'var(--radius-sm)'
-                  }}
-                />
-                {isSearchingLocations ? (
-                  <div style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)' }}>
-                    <RefreshCw size={15} className="animate-spin" color="var(--brand-primary)" />
-                  </div>
-                ) : locationSearchQuery ? (
-                  <button
-                    type="button"
-                    onClick={() => setLocationSearchQuery('')}
-                    className="btn-ghost"
-                    style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', padding: '4px' }}
-                  >
-                    <X size={14} />
-                  </button>
-                ) : null}
-              </div>
+            {/* Location Input Mode Tabs */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', borderBottom: '1px solid var(--border-default)', paddingBottom: '0.5rem' }}>
+              <button
+                type="button"
+                onClick={() => setLocationInputMode('SINGLE')}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  padding: '0.4rem 0.85rem',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  borderRadius: 'var(--radius-xs)',
+                  border: locationInputMode === 'SINGLE' ? '1.5px solid var(--brand-primary)' : '1px solid var(--border-default)',
+                  backgroundColor: locationInputMode === 'SINGLE' ? 'rgba(37, 99, 235, 0.12)' : 'var(--bg-surface)',
+                  color: locationInputMode === 'SINGLE' ? 'var(--brand-primary)' : 'var(--text-secondary)',
+                  cursor: 'pointer'
+                }}
+              >
+                <Search size={14} /> Tek Tek Ara
+              </button>
+              <button
+                type="button"
+                onClick={() => setLocationInputMode('BULK')}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  padding: '0.4rem 0.85rem',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  borderRadius: 'var(--radius-xs)',
+                  border: locationInputMode === 'BULK' ? '1.5px solid var(--brand-primary)' : '1px solid var(--border-default)',
+                  backgroundColor: locationInputMode === 'BULK' ? 'rgba(37, 99, 235, 0.12)' : 'var(--bg-surface)',
+                  color: locationInputMode === 'BULK' ? 'var(--brand-primary)' : 'var(--text-secondary)',
+                  cursor: 'pointer'
+                }}
+              >
+                <ListPlus size={15} /> 📋 Toplu Konum Ekle
+              </button>
+            </div>
 
-              {/* Autocomplete Suggestions Dropdown Panel */}
-              {locationSearchQuery.trim().length > 0 && (
-                <div style={{
-                  marginTop: '0.25rem',
-                  backgroundColor: 'var(--bg-surface)',
-                  border: '1px solid var(--border-default)',
-                  borderRadius: 'var(--radius-sm)',
-                  boxShadow: '0 10px 25px rgba(0,0,0,0.25)',
-                  maxHeight: '220px',
-                  overflowY: 'auto',
-                  zIndex: 100
-                }}>
-                  {locationSearchResults.length > 0 ? (
-                    locationSearchResults.map((loc) => {
-                      const isSelected = selectedLocations.some(l => l.id === loc.id || l.name.toLowerCase() === loc.name.toLowerCase());
-                      return (
-                        <div
-                          key={loc.id}
-                          onClick={() => toggleLocation(loc)}
-                          style={{
-                            padding: '0.65rem 0.85rem',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            cursor: 'pointer',
-                            borderBottom: '1px solid var(--border-subtle)',
-                            backgroundColor: isSelected ? 'rgba(37, 99, 235, 0.1)' : 'transparent',
-                            transition: 'background-color 0.15s ease'
-                          }}
-                        >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                            <span style={{ fontSize: '1.1rem' }}>{loc.flag || '📍'}</span>
-                            <div>
-                              <div style={{ fontSize: '0.85rem', fontWeight: 600, color: isSelected ? 'var(--brand-primary)' : 'var(--text-primary)' }}>
-                                {loc.name}
-                              </div>
-                              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                                {loc.canonicalName}
-                              </div>
-                            </div>
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <span className="badge badge-neutral" style={{ fontSize: '0.68rem', padding: '2px 6px' }}>
-                              {getLocationTypeLabel(loc.targetType)}
-                            </span>
-                            <span style={{ fontSize: '0.72rem', color: loc.reach ? 'var(--text-secondary)' : 'var(--text-muted)' }}>
-                              {formatReachNumber(loc.reach)}
-                            </span>
-                            <button
-                              type="button"
-                              style={{
-                                fontSize: '0.72rem',
-                                padding: '0.25rem 0.6rem',
-                                borderRadius: 'var(--radius-xs)',
-                                border: isSelected ? '1px solid #10b981' : '1px solid var(--brand-primary)',
-                                backgroundColor: isSelected ? 'rgba(16, 185, 129, 0.15)' : 'rgba(37, 99, 235, 0.15)',
-                                color: isSelected ? '#10b981' : 'var(--brand-primary)',
-                                cursor: 'pointer',
-                                fontWeight: 600
-                              }}
-                            >
-                              {isSelected ? '✓ Eklendi' : '+ Ekle'}
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })
-                  ) : !isSearchingLocations ? (
-                    <div style={{ padding: '1rem', textAlign: 'center', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                      "{locationSearchQuery}" için sonuç bulunamadı. Lütfen farklı bir şehir veya ilçe adı yazın.
+            {/* Mode 1: Single Search */}
+            {locationInputMode === 'SINGLE' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', position: 'relative' }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                  Lokasyon Ara (Şehir, İlçe, Ülke veya Eyalet):
+                </label>
+                <div style={{ position: 'relative', width: '100%' }}>
+                  <Search size={16} color="var(--text-muted)" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+                  <input
+                    type="text"
+                    placeholder="örn: Alanya, Kadıköy, İstanbul, Antalya, Bodrum, Berlin, Dubai, London..."
+                    value={locationSearchQuery}
+                    onChange={(e) => setLocationSearchQuery(e.target.value)}
+                    autoFocus
+                    style={{
+                      width: '100%',
+                      paddingLeft: '2.5rem',
+                      paddingRight: isSearchingLocations || locationSearchQuery ? '2.5rem' : '1rem',
+                      height: '42px',
+                      fontSize: '0.875rem',
+                      backgroundColor: 'var(--bg-surface-elevated)',
+                      border: '1.5px solid var(--brand-primary)',
+                      borderRadius: 'var(--radius-sm)'
+                    }}
+                  />
+                  {isSearchingLocations ? (
+                    <div style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)' }}>
+                      <RefreshCw size={15} className="animate-spin" color="var(--brand-primary)" />
                     </div>
+                  ) : locationSearchQuery ? (
+                    <button
+                      type="button"
+                      onClick={() => setLocationSearchQuery('')}
+                      className="btn-ghost"
+                      style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', padding: '4px' }}
+                    >
+                      <X size={14} />
+                    </button>
                   ) : null}
                 </div>
-              )}
-            </div>
+
+                {/* Autocomplete Suggestions Dropdown Panel */}
+                {locationSearchQuery.trim().length > 0 && (
+                  <div style={{
+                    marginTop: '0.25rem',
+                    backgroundColor: 'var(--bg-surface)',
+                    border: '1px solid var(--border-default)',
+                    borderRadius: 'var(--radius-sm)',
+                    boxShadow: '0 10px 25px rgba(0,0,0,0.25)',
+                    maxHeight: '220px',
+                    overflowY: 'auto',
+                    zIndex: 100
+                  }}>
+                    {locationSearchResults.length > 0 ? (
+                      locationSearchResults.map((loc) => {
+                        const isSelected = selectedLocations.some(l => l.id === loc.id || l.name.toLowerCase() === loc.name.toLowerCase());
+                        return (
+                          <div
+                            key={loc.id}
+                            onClick={() => toggleLocation(loc)}
+                            style={{
+                              padding: '0.65rem 0.85rem',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              cursor: 'pointer',
+                              borderBottom: '1px solid var(--border-subtle)',
+                              backgroundColor: isSelected ? 'rgba(37, 99, 235, 0.1)' : 'transparent',
+                              transition: 'background-color 0.15s ease'
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                              <span style={{ fontSize: '1.1rem' }}>{loc.flag || '📍'}</span>
+                              <div>
+                                <div style={{ fontSize: '0.85rem', fontWeight: 600, color: isSelected ? 'var(--brand-primary)' : 'var(--text-primary)' }}>
+                                  {loc.name}
+                                </div>
+                                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                                  {loc.canonicalName}
+                                </div>
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <span className="badge badge-neutral" style={{ fontSize: '0.68rem', padding: '2px 6px' }}>
+                                {getLocationTypeLabel(loc.targetType)}
+                              </span>
+                              <span style={{ fontSize: '0.72rem', color: loc.reach ? 'var(--text-secondary)' : 'var(--text-muted)' }}>
+                                {formatReachNumber(loc.reach)}
+                              </span>
+                              <button
+                                type="button"
+                                style={{
+                                  fontSize: '0.72rem',
+                                  padding: '0.25rem 0.6rem',
+                                  borderRadius: 'var(--radius-xs)',
+                                  border: isSelected ? '1px solid #10b981' : '1px solid var(--brand-primary)',
+                                  backgroundColor: isSelected ? 'rgba(16, 185, 129, 0.15)' : 'rgba(37, 99, 235, 0.15)',
+                                  color: isSelected ? '#10b981' : 'var(--brand-primary)',
+                                  cursor: 'pointer',
+                                  fontWeight: 600
+                                }}
+                              >
+                                {isSelected ? '✓ Eklendi' : '+ Ekle'}
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })
+                    ) : !isSearchingLocations ? (
+                      <div style={{ padding: '1rem', textAlign: 'center', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                        "{locationSearchQuery}" için sonuç bulunamadı. Lütfen farklı bir şehir veya ilçe adı yazın.
+                      </div>
+                    ) : null}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Mode 2: Bulk Location Input */}
+            {locationInputMode === 'BULK' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-xs)', border: '1.5px solid var(--brand-primary)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <label style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <ListPlus size={16} color="var(--brand-primary)" />
+                    <span>Toplu Konum Listesi Yapıştırın:</span>
+                  </label>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                    Her satıra bir şehir/ülke veya virgülle ayırın
+                  </span>
+                </div>
+
+                <textarea
+                  rows={4}
+                  value={bulkLocationText}
+                  onChange={(e) => setBulkLocationText(e.target.value)}
+                  placeholder={"Almaty\nAstana\nBishkek\nTashkent\nOsh\nİstanbul\nBerlin\nLondon\nDubai"}
+                  style={{
+                    width: '100%',
+                    padding: '0.6rem 0.75rem',
+                    fontSize: '0.82rem',
+                    fontFamily: 'monospace',
+                    lineHeight: '1.5',
+                    backgroundColor: 'var(--bg-surface)',
+                    border: '1px solid var(--border-default)',
+                    borderRadius: 'var(--radius-xs)',
+                    resize: 'vertical'
+                  }}
+                />
+
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <button
+                    type="button"
+                    onClick={handleBatchVerifyLocations}
+                    disabled={isBatchSearchingLocations || !bulkLocationText.trim()}
+                    className="btn-primary"
+                    style={{
+                      padding: '0.45rem 1rem',
+                      fontSize: '0.8rem',
+                      fontWeight: 600,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.45rem'
+                    }}
+                  >
+                    {isBatchSearchingLocations ? (
+                      <>
+                        <RefreshCw size={14} className="animate-spin" />
+                        <span>Google Ads API ile Eşleştiriliyor...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles size={14} />
+                        <span>⚡ Konumları Eşle & Doğrula</span>
+                      </>
+                    )}
+                  </button>
+
+                  {bulkLocationText.trim() && (
+                    <button
+                      type="button"
+                      onClick={() => { setBulkLocationText(''); setBatchMatchedLocations([]); setBatchUnmatchedQueries([]); }}
+                      className="btn-ghost"
+                      style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}
+                    >
+                      Metni Temizle
+                    </button>
+                  )}
+                </div>
+
+                {/* Batch Verification Results */}
+                {batchMatchedLocations.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', marginTop: '0.4rem', padding: '0.75rem', backgroundColor: 'var(--bg-surface)', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-default)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                        <CheckCircle2 size={15} />
+                        <span>Eşleşen Resmi Konumlar ({batchMatchedLocations.length}):</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedBatchLocationIds(new Set(batchMatchedLocations.map(l => l.id)))}
+                          className="btn-ghost"
+                          style={{ fontSize: '0.7rem', color: 'var(--brand-primary)', padding: '2px 5px' }}
+                        >
+                          Tümünü Seç
+                        </button>
+                        <span style={{ color: 'var(--border-default)' }}>|</span>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedBatchLocationIds(new Set())}
+                          className="btn-ghost"
+                          style={{ fontSize: '0.7rem', color: 'var(--text-muted)', padding: '2px 5px' }}
+                        >
+                          Kaldır
+                        </button>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', maxHeight: '160px', overflowY: 'auto', padding: '0.25rem' }}>
+                      {batchMatchedLocations.map(loc => {
+                        const isChecked = selectedBatchLocationIds.has(loc.id);
+                        return (
+                          <div
+                            key={loc.id}
+                            onClick={() => {
+                              const next = new Set(selectedBatchLocationIds);
+                              if (next.has(loc.id)) next.delete(loc.id);
+                              else next.add(loc.id);
+                              setSelectedBatchLocationIds(next);
+                            }}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.4rem',
+                              padding: '0.3rem 0.6rem',
+                              borderRadius: 'var(--radius-full)',
+                              fontSize: '0.76rem',
+                              cursor: 'pointer',
+                              border: isChecked ? '1.5px solid #10b981' : '1px solid var(--border-default)',
+                              backgroundColor: isChecked ? 'rgba(16, 185, 129, 0.12)' : 'var(--bg-surface-elevated)',
+                              color: isChecked ? '#10b981' : 'var(--text-primary)',
+                              fontWeight: isChecked ? 600 : 400
+                            }}
+                          >
+                            <span>{isChecked ? '✓' : '○'}</span>
+                            <span>{loc.flag || '📍'}</span>
+                            <span>{loc.name}</span>
+                            <span style={{ fontSize: '0.66rem', opacity: 0.75 }}>({loc.canonicalName})</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Action buttons to apply matched */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid var(--border-subtle)', flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        onClick={() => handleApplyBatchLocations('APPEND')}
+                        disabled={selectedBatchLocationIds.size === 0}
+                        className="btn-primary"
+                        style={{ padding: '0.4rem 0.85rem', fontSize: '0.78rem', fontWeight: 600 }}
+                      >
+                        ✓ Seçili Konumları Listeye Ekle ({selectedBatchLocationIds.size} Bölge)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleApplyBatchLocations('REPLACE')}
+                        disabled={selectedBatchLocationIds.size === 0}
+                        className="btn-secondary"
+                        style={{ padding: '0.4rem 0.85rem', fontSize: '0.78rem' }}
+                      >
+                        🔄 Mevcutları Temizle & Sadece Bunları Kullan
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Unmatched Notice */}
+                {batchUnmatchedQueries.length > 0 && (
+                  <div style={{ padding: '0.6rem 0.75rem', backgroundColor: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: 'var(--radius-xs)', fontSize: '0.75rem', color: '#ef4444' }}>
+                    <strong>⚠️ Eşleşmeyen Konumlar ({batchUnmatchedQueries.length}):</strong> {batchUnmatchedQueries.join(', ')}
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                      Bu konumlar Google Ads resmi coğrafi veritabanında bulunamadı. Lütfen yazılışını kontrol edin.
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Selected Locations Chips & Save Preset Action */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>

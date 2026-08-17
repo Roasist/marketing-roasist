@@ -289,6 +289,20 @@ export class ApiService {
     return res.locations || [];
   }
 
+  public static async batchSearchLocations(queries: string[], locale: string = 'tr'): Promise<{ matched: { query: string; location: any }[]; unmatched: string[] }> {
+    const res = await this.request<{ status: string; matched: { query: string; location: any }[]; unmatched: string[] }>(
+      '/forecast.php?action=batch_search_locations',
+      {
+        method: 'POST',
+        body: JSON.stringify({ queries, locale }),
+      }
+    );
+    return {
+      matched: res.matched || [],
+      unmatched: res.unmatched || [],
+    };
+  }
+
   public static async getForecastPlans(workspaceId?: string): Promise<any[]> {
     const res = await this.request<{ status: string; plans: any[] }>(`/forecast.php?action=plans&workspace_id=${encodeURIComponent(workspaceId || '')}`);
     return res.plans || [];
