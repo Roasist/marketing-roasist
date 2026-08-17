@@ -933,145 +933,150 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
         }
     }
 
-    // Helper to execute Google Ads Keyword Planner API call
-    $callGoogleAdsApi = function($payload) use ($customerId, $accessToken, $devToken) {
-        $chAds = curl_init("https://googleads.googleapis.com/v22/customers/{$customerId}:generateKeywordIdeas");
-        curl_setopt($chAds, CURLOPT_POST, true);
-        curl_setopt($chAds, CURLOPT_POSTFIELDS, json_encode($payload));
-        curl_setopt($chAds, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($chAds, CURLOPT_HTTPHEADER, [
-            'Authorization: Bearer ' . $accessToken,
-            'developer-token: ' . $devToken,
-            'Content-Type: application/json'
-        ]);
-        curl_setopt($chAds, CURLOPT_TIMEOUT, 25);
-        $adsRes = curl_exec($chAds);
-        $adsCode = curl_getinfo($chAds, CURLINFO_HTTP_CODE);
-        curl_close($chAds);
-        return ($adsCode === 200) ? json_decode($adsRes, true) : null;
+    // Multi-cURL Parallel Request Executor for Individual Locations
+    $executeParallelGoogleAdsCalls = function($requests) use ($customerId, $accessToken, $devToken) {
+        if (empty($requests)) return [];
+        $mh = curl_multi_init();
+        $handles = [];
+        foreach ($requests as $key => $req) {
+            $ch = curl_init("https://googleads.googleapis.com/v22/customers/{$customerId}:generateKeywordIdeas");
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($req['payload']));
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'Authorization: Bearer ' . $accessToken,
+                'developer-token: ' . $devToken,
+                'Content-Type: application/json'
+            ]);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 20);
+            curl_multi_add_handle($mh, $ch);
+            $handles[$key] = [
+                'ch' => $ch,
+                'geoId' => $req['geoId'],
+                'isSeed' => $req['isSeed'] ?? false
+            ];
+        }
+
+        $active = null;
+        do {
+            $mrc = curl_multi_exec($mh, $active);
+        } while ($mrc == CURLM_CALL_MULTI_PERFORM);
+
+        while ($active && $mrc == CURLM_OK) {
+            if (curl_multi_select($mh, 0.5) != -1) {
+                do {
+                    $mrc = curl_multi_exec($mh, $active);
+                } while ($mrc == CURLM_CALL_MULTI_PERFORM);
+            } else {
+                usleep(25000);
+                do {
+                    $mrc = curl_multi_exec($mh, $active);
+                } while ($mrc == CURLM_CALL_MULTI_PERFORM);
+            }
+        }
+
+        $results = [];
+        foreach ($handles as $key => $hData) {
+            $ch = $hData['ch'];
+            $resp = curl_multi_getcontent($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_multi_remove_handle($mh, $ch);
+            curl_close($ch);
+
+            $json = ($httpCode === 200) ? json_decode($resp, true) : null;
+            $results[] = [
+                'json' => $json,
+                'geoId' => $hData['geoId'],
+                'isSeed' => $hData['isSeed']
+            ];
+        }
+        curl_multi_close($mh);
+        return $results;
     };
 
     $keywordIndexMap = [];
     $parsedKeywords = [];
 
-    $parseResults = function($adsJson, $isFromSeedCall = false, $currentGeos = []) use (&$parsedKeywords, &$keywordIndexMap, $seedKeys) {
-        if (empty($adsJson['results'])) return;
-        foreach ($adsJson['results'] as $idx => $r) {
-            $kwText = trim($r['text'] ?? '');
-            if (empty($kwText) || mb_strlen($kwText, 'UTF-8') < 3) continue;
-            
-            // Normalize key for 100% airtight deduplication
-            $kwKey = mb_strtolower(preg_replace('/\s+/', ' ', $kwText), 'UTF-8');
-            $metrics = $r['keywordIdeaMetrics'] ?? [];
-            $avgVol = (int)($metrics['avgMonthlySearches'] ?? 0);
-            $lowBid = isset($metrics['lowTopOfPageBidMicros']) ? round($metrics['lowTopOfPageBidMicros'] / 1000000, 2) : 0;
-            $highBid = isset($metrics['highTopOfPageBidMicros']) ? round($metrics['highTopOfPageBidMicros'] / 1000000, 2) : 0;
-            $comp = $metrics['competition'] ?? 'MEDIUM';
-            $compIdx = (int)($metrics['competitionIndex'] ?? 50);
+    $parseLocationResults = function($parallelResults) use (&$parsedKeywords, &$keywordIndexMap, $seedKeys) {
+        foreach ($parallelResults as $item) {
+            $adsJson = $item['json'];
+            $geoId = (string)$item['geoId'];
+            $isSeed = (bool)$item['isSeed'];
+            if (empty($adsJson['results'])) continue;
 
-            if (isset($keywordIndexMap[$kwKey])) {
-                $pos = $keywordIndexMap[$kwKey];
-                $parsedKeywords[$pos]['monthlyVolume'] += $avgVol;
-                if ($lowBid > 0) {
-                    $parsedKeywords[$pos]['lowCpc'] = $parsedKeywords[$pos]['lowCpc'] > 0 ? min($parsedKeywords[$pos]['lowCpc'], $lowBid) : $lowBid;
-                }
-                if ($highBid > 0) {
-                    $parsedKeywords[$pos]['highCpc'] = max($parsedKeywords[$pos]['highCpc'], $highBid);
-                }
-                foreach ($currentGeos as $g) {
-                    $gId = preg_replace('/[^0-9]/', '', $g);
-                    if ($gId) {
-                        $parsedKeywords[$pos]['geoVolumes'][$gId] = ($parsedKeywords[$pos]['geoVolumes'][$gId] ?? 0) + $avgVol;
+            foreach ($adsJson['results'] as $idx => $r) {
+                $kwText = trim($r['text'] ?? '');
+                if (empty($kwText) || mb_strlen($kwText, 'UTF-8') < 3) continue;
+                
+                // Normalize key for 100% airtight deduplication
+                $kwKey = mb_strtolower(preg_replace('/\s+/', ' ', $kwText), 'UTF-8');
+                $metrics = $r['keywordIdeaMetrics'] ?? [];
+                $avgVol = (int)($metrics['avgMonthlySearches'] ?? 0);
+                $lowBid = isset($metrics['lowTopOfPageBidMicros']) ? round($metrics['lowTopOfPageBidMicros'] / 1000000, 2) : 0.0;
+                $highBid = isset($metrics['highTopOfPageBidMicros']) ? round($metrics['highTopOfPageBidMicros'] / 1000000, 2) : 0.0;
+                $comp = $metrics['competition'] ?? 'MEDIUM';
+                $compIdx = (int)($metrics['competitionIndex'] ?? 50);
+
+                if (isset($keywordIndexMap[$kwKey])) {
+                    $pos = $keywordIndexMap[$kwKey];
+                    $prevGeoVol = $parsedKeywords[$pos]['geoVolumes'][$geoId] ?? null;
+                    if ($prevGeoVol === null) {
+                        $parsedKeywords[$pos]['monthlyVolume'] += $avgVol;
+                        $parsedKeywords[$pos]['geoVolumes'][$geoId] = $avgVol;
+                    } else {
+                        $diff = max(0, $avgVol - $prevGeoVol);
+                        $parsedKeywords[$pos]['monthlyVolume'] += $diff;
+                        $parsedKeywords[$pos]['geoVolumes'][$geoId] = max($prevGeoVol, $avgVol);
                     }
+                    if ($lowBid > 0) {
+                        $parsedKeywords[$pos]['lowCpc'] = $parsedKeywords[$pos]['lowCpc'] > 0 ? min($parsedKeywords[$pos]['lowCpc'], $lowBid) : $lowBid;
+                    }
+                    if ($highBid > 0) {
+                        $parsedKeywords[$pos]['highCpc'] = max($parsedKeywords[$pos]['highCpc'], $highBid);
+                    }
+                    $parsedKeywords[$pos]['geoCpc'][$geoId] = [
+                        'lowCpc' => $lowBid,
+                        'highCpc' => $highBid
+                    ];
+                    continue;
                 }
-                continue;
-            }
 
-            // Multi-Lingual High-Converting Intent Classifier (Russian, Turkish, English, German, Arabic)
-            $intent = 'COMMERCIAL';
+                // Multi-Lingual High-Converting Intent Classifier
+                $intent = 'COMMERCIAL';
+                $transactionalPattern = '/(?:^|[^\p{L}\p{N}])(цена|цены|цену|ценам|стоимость|стоимости|сколько стоит|купить|покупка|покупке|оформить|оформление|заказать|заказ|заявка|за инвестиции|через инвестиции|под ключ|срочно|тариф|расходы|пошлина|fiyat|fiyatı|fiyatları|ücret|ücreti|ücretleri|satın al|sipariş|başvuru yap|randevu al|teklif al|maliyet|maliyeti|masraf|harç|kaç para|satılık|price|prices|pricing|cost|costs|fee|fees|buy|purchase|order|for sale|quote|rates|cheap|turnkey|apply now|by investment|preis|preise|kosten|gebühr|kaufen|angebot|beantragen)(?:[^\p{L}\p{N}]|$)/ui';
+                $informationalPattern = '/(?:^|[^\p{L}\p{N}])(что такое|как|почему|форум|отзывы|статья|википедия|образец|скачать бесплатно|видео|жизнь в|nedir|nasıl|rehber|örnek|forum|yorum|tavsiye|ne demek|ücretsiz|pdf indir|yaşam|what is|how to|guide|tutorial|sample|example|forum|free|download|wiki|life in|was ist|wie|anleitung|forum|erfahrungen|kostenlos|leben in)(?:[^\p{L}\p{N}]|$)/ui';
 
-            $transactionalPattern = '/(?:^|[^\p{L}\p{N}])(' . implode('|', [
-                // Russian / Cyrillic (Pure Transactional Intent & Price Modifiers)
-                'цена', 'цены', 'цену', 'ценам', 'стоимость', 'стоимости', 'сколько стоит', 'купить', 'покупка', 'покупке',
-                'оформить', 'оформление', 'заказать', 'заказ', 'заявка', 'за инвестиции', 'через инвестиции',
-                'под ключ', 'срочно', 'тариф', 'расходы', 'пошлина',
-                // Turkish
-                'fiyat', 'fiyatı', 'fiyatları', 'ücret', 'ücreti', 'ücretleri', 'satın al', 'sipariş',
-                'başvuru yap', 'randevu al', 'teklif al', 'maliyet', 'maliyeti', 'masraf', 'harç', 'kaç para', 'satılık',
-                // English
-                'price', 'prices', 'pricing', 'cost', 'costs', 'fee', 'fees', 'buy', 'purchase', 'order',
-                'for sale', 'quote', 'rates', 'cheap', 'turnkey', 'apply now', 'by investment',
-                // German
-                'preis', 'preise', 'kosten', 'gebühr', 'kaufen', 'angebot', 'beantragen'
-            ]) . ')(?:[^\p{L}\p{N}]|$)/ui';
-
-            $informationalPattern = '/(?:^|[^\p{L}\p{N}])(' . implode('|', [
-                // Russian
-                'что такое', 'как', 'почему', 'форум', 'отзывы', 'статья', 'википедия', 'образец', 'скачать бесплатно', 'видео', 'жизнь в',
-                // Turkish
-                'nedir', 'nasıl', 'rehber', 'örnek', 'forum', 'yorum', 'tavsiye', 'ne demek', 'ücretsiz', 'pdf indir', 'yaşam',
-                // English
-                'what is', 'how to', 'guide', 'tutorial', 'sample', 'example', 'forum', 'free', 'download', 'wiki', 'life in',
-                // German
-                'was ist', 'wie', 'anleitung', 'forum', 'erfahrungen', 'kostenlos', 'leben in'
-            ]) . ')(?:[^\p{L}\p{N}]|$)/ui';
-
-            if (preg_match($transactionalPattern, $kwText)) {
-                $intent = 'TRANSACTIONAL';
-            } elseif (preg_match($informationalPattern, $kwText)) {
-                $intent = 'INFORMATIONAL';
-            }
-
-            // Calculate 3-month trend if available
-            $monthlyVols = $metrics['monthlySearchVolumes'] ?? [];
-            $trendChange = 0;
-            if (count($monthlyVols) >= 3) {
-                $latest = (int)($monthlyVols[0]['monthlySearches'] ?? 0);
-                $prev = (int)($monthlyVols[2]['monthlySearches'] ?? 0);
-                if ($prev > 0) {
-                    $trendChange = round((($latest - $prev) / $prev) * 100);
+                if (preg_match($transactionalPattern, $kwText)) {
+                    $intent = 'TRANSACTIONAL';
+                } elseif (preg_match($informationalPattern, $kwText)) {
+                    $intent = 'INFORMATIONAL';
                 }
+
+                $oppScore = min(99, max(50, 95 - round($compIdx * 0.3) + ($avgVol > 5000 ? 10 : 5)));
+                $isAiStrategist = isset($seedKeys[$kwKey]) || 
+                                  ($intent === 'TRANSACTIONAL' && $oppScore >= 80) || 
+                                  ($intent === 'COMMERCIAL' && $oppScore >= 94);
+
+                $keywordIndexMap[$kwKey] = count($parsedKeywords);
+                $parsedKeywords[] = [
+                    'id' => ($isAiStrategist ? 'ai_strat_' : 'ads_kw_') . (count($parsedKeywords) + 1) . '_' . substr(md5($kwText), 0, 6),
+                    'keyword' => $kwText,
+                    'monthlyVolume' => $avgVol,
+                    'lowCpc' => $lowBid,
+                    'highCpc' => $highBid,
+                    'competition' => $comp,
+                    'competitionIndex' => $compIdx,
+                    'intent' => $intent,
+                    'trendChangePercent' => 0,
+                    'opportunityScore' => $oppScore,
+                    'isAiStrategistPick' => $isAiStrategist,
+                    'geoVolumes' => [$geoId => $avgVol],
+                    'geoCpc' => [$geoId => ['lowCpc' => $lowBid, 'highCpc' => $highBid]]
+                ];
             }
-
-            $oppScore = min(99, max(50, 95 - round($compIdx * 0.3) + ($avgVol > 5000 ? 10 : 5)));
-
-            // Curated SEM Strategist Selection:
-            // 1. Explicit AI seeds generated by Gemini for this page ($seedKeys)
-            // 2. High-converting transactional keywords with solid opportunity score
-            // 3. Or top commercial keywords with high opportunity score (oppScore >= 94)
-            $isAiStrategist = isset($seedKeys[$kwKey]) || 
-                              ($intent === 'TRANSACTIONAL' && $oppScore >= 80) || 
-                              ($intent === 'COMMERCIAL' && $oppScore >= 94);
-
-            $initGeoVolumes = [];
-            foreach ($currentGeos as $g) {
-                $gId = preg_replace('/[^0-9]/', '', $g);
-                if ($gId) {
-                    $initGeoVolumes[$gId] = $avgVol;
-                }
-            }
-
-            $keywordIndexMap[$kwKey] = count($parsedKeywords);
-            $parsedKeywords[] = [
-                'id' => ($isAiStrategist ? 'ai_strat_' : 'ads_kw_') . (count($parsedKeywords) + 1) . '_' . substr(md5($kwText), 0, 6),
-                'keyword' => $kwText,
-                'monthlyVolume' => $avgVol,
-                'lowCpc' => $lowBid,
-                'highCpc' => $highBid,
-                'competition' => $comp,
-                'competitionIndex' => $compIdx,
-                'intent' => $intent,
-                'trendChangePercent' => $trendChange,
-                'opportunityScore' => $oppScore,
-                'isAiStrategistPick' => $isAiStrategist,
-                'geoVolumes' => $initGeoVolumes
-            ];
         }
     };
 
-    $geoChunks = count($finalGeoList) > 4 ? array_chunk($finalGeoList, 4) : [$finalGeoList];
-
-    // 1. If URL is present, query Google Ads API with siteSeed ("Use the entire site") and urlSeed ("Use this page")
     $cleanSiteUrl = '';
     if (!empty($url)) {
         if (!preg_match('/^https?:\/\//i', $url)) {
@@ -1080,124 +1085,63 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
         $siteUrl = preg_replace('/^https?:\/\//i', '', $url);
         $siteUrl = preg_replace('/[\/\?].*$/', '', $siteUrl);
         $cleanSiteUrl = 'https://' . $siteUrl;
-
-        foreach ($geoChunks as $gc) {
-            // 1.1 urlSeed: Exact Page URL ("Use only this page" as in Google Ads Keyword Planner UI)
-            $urlPayload = [
-                "keywordPlanNetwork" => "GOOGLE_SEARCH",
-                "language" => $langConst,
-                "geoTargetConstants" => $gc,
-                "urlSeed" => ["url" => $url]
-            ];
-            $urlRes = $callGoogleAdsApi($urlPayload);
-            $parseResults($urlRes, false, $gc);
-
-            // 1.2 siteSeed: Subdomain / Site URL ("Use the entire site")
-            $sitePayload = [
-                "keywordPlanNetwork" => "GOOGLE_SEARCH",
-                "language" => $langConst,
-                "geoTargetConstants" => $gc,
-                "siteSeed" => ["siteUrl" => $cleanSiteUrl]
-            ];
-            $siteRes = $callGoogleAdsApi($sitePayload);
-            $parseResults($siteRes, false, $gc);
-        }
-
-        // 1.3 If urlSeed and siteSeed returned few results (< 20) with target language, also try with Turkish (1037)
-        if (count($parsedKeywords) < 20 && $langConst !== 'languageConstants/1037') {
-            foreach ($geoChunks as $gc) {
-                $urlTrPayload = [
-                    "keywordPlanNetwork" => "GOOGLE_SEARCH",
-                    "language" => "languageConstants/1037",
-                    "geoTargetConstants" => $gc,
-                    "urlSeed" => ["url" => $url]
-                ];
-                $urlTrRes = $callGoogleAdsApi($urlTrPayload);
-                $parseResults($urlTrRes, false, $gc);
-
-                $siteTrPayload = [
-                    "keywordPlanNetwork" => "GOOGLE_SEARCH",
-                    "language" => "languageConstants/1037",
-                    "geoTargetConstants" => $gc,
-                    "siteSeed" => ["siteUrl" => $cleanSiteUrl]
-                ];
-                $siteTrRes = $callGoogleAdsApi($siteTrPayload);
-                $parseResults($siteTrRes, false, $gc);
-            }
-        }
-
-        // 1.4 If subdomain siteSeed or urlSeed returned few results, query root domain (e.g. 23projects.net)
-        $host = parse_url($cleanSiteUrl, PHP_URL_HOST) ?: $siteUrl;
-        $hostParts = explode('.', $host);
-        if (count($hostParts) > 2 && count($parsedKeywords) < 50) {
-            $rootHost = implode('.', array_slice($hostParts, -2));
-            $rootSiteUrl = 'https://' . $rootHost;
-            foreach ($geoChunks as $gc) {
-                $rootPayload = [
-                    "keywordPlanNetwork" => "GOOGLE_SEARCH",
-                    "language" => $langConst,
-                    "geoTargetConstants" => $gc,
-                    "siteSeed" => ["siteUrl" => $rootSiteUrl]
-                ];
-                $rootRes = $callGoogleAdsApi($rootPayload);
-                $parseResults($rootRes, false, $gc);
-            }
-        }
     }
 
-    // 2. Query Google Ads API with High-Intent Seeds (AI seeds) to get REAL official Google Ads data!
     $uniqueSeeds = [];
     if (!empty($keywords) && is_array($keywords) && count($keywords) > 0) {
         $uniqueSeeds = array_slice(array_values(array_unique(array_filter($keywords))), 0, 20);
+    }
+
+    // Build Individual Location Requests (Every single location queried INDIVIDUALLY)
+    $requests = [];
+    foreach ($finalGeoList as $geo) {
+        $geoResource = strpos($geo, 'geoTargetConstants/') === 0 ? $geo : "geoTargetConstants/{$geo}";
+        $geoId = preg_replace('/[^0-9]/', '', $geo);
+
+        // 1. High-Intent Seeds Call for this single location
         if (!empty($uniqueSeeds)) {
-            foreach ($geoChunks as $gc) {
-                $seedPayload = [
+            $requests[] = [
+                'geoId' => $geoId,
+                'isSeed' => true,
+                'payload' => [
                     "keywordPlanNetwork" => "GOOGLE_SEARCH",
                     "language" => $langConst,
-                    "geoTargetConstants" => $gc,
+                    "geoTargetConstants" => [$geoResource],
                     "keywordSeed" => ["keywords" => $uniqueSeeds]
-                ];
-                $seedRes = $callGoogleAdsApi($seedPayload);
-                $parseResults($seedRes, true, $gc);
-            }
+                ]
+            ];
         }
-    }
 
-    // 3. SMART FALLBACK TIER 1: If specific city targeting returned few results (< 20), query parent Country!
-    if (count($parsedKeywords) < 20 && $finalGeoList !== [$geoConst]) {
+        // 2. URL & Site Seeds Call for this single location
         if (!empty($cleanSiteUrl)) {
-            $countrySitePayload = [
-                "keywordPlanNetwork" => "GOOGLE_SEARCH",
-                "language" => $langConst,
-                "geoTargetConstants" => [$geoConst],
-                "siteSeed" => ["siteUrl" => $cleanSiteUrl]
+            if (!empty($url)) {
+                $requests[] = [
+                    'geoId' => $geoId,
+                    'isSeed' => false,
+                    'payload' => [
+                        "keywordPlanNetwork" => "GOOGLE_SEARCH",
+                        "language" => $langConst,
+                        "geoTargetConstants" => [$geoResource],
+                        "urlSeed" => ["url" => $url]
+                    ]
+                ];
+            }
+            $requests[] = [
+                'geoId' => $geoId,
+                'isSeed' => false,
+                'payload' => [
+                    "keywordPlanNetwork" => "GOOGLE_SEARCH",
+                    "language" => $langConst,
+                    "geoTargetConstants" => [$geoResource],
+                    "siteSeed" => ["siteUrl" => $cleanSiteUrl]
+                ]
             ];
-            $countrySiteRes = $callGoogleAdsApi($countrySitePayload);
-            $parseResults($countrySiteRes, false);
-        }
-
-        if (count($parsedKeywords) < 20 && !empty($url)) {
-            $countryUrlPayload = [
-                "keywordPlanNetwork" => "GOOGLE_SEARCH",
-                "language" => $langConst,
-                "geoTargetConstants" => [$geoConst],
-                "urlSeed" => ["url" => rtrim($url, '/') . '/']
-            ];
-            $countryUrlRes = $callGoogleAdsApi($countryUrlPayload);
-            $parseResults($countryUrlRes, false);
-        }
-
-        if (count($parsedKeywords) < 20 && !empty($uniqueSeeds)) {
-            $countrySeedPayload = [
-                "keywordPlanNetwork" => "GOOGLE_SEARCH",
-                "language" => $langConst,
-                "geoTargetConstants" => [$geoConst],
-                "keywordSeed" => ["keywords" => $uniqueSeeds]
-            ];
-            $countrySeedRes = $callGoogleAdsApi($countrySeedPayload);
-            $parseResults($countrySeedRes, true);
         }
     }
+
+    // Execute ALL individual location requests simultaneously in PARALLEL via curl_multi!
+    $parallelResults = $executeParallelGoogleAdsCalls($requests);
+    $parseLocationResults($parallelResults);
 
     // 4. SMART FALLBACK TIER 2: If still empty (e.g. niche unindexed site), query language core market!
     if (empty($parsedKeywords)) {
@@ -2688,54 +2632,54 @@ if ($action === 'discover' && $method === 'POST') {
         exit;
     }
 
-    // Official Real Location Breakdown Calculation from Google Ads API
+    // Calculate 100% official Location Breakdown directly from individual location keyword volumes!
     $requestedLocations = $input['locations'] ?? [];
     $locationBreakdown = [];
-    if (!empty($requestedGeoTargetConstants) && is_array($requestedGeoTargetConstants) && count($requestedGeoTargetConstants) > 1) {
-        $locRes = calculateOfficialLocationBreakdown($apiKeys, $query, $actualMode, $officialKeywords, $requestedGeoTargetConstants, $langInfo['code'], $requestedLocations);
-        $locationBreakdown = $locRes['breakdown'] ?? [];
-        $keywordGeoMap = $locRes['keywordGeoMap'] ?? [];
+    if (!empty($requestedLocations) && is_array($requestedLocations) && count($requestedLocations) > 1) {
+        $locVolSums = [];
+        $locCpcSums = [];
+        $locCpcCounts = [];
+        $totalAllVol = 0;
 
-        // Attach exact official per-location search volumes & CPC to each keyword
-        if (!empty($keywordGeoMap)) {
-            foreach ($officialKeywords as &$kw) {
-                $kwText = is_array($kw) ? ($kw['keyword'] ?? '') : (string)$kw;
-                $kwNorm = mb_strtolower(preg_replace('/\s+/', ' ', trim($kwText)), 'UTF-8');
-                if (isset($keywordGeoMap[$kwNorm])) {
-                    $kw['geoVolumes'] = [];
-                    $kw['geoCpc'] = [];
-                    $sumGeoVol = 0;
-                    foreach ($keywordGeoMap[$kwNorm] as $gId => $gMetrics) {
-                        $locVol = (int)$gMetrics['monthlyVolume'];
-                        $kw['geoVolumes'][(string)$gId] = $locVol;
-                        $sumGeoVol += $locVol;
-                        $kw['geoCpc'][(string)$gId] = [
-                            'lowCpc' => (float)$gMetrics['lowCpc'],
-                            'highCpc' => (float)$gMetrics['highCpc']
-                        ];
-                    }
-                    if ($sumGeoVol > 0) {
-                        $kw['monthlyVolume'] = $sumGeoVol;
-                    }
+        foreach ($officialKeywords as $kw) {
+            $kGeoVols = $kw['geoVolumes'] ?? [];
+            $kGeoCpc = $kw['geoCpc'] ?? [];
+            foreach ($kGeoVols as $gId => $vol) {
+                $gIdStr = (string)$gId;
+                $locVolSums[$gIdStr] = ($locVolSums[$gIdStr] ?? 0) + (int)$vol;
+                $totalAllVol += (int)$vol;
+
+                if (!empty($kGeoCpc[$gIdStr]['highCpc'])) {
+                    $midCpc = ((float)$kGeoCpc[$gIdStr]['lowCpc'] + (float)$kGeoCpc[$gIdStr]['highCpc']) / 2;
+                    $locCpcSums[$gIdStr] = ($locCpcSums[$gIdStr] ?? 0) + $midCpc;
+                    $locCpcCounts[$gIdStr] = ($locCpcCounts[$gIdStr] ?? 0) + 1;
                 }
             }
-            unset($kw);
-
-            // Re-sort with official multi-location volumes
-            usort($officialKeywords, function($a, $b) {
-                $isStratA = !empty($a['isAiStrategistPick']) ? 1 : 0;
-                $isStratB = !empty($b['isAiStrategistPick']) ? 1 : 0;
-                if ($isStratA !== $isStratB) return $isStratB - $isStratA;
-
-                $scoreA = is_array($a) ? ($a['opportunityScore'] ?? 50) : 50;
-                $scoreB = is_array($b) ? ($b['opportunityScore'] ?? 50) : 50;
-                if ($scoreA !== $scoreB) return $scoreB - $scoreA;
-
-                $volA = is_array($a) ? ($a['monthlyVolume'] ?? 0) : 0;
-                $volB = is_array($b) ? ($b['monthlyVolume'] ?? 0) : 0;
-                return $volB - $volA;
-            });
         }
+
+        foreach ($requestedLocations as $loc) {
+            $rawId = (string)($loc['id'] ?? '');
+            $cleanId = preg_replace('/[^0-9]/', '', $rawId);
+            $vol = $locVolSums[$cleanId] ?? ($locVolSums[$rawId] ?? 0);
+            $cpcCount = $locCpcCounts[$cleanId] ?? ($locCpcCounts[$rawId] ?? 0);
+            $avgCpc = $cpcCount > 0 ? round(($locCpcSums[$cleanId] ?? 0) / $cpcCount, 2) : 0.0;
+            $share = $totalAllVol > 0 ? round(($vol / $totalAllVol) * 100) : 0;
+
+            $locationBreakdown[] = [
+                'id' => $rawId,
+                'code' => $loc['countryCode'] ?? 'XX',
+                'name' => $loc['name'] ?? '',
+                'canonicalName' => $loc['canonicalName'] ?? $loc['name'] ?? '',
+                'flag' => $loc['flag'] ?? '🌍',
+                'monthlyVolume' => $vol,
+                'avgCpc' => $avgCpc,
+                'sharePercent' => $share
+            ];
+        }
+
+        usort($locationBreakdown, function($a, $b) {
+            return ($b['monthlyVolume'] ?? 0) - ($a['monthlyVolume'] ?? 0);
+        });
     }
 
     $result = [
