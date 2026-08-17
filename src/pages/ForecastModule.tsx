@@ -591,12 +591,28 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     else if (newOthers.gdn !== undefined) setAllocGdn(newOthers.gdn);
   };
 
+  // View mode: 'PORTFOLIO' (All saved Master Plans & Sub-Campaigns Hub) vs 'STUDIO' (Inside specific Master & Sub-Campaign)
+  const [viewMode, setViewMode] = useState<'PORTFOLIO' | 'STUDIO'>('PORTFOLIO');
+  const [portfolioSearchQuery, setPortfolioSearchQuery] = useState<string>('');
+
   // Master Plan Metadata & Tagging State
   const [planName, setPlanName] = useState<string>('Temmuz 2026 Büyüme Kampanyası');
   const [clientName, setClientName] = useState<string>('Acme Sağlık Turizmi');
   const [planPeriod, setPlanPeriod] = useState<string>('Temmuz 2026');
   const [planTags, setPlanTags] = useState<string[]>(['#Temmuz2026', '#SağlıkTurizmi']);
   const [newTagInput, setNewTagInput] = useState<string>('');
+
+  // Master Plan Creation Modal State
+  const [isAddMasterPlanModalOpen, setIsAddMasterPlanModalOpen] = useState<boolean>(false);
+  const [newMasterName, setNewMasterName] = useState<string>('');
+  const [newMasterClient, setNewMasterClient] = useState<string>('');
+  const [newMasterPeriod, setNewMasterPeriod] = useState<string>('Temmuz 2026');
+  const [newMasterTags, setNewMasterTags] = useState<string[]>(['#Temmuz2026']);
+  const [newMasterTagInput, setNewMasterTagInput] = useState<string>('');
+  const [newMasterSubPlatform, setNewMasterSubPlatform] = useState<CampaignPlatform>('GOOGLE');
+  const [newMasterSubObjective, setNewMasterSubObjective] = useState<CampaignObjective>('GOOGLE_SEARCH');
+  const [newMasterSubLang, setNewMasterSubLang] = useState<string>('tr');
+  const [newMasterSubBudget, setNewMasterSubBudget] = useState<number>(35000);
 
   // Multi-Campaign Sub-Campaigns State
   const [subCampaigns, setSubCampaigns] = useState<SubCampaignItem[]>([
@@ -835,7 +851,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     }
   };
 
-  // Tag helper
+  // Tag helper for studio
   const handleAddTag = () => {
     const t = newTagInput.trim().replace(/^#*/, '#');
     if (t.length > 1 && !planTags.includes(t)) {
@@ -848,8 +864,98 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     setPlanTags(prev => prev.filter(t => t !== tagToRemove));
   };
 
-  // Load Saved Master Plan
-  const handleLoadSavedMasterPlan = (plan: ForecastPlan) => {
+  // Tag helper for master plan modal
+  const handleAddMasterTag = () => {
+    const t = newMasterTagInput.trim().replace(/^#*/, '#');
+    if (t.length > 1 && !newMasterTags.includes(t)) {
+      setNewMasterTags(prev => [...prev, t]);
+    }
+    setNewMasterTagInput('');
+  };
+
+  const handleRemoveMasterTag = (tagToRemove: string) => {
+    setNewMasterTags(prev => prev.filter(t => t !== tagToRemove));
+  };
+
+  // Create new Master Plan from scratch
+  const handleCreateNewMasterPlan = () => {
+    const pName = newMasterName.trim() || `${newMasterClient.trim() || 'Yeni Müşteri'} - ${newMasterPeriod} Kampanyası`;
+    const cName = newMasterClient.trim() || 'Genel Müşteri';
+    const period = newMasterPeriod.trim() || 'Temmuz 2026';
+    const tags = newMasterTags.length > 0 ? newMasterTags : ['#YeniKampanya'];
+
+    const langObj = GOOGLE_ADS_LANGUAGES.find(l => l.code === newMasterSubLang) || { code: newMasterSubLang, name: newMasterSubLang, nativeName: newMasterSubLang, flag: '🌐' };
+
+    let defaultLocs = DEFAULT_LOCATIONS;
+    if (newMasterSubLang === 'en') {
+      defaultLocs = [{ id: '2826', resourceName: 'geoTargetConstants/2826', name: 'Birleşik Krallık', canonicalName: 'Birleşik Krallık', countryCode: 'GB', targetType: 'Country', reach: 67000000, flag: '🇬🇧', cpcMultiplier: 3.2, volumeMultiplier: 1.3 }];
+    } else if (newMasterSubLang === 'ru') {
+      defaultLocs = [{ id: '2643', resourceName: 'geoTargetConstants/2643', name: 'Rusya', canonicalName: 'Rusya', countryCode: 'RU', targetType: 'Country', reach: 145000000, flag: '🇷🇺', cpcMultiplier: 1.6, volumeMultiplier: 1.8 }];
+    } else if (newMasterSubLang === 'ar') {
+      defaultLocs = [{ id: '1000010', resourceName: 'geoTargetConstants/1000010', name: 'Dubai', canonicalName: 'Dubai, Birleşik Arap Emirlikleri', countryCode: 'AE', targetType: 'City', reach: 3400000, flag: '🇦🇪', cpcMultiplier: 2.4, volumeMultiplier: 0.8 }];
+    } else if (newMasterSubLang === 'de') {
+      defaultLocs = [{ id: '2276', resourceName: 'geoTargetConstants/2276', name: 'Almanya', canonicalName: 'Almanya', countryCode: 'DE', targetType: 'Country', reach: 84000000, flag: '🇩🇪', cpcMultiplier: 2.8, volumeMultiplier: 1.4 }];
+    }
+
+    const subId = 'sub_' + Date.now();
+    const initialSub: SubCampaignItem = {
+      id: subId,
+      name: `${newMasterSubPlatform} (${langObj.name})`,
+      platform: newMasterSubPlatform,
+      objective: newMasterSubObjective,
+      languageCode: newMasterSubLang,
+      languageName: langObj.name,
+      languageFlag: langObj.flag,
+      targetLocations: defaultLocs,
+      monthlyBudget: newMasterSubBudget,
+      selectedKeywords: [],
+      discoveredKeywords: [],
+      negativeCategories: [],
+      businessModel: newMasterSubObjective.includes('SALES') ? 'ECOMMERCE' : 'LEAD_GEN',
+      parameters: {
+        targetImpressionShare: 70,
+        expectedCtr: 7.5,
+        searchLeadCr: 3.5,
+        searchHealthyLeadRate: 50,
+        searchCloseRate: 10,
+        metaCpm: 75,
+        metaCtr: 1.6,
+        metaLeadCr: 4.5,
+        metaHealthyLeadRate: 50,
+        metaCloseRate: 15,
+        youtubeCpv: 0.45,
+        youtubeVtr: 32,
+        youtubeActionRate: 1.2,
+        gdnCpm: 18,
+        gdnCtr: 0.60,
+        gdnAssistedCr: 1.2
+      }
+    };
+
+    setPlanName(pName);
+    setClientName(cName);
+    setPlanPeriod(period);
+    setPlanTags(tags);
+    setSubCampaigns([initialSub]);
+    setActiveSubCampaignId(subId);
+    setKeywords([]);
+    setSelectedKeywordIds(new Set());
+    setNegativeCategories([]);
+    setSelectedLocations(defaultLocs);
+    setTargetLanguage(newMasterSubLang);
+    setMonthlyBudget(newMasterSubBudget);
+    setQuery('');
+
+    if (newMasterSubPlatform === 'META') setActiveChannelTab('META_ADS');
+    else if (newMasterSubPlatform === 'YOUTUBE') setActiveChannelTab('YOUTUBE');
+    else setActiveChannelTab('GOOGLE_SEARCH');
+
+    setIsAddMasterPlanModalOpen(false);
+    setViewMode('STUDIO');
+  };
+
+  // Open Master Plan & Target Sub Campaign in Studio
+  const handleOpenMasterPlanStudio = (plan: ForecastPlan, targetSubId?: string) => {
     if (plan.name) setPlanName(plan.name);
     if (plan.clientName) setClientName(plan.clientName);
     if (plan.period) setPlanPeriod(plan.period);
@@ -857,29 +963,75 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
     if (plan.subCampaigns && plan.subCampaigns.length > 0) {
       setSubCampaigns(plan.subCampaigns);
-      setActiveSubCampaignId(plan.subCampaigns[0].id);
+      const chosenSub = targetSubId 
+        ? (plan.subCampaigns.find(c => c.id === targetSubId) || plan.subCampaigns[0])
+        : plan.subCampaigns[0];
       
-      const first = plan.subCampaigns[0];
-      setKeywords(first.discoveredKeywords || plan.selectedKeywords || []);
-      setSelectedKeywordIds(new Set((first.selectedKeywords || plan.selectedKeywords || []).map(k => k.id)));
-      setNegativeCategories(first.negativeCategories || plan.negativeKeywords || []);
-      if (first.targetLocations && first.targetLocations.length > 0) {
-        setSelectedLocations(first.targetLocations);
+      setActiveSubCampaignId(chosenSub.id);
+      setKeywords(chosenSub.discoveredKeywords || plan.selectedKeywords || []);
+      setSelectedKeywordIds(new Set((chosenSub.selectedKeywords || plan.selectedKeywords || []).map(k => k.id)));
+      setNegativeCategories(chosenSub.negativeCategories || plan.negativeKeywords || []);
+      if (chosenSub.targetLocations && chosenSub.targetLocations.length > 0) {
+        setSelectedLocations(chosenSub.targetLocations);
       }
-      if (first.languageCode) setTargetLanguage(first.languageCode);
-      if (first.monthlyBudget) setMonthlyBudget(first.monthlyBudget);
-      if (first.targetUrl || first.seedKeywords) setQuery(first.targetUrl || first.seedKeywords || '');
+      if (chosenSub.languageCode) setTargetLanguage(chosenSub.languageCode);
+      if (chosenSub.monthlyBudget) setMonthlyBudget(chosenSub.monthlyBudget);
+      if (chosenSub.targetUrl || chosenSub.seedKeywords) {
+        setQuery(chosenSub.targetUrl || chosenSub.seedKeywords || '');
+        setMode(chosenSub.targetUrl ? 'URL' : 'KEYWORDS');
+      }
+
+      if (chosenSub.platform === 'META') setActiveChannelTab('META_ADS');
+      else if (chosenSub.platform === 'YOUTUBE') setActiveChannelTab('YOUTUBE');
+      else if (chosenSub.platform === 'GOOGLE') setActiveChannelTab('GOOGLE_SEARCH');
+      else setActiveChannelTab('OMNICHANNEL');
     } else {
       // Legacy single plan
+      const legacySub: SubCampaignItem = {
+        id: 'sub_legacy_' + plan.id,
+        name: plan.name || 'Ana Kampanya',
+        platform: 'GOOGLE',
+        objective: 'GOOGLE_SEARCH',
+        languageCode: plan.detectedLanguage || 'tr',
+        languageName: plan.detectedLanguageName || 'Türkçe',
+        languageFlag: '🇹🇷',
+        targetLocations: DEFAULT_LOCATIONS,
+        monthlyBudget: plan.monthlyBudget || 35000,
+        selectedKeywords: plan.selectedKeywords || [],
+        discoveredKeywords: plan.selectedKeywords || [],
+        negativeCategories: plan.negativeKeywords || [],
+        businessModel: 'LEAD_GEN',
+        parameters: {
+          targetImpressionShare: 70,
+          expectedCtr: 7.5,
+          searchLeadCr: 3.5,
+          searchHealthyLeadRate: 50,
+          searchCloseRate: 10
+        }
+      };
+      setSubCampaigns([legacySub]);
+      setActiveSubCampaignId(legacySub.id);
       setKeywords(plan.selectedKeywords || []);
       setSelectedKeywordIds(new Set((plan.selectedKeywords || []).map(k => k.id)));
       setNegativeCategories(plan.negativeKeywords || []);
       if (plan.monthlyBudget) setMonthlyBudget(plan.monthlyBudget);
       if (plan.targetUrl || plan.seedKeywords) setQuery(plan.targetUrl || plan.seedKeywords || '');
+      setActiveChannelTab('GOOGLE_SEARCH');
     }
 
-    setActiveChannelTab('OMNICHANNEL');
-    alert(`"${plan.name}" başarıyla çalışma alanına yüklendi!`);
+    setViewMode('STUDIO');
+  };
+
+  // Back to Portfolio
+  const handleBackToPortfolio = () => {
+    syncActiveSubCampaign();
+    loadSavedPlans();
+    setViewMode('PORTFOLIO');
+  };
+
+  // Load Saved Master Plan
+  const handleLoadSavedMasterPlan = (plan: ForecastPlan) => {
+    handleOpenMasterPlanStudio(plan);
   };
 
   // Load Saved Plans on Workspace change
@@ -895,6 +1047,27 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   useEffect(() => {
     loadSavedPlans();
   }, [workspaceId]);
+
+  const filteredSavedPlans = useMemo(() => {
+    const q = portfolioSearchQuery.toLowerCase().trim();
+    if (!q) return savedPlans;
+    return savedPlans.filter(p => {
+      const matchName = (p.name || '').toLowerCase().includes(q);
+      const matchClient = (p.clientName || '').toLowerCase().includes(q);
+      const matchPeriod = (p.period || '').toLowerCase().includes(q);
+      const matchTags = (p.tags || []).some(t => t.toLowerCase().includes(q));
+      const matchSub = (p.subCampaigns || []).some(s => (s.name || '').toLowerCase().includes(q) || (s.languageName || '').toLowerCase().includes(q));
+      return matchName || matchClient || matchPeriod || matchTags || matchSub;
+    });
+  }, [savedPlans, portfolioSearchQuery]);
+
+  const totalAllSubCampaigns = useMemo(() => {
+    return savedPlans.reduce((sum, p) => sum + (p.subCampaigns?.length || 1), 0);
+  }, [savedPlans]);
+
+  const totalAllBudget = useMemo(() => {
+    return savedPlans.reduce((sum, p) => sum + (p.monthlyBudget || 0), 0);
+  }, [savedPlans]);
 
   // Execute Keyword Discovery (Step 1)
   const handleDiscover = async (customQuery?: string, customMode?: 'URL' | 'KEYWORDS') => {
@@ -1639,209 +1812,541 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-      
-      {/* 0. MASTER MEDIA PLAN & CLIENT HIERARCHY BAR */}
-      <div 
-        className="card" 
-        style={{ 
-          padding: '1.1rem 1.25rem', 
-          background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.05) 0%, rgba(147, 51, 234, 0.05) 100%)',
-          border: '1px solid rgba(37, 99, 235, 0.2)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '0.85rem'
-        }}
-      >
-        {/* Top Row: Master Plan Title, Client, Period & Actions */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+
+      {/* ========================================================================= */}
+      {/* VIEW 1: PORTFOLIO HUB (MASTER PLANS & SUB-CAMPAIGNS MANAGEMENT)           */}
+      {/* ========================================================================= */}
+      {viewMode === 'PORTFOLIO' ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              <span style={{ fontSize: '1.25rem' }}>👑</span>
-              <input
-                type="text"
-                value={planName}
-                onChange={(e) => setPlanName(e.target.value)}
-                placeholder="Master Kampanya Adı..."
-                style={{
-                  fontSize: '1.1rem',
-                  fontWeight: 700,
-                  color: 'var(--text-primary)',
-                  backgroundColor: 'transparent',
-                  border: '1px solid transparent',
-                  borderRadius: 'var(--radius-xs)',
-                  padding: '3px 6px',
-                  minWidth: '260px'
-                }}
-                onFocus={(e) => e.target.style.border = '1px solid var(--brand-primary)'}
-                onBlur={(e) => e.target.style.border = '1px solid transparent'}
-              />
-            </div>
-
-            {/* Client / Brand */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', backgroundColor: 'var(--bg-surface)', padding: '4px 10px', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-default)', fontSize: '0.8rem' }}>
-              <Building2 size={14} color="var(--brand-primary)" />
-              <span style={{ color: 'var(--text-muted)' }}>Müşteri:</span>
-              <input
-                type="text"
-                value={clientName}
-                onChange={(e) => setClientName(e.target.value)}
-                placeholder="Müşteri / Marka"
-                style={{
-                  fontWeight: 600,
-                  color: 'var(--text-primary)',
-                  backgroundColor: 'transparent',
-                  border: 'none',
-                  outline: 'none',
-                  width: '130px',
-                  fontSize: '0.82rem',
-                  padding: 0
-                }}
-              />
-            </div>
-
-            {/* Period */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', backgroundColor: 'var(--bg-surface)', padding: '4px 10px', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-default)', fontSize: '0.8rem' }}>
-              <Calendar size={14} color="var(--brand-primary)" />
-              <span style={{ color: 'var(--text-muted)' }}>Dönem:</span>
-              <input
-                type="text"
-                value={planPeriod}
-                onChange={(e) => setPlanPeriod(e.target.value)}
-                placeholder="Temmuz 2026"
-                style={{
-                  fontWeight: 600,
-                  color: 'var(--text-primary)',
-                  backgroundColor: 'transparent',
-                  border: 'none',
-                  outline: 'none',
-                  width: '110px',
-                  fontSize: '0.82rem',
-                  padding: 0
-                }}
-              />
-            </div>
-          </div>
-
-          {/* Right: Master Consolidated Budget & Quick Actions */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
-            <div style={{ textAlign: 'right', paddingRight: '0.35rem' }}>
-              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.04em' }}>
-                KONSOLİDE TOPLAM BÜTÇE
-              </div>
-              <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--brand-primary)', display: 'flex', alignItems: 'baseline', gap: '0.35rem' }}>
-                ₺{totalMasterMonthlyBudget.toLocaleString('tr-TR')}
-                <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
-                  (₺{Math.round(totalMasterMonthlyBudget / 30.4).toLocaleString('tr-TR')} / gün)
+          {/* Header Banner */}
+          <div 
+            className="card"
+            style={{
+              padding: '1.5rem',
+              background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.08) 0%, rgba(147, 51, 234, 0.06) 100%)',
+              border: '1px solid rgba(37, 99, 235, 0.2)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '1rem'
+            }}
+          >
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                <span style={{ fontSize: '1.6rem' }}>👑</span>
+                <h1 style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                  Kampanya & Medya Planlama Portföyü
+                </h1>
+                <span className="badge badge-active" style={{ fontSize: '0.72rem' }}>
+                  {savedPlans.length} Master Plan • {totalAllSubCampaigns} Alt Kampanya
                 </span>
               </div>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.35rem', maxWidth: '720px' }}>
+                Çatı kampanyalarınızı, diller ve pazarlar bazındaki alt kampanyaları (Google, Meta, Yandex, TikTok) tek merkezden yönetin ve içine girip simüle edin.
+              </p>
             </div>
 
             <button
               type="button"
               onClick={() => {
-                setCurrentStep(2);
-                setActiveChannelTab('SAVED_PLANS');
-                loadSavedPlans();
+                setNewMasterName(`Master Kampanya ${savedPlans.length + 1}`);
+                setNewMasterClient(clientName || '');
+                setNewMasterPeriod(planPeriod || 'Temmuz 2026');
+                setIsAddMasterPlanModalOpen(true);
               }}
-              className="btn-secondary"
-              style={{ fontSize: '0.78rem', padding: '0.45rem 0.75rem' }}
-              title="Kayıtlı Planlar Arşivi"
-            >
-              <FolderDown size={14} /> Kayıtlı Planlar ({savedPlans.length})
-            </button>
-
-            <button
-              type="button"
-              onClick={handleExportCsv}
-              disabled={keywords.length === 0}
-              className="btn-secondary"
-              style={{ fontSize: '0.78rem', padding: '0.45rem 0.75rem' }}
-            >
-              <Download size={14} /> CSV
-            </button>
-
-            <button
-              type="button"
-              onClick={handleSavePlan}
               className="btn-primary"
-              style={{ fontSize: '0.78rem', padding: '0.45rem 0.95rem' }}
-            >
-              {planSaveSuccess ? <Check size={14} /> : <Save size={14} />}
-              {planSaveSuccess ? 'Plan Kaydedildi!' : 'Master Planı Kaydet'}
-            </button>
-          </div>
-
-        </div>
-
-        {/* Bottom Row: Tags Management */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', paddingTop: '0.5rem', borderTop: '1px solid rgba(0,0,0,0.06)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-            <Tag size={13} />
-            <span>Etiketler:</span>
-          </div>
-
-          {planTags.map((tag) => (
-            <span
-              key={tag}
               style={{
-                fontSize: '0.72rem',
-                padding: '2px 8px',
-                borderRadius: 'var(--radius-full)',
-                backgroundColor: 'rgba(37, 99, 235, 0.1)',
-                color: 'var(--brand-primary)',
-                fontWeight: 600,
+                fontSize: '0.9rem',
+                padding: '0.65rem 1.25rem',
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '0.35rem',
-                border: '1px solid rgba(37, 99, 235, 0.2)'
+                gap: '0.5rem',
+                boxShadow: '0 4px 14px rgba(37, 99, 235, 0.35)'
               }}
             >
-              {tag}
-              <button
-                type="button"
-                onClick={() => handleRemoveTag(tag)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', color: 'var(--text-muted)' }}
-              >
-                <X size={11} />
-              </button>
-            </span>
-          ))}
+              <Plus size={18} />
+              <span>Yeni Çatı Kampanya Ekle</span>
+            </button>
+          </div>
 
-          {/* Add Tag Input */}
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
-            <input
-              type="text"
-              placeholder="+ Etiket ekle (#Temmuz, #UK)..."
-              value={newTagInput}
-              onChange={(e) => setNewTagInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleAddTag(); }}
-              style={{
-                fontSize: '0.72rem',
-                padding: '2px 8px',
-                borderRadius: 'var(--radius-full)',
-                border: '1px dashed var(--border-default)',
-                backgroundColor: 'var(--bg-surface)',
-                color: 'var(--text-primary)',
-                width: '150px'
-              }}
-            />
-            {newTagInput && (
+          {/* Metrics */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.85rem' }}>
+            <div className="card" style={{ padding: '1rem 1.25rem', backgroundColor: 'var(--bg-surface)' }}>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>TOPLAM ÇATI KAMPANYA</div>
+              <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '2px' }}>
+                {savedPlans.length} Plan
+              </div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Farklı dönem ve müşteriler</div>
+            </div>
+
+            <div className="card" style={{ padding: '1rem 1.25rem', backgroundColor: 'var(--bg-surface)' }}>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>TOPLAM ALT KAMPANYA</div>
+              <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--brand-primary)', marginTop: '2px' }}>
+                {totalAllSubCampaigns} Kampanya
+              </div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Çok dilli & çok kanallı</div>
+            </div>
+
+            <div className="card" style={{ padding: '1rem 1.25rem', backgroundColor: 'var(--bg-surface)' }}>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>PORTFÖY TOPLAM BÜTÇE</div>
+              <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#16a34a', marginTop: '2px' }}>
+                ₺{totalAllBudget.toLocaleString('tr-TR')}
+              </div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                ₺{Math.round(totalAllBudget / 30.4).toLocaleString('tr-TR')} / gün
+              </div>
+            </div>
+          </div>
+
+          {/* Search Filter */}
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+            <div style={{ flex: 1, position: 'relative' }}>
+              <Search size={16} color="var(--text-muted)" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+              <input
+                type="text"
+                placeholder="Kampanya adı, müşteri, dönem veya etiket (#Temmuz2026) ara..."
+                value={portfolioSearchQuery}
+                onChange={(e) => setPortfolioSearchQuery(e.target.value)}
+                style={{ width: '100%', paddingLeft: '2.4rem', fontSize: '0.85rem' }}
+              />
+            </div>
+            {portfolioSearchQuery && (
               <button
                 type="button"
-                onClick={handleAddTag}
+                onClick={() => setPortfolioSearchQuery('')}
                 className="btn-ghost"
-                style={{ padding: '2px 6px', fontSize: '0.7rem' }}
+                style={{ fontSize: '0.8rem' }}
               >
-                Ekle
+                Temizle
               </button>
             )}
           </div>
-        </div>
-      </div>
 
-      {/* 0.5 SUB-CAMPAIGNS SELECTOR STRIP */}
-      <div 
+          {/* Cards Grid */}
+          {filteredSavedPlans.length === 0 ? (
+            <div className="card" style={{ padding: '4rem 1.5rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1.25rem' }}>
+              <div style={{ width: '64px', height: '64px', borderRadius: '50%', backgroundColor: 'rgba(37, 99, 235, 0.1)', color: 'var(--brand-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.8rem' }}>
+                👑
+              </div>
+              <div>
+                <div style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                  {portfolioSearchQuery ? 'Aramanızla Eşleşen Kampanya Bulunamadı' : 'Henüz Kayıtlı Bir Çatı Kampanya Planı Yok'}
+                </div>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', maxWidth: '520px', margin: '0.35rem auto 0 auto' }}>
+                  {portfolioSearchQuery 
+                    ? 'Farklı bir anahtar kelime veya etiket deneyebilirsiniz.' 
+                    : 'Müşterileriniz veya dönemleriniz için çok dilli ve çok kanallı ilk çatı kampanyanızı oluşturarak başlayın.'}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setNewMasterName(`Temmuz 2026 Büyüme Kampanyası`);
+                  setNewMasterClient(`Acme Sağlık Turizmi`);
+                  setNewMasterPeriod(`Temmuz 2026`);
+                  setIsAddMasterPlanModalOpen(true);
+                }}
+                className="btn-primary"
+                style={{ fontSize: '0.85rem', padding: '0.6rem 1.25rem' }}
+              >
+                <Plus size={16} />
+                <span>İlk Çatı Kampanyayı Oluştur</span>
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '1.25rem' }}>
+              {filteredSavedPlans.map((plan) => {
+                const subs = (plan.subCampaigns && plan.subCampaigns.length > 0) 
+                  ? plan.subCampaigns 
+                  : [{
+                      id: 'legacy_' + plan.id,
+                      name: plan.name || 'Ana Kampanya',
+                      platform: 'GOOGLE' as CampaignPlatform,
+                      objective: 'GOOGLE_SEARCH' as CampaignObjective,
+                      languageCode: plan.detectedLanguage || 'tr',
+                      languageName: plan.detectedLanguageName || 'Türkçe',
+                      languageFlag: '🇹🇷',
+                      targetLocations: DEFAULT_LOCATIONS,
+                      monthlyBudget: plan.monthlyBudget || 35000,
+                      selectedKeywords: plan.selectedKeywords || [],
+                      negativeCategories: plan.negativeKeywords || [],
+                      parameters: {}
+                    }];
+
+                const planTotalBudget = plan.monthlyBudget || subs.reduce((s, c) => s + (c.monthlyBudget || 0), 0);
+
+                return (
+                  <div 
+                    key={plan.id}
+                    className="card"
+                    style={{
+                      padding: '1.25rem',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '1rem',
+                      backgroundColor: 'var(--bg-surface)',
+                      border: '1px solid var(--border-default)',
+                      borderRadius: 'var(--radius-sm)',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+                      transition: 'all 0.2s ease',
+                      position: 'relative'
+                    }}
+                  >
+                    {/* Card Header */}
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.75rem' }}>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                          <span style={{ fontSize: '1rem' }}>👑</span>
+                          <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                            {plan.name}
+                          </h3>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.35rem', flexWrap: 'wrap' }}>
+                          {plan.clientName && (
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontWeight: 500 }}>
+                              <Building2 size={12} color="var(--brand-primary)" /> {plan.clientName}
+                            </span>
+                          )}
+                          {plan.period && (
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontWeight: 500 }}>
+                              <Calendar size={12} color="var(--brand-primary)" /> {plan.period}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Total Budget Pill */}
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--brand-primary)' }}>
+                          ₺{planTotalBudget.toLocaleString('tr-TR')}
+                        </div>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                          ₺{Math.round(planTotalBudget / 30.4).toLocaleString('tr-TR')} / gün
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Tags List */}
+                    {plan.tags && plan.tags.length > 0 && (
+                      <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
+                        {plan.tags.map((t, idx) => (
+                          <span key={idx} style={{ fontSize: '0.68rem', padding: '2px 7px', borderRadius: 'var(--radius-full)', backgroundColor: 'rgba(37, 99, 235, 0.08)', color: 'var(--brand-primary)', fontWeight: 600 }}>
+                            {t}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Sub-Campaigns List (Interactive) */}
+                    <div style={{ borderTop: '1px solid var(--border-default)', paddingTop: '0.75rem' }}>
+                      <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.45rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                        <Layers size={12} /> Alt Kampanyalar ({subs.length}):
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                        {subs.map((sc) => (
+                          <div
+                            key={sc.id}
+                            onClick={() => handleOpenMasterPlanStudio(plan, sc.id)}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              padding: '0.45rem 0.65rem',
+                              borderRadius: 'var(--radius-xs)',
+                              backgroundColor: 'var(--bg-surface-elevated)',
+                              border: '1px solid var(--border-default)',
+                              fontSize: '0.78rem',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease'
+                            }}
+                            onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'var(--brand-primary)')}
+                            onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--border-default)')}
+                            title="Bu alt kampanyanın içine gir ve simüle et"
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                              <span>{sc.languageFlag || '🌐'}</span>
+                              {getPlatformIcon(sc.platform, 13)}
+                              <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{sc.name}</span>
+                            </div>
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                              <span style={{ fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
+                                ₺{sc.monthlyBudget?.toLocaleString('tr-TR')}
+                              </span>
+                              <ArrowRight size={13} color="var(--brand-primary)" />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Card Actions Footer */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid var(--border-default)', paddingTop: '0.75rem', marginTop: 'auto' }}>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                        {plan.createdAt ? new Date(plan.createdAt).toLocaleDateString('tr-TR') : ''}
+                      </span>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenMasterPlanStudio(plan)}
+                          className="btn-primary"
+                          style={{ fontSize: '0.78rem', padding: '0.4rem 0.85rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                        >
+                          <span>👉 Kampanyayı Aç & Yönet</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (window.confirm(`"${plan.name}" planını silmek istediğinize emin misiniz?`)) {
+                              await ApiService.deleteForecastPlan(plan.id);
+                              loadSavedPlans();
+                            }
+                          }}
+                          className="btn-ghost"
+                          style={{ color: 'var(--danger)', padding: '0.35rem 0.5rem' }}
+                          title="Planı Sil"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+        </div>
+      ) : (
+        /* ========================================================================= */
+        /* VIEW 2: FOCUSED CAMPAIGN STUDIO WORKSPACE                                 */
+        /* ========================================================================= */
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+
+          {/* 0. MASTER MEDIA PLAN & CLIENT HIERARCHY BAR */}
+          <div 
+            className="card" 
+            style={{ 
+              padding: '1.1rem 1.25rem', 
+              background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.05) 0%, rgba(147, 51, 234, 0.05) 100%)',
+              border: '1px solid rgba(37, 99, 235, 0.2)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.85rem'
+            }}
+          >
+            {/* Top Row: Master Plan Title, Client, Period & Actions */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+              
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={handleBackToPortfolio}
+                  className="btn-secondary"
+                  style={{
+                    fontSize: '0.78rem',
+                    padding: '0.4rem 0.75rem',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                    fontWeight: 600
+                  }}
+                  title="Kampanya Portföyüne Dön"
+                >
+                  <ArrowLeft size={14} />
+                  <span>Portföye Dön</span>
+                </button>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <span style={{ fontSize: '1.25rem' }}>👑</span>
+                  <input
+                    type="text"
+                    value={planName}
+                    onChange={(e) => setPlanName(e.target.value)}
+                    placeholder="Master Kampanya Adı..."
+                    style={{
+                      fontSize: '1.1rem',
+                      fontWeight: 700,
+                      color: 'var(--text-primary)',
+                      backgroundColor: 'transparent',
+                      border: '1px solid transparent',
+                      borderRadius: 'var(--radius-xs)',
+                      padding: '3px 6px',
+                      minWidth: '220px'
+                    }}
+                    onFocus={(e) => e.target.style.border = '1px solid var(--brand-primary)'}
+                    onBlur={(e) => e.target.style.border = '1px solid transparent'}
+                  />
+                </div>
+
+                {/* Client / Brand */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', backgroundColor: 'var(--bg-surface)', padding: '4px 10px', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-default)', fontSize: '0.8rem' }}>
+                  <Building2 size={14} color="var(--brand-primary)" />
+                  <span style={{ color: 'var(--text-muted)' }}>Müşteri:</span>
+                  <input
+                    type="text"
+                    value={clientName}
+                    onChange={(e) => setClientName(e.target.value)}
+                    placeholder="Müşteri / Marka"
+                    style={{
+                      fontWeight: 600,
+                      color: 'var(--text-primary)',
+                      backgroundColor: 'transparent',
+                      border: 'none',
+                      outline: 'none',
+                      width: '120px',
+                      fontSize: '0.82rem',
+                      padding: 0
+                    }}
+                  />
+                </div>
+
+                {/* Period */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', backgroundColor: 'var(--bg-surface)', padding: '4px 10px', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-default)', fontSize: '0.8rem' }}>
+                  <Calendar size={14} color="var(--brand-primary)" />
+                  <span style={{ color: 'var(--text-muted)' }}>Dönem:</span>
+                  <input
+                    type="text"
+                    value={planPeriod}
+                    onChange={(e) => setPlanPeriod(e.target.value)}
+                    placeholder="Temmuz 2026"
+                    style={{
+                      fontWeight: 600,
+                      color: 'var(--text-primary)',
+                      backgroundColor: 'transparent',
+                      border: 'none',
+                      outline: 'none',
+                      width: '100px',
+                      fontSize: '0.82rem',
+                      padding: 0
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Right: Master Consolidated Budget & Quick Actions */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
+                <div style={{ textAlign: 'right', paddingRight: '0.35rem' }}>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.04em' }}>
+                    KONSOLİDE TOPLAM BÜTÇE
+                  </div>
+                  <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--brand-primary)', display: 'flex', alignItems: 'baseline', gap: '0.35rem' }}>
+                    ₺{totalMasterMonthlyBudget.toLocaleString('tr-TR')}
+                    <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
+                      (₺{Math.round(totalMasterMonthlyBudget / 30.4).toLocaleString('tr-TR')} / gün)
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setIsAddMasterPlanModalOpen(true)}
+                  className="btn-secondary"
+                  style={{ fontSize: '0.78rem', padding: '0.45rem 0.75rem' }}
+                  title="Yeni Çatı Kampanya Oluştur"
+                >
+                  <Plus size={14} /> Yeni Çatı Kampanya
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleExportCsv}
+                  disabled={keywords.length === 0}
+                  className="btn-secondary"
+                  style={{ fontSize: '0.78rem', padding: '0.45rem 0.75rem' }}
+                >
+                  <Download size={14} /> CSV
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleSavePlan}
+                  className="btn-primary"
+                  style={{ fontSize: '0.78rem', padding: '0.45rem 0.95rem' }}
+                >
+                  {planSaveSuccess ? <Check size={14} /> : <Save size={14} />}
+                  {planSaveSuccess ? 'Plan Kaydedildi!' : 'Master Planı Kaydet'}
+                </button>
+              </div>
+
+            </div>
+
+            {/* Bottom Row: Tags Management */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', paddingTop: '0.5rem', borderTop: '1px solid rgba(0,0,0,0.06)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                <Tag size={13} />
+                <span>Etiketler:</span>
+              </div>
+
+              {planTags.map((tag) => (
+                <span
+                  key={tag}
+                  style={{
+                    fontSize: '0.72rem',
+                    padding: '2px 8px',
+                    borderRadius: 'var(--radius-full)',
+                    backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                    color: 'var(--brand-primary)',
+                    fontWeight: 600,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                    border: '1px solid rgba(37, 99, 235, 0.2)'
+                  }}
+                >
+                  {tag}
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveTag(tag)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', color: 'var(--text-muted)' }}
+                  >
+                    <X size={11} />
+                  </button>
+                </span>
+              ))}
+
+              {/* Add Tag Input */}
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                <input
+                  type="text"
+                  placeholder="+ Etiket ekle (#Temmuz, #UK)..."
+                  value={newTagInput}
+                  onChange={(e) => setNewTagInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleAddTag(); }}
+                  style={{
+                    fontSize: '0.72rem',
+                    padding: '2px 8px',
+                    borderRadius: 'var(--radius-full)',
+                    border: '1px dashed var(--border-default)',
+                    backgroundColor: 'var(--bg-surface)',
+                    color: 'var(--text-primary)',
+                    width: '150px'
+                  }}
+                />
+                {newTagInput && (
+                  <button
+                    type="button"
+                    onClick={handleAddTag}
+                    className="btn-ghost"
+                    style={{ padding: '2px 6px', fontSize: '0.7rem' }}
+                  >
+                    Ekle
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* 0.5 SUB-CAMPAIGNS SELECTOR STRIP */}
+          <div 
         style={{ 
           display: 'flex', 
           alignItems: 'center', 
@@ -2344,7 +2849,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       </div>
 
       {/* 3. SCENARIO A: DYNAMIC ANIMATED LOADING SCREEN (When Loading, ONLY this screen is visible) */}
-      {isLoading ? (
+      {isLoading && (
         <div className="card" style={{
           padding: '2.5rem 2rem',
           backgroundColor: 'var(--bg-surface)',
@@ -2482,65 +2987,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
             })}
           </div>
         </div>
-      ) : keywords.length === 0 ? (
-        /* SCENARIO B: EMPTY STATE */
-        <div className="card" style={{ padding: '3.5rem 1.5rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1rem' }}>
-          <div style={{ width: '64px', height: '64px', borderRadius: '50%', backgroundColor: 'rgba(37, 99, 235, 0.1)', color: 'var(--brand-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Search size={32} />
-          </div>
-          <div>
-            <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-              360° Çok Kanallı Medya & Büyüme Planlayıcı
-            </div>
-            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', maxWidth: '580px', margin: '0.5rem auto 0 auto', lineHeight: 1.5 }}>
-              Yukarıdaki arama kutusuna analiz etmek istediğiniz <strong>web sitesi URL'sini</strong> veya <strong>anahtar kelimeleri</strong> yazın. Sistemimiz resmi Google Ads Keyword Planner servisinden arama hacimlerini, sayfa üstü TBM tekliflerini ve tematik STAG reklam gruplarını anında çıkaracaktır.
-            </div>
-          </div>
+      )}
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem', flexWrap: 'wrap', justifyContent: 'center' }}>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Hızlı Başlangıç Örnekleri:</span>
-            {[
-              'summerhomes.com',
-              'alanya butik oteller',
-              'diksiyon kursu istanbul',
-              'dusbahcesiilkokulu.com',
-              'buy apartment alanya'
-            ].map(label => (
-              <button
-                key={label}
-                type="button"
-                onClick={() => {
-                  setQuery(label);
-                  const isUrl = label.includes('.') && !label.includes(' ');
-                  const newMode = isUrl ? 'URL' : 'KEYWORDS';
-                  setMode(newMode);
-                  handleDiscover(label, newMode);
-                }}
-                className="btn-ghost"
-                style={{ fontSize: '0.75rem', padding: '0.3rem 0.65rem', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-full)' }}
-              >
-                + {label}
-              </button>
-            ))}
-          </div>
-
-          {savedPlans.length > 0 && (
-            <div style={{ marginTop: '0.5rem' }}>
-              <button
-                type="button"
-                onClick={() => { setCurrentStep(2); setActiveChannelTab('SAVED_PLANS'); loadSavedPlans(); }}
-                className="btn-secondary"
-                style={{ fontSize: '0.8rem', padding: '0.4rem 0.85rem' }}
-              >
-                <FolderDown size={14} /> Kayıtlı Planları Görüntüle ({savedPlans.length})
-              </button>
-            </div>
-          )}
-        </div>
-      ) : (
-        /* SCENARIO C: RESULTS LOADED (Clean & Bold 3-Step Wizard) */
-        <>
-          {/* 2-Step Wizard Navigation Bar */}
+      {/* 2-Step Wizard Navigation Bar */}
           <div className="card" style={{ padding: '0.6rem 0.85rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '0.65rem', backgroundColor: 'var(--bg-surface)' }}>
             
             {/* Step 1 */}
@@ -2625,6 +3074,42 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           {/* STEP 1 VIEW: Landing Page Context & Keyword Review / Selection           */}
           {/* ========================================================================= */}
           {currentStep === 1 && (
+            keywords.length === 0 ? (
+              <div className="card" style={{ padding: '3rem 1.5rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1rem' }}>
+                <div style={{ width: '56px', height: '56px', borderRadius: '50%', backgroundColor: 'rgba(37, 99, 235, 0.1)', color: 'var(--brand-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Search size={28} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    Bu Alt Kampanya İçin Anahtar Kelime Analizi Başlatın
+                  </div>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', maxWidth: '560px', margin: '0.4rem auto 0 auto', lineHeight: 1.5 }}>
+                    Yukarıdaki SEM Keşif çubuğuna hedef web sitesi URL'sini veya sektörel anahtar kelimeleri girip <strong>"Analiz Et & Keşfet"</strong> butonuna tıklayın.
+                  </p>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.25rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Hızlı Başlangıç Örnekleri:</span>
+                  {['summerhomes.com', 'alanya butik oteller', 'diksiyon kursu istanbul', 'dusbahcesiilkokulu.com', 'buy apartment alanya'].map(label => (
+                    <button
+                      key={label}
+                      type="button"
+                      onClick={() => {
+                        setQuery(label);
+                        const isUrl = label.includes('.') && !label.includes(' ');
+                        const newMode = isUrl ? 'URL' : 'KEYWORDS';
+                        setMode(newMode);
+                        handleDiscover(label, newMode);
+                      }}
+                      className="btn-ghost"
+                      style={{ fontSize: '0.75rem', padding: '0.3rem 0.65rem', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-full)' }}
+                    >
+                      + {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               
               {/* Context Summary Header */}
@@ -3230,6 +3715,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
               </div>
 
             </div>
+            )
           )}
 
           {/* ========================================================================= */}
@@ -5556,7 +6042,257 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
             </div>
           )}
 
-        </>
+        </div>
+      )}
+
+      {/* 👑 New Master Plan Creation Wizard Modal */}
+      {isAddMasterPlanModalOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.65)',
+          backdropFilter: 'blur(4px)',
+          zIndex: 9999,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '1rem'
+        }}>
+          <div 
+            className="card" 
+            style={{ 
+              width: '100%', 
+              maxWidth: '560px', 
+              backgroundColor: 'var(--bg-surface)', 
+              borderRadius: 'var(--radius-sm)',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)',
+              padding: '1.5rem',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '1.25rem',
+              maxHeight: '90vh',
+              overflowY: 'auto'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-default)', paddingBottom: '0.75rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span style={{ fontSize: '1.4rem' }}>👑</span>
+                <div>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                    Yeni Çatı Kampanya Oluştur
+                  </h3>
+                  <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', margin: 0 }}>
+                    Müşteri, dönem ve ilk alt kampanya ayarlarını belirleyin.
+                  </p>
+                </div>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setIsAddMasterPlanModalOpen(false)}
+                className="btn-ghost"
+                style={{ padding: '4px' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Master Plan Name */}
+            <div>
+              <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)', display: 'block', marginBottom: '0.35rem' }}>
+                Çatı Kampanya / Plan Adı:
+              </label>
+              <input
+                type="text"
+                value={newMasterName}
+                onChange={(e) => setNewMasterName(e.target.value)}
+                placeholder="Örn: Temmuz 2026 Büyüme & Lead Kampanyası..."
+                style={{ width: '100%', fontSize: '0.85rem' }}
+              />
+            </div>
+
+            {/* Client & Period Inputs */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+              <div>
+                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)', display: 'block', marginBottom: '0.35rem' }}>
+                  Müşteri / Marka:
+                </label>
+                <input
+                  type="text"
+                  value={newMasterClient}
+                  onChange={(e) => setNewMasterClient(e.target.value)}
+                  placeholder="Örn: Acme Sağlık"
+                  style={{ width: '100%', fontSize: '0.85rem' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)', display: 'block', marginBottom: '0.35rem' }}>
+                  Planlama Dönemi:
+                </label>
+                <input
+                  type="text"
+                  value={newMasterPeriod}
+                  onChange={(e) => setNewMasterPeriod(e.target.value)}
+                  placeholder="Örn: Temmuz 2026"
+                  style={{ width: '100%', fontSize: '0.85rem' }}
+                />
+              </div>
+            </div>
+
+            {/* Tags */}
+            <div>
+              <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)', display: 'block', marginBottom: '0.35rem' }}>
+                Etiketler:
+              </label>
+              <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '0.4rem' }}>
+                {newMasterTags.map(t => (
+                  <span key={t} style={{ fontSize: '0.72rem', padding: '2px 8px', borderRadius: 'var(--radius-full)', backgroundColor: 'rgba(37, 99, 235, 0.1)', color: 'var(--brand-primary)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    {t}
+                    <button type="button" onClick={() => handleRemoveMasterTag(t)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                      <X size={11} />
+                    </button>
+                  </span>
+                ))}
+              </div>
+              <div style={{ display: 'flex', gap: '0.4rem' }}>
+                <input
+                  type="text"
+                  placeholder="+ Etiket (#Temmuz2026, #B2B)..."
+                  value={newMasterTagInput}
+                  onChange={(e) => setNewMasterTagInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAddMasterTag();
+                    }
+                  }}
+                  style={{ flex: 1, fontSize: '0.8rem' }}
+                />
+                <button
+                  type="button"
+                  onClick={handleAddMasterTag}
+                  className="btn-secondary"
+                  style={{ fontSize: '0.8rem' }}
+                >
+                  Ekle
+                </button>
+              </div>
+            </div>
+
+            {/* Initial Sub-Campaign Config */}
+            <div style={{ borderTop: '1px solid var(--border-default)', paddingTop: '0.85rem' }}>
+              <label style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--brand-primary)', display: 'block', marginBottom: '0.5rem' }}>
+                🎯 İlk Alt Kampanya Yapılandırması:
+              </label>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.45rem', marginBottom: '0.65rem' }}>
+                {[
+                  { id: 'GOOGLE', label: 'Google Ads', icon: <GoogleIcon size={16} /> },
+                  { id: 'META', label: 'Meta Ads', icon: <MetaIcon size={16} /> },
+                  { id: 'TIKTOK', label: 'TikTok Ads', icon: <TikTokIcon size={16} /> },
+                  { id: 'YANDEX', label: 'Yandex Direct', icon: <YandexIcon size={16} /> },
+                  { id: 'YOUTUBE', label: 'YouTube Video', icon: <YouTubeIcon size={16} /> },
+                  { id: 'BING', label: 'Bing Search', icon: <BingIcon size={16} /> },
+                ].map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => {
+                      setNewMasterSubPlatform(p.id as CampaignPlatform);
+                      if (p.id === 'GOOGLE') setNewMasterSubObjective('GOOGLE_SEARCH');
+                      else if (p.id === 'META') setNewMasterSubObjective('META_LEADS');
+                      else if (p.id === 'TIKTOK') setNewMasterSubObjective('TIKTOK_LEADS');
+                      else if (p.id === 'YANDEX') setNewMasterSubObjective('YANDEX_SEARCH');
+                      else if (p.id === 'YOUTUBE') setNewMasterSubObjective('GOOGLE_YOUTUBE');
+                    }}
+                    style={{
+                      padding: '0.5rem 0.35rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.35rem',
+                      borderRadius: 'var(--radius-xs)',
+                      border: newMasterSubPlatform === p.id ? '2px solid var(--brand-primary)' : '1px solid var(--border-default)',
+                      backgroundColor: newMasterSubPlatform === p.id ? 'rgba(37, 99, 235, 0.12)' : 'var(--bg-surface-elevated)',
+                      color: newMasterSubPlatform === p.id ? 'var(--brand-primary)' : 'var(--text-secondary)',
+                      fontWeight: newMasterSubPlatform === p.id ? 700 : 500,
+                      fontSize: '0.75rem',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {p.icon}
+                    <span>{p.label}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Language & Budget */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                <div>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: '0.25rem' }}>
+                    Hedef Dil:
+                  </label>
+                  <select
+                    value={newMasterSubLang}
+                    onChange={(e) => setNewMasterSubLang(e.target.value)}
+                    style={{ width: '100%', fontSize: '0.8rem' }}
+                  >
+                    <option value="tr">🇹🇷 Türkçe</option>
+                    <option value="en">🇬🇧 İngilizce (English)</option>
+                    <option value="ru">🇷🇺 Rusça (Русский)</option>
+                    <option value="de">🇩🇪 Almanca (Deutsch)</option>
+                    <option value="ar">🇸🇦 Arapça (العربية)</option>
+                    <option value="fr">🇫🇷 Fransızca (Français)</option>
+                    <option value="es">🇪🇸 İspanyolca (Español)</option>
+                    <option value="fa">🇮🇷 Farsça (فارسی)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: '0.25rem' }}>
+                    Aylık Başlangıç Bütçesi (₺):
+                  </label>
+                  <input
+                    type="number"
+                    value={newMasterSubBudget}
+                    onChange={(e) => setNewMasterSubBudget(Number(e.target.value))}
+                    step={1000}
+                    min={1000}
+                    style={{ width: '100%', fontSize: '0.8rem' }}
+                  />
+                </div>
+              </div>
+
+            </div>
+
+            {/* Modal Footer */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.65rem', borderTop: '1px solid var(--border-default)', paddingTop: '0.85rem' }}>
+              <button
+                type="button"
+                onClick={() => setIsAddMasterPlanModalOpen(false)}
+                className="btn-secondary"
+                style={{ fontSize: '0.82rem', padding: '0.5rem 0.95rem' }}
+              >
+                İptal
+              </button>
+
+              <button
+                type="button"
+                onClick={handleCreateNewMasterPlan}
+                className="btn-primary"
+                style={{ fontSize: '0.82rem', padding: '0.5rem 1.15rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+              >
+                <span>👑 Çatı Kampanyayı Oluştur & Çalışmaya Başla</span>
+              </button>
+            </div>
+
+          </div>
+        </div>
       )}
 
       {/* 📍 Google Ads Geo-Targeting / Location Modal */}
