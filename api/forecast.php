@@ -539,6 +539,22 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
     $totalBreakdownVol = 0;
     $keywordGeoMap = [];
 
+    // Pre-initialize all official keywords for all locations with 0 to prevent undefined geoVolumes
+    if (!empty($officialKeywords) && is_array($officialKeywords)) {
+        foreach ($officialKeywords as $okw) {
+            $kText = is_array($okw) ? ($okw['keyword'] ?? '') : (string)$okw;
+            $kwNorm = mb_strtolower(preg_replace('/\s+/', ' ', trim($kText)), 'UTF-8');
+            foreach ($geoConstants as $geo) {
+                $geoId = preg_replace('/[^0-9]/', '', $geo);
+                $keywordGeoMap[$kwNorm][$geoId] = [
+                    'monthlyVolume' => 0,
+                    'lowCpc' => 0.0,
+                    'highCpc' => 0.0
+                ];
+            }
+        }
+    }
+
     foreach ($geoBatches as $batchIdx => $batch) {
         $mh = curl_multi_init();
         $curlHandles = [];
