@@ -568,6 +568,7 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
     }
 
     // 2. Query Google Ads API with High-Intent Seeds (AI seeds) to get REAL official Google Ads data!
+    $uniqueSeeds = [];
     if (!empty($keywords) && is_array($keywords) && count($keywords) > 0) {
         $uniqueSeeds = array_slice(array_values(array_unique(array_filter($keywords))), 0, 20);
         if (!empty($uniqueSeeds)) {
@@ -579,6 +580,66 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
             ];
             $seedRes = $callGoogleAdsApi($seedPayload);
             $parseResults($seedRes, true);
+        }
+    }
+
+    // 3. SMART FALLBACK TIER 1: If specific city/regional targeting returned 0 results, query parent Country!
+    if (empty($parsedKeywords) && $finalGeoList !== [$geoConst]) {
+        if (!empty($url)) {
+            $countryUrlPayload = [
+                "keywordPlanNetwork" => "GOOGLE_SEARCH",
+                "language" => $langConst,
+                "geoTargetConstants" => [$geoConst],
+                "urlSeed" => ["url" => $url]
+            ];
+            $countryUrlRes = $callGoogleAdsApi($countryUrlPayload);
+            $parseResults($countryUrlRes, false);
+        }
+
+        if (empty($parsedKeywords) && !empty($uniqueSeeds)) {
+            $countrySeedPayload = [
+                "keywordPlanNetwork" => "GOOGLE_SEARCH",
+                "language" => $langConst,
+                "geoTargetConstants" => [$geoConst],
+                "keywordSeed" => ["keywords" => $uniqueSeeds]
+            ];
+            $countrySeedRes = $callGoogleAdsApi($countrySeedPayload);
+            $parseResults($countrySeedRes, true);
+        }
+    }
+
+    // 4. SMART FALLBACK TIER 2: If still empty (e.g. niche unindexed site), query language core market!
+    if (empty($parsedKeywords)) {
+        $langPrimaryGeoMap = [
+            'ru' => 'geoTargetConstants/2792', // Turkey for Russian searches
+            'tr' => 'geoTargetConstants/2792',
+            'en' => 'geoTargetConstants/2840',
+            'de' => 'geoTargetConstants/2276',
+            'ar' => 'geoTargetConstants/2784',
+            'kz' => 'geoTargetConstants/2398'
+        ];
+        $primaryGeo = $langPrimaryGeoMap[$normLangCode] ?? 'geoTargetConstants/2792';
+
+        if (!empty($uniqueSeeds)) {
+            $primarySeedPayload = [
+                "keywordPlanNetwork" => "GOOGLE_SEARCH",
+                "language" => $langConst,
+                "geoTargetConstants" => [$primaryGeo],
+                "keywordSeed" => ["keywords" => $uniqueSeeds]
+            ];
+            $primarySeedRes = $callGoogleAdsApi($primarySeedPayload);
+            $parseResults($primarySeedRes, true);
+        }
+
+        if (empty($parsedKeywords) && !empty($url)) {
+            $primaryUrlPayload = [
+                "keywordPlanNetwork" => "GOOGLE_SEARCH",
+                "language" => $langConst,
+                "geoTargetConstants" => [$primaryGeo],
+                "urlSeed" => ["url" => $url]
+            ];
+            $primaryUrlRes = $callGoogleAdsApi($primaryUrlPayload);
+            $parseResults($primaryUrlRes, false);
         }
     }
 
@@ -1705,6 +1766,7 @@ if ($action === 'discover' && $method === 'POST') {
     $query = trim($input['query'] ?? '');
     $mode = trim($input['mode'] ?? 'URL');
     $requestedLanguage = trim($input['language'] ?? '');
+    $requestedCountryCode = trim($input['countryCode'] ?? '');
     $requestedGeoTargetConstants = $input['geoTargetConstants'] ?? [];
 
     if (empty($query)) {
@@ -1712,7 +1774,7 @@ if ($action === 'discover' && $method === 'POST') {
         exit;
     }
 
-    $cacheKey = md5("forecast_v17_{$mode}_{$query}_" . ($requestedLanguage ?: 'auto') . '_' . implode('_', (array)$requestedGeoTargetConstants));
+    $cacheKey = md5("forecast_v18_{$mode}_{$query}_" . ($requestedLanguage ?: 'auto') . '_' . ($requestedCountryCode ?: 'auto') . '_' . implode('_', (array)$requestedGeoTargetConstants));
 
     // 1. Check Server-Side Cache
     $stmtCache = $pdo->prepare("SELECT data, created_at FROM keyword_cache WHERE cache_key = ?");
@@ -1802,7 +1864,7 @@ if ($action === 'discover' && $method === 'POST') {
         $isActualUrl ? $query : null,
         $smartSeeds ?: (!$isActualUrl ? $cleanUserSeeds : null),
         $langInfo['code'],
-        $suggestedCountries[0]['code'] ?? 'TR',
+        $requestedCountryCode ?: ($suggestedCountries[0]['code'] ?? 'TR'),
         $requestedGeoTargetConstants
     );
 

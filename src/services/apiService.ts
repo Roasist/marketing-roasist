@@ -256,6 +256,7 @@ export class ApiService {
     query: string;
     mode: 'URL' | 'KEYWORDS';
     country?: string;
+    countryCode?: string;
     language?: string;
     geoTargetConstants?: string[];
   }): Promise<any> {

@@ -1186,6 +1186,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         query: q.trim(),
         mode: m,
         language: targetLanguage !== 'auto' ? targetLanguage : undefined,
+        countryCode: selectedLocations[0]?.countryCode || undefined,
         geoTargetConstants: selectedLocations.map(l => l.id),
       });
 
