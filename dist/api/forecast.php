@@ -534,11 +534,13 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
         'KG' => '🇰🇬', 'UZ' => '🇺🇿'
     ];
 
-    $mh = curl_multi_init();
-    $curlHandles = [];
+    $breakdown = [];
+    $totalBreakdownVol = 0;
+    $keywordGeoMap = [];
 
     foreach ($geoConstants as $geo) {
         $geoResource = strpos($geo, 'geoTargetConstants/') === 0 ? $geo : "geoTargetConstants/{$geo}";
+        $geoId = preg_replace('/[^0-9]/', '', $geo);
         
         $payload = [
             "keywordPlanNetwork" => "GOOGLE_SEARCH",
@@ -557,50 +559,33 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
             $payload["siteSeed"] = ["siteUrl" => "https://{$cleanSite}"];
         }
 
-        $chLoc = curl_init("https://googleads.googleapis.com/v22/customers/{$customerId}:generateKeywordIdeas");
-        curl_setopt($chLoc, CURLOPT_POST, true);
-        curl_setopt($chLoc, CURLOPT_POSTFIELDS, json_encode($payload));
-        curl_setopt($chLoc, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($chLoc, CURLOPT_TIMEOUT, 8);
-        curl_setopt($chLoc, CURLOPT_HTTPHEADER, [
-            "Authorization: Bearer {$accessToken}",
-            "developer-token: {$devToken}",
-            "Content-Type: application/json"
-        ]);
+        $json = null;
+        for ($retry = 0; $retry < 3; $retry++) {
+            $chLoc = curl_init("https://googleads.googleapis.com/v22/customers/{$customerId}:generateKeywordIdeas");
+            curl_setopt($chLoc, CURLOPT_POST, true);
+            curl_setopt($chLoc, CURLOPT_POSTFIELDS, json_encode($payload));
+            curl_setopt($chLoc, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($chLoc, CURLOPT_TIMEOUT, 12);
+            curl_setopt($chLoc, CURLOPT_HTTPHEADER, [
+                "Authorization: Bearer {$accessToken}",
+                "developer-token: {$devToken}",
+                "Content-Type: application/json"
+            ]);
+            $resp = curl_exec($chLoc);
+            $httpCode = curl_getinfo($chLoc, CURLINFO_HTTP_CODE);
+            curl_close($chLoc);
 
-        curl_multi_add_handle($mh, $chLoc);
-        $curlHandles[$geo] = $chLoc;
-    }
-
-    $active = null;
-    do {
-        $mrc = curl_multi_exec($mh, $active);
-    } while ($mrc == CURLM_CALL_MULTI_PERFORM);
-
-    while ($active && $mrc == CURLM_OK) {
-        if (curl_multi_select($mh, 0.5) != -1) {
-            do {
-                $mrc = curl_multi_exec($mh, $active);
-            } while ($mrc == CURLM_CALL_MULTI_PERFORM);
-        } else {
-            usleep(25000);
-            do {
-                $mrc = curl_multi_exec($mh, $active);
-            } while ($mrc == CURLM_CALL_MULTI_PERFORM);
+            if ($httpCode === 200) {
+                $json = json_decode($resp, true);
+                break;
+            } elseif ($httpCode === 429) {
+                usleep(350000 * ($retry + 1));
+            } else {
+                break;
+            }
         }
-    }
+        usleep(50000); // 50ms courteous delay
 
-    $breakdown = [];
-    $totalBreakdownVol = 0;
-    $keywordGeoMap = [];
-
-    foreach ($curlHandles as $geo => $chLoc) {
-        $geoId = preg_replace('/[^0-9]/', '', $geo);
-        $resp = curl_multi_getcontent($chLoc);
-        curl_multi_remove_handle($mh, $chLoc);
-        curl_close($chLoc);
-
-        $json = json_decode($resp, true);
         $results = $json['results'] ?? [];
 
         $vol = 0;
@@ -657,7 +642,6 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
             'highCpc' => $avgCpc
         ];
     }
-    curl_multi_close($mh);
 
     // Calculate benchmark market CPC and max volume
     $maxVol = 0;
