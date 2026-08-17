@@ -552,16 +552,32 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
         }
     };
 
-    // 1. If URL is present, query Google Ads API with URL seed
+    // 1. If URL is present, query Google Ads API with siteSeed ("Use the entire site") and urlSeed ("Use this page")
+    $cleanSiteUrl = '';
     if (!empty($url)) {
         if (!preg_match('/^https?:\/\//i', $url)) {
             $url = 'https://' . $url;
         }
+        $siteUrl = preg_replace('/^https?:\/\//i', '', $url);
+        $siteUrl = preg_replace('/[\/\?].*$/', '', $siteUrl);
+        $cleanSiteUrl = 'https://' . $siteUrl;
+
+        // 1.1 siteSeed: Mirrors Google Ads UI "Use the entire site" (Returns full 380 keywords!)
+        $sitePayload = [
+            "keywordPlanNetwork" => "GOOGLE_SEARCH",
+            "language" => $langConst,
+            "geoTargetConstants" => $finalGeoList,
+            "siteSeed" => ["siteUrl" => $cleanSiteUrl]
+        ];
+        $siteRes = $callGoogleAdsApi($sitePayload);
+        $parseResults($siteRes, false);
+
+        // 1.2 urlSeed: "Use only this page" (with trailing slash)
         $urlPayload = [
             "keywordPlanNetwork" => "GOOGLE_SEARCH",
             "language" => $langConst,
             "geoTargetConstants" => $finalGeoList,
-            "urlSeed" => ["url" => $url]
+            "urlSeed" => ["url" => rtrim($url, '/') . '/']
         ];
         $urlRes = $callGoogleAdsApi($urlPayload);
         $parseResults($urlRes, false);
@@ -583,20 +599,31 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
         }
     }
 
-    // 3. SMART FALLBACK TIER 1: If specific city/regional targeting returned 0 results, query parent Country!
-    if (empty($parsedKeywords) && $finalGeoList !== [$geoConst]) {
-        if (!empty($url)) {
+    // 3. SMART FALLBACK TIER 1: If specific city targeting returned few results (< 20), query parent Country!
+    if (count($parsedKeywords) < 20 && $finalGeoList !== [$geoConst]) {
+        if (!empty($cleanSiteUrl)) {
+            $countrySitePayload = [
+                "keywordPlanNetwork" => "GOOGLE_SEARCH",
+                "language" => $langConst,
+                "geoTargetConstants" => [$geoConst],
+                "siteSeed" => ["siteUrl" => $cleanSiteUrl]
+            ];
+            $countrySiteRes = $callGoogleAdsApi($countrySitePayload);
+            $parseResults($countrySiteRes, false);
+        }
+
+        if (count($parsedKeywords) < 20 && !empty($url)) {
             $countryUrlPayload = [
                 "keywordPlanNetwork" => "GOOGLE_SEARCH",
                 "language" => $langConst,
                 "geoTargetConstants" => [$geoConst],
-                "urlSeed" => ["url" => $url]
+                "urlSeed" => ["url" => rtrim($url, '/') . '/']
             ];
             $countryUrlRes = $callGoogleAdsApi($countryUrlPayload);
             $parseResults($countryUrlRes, false);
         }
 
-        if (empty($parsedKeywords) && !empty($uniqueSeeds)) {
+        if (count($parsedKeywords) < 20 && !empty($uniqueSeeds)) {
             $countrySeedPayload = [
                 "keywordPlanNetwork" => "GOOGLE_SEARCH",
                 "language" => $langConst,
@@ -620,6 +647,17 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
         ];
         $primaryGeo = $langPrimaryGeoMap[$normLangCode] ?? 'geoTargetConstants/2792';
 
+        if (!empty($cleanSiteUrl)) {
+            $primarySitePayload = [
+                "keywordPlanNetwork" => "GOOGLE_SEARCH",
+                "language" => $langConst,
+                "geoTargetConstants" => [$primaryGeo],
+                "siteSeed" => ["siteUrl" => $cleanSiteUrl]
+            ];
+            $primarySiteRes = $callGoogleAdsApi($primarySitePayload);
+            $parseResults($primarySiteRes, false);
+        }
+
         if (!empty($uniqueSeeds)) {
             $primarySeedPayload = [
                 "keywordPlanNetwork" => "GOOGLE_SEARCH",
@@ -629,17 +667,6 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
             ];
             $primarySeedRes = $callGoogleAdsApi($primarySeedPayload);
             $parseResults($primarySeedRes, true);
-        }
-
-        if (empty($parsedKeywords) && !empty($url)) {
-            $primaryUrlPayload = [
-                "keywordPlanNetwork" => "GOOGLE_SEARCH",
-                "language" => $langConst,
-                "geoTargetConstants" => [$primaryGeo],
-                "urlSeed" => ["url" => $url]
-            ];
-            $primaryUrlRes = $callGoogleAdsApi($primaryUrlPayload);
-            $parseResults($primaryUrlRes, false);
         }
     }
 
@@ -1396,12 +1423,12 @@ function filterKeywordsByPageContext($keywords, $pageDetails, $query, $langCode)
 
     // Competing foreign destination keywords
     $foreignGeo = [
-        'us', 'usa', 'u.s.', 'america', 'american', 'united states',
+        'usa', 'u.s.', 'america', 'american', 'united states',
         'canada', 'canadian', 'uk', 'britain', 'british',
         'australia', 'australian', 'german', 'germany',
         'italian', 'italy', 'spanish', 'spain',
         'portugal', 'portuguese', 'greek', 'greece',
-        'malta', 'cyprus', 'grenada', 'dominica', 'vanuatu',
+        'malta', 'grenada', 'dominica', 'vanuatu',
         'antigua', 'st kitts', 'saint kitts', 'st lucia', 'saint lucia',
         'eb5', 'eb-5', 'h1b', 'h-1b', 'green card', 'greencard',
         'london', 'new york', 'california', 'florida', 'texas', 'miami', 'chicago', 'los angeles',
@@ -1413,9 +1440,9 @@ function filterKeywordsByPageContext($keywords, $pageDetails, $query, $langCode)
         $foreignGeo[] = 'türkiye';
     }
 
-    $foreignPattern = '/\b(' . implode('|', array_map('preg_quote', array_values($foreignGeo))) . ')\b/ui';
-    $cyprusPattern = '/\b(cyprus|north cyprus|kıbrıs|kuzey kıbrıs|kktc|esentepe|girne|kyrenia|famagusta|gazimağusa|tatlısu|iskele|cordelia)\b/ui';
-    $turkeyPattern = '/\b(turkey|turkish|türkiye|türk|istanbul|alanya|antalya|bodrum|fethiye|izmir|ankara|mersin|bursa|trabzon)\b/ui';
+    $foreignPattern = '/(?:^|[^\p{L}\p{N}])(' . implode('|', array_map('preg_quote', array_values($foreignGeo))) . ')(?:[^\p{L}\p{N}]|$)/ui';
+    $cyprusPattern = '/(?:^|[^\p{L}\p{N}])(cyprus|north cyprus|kıbrıs|kuzey kıbrıs|kktc|esentepe|girne|kyrenia|famagusta|gazimağusa|tatlısu|iskele|cordelia)(?:[^\p{L}\p{N}]|$)/ui';
+    $turkeyPattern = '/(?:^|[^\p{L}\p{N}])(turkey|turkish|türkiye|türk|istanbul|alanya|antalya|bodrum|fethiye|izmir|ankara|mersin|bursa|trabzon|турци|турция|турции|турцию|турецк|турецкий|турецкая|алань|аланья|аланье|аланьи|аланью|анталь|анталья|анталии|анталию|стамбул|стамбуле|бодрум|мерсин)(?:[^\p{L}\p{N}]|$)/ui';
 
     // Generic ungrounded real estate words that MUST have location if page is location-tied
     $genericRealEstatePattern = '/^(house for sale|homes for sale|real estate|homes for rent|searching for properties|apartments luxury|for sale apartments|properties for sell|holiday homes|buy a home|property for sale|houses for sale|luxury homes|dream homes|buying house|house for sale luxury|homes for sale luxury|for sale owner|luxury apartment complex|apartments for sale|apartments in|houses in)$/i';
@@ -1774,7 +1801,7 @@ if ($action === 'discover' && $method === 'POST') {
         exit;
     }
 
-    $cacheKey = md5("forecast_v18_{$mode}_{$query}_" . ($requestedLanguage ?: 'auto') . '_' . ($requestedCountryCode ?: 'auto') . '_' . implode('_', (array)$requestedGeoTargetConstants));
+    $cacheKey = md5("forecast_v20_{$mode}_{$query}_" . ($requestedLanguage ?: 'auto') . '_' . ($requestedCountryCode ?: 'auto') . '_' . implode('_', (array)$requestedGeoTargetConstants));
 
     // 1. Check Server-Side Cache
     $stmtCache = $pdo->prepare("SELECT data, created_at FROM keyword_cache WHERE cache_key = ?");
