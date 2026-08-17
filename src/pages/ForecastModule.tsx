@@ -818,6 +818,19 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       if (target.parameters.gdnCtr !== undefined) setGdnCtr(target.parameters.gdnCtr);
       if (target.parameters.gdnAssistedCr !== undefined) setGdnAssistedCr(target.parameters.gdnAssistedCr);
     }
+
+    if (target.platform === 'META') {
+      setActiveChannelTab('META_ADS');
+      setCurrentStep(2);
+    } else if (target.platform === 'YOUTUBE') {
+      setActiveChannelTab('YOUTUBE');
+      setCurrentStep(2);
+    } else if (target.platform === 'GOOGLE' && target.objective === 'GOOGLE_GDN') {
+      setActiveChannelTab('GDN');
+      setCurrentStep(2);
+    } else if (target.platform === 'GOOGLE' && target.objective === 'GOOGLE_SEARCH') {
+      setActiveChannelTab('GOOGLE_SEARCH');
+    }
   };
 
   // Create new Sub-Campaign
@@ -887,9 +900,19 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     setNewCampName('');
     
     // Switch channel sub tab to match objective
-    if (newCampPlatform === 'META') setActiveChannelTab('META_ADS');
-    else if (newCampPlatform === 'YOUTUBE') setActiveChannelTab('YOUTUBE');
-    else if (newCampPlatform === 'GOOGLE') setActiveChannelTab('GOOGLE_SEARCH');
+    if (newCampPlatform === 'META') {
+      setActiveChannelTab('META_ADS');
+      setCurrentStep(2);
+    } else if (newCampPlatform === 'YOUTUBE') {
+      setActiveChannelTab('YOUTUBE');
+      setCurrentStep(2);
+    } else if (newCampPlatform === 'GOOGLE' && newCampObjective === 'GOOGLE_GDN') {
+      setActiveChannelTab('GDN');
+      setCurrentStep(2);
+    } else if (newCampPlatform === 'GOOGLE' && newCampObjective === 'GOOGLE_SEARCH') {
+      setActiveChannelTab('GOOGLE_SEARCH');
+      setCurrentStep(1);
+    }
 
     // Persist updated plan with new sub-campaign immediately
     try {
@@ -1942,6 +1965,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     document.body.removeChild(link);
   };
 
+  const activeSubCampaign = subCampaigns.find(c => c.id === activeSubCampaignId);
+  const isGoogleSearchActive = activeSubCampaign?.platform === 'GOOGLE' && activeSubCampaign?.objective === 'GOOGLE_SEARCH';
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
 
@@ -2879,8 +2905,136 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         </div>
       )}
 
-      {/* 2. Unified Smart Search & Discovery Control Card */}
-      <div className="card" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+      {/* CASE 1: MASTER PLAN HAS 0 SUB-CAMPAIGNS -> SHOW WELCOME & PLATFORM SELECTION HUB */}
+      {subCampaigns.length === 0 && (
+        <div className="card" style={{ padding: '2.5rem 1.5rem', textAlign: 'center', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          <div>
+            <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>👑</div>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+              {planName || 'Çatı Kampanya'}
+            </h3>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', maxWidth: '600px', margin: '0.5rem auto 0', lineHeight: 1.6 }}>
+              Çatı kampanyanız başarıyla oluşturuldu. Şimdi bütçe ve hedeflerinizi yapılandırmak için ilk alt kampanya kanalınızı ekleyin.
+            </p>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem', maxWidth: '1000px', margin: '0 auto', width: '100%', textAlign: 'left' }}>
+            {/* Google Search Card */}
+            <div 
+              onClick={() => {
+                setNewCampName('Google Arama (Search)');
+                setNewCampPlatform('GOOGLE');
+                setNewCampObjective('GOOGLE_SEARCH');
+                setNewCampBudget(25000);
+                setIsAddCampaignModalOpen(true);
+              }}
+              className="card cursor-pointer hover:border-brand transition-all"
+              style={{ padding: '1.25rem', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-xs)', display: 'flex', flexDirection: 'column', gap: '0.65rem', backgroundColor: 'var(--bg-surface-elevated)', cursor: 'pointer' }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span style={{ fontSize: '1.5rem' }}>🔍</span>
+                <div>
+                  <h4 style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Google Arama (Search)</h4>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--brand-primary)', fontWeight: 600 }}>SEM & STAG Anahtar Kelime Motoru</span>
+                </div>
+              </div>
+              <p style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.4 }}>
+                Satın alma ve talep niyetli arama terimlerini resmi Google Ads Keyword Planner ve STAG gruplarıyla planlayın.
+              </p>
+              <button type="button" className="btn-primary" style={{ marginTop: 'auto', fontSize: '0.78rem', width: '100%', justifyContent: 'center' }}>
+                + Google Search Kampanyası Ekle
+              </button>
+            </div>
+
+            {/* Meta Ads Card */}
+            <div 
+              onClick={() => {
+                setNewCampName('Meta Ads (Instagram & Facebook)');
+                setNewCampPlatform('META');
+                setNewCampObjective('META_LEADS');
+                setNewCampBudget(25000);
+                setIsAddCampaignModalOpen(true);
+              }}
+              className="card cursor-pointer hover:border-brand transition-all"
+              style={{ padding: '1.25rem', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-xs)', display: 'flex', flexDirection: 'column', gap: '0.65rem', backgroundColor: 'var(--bg-surface-elevated)', cursor: 'pointer' }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span style={{ fontSize: '1.5rem' }}>📱</span>
+                <div>
+                  <h4 style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Meta Ads (Instagram & FB)</h4>
+                  <span style={{ fontSize: '0.72rem', color: '#1877F2', fontWeight: 600 }}>Lead Huni & Dönüşüm Simülatörü</span>
+                </div>
+              </div>
+              <p style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.4 }}>
+                CPM, CTR ve Lead CR parametreleriyle Instagram ve Facebook performans projeksiyonu.
+              </p>
+              <button type="button" className="btn-secondary" style={{ marginTop: 'auto', fontSize: '0.78rem', width: '100%', justifyContent: 'center' }}>
+                + Meta Ads Kampanyası Ekle
+              </button>
+            </div>
+
+            {/* YouTube Video Card */}
+            <div 
+              onClick={() => {
+                setNewCampName('YouTube Video & Shorts');
+                setNewCampPlatform('YOUTUBE');
+                setNewCampObjective('GOOGLE_YOUTUBE');
+                setNewCampBudget(15000);
+                setIsAddCampaignModalOpen(true);
+              }}
+              className="card cursor-pointer hover:border-brand transition-all"
+              style={{ padding: '1.25rem', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-xs)', display: 'flex', flexDirection: 'column', gap: '0.65rem', backgroundColor: 'var(--bg-surface-elevated)', cursor: 'pointer' }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span style={{ fontSize: '1.5rem' }}>🎬</span>
+                <div>
+                  <h4 style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>YouTube Video & Shorts</h4>
+                  <span style={{ fontSize: '0.72rem', color: '#FF0000', fontWeight: 600 }}>CPV, VTR & Video Aksiyon Projeksiyonu</span>
+                </div>
+              </div>
+              <p style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.4 }}>
+                Video izlenme, izleme oranı (VTR) ve dönüşüm metrikleriyle YouTube erişim simülasyonu.
+              </p>
+              <button type="button" className="btn-secondary" style={{ marginTop: 'auto', fontSize: '0.78rem', width: '100%', justifyContent: 'center' }}>
+                + YouTube Kampanyası Ekle
+              </button>
+            </div>
+
+            {/* Google GDN Card */}
+            <div 
+              onClick={() => {
+                setNewCampName('Google GDN & Retargeting');
+                setNewCampPlatform('GOOGLE');
+                setNewCampObjective('GOOGLE_GDN');
+                setNewCampBudget(10000);
+                setIsAddCampaignModalOpen(true);
+              }}
+              className="card cursor-pointer hover:border-brand transition-all"
+              style={{ padding: '1.25rem', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-xs)', display: 'flex', flexDirection: 'column', gap: '0.65rem', backgroundColor: 'var(--bg-surface-elevated)', cursor: 'pointer' }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span style={{ fontSize: '1.5rem' }}>🌐</span>
+                <div>
+                  <h4 style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Google GDN (Görüntülü)</h4>
+                  <span style={{ fontSize: '0.72rem', color: '#0F9D58', fontWeight: 600 }}>Display CPM & Asiste Dönüşümler</span>
+                </div>
+              </div>
+              <p style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.4 }}>
+                Görüntülü reklam ağı gösterim hacmi, asiste lead'ler ve yeniden pazarlama projeksiyonu.
+              </p>
+              <button type="button" className="btn-secondary" style={{ marginTop: 'auto', fontSize: '0.78rem', width: '100%', justifyContent: 'center' }}>
+                + GDN Kampanyası Ekle
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CASE 2: GOOGLE SEARCH SUB-CAMPAIGN ACTIVE -> SHOW SEM SEARCH & 2-STEP WIZARD */}
+      {subCampaigns.length > 0 && isGoogleSearchActive && activeChannelTab === 'GOOGLE_SEARCH' && (
+        <>
+          {/* 2. Unified Smart Search & Discovery Control Card */}
+          <div className="card" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
         
         {/* Top Meta Bar with Title and Curated Examples */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
@@ -3885,11 +4039,13 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
             </div>
             )
           )}
+        </>
+      )}
 
           {/* ========================================================================= */}
-          {/* STEP 2 VIEW: 360° Omnichannel Media Studio & Growth Simulator            */}
+          {/* STEP 2 VIEW: Omnichannel & Platform Dedicated Studios                     */}
           {/* ========================================================================= */}
-          {currentStep === 2 && (
+          {subCampaigns.length > 0 && (currentStep === 2 || !isGoogleSearchActive) && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
               
               {/* Step 2 Quick Context & Strategic Growth Scenario Selector Bar */}
@@ -3899,18 +4055,28 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
                     <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                      2. Adım: 360° Medya Karması & Büyüme Simülatörü
+                      {activeChannelTab === 'OMNICHANNEL' && '360° Medya Karması & Konsolide Büyüme Simülatörü'}
+                      {activeChannelTab === 'GOOGLE_SEARCH' && 'Google Search (Arama Ağı) Performans Projeksiyonu'}
+                      {activeChannelTab === 'META_ADS' && 'Meta Ads (Facebook & Instagram) Performans Projeksiyonu'}
+                      {activeChannelTab === 'YOUTUBE' && 'YouTube Video & Shorts Performans Projeksiyonu'}
+                      {activeChannelTab === 'GDN' && 'Google GDN (Görüntülü Reklam) Performans Projeksiyonu'}
+                      {activeChannelTab === 'NEGATIVES' && 'AI Negatif Kelime Kalkanı'}
                     </span>
                     <span className="badge badge-active" style={{ fontSize: '0.72rem' }}>
-                      <Sparkles size={11} /> 4 Kanal Entegre
+                      {activeChannelTab === 'OMNICHANNEL' && '📊 360° Konsolide'}
+                      {activeChannelTab === 'GOOGLE_SEARCH' && '🔍 Google Arama'}
+                      {activeChannelTab === 'META_ADS' && '📱 Meta Ads'}
+                      {activeChannelTab === 'YOUTUBE' && '🎬 YouTube Video'}
+                      {activeChannelTab === 'GDN' && '🌐 Google GDN'}
+                      {activeChannelTab === 'NEGATIVES' && '🛡️ Negatif Koruma'}
                     </span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '0.78rem', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
                     <span>Dil: <strong>{detectedLanguageName}</strong></span>
                     <span>•</span>
-                    <span>Kelime Havuzu: <strong>{selectedKeywordsPool.length} Kelime</strong></span>
+                    <span>Aylık Bütçe: <strong>₺{monthlyBudget.toLocaleString('tr-TR')}</strong></span>
                     <span>•</span>
-                    <span>Hedef Bölgeler: <strong>{selectedLocations.map(l => l.flag + ' ' + (l.canonicalName || l.name)).join(', ')}</strong></span>
+                    <span>Hedef Bölgeler: <strong>{selectedLocations.map(l => (l.flag || '📍') + ' ' + (l.canonicalName || l.name)).join(', ')}</strong></span>
                   </div>
                 </div>
 
@@ -3957,89 +4123,10 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       <Globe size={13} />
                       <span>Lokasyon ({selectedLocations.length})</span>
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => setCurrentStep(1)}
-                      className="btn-ghost"
-                      style={{ fontSize: '0.75rem', padding: '0.35rem 0.65rem', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-xs)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
-                    >
-                      <ArrowLeft size={13} />
-                      <span>1. Kelime Grupları</span>
-                    </button>
                   </div>
                 </div>
 
               </div>
-
-              {/* Active Scenario Guidance Alert */}
-              <div style={{
-                padding: '0.65rem 1rem',
-                borderRadius: 'var(--radius-xs)',
-                backgroundColor: 'var(--bg-surface-elevated)',
-                border: '1px solid var(--border-default)',
-                fontSize: '0.78rem',
-                color: 'var(--text-secondary)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: '0.5rem'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <span style={{ fontSize: '1rem' }}>
-                    {growthScenario === 'CONSERVATIVE' ? '🛡️' : (growthScenario === 'AGGRESSIVE' ? '🚀' : '⚖️')}
-                  </span>
-                  <span>
-                    <strong>Aktif Simülasyon Çarpanı:</strong> {
-                      growthScenario === 'CONSERVATIVE'
-                        ? 'Temkinli Model — Rekabet baskısı ve düşük dönüşüm oranları (CR × 0.85, CPC/CPM × 1.15) baz alınmıştır.'
-                        : (growthScenario === 'AGGRESSIVE'
-                            ? 'Büyüme & Ölçeklenme Modeli — Yüksek kaliteli landing page ve negatif koruması ile optimize edilmiş performans (CR × 1.20, CPC × 0.90, Nitelikli Lead × 1.15).'
-                            : 'Gerçekçi Sektör Standardı — Google Ads & Meta Ads sektör ortalamaları ve geçmiş pazar verileri baz alınmıştır.')
-                    }
-                  </span>
-                </div>
-                <span style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                  {growthScenario === 'CONSERVATIVE' ? 'Temkinli Bütçe' : (growthScenario === 'AGGRESSIVE' ? 'Yüksek Ölçek' : 'Standart')}
-                </span>
-              </div>
-
-              {/* If no sub-campaigns created yet, show an encouraging Action Banner */}
-              {subCampaigns.length === 0 && (
-                <div 
-                  className="card" 
-                  style={{ 
-                    padding: '1.75rem', 
-                    textAlign: 'center', 
-                    backgroundColor: 'rgba(37, 99, 235, 0.04)', 
-                    border: '1.5px dashed var(--brand-primary)',
-                    borderRadius: 'var(--radius-sm)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: '0.75rem'
-                  }}
-                >
-                  <div style={{ fontSize: '2.2rem' }}>🚀</div>
-                  <h4 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-                    Bu Çatı Kampanyaya Henüz Bir Alt Kampanya Eklenmedi
-                  </h4>
-                  <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', maxWidth: '520px', margin: 0, lineHeight: 1.5 }}>
-                    Google Arama, Meta Ads (Instagram/Facebook), TikTok veya YouTube gibi hedef kanallarınız için bütçe, dil ve hedef kitle tanımlamak üzere ilk alt kampanyanızı oluşturun.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setNewCampName(`Kampanya 1`);
-                      setIsAddCampaignModalOpen(true);
-                    }}
-                    className="btn-primary"
-                    style={{ fontSize: '0.85rem', padding: '0.55rem 1.25rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.35rem' }}
-                  >
-                    <Plus size={15} />
-                    <span>İlk Alt Kampanyayı Ekle</span>
-                  </button>
-                </div>
-              )}
 
               {/* Business Model & Goal Selector */}
               <div className="card" style={{ padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', backgroundColor: 'var(--bg-surface-elevated)' }}>
@@ -4080,44 +4167,44 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                 </div>
               </div>
 
-              {/* Channel Selector Sub-Tabs with Official SVG Brand Icons */}
-              <div style={{ display: 'flex', gap: '0.4rem', borderBottom: '1px solid var(--border-default)', paddingBottom: '0.65rem', overflowX: 'auto' }}>
-                {[
-                  { id: 'OMNICHANNEL', label: '360° Medya Karması (Omnichannel)', icon: <OmnichannelIcon size={16} /> },
-                  { id: 'GOOGLE_SEARCH', label: 'Google Search (Arama Ağı)', icon: <GoogleIcon size={16} /> },
-                  { id: 'META_ADS', label: 'Meta Ads (Facebook & Instagram)', icon: <MetaIcon size={16} /> },
-                  { id: 'YOUTUBE', label: 'YouTube Video (Action & Shorts)', icon: <YouTubeIcon size={16} /> },
-                  { id: 'GDN', label: 'Google GDN (Display & Retargeting)', icon: <GdnIcon size={16} /> },
-                  { id: 'NEGATIVES', label: `AI Negatif Kalkanı (${negativeCategories.reduce((a, c) => a + c.words.length, 0)})`, icon: <ShieldAlert size={15} /> },
-                  { id: 'SAVED_PLANS', label: `Kayıtlı Planlar (${savedPlans.length})`, icon: <FolderDown size={15} /> },
-                ].map(tab => (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => {
-                      setActiveChannelTab(tab.id as ChannelType);
-                      if (tab.id === 'SAVED_PLANS') loadSavedPlans();
-                    }}
-                    style={{
-                      padding: '0.5rem 0.95rem',
-                      fontSize: '0.825rem',
-                      borderRadius: 'var(--radius-xs)',
-                      border: activeChannelTab === tab.id ? '1.5px solid var(--brand-primary)' : '1px solid var(--border-default)',
-                      backgroundColor: activeChannelTab === tab.id ? 'rgba(37, 99, 235, 0.12)' : 'var(--bg-surface)',
-                      color: activeChannelTab === tab.id ? 'var(--brand-primary)' : 'var(--text-secondary)',
-                      fontWeight: activeChannelTab === tab.id ? 700 : 500,
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.45rem',
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease',
-                      whiteSpace: 'nowrap'
-                    }}
-                  >
-                    {tab.icon} {tab.label}
-                  </button>
-                ))}
-              </div>
+              {/* Channel Selector Sub-Tabs (Filtered per active campaign type) */}
+              {(isGoogleSearchActive || activeChannelTab === 'OMNICHANNEL') && (
+                <div style={{ display: 'flex', gap: '0.4rem', borderBottom: '1px solid var(--border-default)', paddingBottom: '0.65rem', overflowX: 'auto' }}>
+                  {(activeChannelTab === 'OMNICHANNEL' ? [
+                    { id: 'OMNICHANNEL', label: '360° Medya Karması (Omnichannel)', icon: <OmnichannelIcon size={16} /> },
+                    { id: 'SAVED_PLANS', label: `Kayıtlı Planlar (${savedPlans.length})`, icon: <FolderDown size={15} /> }
+                  ] : [
+                    { id: 'GOOGLE_SEARCH', label: 'Google Search (Arama Ağı)', icon: <GoogleIcon size={16} /> },
+                    { id: 'NEGATIVES', label: `AI Negatif Kalkanı (${negativeCategories.reduce((a, c) => a + c.words.length, 0)})`, icon: <ShieldAlert size={15} /> },
+                  ]).map(tab => (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => {
+                        setActiveChannelTab(tab.id as ChannelType);
+                        if (tab.id === 'SAVED_PLANS') loadSavedPlans();
+                      }}
+                      style={{
+                        padding: '0.5rem 0.95rem',
+                        fontSize: '0.825rem',
+                        borderRadius: 'var(--radius-xs)',
+                        border: activeChannelTab === tab.id ? '1.5px solid var(--brand-primary)' : '1px solid var(--border-default)',
+                        backgroundColor: activeChannelTab === tab.id ? 'rgba(37, 99, 235, 0.12)' : 'var(--bg-surface)',
+                        color: activeChannelTab === tab.id ? 'var(--brand-primary)' : 'var(--text-secondary)',
+                        fontWeight: activeChannelTab === tab.id ? 700 : 500,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.45rem',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      {tab.icon} {tab.label}
+                    </button>
+                  ))}
+                </div>
+              )}
 
           {/* ========================================================================= */}
           {/* CHANNEL 1: 360° OMNICHANNEL CONSOLIDATED MEDIA MIX                        */}
