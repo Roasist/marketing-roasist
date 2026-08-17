@@ -284,7 +284,7 @@ export const groupKeywordsSemantically = (kwList: KeywordMetric[]): KeywordClust
       id: 'stag_relocation_life',
       name: '🌍 Göç, Yaşam & Relokasyon',
       icon: '🌍',
-      regex: /(?:^|[^\p{L}\p{N}])(жизнь в|жизнь|переезд|переехать|эмиграц|эмиграция|иммиграц|иммиграция|релокац|релокация|пмж|россияне в|русские в|как переехать|yaşam|yaşam şartları|göç|yerleşim|living in|relocation|relocate|immigrate|leben in|auswandern)(?:[^\p{L}\p{N}]|$)/ui
+      regex: /(?:^|[^\p{L}\p{N}])(жизнь в|жизнь|жизни|уровень жизни|переезд|переехать|эмиграц|эмиграция|иммиграц|иммиграция|релокац|релокация|россияне в|русские в|как переехать|yaşam|yaşam şartları|göç|yerleşim|living in|relocation|relocate|immigrate|leben in|auswandern)(?:[^\p{L}\p{N}]|$)/ui
     },
     // 8. En İyi, Yorumlar & Tecrübeler (Reviews, Experiences & Best)
     {
@@ -293,42 +293,56 @@ export const groupKeywordsSemantically = (kwList: KeywordMetric[]): KeywordClust
       icon: '⭐',
       regex: /(?:^|[^\p{L}\p{N}])(отзывы|отзыв|лучший|лучшие|лучш|рейтинг|плюсы и минусы|опыт|форум|надежн|надежный|проверенный|сравнение|реальный опыт|истории|история|en iyi|en uygun|tavsiye|tavsiyeleri|yorum|yorumları|yorumlar|şikayet|karşılaştırma|güvenilir|tecrübe|deneyim|best|top|top rated|reviews|review|before and after|rating|ratings|comparison|compare|pros and cons|trusted|experience|forum|testimonials|erfahrungen|bewertung|erfahrung|vergleich)(?:[^\p{L}\p{N}]|$)/ui
     },
-    // 9. Lokasyon: Alanya, Antalya & Bölge (Location Specific)
+    // 9. Türk Vatandaşlığı & Pasaport (Citizenship & Passport)
+    {
+      id: 'stag_citizenship_passport',
+      name: '🏛️ Türk Vatandaşlığı & Pasaport',
+      icon: '🏛️',
+      regex: /(?:^|[^\p{L}\p{N}])(гражданств|гражданство|гражданства|паспорт|паспорта|турецкое гражданство|паспорт турции|vatandaşlık|vatandaslik|pasaport|türk vatandaşlığı|citizenship|passport|turkish citizenship|turkish passport|staatsbürgerschaft|pass|reisepass)(?:[^\p{L}\p{N}]|$)/ui
+    },
+    // 10. İkamet İzni & Oturum (Residency & Residence Permit / ВНЖ и ПМЖ)
+    {
+      id: 'stag_residency_permit',
+      name: '🪪 İkamet İzni & Oturum (ВНЖ)',
+      icon: '🪪',
+      regex: /(?:^|[^\p{L}\p{N}])(внж|пмж|икамет|вид на жительство|ikamet|oturum|oturum izni|ikamet izni|residence permit|residency|residence|aufenthalt|aufenthaltstitel|residenz)(?:[^\p{L}\p{N}]|$)/ui
+    },
+    // 11. Lokasyon: Alanya, Antalya & Bölge (Location Specific)
     {
       id: 'stag_locations',
       name: '📍 Lokasyon: Alanya, Antalya & Bölge',
       icon: '📍',
-      regex: /(?:^|[^\p{L}\p{N}])(алань|аланья|аланье|аланьи|аланью|анталь|анталья|анталии|анталию|стамбул|стамбуле|бодрум|мерсин|махмутлар|оба|кестель|каргыджак|авсаллар|у моря|первая линия|alanya|antalya|istanbul|bodrum|mersin|denize sıfır|seafront|beachfront)(?:[^\p{L}\p{N}]|$)/ui
+      regex: /(?:^|[^\p{L}\p{N}])(алань|аланья|аланье|аланьи|аланью|анталь|анталья|анталии|анталию|стамбул|стамбуле|бодрум|мерсин|махмутlar|оба|кестель|каргыджак|авсалlar|у моря|первая линия|alanya|antalya|istanbul|bodrum|mersin|denize sıfır|seafront|beachfront)(?:[^\p{L}\p{N}]|$)/ui
     },
-    // 10. Otel, Konaklama & Tatil (Hotels & Vacation)
+    // 12. Otel, Konaklama & Tatil (Hotels & Vacation)
     {
       id: 'stag_hotel_tourism',
       name: '🏨 Otel, Konaklama & Tatil',
       icon: '🏨',
       regex: /(?:^|[^\p{L}\p{N}])(hotel|hotels|otel|otelleri|resort|resorts|pansiyon|pansiyonlar|butik otel|boutique hotel|apart otel|apart|all inclusive|her şey dahil|oda kahvaltı|bungalov|glamping|accommodation|stay)(?:[^\p{L}\p{N}]|$)/ui
     },
-    // 11. Klinik, Hastane & Uzmanlar (Medical & Clinics)
+    // 13. Klinik, Hastane & Uzmanlar (Medical & Clinics)
     {
       id: 'stag_clinics_medical',
       name: '🏥 Klinik, Hastane & Uzmanlar',
       icon: '🏥',
       regex: /(?:^|[^\p{L}\p{N}])(klinik|kliniği|klinikleri|hastane|hastanesi|doktor|doktoru|doktorları|uzman doktor|cerrah|cerrahı|diş hekimi|sağlık merkezi|tıp merkezi|estetik merkezi|saç ekim merkezi|saç ekimi|diş|estetik|tedavi|ameliyat|clinic|clinics|hospital|hospitals|surgeon|surgeons|physician|hair transplant|dental|aesthetic|surgery|treatment|medical|arzt|zahn|behandlung|клиник|клиника|больниц|больница|врач|хирург|пересадка волос|стоматолог|лечение|операция)(?:[^\p{L}\p{N}]|$)/ui
     },
-    // 12. Eğitim, Okul & Kurslar (Education & Schools)
+    // 14. Eğitim, Okul & Kurslar (Education & Schools)
     {
       id: 'stag_education',
       name: '🎓 Eğitim, Okul & Kurslar',
       icon: '🎓',
       regex: /(?:^|[^\p{L}\p{N}])(okul|okulu|okulları|ilkokul|ortaokul|lise|kolej|koleji|özel okul|butik okul|kurs|kursu|kursları|eğitim|eğitimi|eğitimleri|akademi|dershane|üniversite|öğrenci|school|schul|education|academy|college|university|student|tuition|schule|kolleg|ausbildung|школ|школа|колледж|курс|курсы|обучение|образование|академия|университет|студент)(?:[^\p{L}\p{N}]|$)/ui
     },
-    // 13. Kariyer & İş İlanları (Careers & Jobs)
+    // 15. Kariyer & İş İlanları (Careers & Jobs)
     {
       id: 'stag_careers',
       name: '💼 Kariyer & İş İlanları',
       icon: '💼',
       regex: /(?:^|[^\p{L}\p{N}])(iş ilanı|iş ilanları|iş arama|eleman ilanı|eleman arayanlar|iş başvurusu|kariyer|istihdam|eleman|personel|job|jobs|career|careers|hiring|recruitment|employment|vacancy|vacancies|karriere|stellenangebot|stellenangebote|arbeit|bewerbung|работ|работа|ваканси|вакансии|трудоустройство|поиск работы|резюме|зарплата)(?:[^\p{L}\p{N}]|$)/ui
     },
-    // 14. Otomotiv, Yazılım & Performans (Automotive & Tuning)
+    // 16. Otomotiv, Yazılım & Performans (Automotive & Tuning)
     {
       id: 'stag_automotive',
       name: '🏎️ Otomotiv, Yazılım & Performans',
