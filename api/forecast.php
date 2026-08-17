@@ -499,8 +499,21 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
     }
 
     $topSeeds = [];
+    $seenSeed = [];
+
+    // Always prioritize the exact user query seeds first!
+    if (!empty($query) && !preg_match('/^https?:\/\//i', $query)) {
+        $rawSeeds = array_map('trim', explode(',', $query));
+        foreach ($rawSeeds as $rs) {
+            if (empty($rs) || mb_strlen($rs, 'UTF-8') < 2) continue;
+            $rsLower = mb_strtolower($rs, 'UTF-8');
+            if (isset($seenSeed[$rsLower])) continue;
+            $seenSeed[$rsLower] = true;
+            $topSeeds[] = $rs;
+        }
+    }
+
     if (!empty($officialKeywords) && is_array($officialKeywords)) {
-        $seenSeed = [];
         foreach ($officialKeywords as $okw) {
             $kText = is_array($okw) ? trim($okw['keyword'] ?? '') : trim((string)$okw);
             if (empty($kText) || mb_strlen($kText, 'UTF-8') < 3) continue;
@@ -510,9 +523,6 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
             $topSeeds[] = $kText;
             if (count($topSeeds) >= 20) break;
         }
-    }
-    if (empty($topSeeds) && !empty($query) && !preg_match('/^https?:\/\//i', $query)) {
-        $topSeeds = array_map('trim', explode(',', $query));
     }
 
     $flagMap = [
@@ -2601,12 +2611,18 @@ if ($action === 'discover' && $method === 'POST') {
                 if (isset($keywordGeoMap[$kwNorm])) {
                     $kw['geoVolumes'] = [];
                     $kw['geoCpc'] = [];
+                    $sumGeoVol = 0;
                     foreach ($keywordGeoMap[$kwNorm] as $gId => $gMetrics) {
-                        $kw['geoVolumes'][(string)$gId] = (int)$gMetrics['monthlyVolume'];
+                        $locVol = (int)$gMetrics['monthlyVolume'];
+                        $kw['geoVolumes'][(string)$gId] = $locVol;
+                        $sumGeoVol += $locVol;
                         $kw['geoCpc'][(string)$gId] = [
                             'lowCpc' => (float)$gMetrics['lowCpc'],
                             'highCpc' => (float)$gMetrics['highCpc']
                         ];
+                    }
+                    if ($sumGeoVol > 0) {
+                        $kw['monthlyVolume'] = $sumGeoVol;
                     }
                 }
             }
