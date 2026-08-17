@@ -87,10 +87,120 @@ export interface NegativeCategory {
   words: string[];
 }
 
+export type CampaignPlatform = 'GOOGLE' | 'META' | 'TIKTOK' | 'YOUTUBE' | 'YANDEX' | 'BING' | 'VK';
+
+export type CampaignObjective = 
+  // Meta
+  | 'META_LEADS' 
+  | 'META_SALES' 
+  | 'META_TRAFFIC' 
+  | 'META_AWARENESS' 
+  | 'META_APP'
+  // Google
+  | 'GOOGLE_SEARCH' 
+  | 'GOOGLE_PMAX' 
+  | 'GOOGLE_GDN' 
+  | 'GOOGLE_DEMAND_GEN' 
+  | 'GOOGLE_YOUTUBE'
+  // TikTok
+  | 'TIKTOK_LEADS' 
+  | 'TIKTOK_VIEWS' 
+  | 'TIKTOK_SALES'
+  // Yandex
+  | 'YANDEX_SEARCH' 
+  | 'YANDEX_RSYA'
+  // General / Omnichannel
+  | 'OMNICHANNEL';
+
+export interface SubCampaignItem {
+  id: string;
+  name: string;
+  platform: CampaignPlatform;
+  objective: CampaignObjective;
+  languageCode: string; // e.g. "en", "ru", "tr", "de"
+  languageName: string; // e.g. "İngilizce", "Rusça"
+  languageFlag: string; // e.g. "🇬🇧", "🇷🇺"
+  targetLocations: GeoTargetLocation[];
+  monthlyBudget: number;
+  
+  // Keyword and Negative data
+  targetUrl?: string;
+  seedKeywords?: string;
+  discoveredKeywords?: KeywordMetric[];
+  selectedKeywords: KeywordMetric[];
+  negativeCategories: NegativeCategory[];
+  
+  // Model specific parameters snapshot
+  businessModel?: BusinessModel;
+  parameters: {
+    // Search specific
+    targetImpressionShare?: number;
+    expectedCtr?: number;
+    searchLeadCr?: number;
+    searchHealthyLeadRate?: number;
+    searchCloseRate?: number;
+    searchEcommerceCr?: number;
+    searchAov?: number;
+    
+    // Meta specific
+    metaCpm?: number;
+    metaCtr?: number;
+    metaLeadCr?: number;
+    metaHealthyLeadRate?: number;
+    metaCloseRate?: number;
+    metaEcommerceCr?: number;
+    metaAov?: number;
+    
+    // YouTube specific
+    youtubeCpv?: number;
+    youtubeVtr?: number;
+    youtubeActionRate?: number;
+    
+    // GDN specific
+    gdnCpm?: number;
+    gdnCtr?: number;
+    gdnAssistedCr?: number;
+
+    // TikTok specific
+    tiktokCpm?: number;
+    tiktokCtr?: number;
+    tiktokLeadCr?: number;
+
+    // Yandex specific
+    yandexCpc?: number;
+    yandexCtr?: number;
+    yandexCr?: number;
+  };
+
+  // Output snapshot
+  simulationResult?: ForecastSimulation;
+  metaSimulationResult?: MetaSimulation;
+  youtubeSimulationResult?: YouTubeSimulation;
+  gdnSimulationResult?: GdnSimulation;
+  createdAt?: string;
+}
+
+export interface MasterMediaPlan {
+  id: string;
+  workspaceId?: string;
+  name: string; // e.g. "Temmuz 2026 Global Kampanyası"
+  clientName: string; // e.g. "Acme Sağlık Turizmi"
+  period: string; // e.g. "Temmuz 2026"
+  tags: string[]; // e.g. ["#Temmuz2026", "#SağlıkTurizmi"]
+  totalBudget: number;
+  subCampaigns: SubCampaignItem[];
+  consolidatedMix?: OmnichannelMediaMix;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface ForecastPlan {
   id: string;
   workspaceId?: string;
   name: string;
+  clientName?: string;
+  period?: string;
+  tags?: string[];
   targetUrl?: string;
   seedKeywords?: string;
   detectedLanguage?: string;
@@ -101,6 +211,7 @@ export interface ForecastPlan {
   simulationResult: ForecastSimulation;
   negativeKeywords: NegativeCategory[];
   countryBreakdown?: CountryMetric[];
+  subCampaigns?: SubCampaignItem[];
   createdAt?: string;
 }
 

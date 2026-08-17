@@ -20,7 +20,11 @@ import {
   X, 
   FolderTree, 
   BarChart3, 
-  ArrowUpDown
+  ArrowUpDown,
+  Layers,
+  Tag,
+  Calendar,
+  Building2
 } from 'lucide-react';
 import { 
   KeywordMetric, 
@@ -35,7 +39,10 @@ import {
   YouTubeSimulation,
   OmnichannelMediaMix,
   GeoTargetLocation,
-  GrowthScenario
+  GrowthScenario,
+  CampaignPlatform,
+  CampaignObjective,
+  SubCampaignItem
 } from '../types/forecast';
 import { ApiService } from '../services/apiService';
 
@@ -168,6 +175,38 @@ export const OmnichannelIcon: React.FC<{ size?: number }> = ({ size = 15 }) => (
     <path d="M2.5 12h19M4 7.5h16M4 16.5h16" stroke="#3b82f6" strokeWidth="1.25" strokeLinecap="round"/>
   </svg>
 );
+
+export const TikTokIcon: React.FC<{ size?: number }> = ({ size = 15 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, verticalAlign: 'middle', display: 'inline-block' }}>
+    <path d="M19.589 6.686a4.793 4.793 0 0 1-3.77-4.245V2h-3.445v13.672a2.896 2.896 0 0 1-2.892 2.892 2.896 2.896 0 0 1-2.892-2.892 2.896 2.896 0 0 1 2.892-2.892c.313 0 .614.049.897.139V9.42a6.34 6.34 0 0 0-.897-.064 6.343 6.343 0 1 0 6.344 6.344V8.417c1.332.955 2.96 1.523 4.721 1.554V6.686z" fill="#000000"/>
+    <path d="M19.589 6.686a4.793 4.793 0 0 1-3.77-4.245V2h-3.445v13.672a2.896 2.896 0 0 1-2.892 2.892 2.896 2.896 0 0 1-2.892-2.892 2.896 2.896 0 0 1 2.892-2.892c.313 0 .614.049.897.139V9.42a6.34 6.34 0 0 0-.897-.064 6.343 6.343 0 1 0 6.344 6.344V8.417c1.332.955 2.96 1.523 4.721 1.554V6.686z" fill="#EE1D52"/>
+  </svg>
+);
+
+export const YandexIcon: React.FC<{ size?: number }> = ({ size = 15 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" style={{ flexShrink: 0, verticalAlign: 'middle', display: 'inline-block' }}>
+    <circle cx="12" cy="12" r="11" fill="#FC3F1D"/>
+    <path d="M13.8 6h2.2l-3.6 5.8 3.9 6.2h-2.3l-2.9-4.7-1.3 2v2.7H7.7V6h2.1v6.2l3.1-4.8c.3-.4.6-.9.9-1.4z" fill="#FFFFFF"/>
+  </svg>
+);
+
+export const BingIcon: React.FC<{ size?: number }> = ({ size = 15 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, verticalAlign: 'middle', display: 'inline-block' }}>
+    <path d="M5 3v18l6-3.5 6 3.5V3L5 3z" fill="#008373"/>
+  </svg>
+);
+
+export const getPlatformIcon = (platform?: CampaignPlatform, size = 14) => {
+  switch (platform) {
+    case 'GOOGLE': return <GoogleIcon size={size} />;
+    case 'META': return <MetaIcon size={size} />;
+    case 'TIKTOK': return <TikTokIcon size={size} />;
+    case 'YOUTUBE': return <YouTubeIcon size={size} />;
+    case 'YANDEX': return <YandexIcon size={size} />;
+    case 'BING': return <BingIcon size={size} />;
+    default: return <Sparkles size={size} />;
+  }
+};
 
 export interface KeywordCluster {
   id: string;
@@ -552,6 +591,61 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     else if (newOthers.gdn !== undefined) setAllocGdn(newOthers.gdn);
   };
 
+  // Master Plan Metadata & Tagging State
+  const [planName, setPlanName] = useState<string>('Temmuz 2026 Büyüme Kampanyası');
+  const [clientName, setClientName] = useState<string>('Acme Sağlık Turizmi');
+  const [planPeriod, setPlanPeriod] = useState<string>('Temmuz 2026');
+  const [planTags, setPlanTags] = useState<string[]>(['#Temmuz2026', '#SağlıkTurizmi']);
+  const [newTagInput, setNewTagInput] = useState<string>('');
+
+  // Multi-Campaign Sub-Campaigns State
+  const [subCampaigns, setSubCampaigns] = useState<SubCampaignItem[]>([
+    {
+      id: 'sub_1',
+      name: 'Google Search (EN - UK)',
+      platform: 'GOOGLE',
+      objective: 'GOOGLE_SEARCH',
+      languageCode: 'en',
+      languageName: 'İngilizce',
+      languageFlag: '🇬🇧',
+      targetLocations: [
+        { id: '2826', resourceName: 'geoTargetConstants/2826', name: 'Birleşik Krallık', canonicalName: 'Birleşik Krallık', countryCode: 'GB', targetType: 'Country', reach: 67000000, flag: '🇬🇧', cpcMultiplier: 3.2, volumeMultiplier: 1.3 }
+      ],
+      monthlyBudget: 35000,
+      selectedKeywords: [],
+      discoveredKeywords: [],
+      negativeCategories: [],
+      businessModel: 'LEAD_GEN',
+      parameters: {
+        targetImpressionShare: 70,
+        expectedCtr: 7.5,
+        searchLeadCr: 3.5,
+        searchHealthyLeadRate: 50,
+        searchCloseRate: 10,
+        metaCpm: 75,
+        metaCtr: 1.6,
+        metaLeadCr: 4.5,
+        metaHealthyLeadRate: 50,
+        metaCloseRate: 15,
+        youtubeCpv: 0.45,
+        youtubeVtr: 32,
+        youtubeActionRate: 1.2,
+        gdnCpm: 18,
+        gdnCtr: 0.60,
+        gdnAssistedCr: 1.2
+      }
+    }
+  ]);
+  const [activeSubCampaignId, setActiveSubCampaignId] = useState<string>('sub_1');
+  const [isAddCampaignModalOpen, setIsAddCampaignModalOpen] = useState<boolean>(false);
+
+  // New Sub-Campaign Wizard Form State
+  const [newCampName, setNewCampName] = useState<string>('');
+  const [newCampPlatform, setNewCampPlatform] = useState<CampaignPlatform>('GOOGLE');
+  const [newCampObjective, setNewCampObjective] = useState<CampaignObjective>('GOOGLE_SEARCH');
+  const [newCampLang, setNewCampLang] = useState<string>('en');
+  const [newCampBudget, setNewCampBudget] = useState<number>(30000);
+
   // Negative Keywords State
   const [negativeCategories, setNegativeCategories] = useState<NegativeCategory[]>([]);
   const [copiedCategory, setCopiedCategory] = useState<string | null>(null);
@@ -559,6 +653,234 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   // Saved Plans State
   const [savedPlans, setSavedPlans] = useState<ForecastPlan[]>([]);
   const [planSaveSuccess, setPlanSaveSuccess] = useState(false);
+
+  // Total Master Monthly Budget
+  const totalMasterMonthlyBudget = useMemo(() => {
+    return subCampaigns.reduce((sum, c) => sum + (c.monthlyBudget || 0), 0);
+  }, [subCampaigns]);
+
+  // Sync active sub-campaign snapshot
+  const syncActiveSubCampaign = () => {
+    setSubCampaigns(prev => prev.map(c => {
+      if (c.id !== activeSubCampaignId) return c;
+      const selectedKws = Array.from(selectedKeywordIds).map(id => keywords.find(k => k.id === id)).filter(Boolean) as KeywordMetric[];
+      return {
+        ...c,
+        targetUrl: mode === 'URL' ? query : '',
+        seedKeywords: mode === 'KEYWORDS' ? query : '',
+        monthlyBudget,
+        discoveredKeywords: keywords,
+        selectedKeywords: selectedKws,
+        negativeCategories,
+        targetLocations: selectedLocations,
+        businessModel,
+        languageCode: targetLanguage,
+        parameters: {
+          targetImpressionShare,
+          expectedCtr,
+          searchLeadCr: leadConversionRate,
+          searchHealthyLeadRate: leadCloseRate,
+          searchEcommerceCr: ecommerceConversionRate,
+          searchAov: avgOrderValue,
+          metaCpm,
+          metaCtr,
+          metaLeadCr,
+          metaHealthyLeadRate,
+          metaCloseRate,
+          youtubeCpv,
+          youtubeVtr,
+          youtubeActionRate,
+          gdnCpm,
+          gdnCtr,
+          gdnAssistedCr
+        },
+        simulationResult: simulation,
+        metaSimulationResult: metaSimulation,
+        youtubeSimulationResult: youtubeSimulation,
+        gdnSimulationResult: gdnSimulation
+      };
+    }));
+  };
+
+  // Switch to another sub-campaign
+  const handleSelectSubCampaign = (campId: string) => {
+    if (campId === activeSubCampaignId) return;
+    syncActiveSubCampaign();
+    const target = subCampaigns.find(c => c.id === campId);
+    if (!target) return;
+
+    setActiveSubCampaignId(campId);
+    setKeywords(target.discoveredKeywords || []);
+    setSelectedKeywordIds(new Set((target.selectedKeywords || []).map(k => k.id)));
+    setNegativeCategories(target.negativeCategories || []);
+    if (target.targetLocations && target.targetLocations.length > 0) {
+      setSelectedLocations(target.targetLocations);
+    }
+    if (target.languageCode) {
+      setTargetLanguage(target.languageCode);
+    }
+    if (target.monthlyBudget) {
+      setMonthlyBudget(target.monthlyBudget);
+    }
+    if (target.businessModel) {
+      setBusinessModel(target.businessModel);
+    }
+    if (target.targetUrl || target.seedKeywords) {
+      setQuery(target.targetUrl || target.seedKeywords || '');
+      setMode(target.targetUrl ? 'URL' : 'KEYWORDS');
+    }
+    if (target.parameters) {
+      if (target.parameters.targetImpressionShare !== undefined) setTargetImpressionShare(target.parameters.targetImpressionShare);
+      if (target.parameters.expectedCtr !== undefined) setExpectedCtr(target.parameters.expectedCtr);
+      if (target.parameters.searchLeadCr !== undefined) setLeadConversionRate(target.parameters.searchLeadCr);
+      if (target.parameters.searchHealthyLeadRate !== undefined) setLeadCloseRate(target.parameters.searchHealthyLeadRate);
+      if (target.parameters.metaCpm !== undefined) setMetaCpm(target.parameters.metaCpm);
+      if (target.parameters.metaCtr !== undefined) setMetaCtr(target.parameters.metaCtr);
+      if (target.parameters.metaLeadCr !== undefined) setMetaLeadCr(target.parameters.metaLeadCr);
+      if (target.parameters.metaHealthyLeadRate !== undefined) setMetaHealthyLeadRate(target.parameters.metaHealthyLeadRate);
+      if (target.parameters.metaCloseRate !== undefined) setMetaCloseRate(target.parameters.metaCloseRate);
+      if (target.parameters.youtubeCpv !== undefined) setYoutubeCpv(target.parameters.youtubeCpv);
+      if (target.parameters.youtubeVtr !== undefined) setYoutubeVtr(target.parameters.youtubeVtr);
+      if (target.parameters.youtubeActionRate !== undefined) setYoutubeActionRate(target.parameters.youtubeActionRate);
+      if (target.parameters.gdnCpm !== undefined) setGdnCpm(target.parameters.gdnCpm);
+      if (target.parameters.gdnCtr !== undefined) setGdnCtr(target.parameters.gdnCtr);
+      if (target.parameters.gdnAssistedCr !== undefined) setGdnAssistedCr(target.parameters.gdnAssistedCr);
+    }
+  };
+
+  // Create new Sub-Campaign
+  const handleCreateNewSubCampaign = () => {
+    syncActiveSubCampaign();
+    const langObj = GOOGLE_ADS_LANGUAGES.find(l => l.code === newCampLang) || { code: newCampLang, name: newCampLang, nativeName: newCampLang, flag: '🌐' };
+    
+    // Suggest default locations by language
+    let defaultLocs = DEFAULT_LOCATIONS;
+    if (newCampLang === 'en') {
+      defaultLocs = [{ id: '2826', resourceName: 'geoTargetConstants/2826', name: 'Birleşik Krallık', canonicalName: 'Birleşik Krallık', countryCode: 'GB', targetType: 'Country', reach: 67000000, flag: '🇬🇧', cpcMultiplier: 3.2, volumeMultiplier: 1.3 }];
+    } else if (newCampLang === 'ru') {
+      defaultLocs = [{ id: '2643', resourceName: 'geoTargetConstants/2643', name: 'Rusya', canonicalName: 'Rusya', countryCode: 'RU', targetType: 'Country', reach: 145000000, flag: '🇷🇺', cpcMultiplier: 1.6, volumeMultiplier: 1.8 }];
+    } else if (newCampLang === 'ar') {
+      defaultLocs = [{ id: '1000010', resourceName: 'geoTargetConstants/1000010', name: 'Dubai', canonicalName: 'Dubai, Birleşik Arap Emirlikleri', countryCode: 'AE', targetType: 'City', reach: 3400000, flag: '🇦🇪', cpcMultiplier: 2.4, volumeMultiplier: 0.8 }];
+    } else if (newCampLang === 'de') {
+      defaultLocs = [{ id: '2276', resourceName: 'geoTargetConstants/2276', name: 'Almanya', canonicalName: 'Almanya', countryCode: 'DE', targetType: 'Country', reach: 84000000, flag: '🇩🇪', cpcMultiplier: 2.8, volumeMultiplier: 1.4 }];
+    }
+
+    const newId = 'sub_' + Date.now();
+    const campTitle = newCampName.trim() || `${newCampPlatform} (${langObj.name})`;
+    const newCamp: SubCampaignItem = {
+      id: newId,
+      name: campTitle,
+      platform: newCampPlatform,
+      objective: newCampObjective,
+      languageCode: newCampLang,
+      languageName: langObj.name,
+      languageFlag: langObj.flag,
+      targetLocations: defaultLocs,
+      monthlyBudget: newCampBudget,
+      selectedKeywords: [],
+      discoveredKeywords: [],
+      negativeCategories: [],
+      businessModel: newCampObjective.includes('SALES') ? 'ECOMMERCE' : 'LEAD_GEN',
+      parameters: {
+        targetImpressionShare: 70,
+        expectedCtr: 7.5,
+        searchLeadCr: 3.5,
+        searchHealthyLeadRate: 50,
+        searchCloseRate: 10,
+        metaCpm: 75,
+        metaCtr: 1.6,
+        metaLeadCr: 4.5,
+        metaHealthyLeadRate: 50,
+        metaCloseRate: 15,
+        youtubeCpv: 0.45,
+        youtubeVtr: 32,
+        youtubeActionRate: 1.2,
+        gdnCpm: 18,
+        gdnCtr: 0.60,
+        gdnAssistedCr: 1.2
+      }
+    };
+
+    setSubCampaigns(prev => [...prev, newCamp]);
+    setActiveSubCampaignId(newId);
+    setKeywords([]);
+    setSelectedKeywordIds(new Set());
+    setNegativeCategories([]);
+    setSelectedLocations(defaultLocs);
+    setTargetLanguage(newCampLang);
+    setMonthlyBudget(newCampBudget);
+    setQuery('');
+    setIsAddCampaignModalOpen(false);
+    setNewCampName('');
+    
+    // Switch channel sub tab to match objective
+    if (newCampPlatform === 'META') setActiveChannelTab('META_ADS');
+    else if (newCampPlatform === 'YOUTUBE') setActiveChannelTab('YOUTUBE');
+    else if (newCampPlatform === 'GOOGLE') setActiveChannelTab('GOOGLE_SEARCH');
+  };
+
+  // Delete Sub-Campaign
+  const handleDeleteSubCampaign = (campId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (subCampaigns.length <= 1) {
+      alert('En az bir alt kampanya bulunmalıdır.');
+      return;
+    }
+    if (window.confirm('Bu alt kampanyayı silmek istediğinize emin misiniz?')) {
+      const remaining = subCampaigns.filter(c => c.id !== campId);
+      setSubCampaigns(remaining);
+      if (activeSubCampaignId === campId) {
+        handleSelectSubCampaign(remaining[0].id);
+      }
+    }
+  };
+
+  // Tag helper
+  const handleAddTag = () => {
+    const t = newTagInput.trim().replace(/^#*/, '#');
+    if (t.length > 1 && !planTags.includes(t)) {
+      setPlanTags(prev => [...prev, t]);
+    }
+    setNewTagInput('');
+  };
+
+  const handleRemoveTag = (tagToRemove: string) => {
+    setPlanTags(prev => prev.filter(t => t !== tagToRemove));
+  };
+
+  // Load Saved Master Plan
+  const handleLoadSavedMasterPlan = (plan: ForecastPlan) => {
+    if (plan.name) setPlanName(plan.name);
+    if (plan.clientName) setClientName(plan.clientName);
+    if (plan.period) setPlanPeriod(plan.period);
+    if (plan.tags) setPlanTags(plan.tags);
+
+    if (plan.subCampaigns && plan.subCampaigns.length > 0) {
+      setSubCampaigns(plan.subCampaigns);
+      setActiveSubCampaignId(plan.subCampaigns[0].id);
+      
+      const first = plan.subCampaigns[0];
+      setKeywords(first.discoveredKeywords || plan.selectedKeywords || []);
+      setSelectedKeywordIds(new Set((first.selectedKeywords || plan.selectedKeywords || []).map(k => k.id)));
+      setNegativeCategories(first.negativeCategories || plan.negativeKeywords || []);
+      if (first.targetLocations && first.targetLocations.length > 0) {
+        setSelectedLocations(first.targetLocations);
+      }
+      if (first.languageCode) setTargetLanguage(first.languageCode);
+      if (first.monthlyBudget) setMonthlyBudget(first.monthlyBudget);
+      if (first.targetUrl || first.seedKeywords) setQuery(first.targetUrl || first.seedKeywords || '');
+    } else {
+      // Legacy single plan
+      setKeywords(plan.selectedKeywords || []);
+      setSelectedKeywordIds(new Set((plan.selectedKeywords || []).map(k => k.id)));
+      setNegativeCategories(plan.negativeKeywords || []);
+      if (plan.monthlyBudget) setMonthlyBudget(plan.monthlyBudget);
+      if (plan.targetUrl || plan.seedKeywords) setQuery(plan.targetUrl || plan.seedKeywords || '');
+    }
+
+    setActiveChannelTab('OMNICHANNEL');
+    alert(`"${plan.name}" başarıyla çalışma alanına yüklendi!`);
+  };
 
   // Load Saved Plans on Workspace change
   const loadSavedPlans = async () => {
@@ -1218,20 +1540,66 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   // Save Plan Action
   const handleSavePlan = async () => {
     try {
+      // First sync current active sub campaign
+      const selectedKws = Array.from(selectedKeywordIds).map(id => keywords.find(k => k.id === id)).filter(Boolean) as KeywordMetric[];
+      const updatedSubCampaigns = subCampaigns.map(c => {
+        if (c.id !== activeSubCampaignId) return c;
+        return {
+          ...c,
+          targetUrl: mode === 'URL' ? query : '',
+          seedKeywords: mode === 'KEYWORDS' ? query : '',
+          monthlyBudget,
+          discoveredKeywords: keywords,
+          selectedKeywords: selectedKws,
+          negativeCategories,
+          targetLocations: selectedLocations,
+          businessModel,
+          languageCode: targetLanguage,
+          parameters: {
+            targetImpressionShare,
+            expectedCtr,
+            searchLeadCr: leadConversionRate,
+            searchHealthyLeadRate: leadCloseRate,
+            searchEcommerceCr: ecommerceConversionRate,
+            searchAov: avgOrderValue,
+            metaCpm,
+            metaCtr,
+            metaLeadCr,
+            metaHealthyLeadRate,
+            metaCloseRate,
+            youtubeCpv,
+            youtubeVtr,
+            youtubeActionRate,
+            gdnCpm,
+            gdnCtr,
+            gdnAssistedCr
+          },
+          simulationResult: simulation,
+          metaSimulationResult: metaSimulation,
+          youtubeSimulationResult: youtubeSimulation,
+          gdnSimulationResult: gdnSimulation
+        };
+      });
+
       await ApiService.saveForecastPlan({
         workspaceId,
-        name: `${query} (${sectorName}) - ₺${monthlyBudget.toLocaleString('tr-TR')} Bütçe Planı`,
+        name: planName.trim() || `${clientName} - ${planPeriod} Medya Planı`,
+        clientName: clientName.trim(),
+        period: planPeriod.trim(),
+        tags: planTags,
         targetUrl: mode === 'URL' ? query : '',
         seedKeywords: mode === 'KEYWORDS' ? query : '',
         detectedLanguage,
         detectedLanguageName,
-        monthlyBudget,
+        monthlyBudget: totalMasterMonthlyBudget || monthlyBudget,
         selectedKeywords: selectedKeywordsPool,
         simulationResult: simulation,
         negativeKeywords: negativeCategories,
         targetCountries: activeCountries.map(c => c.name),
-        countryBreakdown
+        countryBreakdown,
+        subCampaigns: updatedSubCampaigns
       });
+      setSubCampaigns(updatedSubCampaigns);
       setPlanSaveSuccess(true);
       setTimeout(() => setPlanSaveSuccess(false), 2500);
       loadSavedPlans();
@@ -1272,44 +1640,571 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
       
-      {/* 1. Header & Value Proposition */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-            <h1 style={{ fontSize: '1.5rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-              360° Çok Kanallı Medya & Büyüme Planlayıcı (Omnichannel Growth Studio)
-            </h1>
-            <span className="badge badge-active" style={{ fontSize: '0.7rem' }}>
-              <Sparkles size={12} /> 360° Medya Karması • AI & Google Ads Resmi Verisi
-            </span>
+      {/* 0. MASTER MEDIA PLAN & CLIENT HIERARCHY BAR */}
+      <div 
+        className="card" 
+        style={{ 
+          padding: '1.1rem 1.25rem', 
+          background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.05) 0%, rgba(147, 51, 234, 0.05) 100%)',
+          border: '1px solid rgba(37, 99, 235, 0.2)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '0.85rem'
+        }}
+      >
+        {/* Top Row: Master Plan Title, Client, Period & Actions */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <span style={{ fontSize: '1.25rem' }}>👑</span>
+              <input
+                type="text"
+                value={planName}
+                onChange={(e) => setPlanName(e.target.value)}
+                placeholder="Master Kampanya Adı..."
+                style={{
+                  fontSize: '1.1rem',
+                  fontWeight: 700,
+                  color: 'var(--text-primary)',
+                  backgroundColor: 'transparent',
+                  border: '1px solid transparent',
+                  borderRadius: 'var(--radius-xs)',
+                  padding: '3px 6px',
+                  minWidth: '260px'
+                }}
+                onFocus={(e) => e.target.style.border = '1px solid var(--brand-primary)'}
+                onBlur={(e) => e.target.style.border = '1px solid transparent'}
+              />
+            </div>
+
+            {/* Client / Brand */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', backgroundColor: 'var(--bg-surface)', padding: '4px 10px', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-default)', fontSize: '0.8rem' }}>
+              <Building2 size={14} color="var(--brand-primary)" />
+              <span style={{ color: 'var(--text-muted)' }}>Müşteri:</span>
+              <input
+                type="text"
+                value={clientName}
+                onChange={(e) => setClientName(e.target.value)}
+                placeholder="Müşteri / Marka"
+                style={{
+                  fontWeight: 600,
+                  color: 'var(--text-primary)',
+                  backgroundColor: 'transparent',
+                  border: 'none',
+                  outline: 'none',
+                  width: '130px',
+                  fontSize: '0.82rem',
+                  padding: 0
+                }}
+              />
+            </div>
+
+            {/* Period */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', backgroundColor: 'var(--bg-surface)', padding: '4px 10px', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-default)', fontSize: '0.8rem' }}>
+              <Calendar size={14} color="var(--brand-primary)" />
+              <span style={{ color: 'var(--text-muted)' }}>Dönem:</span>
+              <input
+                type="text"
+                value={planPeriod}
+                onChange={(e) => setPlanPeriod(e.target.value)}
+                placeholder="Temmuz 2026"
+                style={{
+                  fontWeight: 600,
+                  color: 'var(--text-primary)',
+                  backgroundColor: 'transparent',
+                  border: 'none',
+                  outline: 'none',
+                  width: '110px',
+                  fontSize: '0.82rem',
+                  padding: 0
+                }}
+              />
+            </div>
           </div>
-          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-            3 Aşamalı Büyüme Planı: 1. Pazar & STAG Kelime Keşfi ➔ 2. Hedef Pazar / Lokasyon Seçimi (Ülke, Şehir, İlçe) ➔ 3. 360° Çok Kanallı Medya & ROI Simülasyonu.
-          </p>
+
+          {/* Right: Master Consolidated Budget & Quick Actions */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
+            <div style={{ textAlign: 'right', paddingRight: '0.35rem' }}>
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.04em' }}>
+                KONSOLİDE TOPLAM BÜTÇE
+              </div>
+              <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--brand-primary)', display: 'flex', alignItems: 'baseline', gap: '0.35rem' }}>
+                ₺{totalMasterMonthlyBudget.toLocaleString('tr-TR')}
+                <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
+                  (₺{Math.round(totalMasterMonthlyBudget / 30.4).toLocaleString('tr-TR')} / gün)
+                </span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setCurrentStep(2);
+                setActiveChannelTab('SAVED_PLANS');
+                loadSavedPlans();
+              }}
+              className="btn-secondary"
+              style={{ fontSize: '0.78rem', padding: '0.45rem 0.75rem' }}
+              title="Kayıtlı Planlar Arşivi"
+            >
+              <FolderDown size={14} /> Kayıtlı Planlar ({savedPlans.length})
+            </button>
+
+            <button
+              type="button"
+              onClick={handleExportCsv}
+              disabled={keywords.length === 0}
+              className="btn-secondary"
+              style={{ fontSize: '0.78rem', padding: '0.45rem 0.75rem' }}
+            >
+              <Download size={14} /> CSV
+            </button>
+
+            <button
+              type="button"
+              onClick={handleSavePlan}
+              className="btn-primary"
+              style={{ fontSize: '0.78rem', padding: '0.45rem 0.95rem' }}
+            >
+              {planSaveSuccess ? <Check size={14} /> : <Save size={14} />}
+              {planSaveSuccess ? 'Plan Kaydedildi!' : 'Master Planı Kaydet'}
+            </button>
+          </div>
+
         </div>
 
-        {/* Quick Actions */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <button
-            onClick={handleExportCsv}
-            disabled={keywords.length === 0}
-            className="btn-secondary"
-            style={{ fontSize: '0.8rem', padding: '0.45rem 0.85rem' }}
-          >
-            <Download size={14} /> Excel / CSV İndir
-          </button>
+        {/* Bottom Row: Tags Management */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', paddingTop: '0.5rem', borderTop: '1px solid rgba(0,0,0,0.06)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+            <Tag size={13} />
+            <span>Etiketler:</span>
+          </div>
 
-          <button
-            onClick={handleSavePlan}
-            disabled={keywords.length === 0}
-            className="btn-primary"
-            style={{ fontSize: '0.8rem', padding: '0.45rem 0.85rem' }}
-          >
-            {planSaveSuccess ? <Check size={14} /> : <Save size={14} />}
-            {planSaveSuccess ? 'Plan Kaydedildi!' : '360° Medya Planını Kaydet'}
-          </button>
+          {planTags.map((tag) => (
+            <span
+              key={tag}
+              style={{
+                fontSize: '0.72rem',
+                padding: '2px 8px',
+                borderRadius: 'var(--radius-full)',
+                backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                color: 'var(--brand-primary)',
+                fontWeight: 600,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                border: '1px solid rgba(37, 99, 235, 0.2)'
+              }}
+            >
+              {tag}
+              <button
+                type="button"
+                onClick={() => handleRemoveTag(tag)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', color: 'var(--text-muted)' }}
+              >
+                <X size={11} />
+              </button>
+            </span>
+          ))}
+
+          {/* Add Tag Input */}
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+            <input
+              type="text"
+              placeholder="+ Etiket ekle (#Temmuz, #UK)..."
+              value={newTagInput}
+              onChange={(e) => setNewTagInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleAddTag(); }}
+              style={{
+                fontSize: '0.72rem',
+                padding: '2px 8px',
+                borderRadius: 'var(--radius-full)',
+                border: '1px dashed var(--border-default)',
+                backgroundColor: 'var(--bg-surface)',
+                color: 'var(--text-primary)',
+                width: '150px'
+              }}
+            />
+            {newTagInput && (
+              <button
+                type="button"
+                onClick={handleAddTag}
+                className="btn-ghost"
+                style={{ padding: '2px 6px', fontSize: '0.7rem' }}
+              >
+                Ekle
+              </button>
+            )}
+          </div>
         </div>
       </div>
+
+      {/* 0.5 SUB-CAMPAIGNS SELECTOR STRIP */}
+      <div 
+        style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '0.75rem',
+          backgroundColor: 'var(--bg-surface-elevated)',
+          padding: '0.65rem 0.85rem',
+          borderRadius: 'var(--radius-xs)',
+          border: '1px solid var(--border-default)'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', overflowX: 'auto', flex: 1, paddingBottom: '2px' }}>
+          <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', marginRight: '0.35rem', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+            <Layers size={14} color="var(--brand-primary)" /> Alt Kampanyalar:
+          </span>
+
+          {subCampaigns.map((camp) => {
+            const isActive = camp.id === activeSubCampaignId;
+            return (
+              <div
+                key={camp.id}
+                onClick={() => handleSelectSubCampaign(camp.id)}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.45rem',
+                  padding: '0.4rem 0.75rem',
+                  borderRadius: 'var(--radius-xs)',
+                  border: isActive ? '1.5px solid var(--brand-primary)' : '1px solid var(--border-default)',
+                  backgroundColor: isActive ? 'rgba(37, 99, 235, 0.12)' : 'var(--bg-surface)',
+                  color: isActive ? 'var(--brand-primary)' : 'var(--text-primary)',
+                  fontWeight: isActive ? 700 : 500,
+                  fontSize: '0.8rem',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <span>{camp.languageFlag || '🌐'}</span>
+                {getPlatformIcon(camp.platform, 14)}
+                <span>{camp.name}</span>
+                <span 
+                  style={{ 
+                    fontSize: '0.7rem', 
+                    padding: '1px 5px', 
+                    borderRadius: 'var(--radius-xs)', 
+                    backgroundColor: isActive ? 'var(--brand-primary)' : 'var(--bg-surface-elevated)',
+                    color: isActive ? '#ffffff' : 'var(--text-secondary)',
+                    fontWeight: 600 
+                  }}
+                >
+                  ₺{camp.monthlyBudget?.toLocaleString('tr-TR')}
+                </span>
+
+                {subCampaigns.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={(e) => handleDeleteSubCampaign(camp.id, e)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      padding: '1px',
+                      marginLeft: '2px',
+                      display: 'flex',
+                      color: 'var(--text-muted)'
+                    }}
+                    title="Bu alt kampanyayı sil"
+                  >
+                    <X size={12} />
+                  </button>
+                )}
+              </div>
+            );
+          })}
+
+          {/* Add Sub-Campaign Button */}
+          <button
+            type="button"
+            onClick={() => {
+              setNewCampName(`Kampanya ${subCampaigns.length + 1}`);
+              setIsAddCampaignModalOpen(true);
+            }}
+            className="btn-secondary"
+            style={{
+              padding: '0.4rem 0.75rem',
+              fontSize: '0.78rem',
+              borderRadius: 'var(--radius-xs)',
+              border: '1px dashed var(--brand-primary)',
+              color: 'var(--brand-primary)',
+              fontWeight: 600,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.35rem',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            <Plus size={13} />
+            <span>Yeni Alt Kampanya Ekle</span>
+          </button>
+        </div>
+
+        {/* 360 Consolidated Report Button */}
+        <button
+          type="button"
+          onClick={() => {
+            syncActiveSubCampaign();
+            setCurrentStep(2);
+            setActiveChannelTab('OMNICHANNEL');
+          }}
+          className="btn-secondary"
+          style={{
+            padding: '0.4rem 0.8rem',
+            fontSize: '0.78rem',
+            fontWeight: 700,
+            color: activeChannelTab === 'OMNICHANNEL' && currentStep === 2 ? '#ffffff' : 'var(--brand-primary)',
+            backgroundColor: activeChannelTab === 'OMNICHANNEL' && currentStep === 2 ? 'var(--brand-primary)' : 'transparent',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.35rem',
+            whiteSpace: 'nowrap'
+          }}
+        >
+          <BarChart3 size={14} />
+          <span>360° Konsolide Özet</span>
+        </button>
+      </div>
+
+      {/* NEW SUB-CAMPAIGN CREATION MODAL */}
+      {isAddCampaignModalOpen && (
+        <div 
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.65)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '1rem'
+          }}
+          onClick={() => setIsAddCampaignModalOpen(false)}
+        >
+          <div 
+            className="card"
+            style={{
+              width: '100%',
+              maxWidth: '560px',
+              backgroundColor: 'var(--bg-surface)',
+              borderRadius: 'var(--radius-sm)',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)',
+              padding: '1.5rem',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '1.25rem',
+              maxHeight: '90vh',
+              overflowY: 'auto'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-default)', paddingBottom: '0.75rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span style={{ fontSize: '1.25rem' }}>🚀</span>
+                <div>
+                  <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                    Yeni Alt Kampanya Ekle
+                  </h3>
+                  <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', margin: 0 }}>
+                    Master Planınız altına hedef dili, platformu ve modeli belirleyin.
+                  </p>
+                </div>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setIsAddCampaignModalOpen(false)}
+                className="btn-ghost"
+                style={{ padding: '4px' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Campaign Name */}
+            <div>
+              <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)', display: 'block', marginBottom: '0.35rem' }}>
+                Kampanya Adı:
+              </label>
+              <input
+                type="text"
+                value={newCampName}
+                onChange={(e) => setNewCampName(e.target.value)}
+                placeholder="Örn: Google Search - İngilizce Saç Ekimi..."
+                style={{ width: '100%', fontSize: '0.85rem' }}
+              />
+            </div>
+
+            {/* Platform Selection */}
+            <div>
+              <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)', display: 'block', marginBottom: '0.45rem' }}>
+                Reklam Platformu / Kaynağı:
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem' }}>
+                {[
+                  { id: 'GOOGLE', label: 'Google Ads', icon: <GoogleIcon size={18} /> },
+                  { id: 'META', label: 'Meta Ads', icon: <MetaIcon size={18} /> },
+                  { id: 'YOUTUBE', label: 'YouTube Video', icon: <YouTubeIcon size={18} /> },
+                  { id: 'TIKTOK', label: 'TikTok Ads', icon: <TikTokIcon size={18} /> },
+                  { id: 'YANDEX', label: 'Yandex Direct', icon: <YandexIcon size={18} /> },
+                  { id: 'BING', label: 'Microsoft Bing', icon: <BingIcon size={18} /> },
+                ].map((p) => {
+                  const isSelected = newCampPlatform === p.id;
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => {
+                        setNewCampPlatform(p.id as CampaignPlatform);
+                        if (p.id === 'GOOGLE') setNewCampObjective('GOOGLE_SEARCH');
+                        else if (p.id === 'META') setNewCampObjective('META_LEADS');
+                        else if (p.id === 'TIKTOK') setNewCampObjective('TIKTOK_LEADS');
+                        else if (p.id === 'YOUTUBE') setNewCampObjective('GOOGLE_YOUTUBE');
+                        else if (p.id === 'YANDEX') setNewCampObjective('YANDEX_SEARCH');
+                      }}
+                      style={{
+                        padding: '0.65rem 0.5rem',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '0.35rem',
+                        borderRadius: 'var(--radius-xs)',
+                        border: isSelected ? '1.5px solid var(--brand-primary)' : '1px solid var(--border-default)',
+                        backgroundColor: isSelected ? 'rgba(37, 99, 235, 0.12)' : 'var(--bg-surface-elevated)',
+                        color: isSelected ? 'var(--brand-primary)' : 'var(--text-primary)',
+                        cursor: 'pointer',
+                        fontWeight: isSelected ? 700 : 500,
+                        fontSize: '0.78rem'
+                      }}
+                    >
+                      {p.icon}
+                      <span>{p.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Campaign Objective / Model */}
+            <div>
+              <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)', display: 'block', marginBottom: '0.35rem' }}>
+                Kampanya Amacı / Modeli:
+              </label>
+              <select
+                value={newCampObjective}
+                onChange={(e) => setNewCampObjective(e.target.value as CampaignObjective)}
+                style={{ width: '100%', fontSize: '0.85rem', padding: '0.5rem' }}
+              >
+                {newCampPlatform === 'GOOGLE' && (
+                  <>
+                    <option value="GOOGLE_SEARCH">🔍 Google Search (Arama Ağı)</option>
+                    <option value="GOOGLE_PMAX">⚡ Google Performance Max (PMax)</option>
+                    <option value="GOOGLE_GDN">🖼️ Google Display Network (GDN)</option>
+                    <option value="GOOGLE_DEMAND_GEN">✨ Google Demand Gen</option>
+                  </>
+                )}
+                {newCampPlatform === 'META' && (
+                  <>
+                    <option value="META_LEADS">🎯 Meta Lead Ads (Anlık Form & Potansiyel Müşteri)</option>
+                    <option value="META_SALES">🛒 Meta Satış & E-Ticaret (Katalog / Satın Alma)</option>
+                    <option value="META_TRAFFIC">🚀 Meta Web Sitesi Trafiği & Tıklama</option>
+                    <option value="META_AWARENESS">👁️ Meta Marka Bilinirliği & Erişim</option>
+                    <option value="META_APP">📱 Meta Uygulama Yükleme (App Promotion)</option>
+                  </>
+                )}
+                {newCampPlatform === 'TIKTOK' && (
+                  <>
+                    <option value="TIKTOK_LEADS">🎯 TikTok Lead Generation</option>
+                    <option value="TIKTOK_VIEWS">🎬 TikTok Video Views & Engagement</option>
+                    <option value="TIKTOK_SALES">🛒 TikTok Shop & Web Sales</option>
+                  </>
+                )}
+                {newCampPlatform === 'YANDEX' && (
+                  <>
+                    <option value="YANDEX_SEARCH">🔍 Yandex Direct - Arama Ağı</option>
+                    <option value="YANDEX_RSYA">🖼️ Yandex Direct - RSYA (Görüntülü Reklam)</option>
+                  </>
+                )}
+                {newCampPlatform === 'YOUTUBE' && (
+                  <>
+                    <option value="GOOGLE_YOUTUBE">🎬 YouTube In-Stream & Shorts Video Actions</option>
+                  </>
+                )}
+                {newCampPlatform === 'BING' && (
+                  <>
+                    <option value="GOOGLE_SEARCH">🔍 Bing Search Network</option>
+                  </>
+                )}
+              </select>
+            </div>
+
+            {/* Language Selection */}
+            <div>
+              <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)', display: 'block', marginBottom: '0.35rem' }}>
+                Hedef Dil:
+              </label>
+              <select
+                value={newCampLang}
+                onChange={(e) => setNewCampLang(e.target.value)}
+                style={{ width: '100%', fontSize: '0.85rem', padding: '0.5rem' }}
+              >
+                {GOOGLE_ADS_LANGUAGES.map((l) => (
+                  <option key={l.code} value={l.code}>
+                    {l.flag} {l.name} ({l.nativeName})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Monthly Budget */}
+            <div>
+              <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)', display: 'block', marginBottom: '0.35rem' }}>
+                Bu Kampanya İçin Aylık Bütçe (₺):
+              </label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <input
+                  type="number"
+                  min={1000}
+                  step={1000}
+                  value={newCampBudget}
+                  onChange={(e) => setNewCampBudget(Number(e.target.value))}
+                  style={{ flex: 1, fontSize: '0.85rem' }}
+                />
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                  ₺{Math.round(newCampBudget / 30.4).toLocaleString('tr-TR')} / gün
+                </span>
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.5rem', borderTop: '1px solid var(--border-default)', paddingTop: '0.75rem', marginTop: '0.5rem' }}>
+              <button
+                type="button"
+                onClick={() => setIsAddCampaignModalOpen(false)}
+                className="btn-ghost"
+                style={{ fontSize: '0.82rem' }}
+              >
+                Vazgeç
+              </button>
+              <button
+                type="button"
+                onClick={handleCreateNewSubCampaign}
+                className="btn-primary"
+                style={{ fontSize: '0.82rem', padding: '0.5rem 1rem' }}
+              >
+                🚀 Kampanyayı Ekle & Yapılandır
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
 
       {/* 2. Unified Smart Search & Discovery Control Card */}
       <div className="card" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
@@ -3080,6 +3975,85 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                   </div>
                 </div>
 
+                {/* Master Plan Sub-Campaigns Breakdown Section */}
+                {subCampaigns.length > 1 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.5rem', paddingTop: '0.85rem', borderTop: '1px solid var(--border-default)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: '0.825rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                        👑 Çok Dilli Alt Kampanyalar Dağılımı ({subCampaigns.length} Kampanya):
+                      </span>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--brand-primary)', fontWeight: 600 }}>
+                        Toplam Bütçe: ₺{totalMasterMonthlyBudget.toLocaleString('tr-TR')}
+                      </span>
+                    </div>
+
+                    <div style={{ overflowX: 'auto' }}>
+                      <table className="data-table" style={{ fontSize: '0.75rem' }}>
+                        <thead>
+                          <tr>
+                            <th>Alt Kampanya Adı</th>
+                            <th>Hedef Dil & Pazar</th>
+                            <th>Platform</th>
+                            <th>Aylık Bütçe</th>
+                            <th style={{ textAlign: 'right' }}>Bütçe Payı</th>
+                            <th style={{ textAlign: 'right' }}>İşlem</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {subCampaigns.map((sc) => {
+                            const share = totalMasterMonthlyBudget > 0 ? Math.round((sc.monthlyBudget / totalMasterMonthlyBudget) * 100) : 0;
+                            const isActive = sc.id === activeSubCampaignId;
+                            return (
+                              <tr 
+                                key={sc.id}
+                                style={{ backgroundColor: isActive ? 'rgba(37, 99, 235, 0.04)' : undefined }}
+                              >
+                                <td>
+                                  <div style={{ fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                    <span>{sc.name}</span>
+                                    {isActive && (
+                                      <span style={{ fontSize: '0.62rem', padding: '1px 4px', borderRadius: '2px', backgroundColor: 'var(--brand-primary)', color: '#ffffff', fontWeight: 700 }}>
+                                        AKTİF
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+                                <td>
+                                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                                    <span>{sc.languageFlag || '🌐'}</span>
+                                    <span>{sc.languageName || sc.languageCode}</span>
+                                  </span>
+                                </td>
+                                <td>
+                                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                                    {getPlatformIcon(sc.platform, 13)}
+                                    <span>{sc.platform}</span>
+                                  </div>
+                                </td>
+                                <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                                  ₺{sc.monthlyBudget.toLocaleString('tr-TR')}
+                                </td>
+                                <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--brand-primary)' }}>
+                                  %{share}
+                                </td>
+                                <td style={{ textAlign: 'right' }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSelectSubCampaign(sc.id)}
+                                    className="btn-ghost"
+                                    style={{ fontSize: '0.7rem', padding: '2px 6px', color: 'var(--brand-primary)' }}
+                                  >
+                                    Düzenle
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
               </div>
 
             </div>
@@ -4451,75 +5425,126 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                  Kayıtlı Kampanya Bütçe Planları ({savedPlans.length})
+                <div>
+                  <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    👑 Kayıtlı Master Medya & Kampanya Planları ({savedPlans.length})
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                    Geçmişte oluşturduğunuz çok dilli ve çok kanallı tüm bütçe planlarını tek tıkla geri yükleyebilirsiniz.
+                  </div>
                 </div>
-                <button type="button" onClick={loadSavedPlans} className="btn-secondary" style={{ fontSize: '0.78rem', padding: '0.35rem 0.65rem' }}>
+                <button type="button" onClick={loadSavedPlans} className="btn-secondary" style={{ fontSize: '0.78rem', padding: '0.4rem 0.75rem' }}>
                   <RefreshCw size={13} /> Yenile
                 </button>
               </div>
 
-              <div className="card" style={{ overflowX: 'auto' }}>
+              <div className="card" style={{ overflowX: 'auto', padding: 0 }}>
                 <table className="data-table">
                   <thead>
                     <tr>
-                      <th>Plan Adı</th>
-                      <th>Hedef / Tohum</th>
-                      <th>Aylık Bütçe</th>
-                      <th>Tahmini Tıklama</th>
-                      <th>Projeksiyon ROAS</th>
-                      <th>Oluşturulma Tarihi</th>
-                      <th style={{ textAlign: 'right' }}>İşlemler</th>
+                      <th style={{ padding: '0.75rem 1rem' }}>Master Plan & Müşteri</th>
+                      <th style={{ padding: '0.75rem 0.85rem' }}>Dönem & Etiketler</th>
+                      <th style={{ padding: '0.75rem 0.85rem' }}>Alt Kampanyalar</th>
+                      <th style={{ padding: '0.75rem 0.85rem' }}>Aylık & Günlük Bütçe</th>
+                      <th style={{ padding: '0.75rem 0.85rem' }}>Kayıt Tarihi</th>
+                      <th style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>İşlemler</th>
                     </tr>
                   </thead>
                   <tbody>
                     {savedPlans.length === 0 ? (
                       <tr>
-                        <td colSpan={7} style={{ textAlign: 'center', padding: '2.5rem', color: 'var(--text-muted)' }}>
-                          Henüz bu çalışma alanında kayıtlı bir tahminleme planı bulunmuyor.
+                        <td colSpan={6} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
+                          Henüz bu çalışma alanında kayıtlı bir Master medya planı bulunmuyor. Yukarıdaki "Master Planı Kaydet" butonunu kullanarak mevcut planınızı arşivleyebilirsiniz.
                         </td>
                       </tr>
                     ) : (
-                      savedPlans.map((plan) => (
-                        <tr key={plan.id}>
-                          <td>
-                            <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{plan.name}</div>
-                          </td>
-                          <td style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
-                            {plan.targetUrl || plan.seedKeywords || '—'}
-                          </td>
-                          <td style={{ fontWeight: 600, color: 'var(--brand-primary)' }}>
-                            ₺{plan.monthlyBudget?.toLocaleString('tr-TR')}
-                          </td>
-                          <td>
-                            {plan.simulationResult?.estClicks?.toLocaleString('tr-TR') || '—'} Tıklama
-                          </td>
-                          <td>
-                            <span className="badge badge-active" style={{ fontSize: '0.72rem' }}>
-                              {plan.simulationResult?.projectedRoas || 0}x
-                            </span>
-                          </td>
-                          <td style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                            {plan.createdAt ? new Date(plan.createdAt).toLocaleString('tr-TR') : '—'}
-                          </td>
-                          <td style={{ textAlign: 'right' }}>
-                            <button
-                              type="button"
-                              onClick={async () => {
-                                if (window.confirm('Bu planı silmek istediğinize emin misiniz?')) {
-                                  await ApiService.deleteForecastPlan(plan.id);
-                                  loadSavedPlans();
-                                }
-                              }}
-                              className="btn-ghost"
-                              style={{ color: 'var(--danger)', padding: '0.3rem 0.5rem' }}
-                              title="Planı Sil"
-                            >
-                              <Trash2 size={13} />
-                            </button>
-                          </td>
-                        </tr>
-                      ))
+                      savedPlans.map((plan) => {
+                        const hasSubCamps = plan.subCampaigns && plan.subCampaigns.length > 0;
+                        const subCount = hasSubCamps ? plan.subCampaigns!.length : 1;
+                        const subSummary = hasSubCamps 
+                          ? plan.subCampaigns!.map(c => `${c.languageFlag || '🌐'} ${c.name}`).join(' • ')
+                          : (plan.targetUrl || plan.seedKeywords || 'Standart Kampanya');
+
+                        return (
+                          <tr key={plan.id} style={{ borderBottom: '1px solid var(--border-default)' }}>
+                            <td style={{ padding: '0.85rem 1rem' }}>
+                              <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                <span>👑</span>
+                                <span>{plan.name}</span>
+                              </div>
+                              {plan.clientName && (
+                                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                  <Building2 size={12} /> {plan.clientName}
+                                </div>
+                              )}
+                            </td>
+                            <td style={{ padding: '0.85rem 0.85rem' }}>
+                              {plan.period && (
+                                <div style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.25rem', marginBottom: '3px' }}>
+                                  <Calendar size={12} color="var(--brand-primary)" /> {plan.period}
+                                </div>
+                              )}
+                              <div style={{ display: 'flex', gap: '3px', flexWrap: 'wrap' }}>
+                                {plan.tags && plan.tags.length > 0 ? (
+                                  plan.tags.map((t, idx) => (
+                                    <span key={idx} style={{ fontSize: '0.65rem', padding: '1px 5px', borderRadius: 'var(--radius-full)', backgroundColor: 'rgba(37, 99, 235, 0.1)', color: 'var(--brand-primary)', fontWeight: 600 }}>
+                                      {t}
+                                    </span>
+                                  ))
+                                ) : (
+                                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>—</span>
+                                )}
+                              </div>
+                            </td>
+                            <td style={{ padding: '0.85rem 0.85rem', maxWidth: '280px' }}>
+                              <div style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--brand-primary)', marginBottom: '2px' }}>
+                                {subCount} Alt Kampanya
+                              </div>
+                              <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={subSummary}>
+                                {subSummary}
+                              </div>
+                            </td>
+                            <td style={{ padding: '0.85rem 0.85rem' }}>
+                              <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.88rem' }}>
+                                ₺{plan.monthlyBudget?.toLocaleString('tr-TR')}
+                              </div>
+                              <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                                ₺{Math.round((plan.monthlyBudget || 0) / 30.4).toLocaleString('tr-TR')} / gün
+                              </div>
+                            </td>
+                            <td style={{ padding: '0.85rem 0.85rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                              {plan.createdAt ? new Date(plan.createdAt).toLocaleString('tr-TR') : '—'}
+                            </td>
+                            <td style={{ padding: '0.85rem 1rem', textAlign: 'right' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.45rem' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => handleLoadSavedMasterPlan(plan)}
+                                  className="btn-primary"
+                                  style={{ fontSize: '0.75rem', padding: '0.35rem 0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
+                                >
+                                  <FolderDown size={13} />
+                                  <span>Planı Yükle & Aç</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    if (window.confirm(`"${plan.name}" planını silmek istediğinize emin misiniz?`)) {
+                                      await ApiService.deleteForecastPlan(plan.id);
+                                      loadSavedPlans();
+                                    }
+                                  }}
+                                  className="btn-ghost"
+                                  style={{ color: 'var(--danger)', padding: '0.35rem 0.5rem' }}
+                                  title="Planı Sil"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
                     )}
                   </tbody>
                 </table>

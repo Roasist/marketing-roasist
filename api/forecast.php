@@ -2008,16 +2008,22 @@ if ($action === 'plans') {
 
         $plans = [];
         foreach ($rows as $r) {
+            $planData = json_decode($r['plan_data'] ?? '{}', true) ?: [];
             $plans[] = [
                 'id' => $r['id'],
                 'workspaceId' => $r['workspace_id'],
                 'name' => $r['name'],
+                'clientName' => $r['client_name'] ?? ($planData['clientName'] ?? ''),
+                'period' => $r['period'] ?? ($planData['period'] ?? ''),
+                'tags' => json_decode($r['tags'] ?? '[]', true) ?: ($planData['tags'] ?? []),
                 'targetUrl' => $r['target_url'],
                 'seedKeywords' => $r['seed_keywords'],
                 'monthlyBudget' => (float)$r['monthly_budget'],
                 'selectedKeywords' => json_decode($r['selected_keywords'] ?? '[]', true),
                 'simulationResult' => json_decode($r['simulation_result'] ?? '{}', true),
                 'negativeKeywords' => json_decode($r['negative_keywords'] ?? '[]', true),
+                'subCampaigns' => $planData['subCampaigns'] ?? [],
+                'consolidatedMix' => $planData['consolidatedMix'] ?? null,
                 'createdAt' => $r['created_at'],
             ];
         }
@@ -2030,6 +2036,9 @@ if ($action === 'plans') {
         $input = json_decode(file_get_contents('php://input'), true) ?? [];
         $planId = $input['id'] ?? ('plan_' . time() . '_' . rand(100, 999));
         $name = trim($input['name'] ?? ('Forecast Planı ' . date('d.m.Y H:i')));
+        $clientName = trim($input['clientName'] ?? '');
+        $period = trim($input['period'] ?? date('F Y'));
+        $tags = json_encode($input['tags'] ?? [], JSON_UNESCAPED_UNICODE);
         $targetUrl = trim($input['targetUrl'] ?? '');
         $seedKeywords = trim($input['seedKeywords'] ?? '');
         $monthlyBudget = (float)($input['monthlyBudget'] ?? 0);
@@ -2038,25 +2047,37 @@ if ($action === 'plans') {
         $negativeKeywords = json_encode($input['negativeKeywords'] ?? [], JSON_UNESCAPED_UNICODE);
         $wsId = $input['workspaceId'] ?? $workspaceId;
 
+        $planData = json_encode([
+            'clientName' => $clientName,
+            'period' => $period,
+            'tags' => $input['tags'] ?? [],
+            'subCampaigns' => $input['subCampaigns'] ?? [],
+            'consolidatedMix' => $input['consolidatedMix'] ?? null,
+        ], JSON_UNESCAPED_UNICODE);
+
         $stmt = $pdo->prepare("
             INSERT OR REPLACE INTO forecast_plans 
-            (id, workspace_id, name, target_url, seed_keywords, monthly_budget, selected_keywords, simulation_result, negative_keywords, created_by)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (id, workspace_id, name, client_name, period, tags, target_url, seed_keywords, monthly_budget, selected_keywords, simulation_result, negative_keywords, plan_data, created_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
         $stmt->execute([
             $planId,
             $wsId,
             $name,
+            $clientName,
+            $period,
+            $tags,
             $targetUrl,
             $seedKeywords,
             $monthlyBudget,
             $selectedKeywords,
             $simulationResult,
             $negativeKeywords,
+            $planData,
             $currentUser['id'] ?? 1
         ]);
 
-        echo json_encode(['status' => 'success', 'message' => 'Forecast planı başarıyla kaydedildi!', 'planId' => $planId]);
+        echo json_encode(['status' => 'success', 'message' => 'Master Forecast planı başarıyla kaydedildi!', 'planId' => $planId]);
         exit;
     }
 

@@ -31,8 +31,8 @@ npx vite build
 echo "📦 [2/5] Derlenmiş dosyalar, API ve betikler eşitleniyor..."
 cp -rf dist/assets .
 cp -f dist/index.html .
-cp -rf public/api .
-cp -rf public/api dist/
+cp -rf api public/
+cp -rf api dist/
 cp -f public/favicon.svg .
 cp -f public/favicon.svg dist/
 cp -f public/roasist-logo.svg .

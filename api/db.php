@@ -182,6 +182,18 @@ class Database {
         try {
             $pdo->exec("ALTER TABLE audit_logs ADD COLUMN status TEXT DEFAULT 'SUCCESS'");
         } catch (Exception $e) {}
+        try {
+            $pdo->exec("ALTER TABLE forecast_plans ADD COLUMN client_name TEXT");
+        } catch (Exception $e) {}
+        try {
+            $pdo->exec("ALTER TABLE forecast_plans ADD COLUMN period TEXT");
+        } catch (Exception $e) {}
+        try {
+            $pdo->exec("ALTER TABLE forecast_plans ADD COLUMN tags TEXT");
+        } catch (Exception $e) {}
+        try {
+            $pdo->exec("ALTER TABLE forecast_plans ADD COLUMN plan_data TEXT");
+        } catch (Exception $e) {}
 
         // Seed Default Super Admin if not exists
         $stmt = $pdo->query("SELECT COUNT(*) as count FROM users");
