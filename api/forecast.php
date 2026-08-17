@@ -1294,6 +1294,11 @@ function fetchLandingPageDetails($url) {
 // Detect language from text and title using weighted token scoring
 function detectPageLanguage($title, $text) {
     $full = $title . ' ' . $text;
+
+    // 0. Russian transliteration cues in URL or text (e.g. grazhdanstvo, nedvizhimost, kvartira, turtsiya)
+    if (preg_match('/(grazhdanstv|nedvizhim|kvartir|turtsiy|turtsii|investits|pasport|vnzh)/i', $full)) {
+        return ['code' => 'ru', 'name' => 'Rusça'];
+    }
     
     // 1. Script checks
     preg_match_all('/[\p{Cyrillic}]/u', $full, $cyr);
@@ -1756,27 +1761,30 @@ function extractLocationAndSmartSeeds($pageDetails, $query, $langCode = 'en') {
 
     // 4. Detect Turkey Citizenship & Real Estate in Russian, Turkish, Arabic, German, English
     $isRussianCyrillic = preg_match('/[\p{Cyrillic}]/u', $full);
-    if ($isRussianCyrillic && preg_match('/(гражданств|внж|паспорт|недвижим|квартир|вилл|инвестиц|турци|алань|анталь|стамбул|23projects|23square)/ui', $full)) {
-        return [
-            'гражданство турции за инвестиции',
-            'гражданство турции при покупке недвижимости',
-            'внж в турции при покупке недвижимости',
-            'купить квартиру в турции и получить гражданство',
-            'гражданство турции через инвестиции',
-            'паспорт турции за инвестиции',
-            'недвижимость в турции для гражданства',
-            'внж в турции',
-            'купить квартиру в аланье',
-            'купить квартиру в анталии',
-            'купить недвижимость в турции',
-            'оформление внж в турции',
-            'внж турции за инвестиции',
-            'пмж в турции',
-            'гражданство за инвестиции турция',
-            'инвестиции в недвижимость турции',
-            'купить квартиру в стамбуле',
-            'турецкое гражданство за покупку недвижимости'
-        ];
+    $isRussianTranslit = preg_match('/(grazhdanstv|nedvizhim|kvartir|turtsiy|turtsii|investits|pasport|vnzh)/i', $full);
+    if ($langCode === 'ru' || $isRussianCyrillic || $isRussianTranslit) {
+        if (preg_match('/(grazhdanstv|nedvizhim|kvartir|turtsiy|investits|гражданств|внж|паспорт|недвижим|квартир|вилл|инвестиц|турци|алань|анталь|стамбул|23projects|23square)/ui', $full)) {
+            return [
+                'гражданство турции за инвестиции',
+                'гражданство турции при покупке недвижимости',
+                'внж в турции при покупке недвижимости',
+                'купить квартиру в турции и получить гражданство',
+                'гражданство турции через инвестиции',
+                'паспорт турции за инвестиции',
+                'недвижимость в турции для гражданства',
+                'внж в турции',
+                'купить квартиру в аланье',
+                'купить квартиру в анталии',
+                'купить недвижимость в турции',
+                'оформление внж в турции',
+                'внж турции за инвестиции',
+                'пмж в турции',
+                'гражданство за инвестиции турция',
+                'инвестиции в недвижимость турции',
+                'купить квартиру в стамбуле',
+                'турецкое гражданство за покупку недвижимости'
+            ];
+        }
     }
 
     if (preg_match('/\b(turkish citizenship|citizenship by investment|vatandaşlık|real estate|gayrimenkul|property for sale|properties for sale|satılık daire|satılık ev|satılık mülk|konut projesi|summer homes|23projects|23 projects|23square)\b/ui', $full)) {
@@ -2418,7 +2426,7 @@ if ($action === 'discover' && $method === 'POST') {
             }
         }
     } else {
-        $langInfo = detectPageLanguage($pageDetails['title'] ?? '', $pageDetails['textSnippet'] ?? '');
+        $langInfo = detectPageLanguage(($pageDetails['title'] ?? '') . ' ' . $query, $pageDetails['textSnippet'] ?? '');
         $suggestedCountries = getSuggestedCountriesByLang($langInfo['code']);
         $sectorTitle = $pageDetails['title'] ?? 'Google Ads Kampanyası';
     }
