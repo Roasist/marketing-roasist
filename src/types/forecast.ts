@@ -149,6 +149,17 @@ export interface SubCampaignItem {
   // Model specific parameters snapshot
   businessModel?: BusinessModel;
   parameters: {
+    // Growth & Model settings
+    growthScenario?: GrowthScenario;
+    budgetMode?: 'BY_BUDGET' | 'BY_IMPRESSION_SHARE';
+    avgDealValue?: number;
+
+    // Omnichannel allocation percentages
+    allocGoogleSearch?: number;
+    allocMetaAds?: number;
+    allocYouTube?: number;
+    allocGdn?: number;
+
     // Search specific
     targetImpressionShare?: number;
     expectedCtr?: number;

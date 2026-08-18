@@ -746,9 +746,14 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     else if (newOthers.gdn !== undefined) setAllocGdn(newOthers.gdn);
   };
 
+  // Prevent signature watcher from invalidating checkmarks during plan/sub-campaign loads
+  const isApplyingSubCampaignRef = useRef<boolean>(false);
+
   // Track parameter changes in Step 2 to invalidate green checkmark
   const prevParamsRef = useRef<string>('');
   useEffect(() => {
+    if (isApplyingSubCampaignRef.current) return;
+
     const paramsSignature = JSON.stringify({
       growthScenario,
       businessModel,
@@ -817,6 +822,8 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   // Track keyword selection changes in Step 1 to invalidate green checkmarks
   const prevKeywordsRef = useRef<string>('');
   useEffect(() => {
+    if (isApplyingSubCampaignRef.current) return;
+
     const kwSignature = JSON.stringify({
       kwCount: keywords.length,
       selectedCount: selectedKeywordIds.size,
@@ -945,6 +952,13 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         businessModel,
         languageCode: targetLanguage,
         parameters: {
+          growthScenario,
+          budgetMode,
+          avgDealValue,
+          allocGoogleSearch,
+          allocMetaAds,
+          allocYouTube,
+          allocGdn,
           targetImpressionShare,
           expectedCtr,
           searchLeadCr: leadConversionRate,
@@ -971,14 +985,10 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     }));
   };
 
-  // Switch to another sub-campaign
-  const handleSelectSubCampaign = (campId: string) => {
-    if (campId === activeSubCampaignId) return;
-    syncActiveSubCampaign();
-    const target = subCampaigns.find(c => c.id === campId);
-    if (!target) return;
-
-    setActiveSubCampaignId(campId);
+  // Apply a sub-campaign's state completely
+  const applySubCampaignToState = (target: SubCampaignItem) => {
+    isApplyingSubCampaignRef.current = true;
+    setActiveSubCampaignId(target.id);
     setKeywords(target.discoveredKeywords || []);
     setSelectedKeywordIds(new Set((target.selectedKeywords || []).map(k => k.id)));
     setNegativeCategories(target.negativeCategories || []);
@@ -999,10 +1009,19 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       setMode(target.targetUrl ? 'URL' : 'KEYWORDS');
     }
     if (target.parameters) {
+      if (target.parameters.growthScenario) setGrowthScenario(target.parameters.growthScenario);
+      if (target.parameters.budgetMode) setBudgetMode(target.parameters.budgetMode);
       if (target.parameters.targetImpressionShare !== undefined) setTargetImpressionShare(target.parameters.targetImpressionShare);
       if (target.parameters.expectedCtr !== undefined) setExpectedCtr(target.parameters.expectedCtr);
       if (target.parameters.searchLeadCr !== undefined) setLeadConversionRate(target.parameters.searchLeadCr);
       if (target.parameters.searchHealthyLeadRate !== undefined) setLeadCloseRate(target.parameters.searchHealthyLeadRate);
+      if (target.parameters.searchEcommerceCr !== undefined) setEcommerceConversionRate(target.parameters.searchEcommerceCr);
+      if (target.parameters.searchAov !== undefined) setAvgOrderValue(target.parameters.searchAov);
+      if (target.parameters.avgDealValue !== undefined) setAvgDealValue(target.parameters.avgDealValue);
+      if (target.parameters.allocGoogleSearch !== undefined) setAllocGoogleSearch(target.parameters.allocGoogleSearch);
+      if (target.parameters.allocMetaAds !== undefined) setAllocMetaAds(target.parameters.allocMetaAds);
+      if (target.parameters.allocYouTube !== undefined) setAllocYouTube(target.parameters.allocYouTube);
+      if (target.parameters.allocGdn !== undefined) setAllocGdn(target.parameters.allocGdn);
       if (target.parameters.metaCpm !== undefined) setMetaCpm(target.parameters.metaCpm);
       if (target.parameters.metaCtr !== undefined) setMetaCtr(target.parameters.metaCtr);
       if (target.parameters.metaLeadCr !== undefined) setMetaLeadCr(target.parameters.metaLeadCr);
@@ -1028,6 +1047,22 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     } else if (target.platform === 'GOOGLE' && target.objective === 'GOOGLE_SEARCH') {
       setActiveChannelTab('GOOGLE_SEARCH');
     }
+
+    setIsStep1Completed(true);
+    setIsStep2Completed(true);
+
+    setTimeout(() => {
+      isApplyingSubCampaignRef.current = false;
+    }, 200);
+  };
+
+  // Switch to another sub-campaign
+  const handleSelectSubCampaign = (campId: string) => {
+    if (campId === activeSubCampaignId) return;
+    syncActiveSubCampaign();
+    const target = subCampaigns.find(c => c.id === campId);
+    if (!target) return;
+    applySubCampaignToState(target);
   };
 
   // Create new Sub-Campaign
@@ -1299,24 +1334,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           ? (plan.subCampaigns.find(c => c.id === targetSubId) || plan.subCampaigns[0])
           : plan.subCampaigns[0];
         
-        setActiveSubCampaignId(chosenSub.id);
-        setKeywords(chosenSub.discoveredKeywords || plan.selectedKeywords || []);
-        setSelectedKeywordIds(new Set((chosenSub.selectedKeywords || plan.selectedKeywords || []).map(k => k.id)));
-        setNegativeCategories(chosenSub.negativeCategories || plan.negativeKeywords || []);
-        if (chosenSub.targetLocations && chosenSub.targetLocations.length > 0) {
-          setSelectedLocations(chosenSub.targetLocations);
-        }
-        if (chosenSub.languageCode) setTargetLanguage(chosenSub.languageCode);
-        if (chosenSub.monthlyBudget) setMonthlyBudget(chosenSub.monthlyBudget);
-        if (chosenSub.targetUrl || chosenSub.seedKeywords) {
-          setQuery(chosenSub.targetUrl || chosenSub.seedKeywords || '');
-          setMode(chosenSub.targetUrl ? 'URL' : 'KEYWORDS');
-        }
-
-        if (chosenSub.platform === 'META') setActiveChannelTab('META_ADS');
-        else if (chosenSub.platform === 'YOUTUBE') setActiveChannelTab('YOUTUBE');
-        else if (chosenSub.platform === 'GOOGLE') setActiveChannelTab('GOOGLE_SEARCH');
-        else setActiveChannelTab('OMNICHANNEL');
+        applySubCampaignToState(chosenSub);
       } else {
         // Plan has 0 sub-campaigns: keep clean empty state!
         setActiveSubCampaignId(null);
@@ -1326,6 +1344,8 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         setMonthlyBudget(0);
         setQuery('');
         setActiveChannelTab('OMNICHANNEL');
+        setIsStep1Completed(false);
+        setIsStep2Completed(false);
       }
     } else {
       // Legacy single plan (only if subCampaigns property was never an array)
@@ -1344,6 +1364,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         negativeCategories: plan.negativeKeywords || [],
         businessModel: 'LEAD_GEN',
         parameters: {
+          growthScenario: 'REALISTIC',
           targetImpressionShare: 70,
           expectedCtr: 7.5,
           searchLeadCr: 3.5,
@@ -1352,18 +1373,10 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         }
       };
       setSubCampaigns([legacySub]);
-      setActiveSubCampaignId(legacySub.id);
-      setKeywords(plan.selectedKeywords || []);
-      setSelectedKeywordIds(new Set((plan.selectedKeywords || []).map(k => k.id)));
-      setNegativeCategories(plan.negativeKeywords || []);
-      if (plan.monthlyBudget) setMonthlyBudget(plan.monthlyBudget);
-      if (plan.targetUrl || plan.seedKeywords) setQuery(plan.targetUrl || plan.seedKeywords || '');
-      setActiveChannelTab('GOOGLE_SEARCH');
+      applySubCampaignToState(legacySub);
     }
 
     setViewMode('STUDIO');
-    setIsStep1Completed(true);
-    setIsStep2Completed(true);
   };
 
   // Back to Portfolio
@@ -2426,6 +2439,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   // Save Plan Action
   const handleSavePlan = async () => {
     try {
+      isApplyingSubCampaignRef.current = true;
       // First sync current active sub campaign
       const selectedKws = Array.from(selectedKeywordIds).map(id => keywords.find(k => k.id === id)).filter(Boolean) as KeywordMetric[];
       const updatedSubCampaigns = subCampaigns.map(c => {
@@ -2442,6 +2456,13 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           businessModel,
           languageCode: targetLanguage,
           parameters: {
+            growthScenario,
+            budgetMode,
+            avgDealValue,
+            allocGoogleSearch,
+            allocMetaAds,
+            allocYouTube,
+            allocGdn,
             targetImpressionShare,
             expectedCtr,
             searchLeadCr: leadConversionRate,
@@ -2468,7 +2489,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       });
 
       const formattedPeriod = formatCampaignDates(planStartDate, planEndDate, planPeriod);
-      await ApiService.saveForecastPlan({
+      const res = await ApiService.saveForecastPlan({
         id: currentPlanId || undefined,
         workspaceId,
         name: planName.trim() || `${clientName} - ${formattedPeriod} Medya Planı`,
@@ -2489,13 +2510,20 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         countryBreakdown,
         subCampaigns: updatedSubCampaigns
       });
+      if (res && res.planId && !currentPlanId) {
+        setCurrentPlanId(res.planId);
+      }
       setSubCampaigns(updatedSubCampaigns);
       setIsStep1Completed(true);
       setIsStep2Completed(true);
       setPlanSaveSuccess(true);
       setTimeout(() => setPlanSaveSuccess(false), 2500);
+      setTimeout(() => {
+        isApplyingSubCampaignRef.current = false;
+      }, 200);
       loadSavedPlans();
     } catch (err: any) {
+      isApplyingSubCampaignRef.current = false;
       alert('Plan kaydedilirken hata: ' + err.message);
     }
   };
