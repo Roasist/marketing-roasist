@@ -1728,10 +1728,40 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   }, [baseSearchVolume]);
 
   const baseTopPageCpc = useMemo(() => {
-    if (selectedKeywordsPool.length === 0) return 0;
-    const sumCpc = selectedKeywordsPool.reduce((sum, k) => sum + ((k.lowCpc + k.highCpc) / 2), 0);
-    return sumCpc / selectedKeywordsPool.length;
-  }, [selectedKeywordsPool]);
+    // 1. If official location breakdown is present, calculate exact blended weighted CPC across selected target locations
+    if (officialLocationBreakdown && officialLocationBreakdown.length > 0 && selectedLocations.length > 0) {
+      let totalWeightedCpc = 0;
+      let totalLocationVol = 0;
+      for (const loc of selectedLocations) {
+        const off = officialLocationBreakdown.find(b => 
+          String((b as any).id) === String(loc.id) || 
+          b.name.toLowerCase() === loc.name.toLowerCase() ||
+          (loc.canonicalName && b.canonicalName && b.canonicalName.toLowerCase() === loc.canonicalName.toLowerCase())
+        );
+        if (off && (off.monthlyVolume || 0) > 0 && (off.avgCpc || 0) > 0) {
+          totalWeightedCpc += (off.monthlyVolume * off.avgCpc);
+          totalLocationVol += off.monthlyVolume;
+        }
+      }
+      if (totalLocationVol > 0 && totalWeightedCpc > 0) {
+        return totalWeightedCpc / totalLocationVol;
+      }
+    }
+
+    // 2. Fallback to volume-weighted keyword pool CPC
+    if (selectedKeywordsPool.length === 0) return 6.50;
+    const sumWeightedCpc = selectedKeywordsPool.reduce((sum, k) => {
+      const avgKwCpc = (k.lowCpc + k.highCpc) / 2;
+      return sum + (avgKwCpc > 0 ? (avgKwCpc * (k.monthlyVolume || 1)) : 0);
+    }, 0);
+    const sumVol = selectedKeywordsPool.reduce((sum, k) => sum + (k.monthlyVolume || 1), 0);
+    if (sumVol > 0 && sumWeightedCpc > 0) {
+      return sumWeightedCpc / sumVol;
+    }
+
+    const simpleSumCpc = selectedKeywordsPool.reduce((sum, k) => sum + ((k.lowCpc + k.highCpc) / 2), 0);
+    return simpleSumCpc > 0 ? simpleSumCpc / selectedKeywordsPool.length : 6.50;
+  }, [selectedKeywordsPool, officialLocationBreakdown, selectedLocations]);
 
   const avgTopPageCpc = useMemo(() => {
     return baseTopPageCpc;
@@ -1759,6 +1789,14 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   const handleImpressionShareChange = (newIS: number) => {
     const clampedIS = Math.max(5, Math.min(95, newIS));
     setTargetImpressionShare(clampedIS);
+    // In BY_IMPRESSION_SHARE mode, dynamically compute required spend and update channel allocation
+    if (budgetMode === 'BY_IMPRESSION_SHARE' && activeSearchCpc > 0 && expectedCtr > 0 && totalSearchVolume > 0 && monthlyBudget > 0) {
+      const estImps = Math.round(totalSearchVolume * (clampedIS / 100));
+      const estClicks = Math.round(estImps * (expectedCtr / 100));
+      const requiredSpend = Math.round(estClicks * activeSearchCpc);
+      const newAlloc = Math.max(1, Math.min(100, Math.round((requiredSpend / monthlyBudget) * 100)));
+      updateChannelAllocation('google', newAlloc);
+    }
   };
 
   const handleExpectedCtrChange = (newCtr: number) => {
@@ -5860,7 +5898,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                           Hedef Pazar Gösterim Payı (IS %)
                         </label>
                         <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                          Ayrılan Bütçe: <strong>₺{Math.round((monthlyBudget * allocGoogleSearch) / 100).toLocaleString('tr-TR')}</strong>/ay (%{allocGoogleSearch})
+                          Ayrılan Bütçe: <strong>₺{simulation.actualSpend.toLocaleString('tr-TR')}</strong>/ay (%{allocGoogleSearch})
                         </div>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
