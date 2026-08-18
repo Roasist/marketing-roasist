@@ -322,7 +322,11 @@ export class ApiService {
         body: JSON.stringify(payload),
       }
     );
-    return res.locationBreakdown || [];
+    if (res.locationBreakdown) {
+      if (Array.isArray(res.locationBreakdown)) return res.locationBreakdown;
+      if (Array.isArray((res.locationBreakdown as any).breakdown)) return (res.locationBreakdown as any).breakdown;
+    }
+    return [];
   }
 
   public static async getForecastPlans(workspaceId?: string): Promise<any[]> {

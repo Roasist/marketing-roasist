@@ -2460,10 +2460,12 @@ if ($action === 'location_breakdown' && $method === 'POST') {
     }
 
     $locationsMeta = $input['locations'] ?? [];
-    $breakdown = calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $keywords, $geoTargetConstants, $language, $locationsMeta);
+    $breakdownResult = calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $keywords, $geoTargetConstants, $language, $locationsMeta);
+    $locationList = is_array($breakdownResult) && isset($breakdownResult['breakdown']) ? $breakdownResult['breakdown'] : (is_array($breakdownResult) ? $breakdownResult : []);
     echo json_encode([
         'status' => 'success',
-        'locationBreakdown' => $breakdown
+        'locationBreakdown' => $locationList,
+        'keywordGeoMap' => $breakdownResult['keywordGeoMap'] ?? []
     ], JSON_UNESCAPED_UNICODE);
     exit;
 }

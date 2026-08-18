@@ -2210,49 +2210,150 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     };
   }, [selectedLocations, keywords, detectedLanguage, mode, query]);
 
-  // Location / Country Breakdown Metrics with Real Google Ads API data
+  // Location / Country Breakdown Metrics with Real Google Ads API data & Keyword GeoVolumes
   const countryBreakdown: CountryMetric[] = useMemo(() => {
     if (selectedLocations.length === 0) return [];
 
-    const totalOfficialVol = selectedLocations.reduce((sum, loc) => {
-      const off = officialLocationBreakdown.find(b => 
-        String((b as any).id) === String(loc.id) || 
-        b.name.toLowerCase() === loc.name.toLowerCase() ||
-        (loc.canonicalName && b.canonicalName && b.canonicalName.toLowerCase() === loc.canonicalName.toLowerCase())
-      );
-      return sum + (off?.monthlyVolume || 0);
-    }, 0);
+    const activePool = selectedKeywordsPool.length > 0 ? selectedKeywordsPool : keywords;
 
-    const items = selectedLocations.map(loc => {
-      const off = officialLocationBreakdown.find(b => 
-        String((b as any).id) === String(loc.id) || 
-        b.name.toLowerCase() === loc.name.toLowerCase() ||
-        (loc.canonicalName && b.canonicalName && b.canonicalName.toLowerCase() === loc.canonicalName.toLowerCase())
-      );
-      
-      const cVol = off?.monthlyVolume ?? 0;
-      const cCpc = off?.avgCpc ?? 0;
-      const share = (totalOfficialVol > 0 && cVol > 0) ? (cVol / totalOfficialVol) : ((off?.sharePercent !== undefined && off.sharePercent > 0) ? (off.sharePercent / 100) : 0);
+    // Helper to find location match in officialLocationBreakdown
+    const findOfficial = (loc: GeoTargetLocation) => {
+      if (!officialLocationBreakdown || officialLocationBreakdown.length === 0) return null;
+      const cleanLocId = String(loc.id).replace(/\D/g, '');
+      const locCc = (loc.countryCode || '').toUpperCase();
+      const locName = (loc.name || '').toLowerCase();
+      const locCanonical = (loc.canonicalName || '').toLowerCase();
 
-      const cClicks = Math.round((simulation.estClicks || 0) * (share || 0));
-      const cConvs = Math.round((simulation.estConversions || 0) * (share || 0));
+      return officialLocationBreakdown.find(b => {
+        const bCleanId = String(b.id || '').replace(/\D/g, '');
+        if (cleanLocId && bCleanId && cleanLocId === bCleanId) return true;
+        const bCc = (b.code || (b as any).countryCode || '').toUpperCase();
+        if (locCc && bCc && locCc === bCc) return true;
+        const bName = (b.name || '').toLowerCase();
+        const bCanonical = (b.canonicalName || '').toLowerCase();
+        if (bName && (bName === locName || bName === locCanonical)) return true;
+        if (bCanonical && (bCanonical === locName || bCanonical === locCanonical)) return true;
+        return false;
+      }) || null;
+    };
+
+    // 1. Calculate direct geo volumes and CPC sums from active keywords pool
+    let poolHasAnyGeoVolume = false;
+    const locGeoVolumes: Record<string, number> = {};
+    const locGeoCpcSums: Record<string, { sum: number; count: number }> = {};
+
+    for (const loc of selectedLocations) {
+      const locKey = String(loc.id);
+      const cleanId = locKey.replace(/\D/g, '');
+      const locCc = loc.countryCode?.toUpperCase();
+      let volSum = 0;
+      let cpcSum = 0;
+      let cpcCount = 0;
+
+      for (const k of activePool) {
+        if (k.geoVolumes && Object.keys(k.geoVolumes).length > 0) {
+          const keysToTry = [
+            cleanId,
+            locKey,
+            `geoTargetConstants/${cleanId}`,
+            locCc,
+            locCc?.toLowerCase(),
+            loc.name?.toLowerCase(),
+            loc.canonicalName?.toLowerCase()
+          ].filter(Boolean) as string[];
+
+          let kwVol = 0;
+          for (const key of keysToTry) {
+            if (k.geoVolumes[key] !== undefined) {
+              kwVol = Number(k.geoVolumes[key]) || 0;
+              break;
+            }
+          }
+
+          if (kwVol > 0) {
+            poolHasAnyGeoVolume = true;
+            volSum += kwVol;
+          }
+        }
+
+        // Check if keyword has geoCpc
+        const geoCpcObj = (k as any).geoCpc?.[cleanId] || (k as any).geoCpc?.[locKey];
+        if (geoCpcObj && geoCpcObj.highCpc > 0) {
+          const mid = (geoCpcObj.lowCpc + geoCpcObj.highCpc) / 2;
+          cpcSum += mid;
+          cpcCount++;
+        }
+      }
+
+      locGeoVolumes[locKey] = volSum;
+      locGeoCpcSums[locKey] = { sum: cpcSum, count: cpcCount };
+    }
+
+    const totalPoolVol = Object.values(locGeoVolumes).reduce((s, v) => s + v, 0);
+    const totalAllKeywordsVol = activePool.reduce((s, k) => s + (k.monthlyVolume || 0), 0);
+    const totalLocationsReach = selectedLocations.reduce((s, l) => s + (l.reach || 10000000), 0);
+
+    const items: CountryMetric[] = selectedLocations.map(loc => {
+      const locKey = String(loc.id);
+      const off = findOfficial(loc);
+
+      // Volume calculation: Keyword geoVolumes -> Official Breakdown -> Population reach distribution
+      let cVol = 0;
+      if (poolHasAnyGeoVolume && (locGeoVolumes[locKey] !== undefined) && totalPoolVol > 0) {
+        cVol = locGeoVolumes[locKey];
+      } else if (off && (off.monthlyVolume || 0) > 0) {
+        cVol = off.monthlyVolume;
+      } else {
+        const reachShare = totalLocationsReach > 0 ? ((loc.reach || 10000000) / totalLocationsReach) : (1 / selectedLocations.length);
+        cVol = Math.round(totalAllKeywordsVol * reachShare);
+      }
+
+      // CPC calculation: Keyword geoCpc -> Official Breakdown -> Location tier multiplier * base CPC
+      let cCpc = 0;
+      if (locGeoCpcSums[locKey]?.count > 0) {
+        cCpc = locGeoCpcSums[locKey].sum / locGeoCpcSums[locKey].count;
+      } else if (off && (off.avgCpc || 0) > 0) {
+        cCpc = off.avgCpc;
+      } else {
+        const mult = loc.cpcMultiplier || 1.0;
+        cCpc = (avgTopPageCpc > 0 ? avgTopPageCpc : 6.50) * mult;
+      }
+
+      const finalCpc = Number((cCpc * scenarioMultiplier.cpcMult).toFixed(2));
 
       return {
         id: String(loc.id),
-        code: loc.countryCode,
-        name: loc.name,
+        code: loc.countryCode || off?.code || 'XX',
+        name: loc.canonicalName || loc.name,
         canonicalName: loc.canonicalName || loc.name,
-        flag: loc.flag || '🌍',
-        sharePercent: Math.round(share * 100),
+        flag: loc.flag || off?.flag || '🌍',
+        sharePercent: 0,
         monthlyVolume: cVol,
-        avgCpc: cCpc || avgTopPageCpc,
-        estClicks: cClicks,
-        estConversions: cConvs,
+        avgCpc: finalCpc,
+        estClicks: 0,
+        estConversions: 0,
       };
     });
 
+    const sumVol = items.reduce((s, item) => s + item.monthlyVolume, 0);
+    items.forEach(item => {
+      const share = sumVol > 0 ? (item.monthlyVolume / sumVol) : (1 / items.length);
+      item.sharePercent = Math.round(share * 100);
+      item.estClicks = Math.round((simulation.estClicks || 0) * share);
+      item.estConversions = Math.round((simulation.estConversions || 0) * share);
+    });
+
     return items.sort((a, b) => b.monthlyVolume - a.monthlyVolume);
-  }, [selectedLocations, officialLocationBreakdown, avgTopPageCpc, simulation]);
+  }, [
+    selectedLocations,
+    selectedKeywordsPool,
+    keywords,
+    officialLocationBreakdown,
+    avgTopPageCpc,
+    scenarioMultiplier.cpcMult,
+    simulation.estClicks,
+    simulation.estConversions
+  ]);
 
   // -------------------------------------------------------------
   // LOCATION SCOPE ADAPTIVE KEYWORD & GROUP METRICS
