@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Search, 
   Sparkles, 
@@ -649,6 +649,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   // Growth Scenario Projection (Muhafazakar / Beklenen / Agresif)
   const [growthScenario, setGrowthScenario] = useState<GrowthScenario>('REALISTIC');
   const [showScenarioTooltip, setShowScenarioTooltip] = useState<boolean>(false);
+  const [isStep1Completed, setIsStep1Completed] = useState<boolean>(false);
   const [isStep2Completed, setIsStep2Completed] = useState<boolean>(false);
 
   // Simulation & Business Model Parameters
@@ -744,6 +745,90 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     if (channel === 'gdn') setAllocGdn(clampedVal);
     else if (newOthers.gdn !== undefined) setAllocGdn(newOthers.gdn);
   };
+
+  // Track parameter changes in Step 2 to invalidate green checkmark
+  const prevParamsRef = useRef<string>('');
+  useEffect(() => {
+    const paramsSignature = JSON.stringify({
+      growthScenario,
+      businessModel,
+      budgetMode,
+      monthlyBudget,
+      targetImpressionShare,
+      expectedCtr,
+      leadConversionRate,
+      leadCloseRate,
+      ecommerceConversionRate,
+      avgOrderValue,
+      avgDealValue,
+      allocGoogleSearch,
+      allocMetaAds,
+      allocYouTube,
+      allocGdn,
+      metaCpm,
+      metaCtr,
+      metaLeadCr,
+      metaHealthyLeadRate,
+      metaCloseRate,
+      youtubeCpv,
+      youtubeVtr,
+      youtubeActionRate,
+      gdnCpm,
+      gdnCtr,
+      gdnAssistedCr,
+      selectedLocationsCount: selectedLocations.length,
+      selectedLocationIds: selectedLocations.map(l => l.id).join(',')
+    });
+
+    if (prevParamsRef.current && prevParamsRef.current !== paramsSignature) {
+      setIsStep2Completed(false);
+    }
+    prevParamsRef.current = paramsSignature;
+  }, [
+    growthScenario,
+    businessModel,
+    budgetMode,
+    monthlyBudget,
+    targetImpressionShare,
+    expectedCtr,
+    leadConversionRate,
+    leadCloseRate,
+    ecommerceConversionRate,
+    avgOrderValue,
+    avgDealValue,
+    allocGoogleSearch,
+    allocMetaAds,
+    allocYouTube,
+    allocGdn,
+    metaCpm,
+    metaCtr,
+    metaLeadCr,
+    metaHealthyLeadRate,
+    metaCloseRate,
+    youtubeCpv,
+    youtubeVtr,
+    youtubeActionRate,
+    gdnCpm,
+    gdnCtr,
+    gdnAssistedCr,
+    selectedLocations
+  ]);
+
+  // Track keyword selection changes in Step 1 to invalidate green checkmarks
+  const prevKeywordsRef = useRef<string>('');
+  useEffect(() => {
+    const kwSignature = JSON.stringify({
+      kwCount: keywords.length,
+      selectedCount: selectedKeywordIds.size,
+      selectedIds: Array.from(selectedKeywordIds).sort().join(',')
+    });
+
+    if (prevKeywordsRef.current && prevKeywordsRef.current !== kwSignature) {
+      setIsStep1Completed(false);
+      setIsStep2Completed(false);
+    }
+    prevKeywordsRef.current = kwSignature;
+  }, [keywords, selectedKeywordIds]);
 
   // View mode: 'PORTFOLIO' (All saved Master Plans & Sub-Campaigns Hub) vs 'STUDIO' (Inside specific Master & Sub-Campaign)
   const [viewMode, setViewMode] = useState<'PORTFOLIO' | 'STUDIO'>('PORTFOLIO');
@@ -1277,6 +1362,8 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     }
 
     setViewMode('STUDIO');
+    setIsStep1Completed(true);
+    setIsStep2Completed(true);
   };
 
   // Back to Portfolio
@@ -2403,6 +2490,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         subCampaigns: updatedSubCampaigns
       });
       setSubCampaigns(updatedSubCampaigns);
+      setIsStep1Completed(true);
       setIsStep2Completed(true);
       setPlanSaveSuccess(true);
       setTimeout(() => setPlanSaveSuccess(false), 2500);
@@ -3683,9 +3771,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
               gap: '0.75rem',
               padding: '0.85rem 1.25rem',
               borderRadius: 'var(--radius-sm)',
-              border: currentStep === 1 ? '2px solid var(--brand-primary)' : '1px solid var(--border-default)',
-              backgroundColor: currentStep === 1 ? 'rgba(37, 99, 235, 0.12)' : 'var(--bg-surface-elevated)',
-              color: currentStep === 1 ? 'var(--brand-primary)' : 'var(--text-secondary)',
+              border: currentStep === 1 ? '2px solid var(--brand-primary)' : (isStep1Completed ? '1.5px solid #10b981' : '1px solid var(--border-default)'),
+              backgroundColor: currentStep === 1 ? 'rgba(37, 99, 235, 0.12)' : (isStep1Completed ? 'rgba(16, 185, 129, 0.08)' : 'var(--bg-surface-elevated)'),
+              color: currentStep === 1 ? 'var(--brand-primary)' : (isStep1Completed ? '#10b981' : 'var(--text-secondary)'),
               cursor: 'pointer',
               fontWeight: currentStep === 1 ? 700 : 500,
               fontSize: '0.9rem',
@@ -3697,7 +3785,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
               width: '26px',
               height: '26px',
               borderRadius: '50%',
-              backgroundColor: currentStep === 2 || isStep2Completed ? '#10b981' : 'var(--brand-primary)',
+              backgroundColor: isStep1Completed ? '#10b981' : (currentStep === 1 ? 'var(--brand-primary)' : 'var(--border-default)'),
               color: '#ffffff',
               display: 'flex',
               alignItems: 'center',
@@ -3705,7 +3793,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
               fontSize: '0.8rem',
               fontWeight: 700
             }}>
-              {currentStep === 2 || isStep2Completed ? <Check size={15} /> : '1'}
+              {isStep1Completed ? <Check size={15} /> : '1'}
             </div>
             <span>1. Adım: STAG Kelime Keşfi & Gruplar</span>
           </button>
@@ -4566,12 +4654,24 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                   </div>
 
                   <button
-                    onClick={() => setCurrentStep(2)}
+                    onClick={() => {
+                      syncActiveSubCampaign();
+                      setIsStep1Completed(true);
+                      setCurrentStep(2);
+                    }}
                     disabled={selectedKeywordIds.size === 0}
                     className="btn-primary"
-                    style={{ fontSize: '0.85rem', padding: '0.55rem 1.35rem', display: 'flex', alignItems: 'center', gap: '0.45rem' }}
+                    style={{ 
+                      fontSize: '0.85rem', 
+                      padding: '0.55rem 1.35rem', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '0.45rem',
+                      fontWeight: 600,
+                      backgroundColor: isStep1Completed ? '#10b981' : undefined
+                    }}
                   >
-                    <span>2. Adım: 360° Medya Karması & Büyüme Simülatörüne Geç</span>
+                    <span>Kaydet ve Simülatöre Geç</span>
                     <ArrowRight size={15} />
                   </button>
                 </div>
