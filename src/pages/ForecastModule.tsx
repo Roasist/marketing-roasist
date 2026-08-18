@@ -3666,86 +3666,88 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         </div>
       )}
 
-      {/* 2-Step Wizard Navigation Bar */}
-          <div className="card" style={{ padding: '0.6rem 0.85rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '0.65rem', backgroundColor: 'var(--bg-surface)' }}>
-            
-            {/* Step 1 */}
-            <button
-              type="button"
-              onClick={() => setCurrentStep(1)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '0.75rem',
-                padding: '0.85rem 1.25rem',
-                borderRadius: 'var(--radius-sm)',
-                border: currentStep === 1 ? '2px solid var(--brand-primary)' : '1px solid var(--border-default)',
-                backgroundColor: currentStep === 1 ? 'rgba(37, 99, 235, 0.12)' : 'var(--bg-surface-elevated)',
-                color: currentStep === 1 ? 'var(--brand-primary)' : 'var(--text-secondary)',
-                cursor: 'pointer',
-                fontWeight: currentStep === 1 ? 700 : 500,
-                fontSize: '0.9rem',
-                transition: 'all 0.15s ease',
-                boxShadow: currentStep === 1 ? '0 0 0 1px var(--brand-primary)' : 'none'
-              }}
-            >
-              <div style={{
-                width: '26px',
-                height: '26px',
-                borderRadius: '50%',
-                backgroundColor: currentStep === 1 ? 'var(--brand-primary)' : '#10b981',
-                color: '#ffffff',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '0.8rem',
-                fontWeight: 700
-              }}>
-                {currentStep === 2 ? <Check size={15} /> : '1'}
-              </div>
-              <span>1. Adım: STAG Kelime Keşfi & Gruplar</span>
-            </button>
+      {/* 2-Step Wizard Navigation Bar (Only visible after analysis results arrive) */}
+      {keywords.length > 0 && (
+        <div className="card" style={{ padding: '0.6rem 0.85rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '0.65rem', backgroundColor: 'var(--bg-surface)' }}>
+          
+          {/* Step 1 */}
+          <button
+            type="button"
+            onClick={() => setCurrentStep(1)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.75rem',
+              padding: '0.85rem 1.25rem',
+              borderRadius: 'var(--radius-sm)',
+              border: currentStep === 1 ? '2px solid var(--brand-primary)' : '1px solid var(--border-default)',
+              backgroundColor: currentStep === 1 ? 'rgba(37, 99, 235, 0.12)' : 'var(--bg-surface-elevated)',
+              color: currentStep === 1 ? 'var(--brand-primary)' : 'var(--text-secondary)',
+              cursor: 'pointer',
+              fontWeight: currentStep === 1 ? 700 : 500,
+              fontSize: '0.9rem',
+              transition: 'all 0.15s ease',
+              boxShadow: currentStep === 1 ? '0 0 0 1px var(--brand-primary)' : 'none'
+            }}
+          >
+            <div style={{
+              width: '26px',
+              height: '26px',
+              borderRadius: '50%',
+              backgroundColor: currentStep === 1 ? 'var(--brand-primary)' : '#10b981',
+              color: '#ffffff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '0.8rem',
+              fontWeight: 700
+            }}>
+              {currentStep === 2 ? <Check size={15} /> : '1'}
+            </div>
+            <span>1. Adım: STAG Kelime Keşfi & Gruplar</span>
+          </button>
 
-            {/* Step 2 */}
-            <button
-              type="button"
-              onClick={() => setCurrentStep(2)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '0.75rem',
-                padding: '0.85rem 1.25rem',
-                borderRadius: 'var(--radius-sm)',
-                border: currentStep === 2 ? '2px solid var(--brand-primary)' : '1px solid var(--border-default)',
-                backgroundColor: currentStep === 2 ? 'rgba(37, 99, 235, 0.12)' : 'var(--bg-surface-elevated)',
-                color: currentStep === 2 ? 'var(--brand-primary)' : 'var(--text-secondary)',
-                cursor: 'pointer',
-                fontWeight: currentStep === 2 ? 700 : 500,
-                fontSize: '0.9rem',
-                transition: 'all 0.15s ease',
-                boxShadow: currentStep === 2 ? '0 0 0 1px var(--brand-primary)' : 'none'
-              }}
-            >
-              <div style={{
-                width: '26px',
-                height: '26px',
-                borderRadius: '50%',
-                backgroundColor: currentStep === 2 ? 'var(--brand-primary)' : 'var(--border-default)',
-                color: '#ffffff',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '0.8rem',
-                fontWeight: 700
-              }}>
-                2
-              </div>
-              <span>2. Adım: 360° Medya Karması & Büyüme Simülatörü</span>
-            </button>
+          {/* Step 2 */}
+          <button
+            type="button"
+            onClick={() => setCurrentStep(2)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.75rem',
+              padding: '0.85rem 1.25rem',
+              borderRadius: 'var(--radius-sm)',
+              border: currentStep === 2 ? '2px solid var(--brand-primary)' : '1px solid var(--border-default)',
+              backgroundColor: currentStep === 2 ? 'rgba(37, 99, 235, 0.12)' : 'var(--bg-surface-elevated)',
+              color: currentStep === 2 ? 'var(--brand-primary)' : 'var(--text-secondary)',
+              cursor: 'pointer',
+              fontWeight: currentStep === 2 ? 700 : 500,
+              fontSize: '0.9rem',
+              transition: 'all 0.15s ease',
+              boxShadow: currentStep === 2 ? '0 0 0 1px var(--brand-primary)' : 'none'
+            }}
+          >
+            <div style={{
+              width: '26px',
+              height: '26px',
+              borderRadius: '50%',
+              backgroundColor: currentStep === 2 ? 'var(--brand-primary)' : 'var(--border-default)',
+              color: '#ffffff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '0.8rem',
+              fontWeight: 700
+            }}>
+              2
+            </div>
+            <span>2. Adım: 360° Medya Karması & Büyüme Simülatörü</span>
+          </button>
 
-          </div>
+        </div>
+      )}
 
           {/* ========================================================================= */}
           {/* STEP 1 VIEW: Landing Page Context & Keyword Review / Selection           */}
