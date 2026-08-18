@@ -275,6 +275,9 @@ export class ApiService {
     sector: string;
     keywords: string[];
     language?: string;
+    pageTitle?: string;
+    pageSummary?: string;
+    url?: string;
   }): Promise<any[]> {
     const res = await this.request<{ status: string; categories: any[] }>('/forecast.php?action=negative_keywords', {
       method: 'POST',

@@ -2645,7 +2645,6 @@ if ($action === 'discover' && $method === 'POST') {
         }
     } else {
         $officialKeywords = [];
-        // If official call was empty but AI Strategist extracted keywords:
         if (!empty($aiAnalysis['strategistKeywords']) && is_array($aiAnalysis['strategistKeywords'])) {
             foreach ($aiAnalysis['strategistKeywords'] as $skw) {
                 $sText = trim($skw['keyword'] ?? '');
@@ -2668,7 +2667,7 @@ if ($action === 'discover' && $method === 'POST') {
         }
     }
 
-    // Sort: prioritize AI Performance Strategist keywords first, then highest contextual relevance score, then search volume
+    // Sort
     usort($officialKeywords, function($a, $b) {
         $isStratA = !empty($a['isAiStrategistPick']) ? 1 : 0;
         $isStratB = !empty($b['isAiStrategistPick']) ? 1 : 0;
@@ -2684,15 +2683,14 @@ if ($action === 'discover' && $method === 'POST') {
     });
 
     if (empty($officialKeywords) || count($officialKeywords) === 0) {
-        // STRICT ZERO FAKE DATA: Show clean transparent error instead of fake Gemini estimates!
         echo json_encode([
             'status' => 'error',
-            'message' => 'Google Ads Keyword Planner servisinden resmi veri alınamadı: Girilen web sitesi veya anahtar kelimeye ait resmi arama hacmi bulunamadı. Lütfen geçerli bir web sitesi veya farklı tohum kelimeler deneyin.'
+            'message' => 'Google Ads Keyword Planner servisinden resmi veri alınamadı: Girilen web sitesi veya anahtar kelimeye ait resmi arama hacmi bulunamadı.'
         ], JSON_UNESCAPED_UNICODE);
         exit;
     }
 
-    // Calculate 100% official Location Breakdown directly from individual location keyword volumes!
+    // Calculate 100% official Location Breakdown
     $requestedLocations = $input['locations'] ?? [];
     $locationBreakdown = [];
     if (!empty($requestedLocations) && is_array($requestedLocations) && count($requestedLocations) > 1) {
@@ -2742,6 +2740,16 @@ if ($action === 'discover' && $method === 'POST') {
         });
     }
 
+    $negativeCategories = generateNegativeCategoriesAIOrSemantic(
+        $pageDetails['title'] ?? $query,
+        $sectorTitle,
+        array_slice(array_column($officialKeywords, 'keyword'), 0, 20),
+        $langInfo['code'],
+        $pageDetails['textSnippet'] ?? '',
+        $aiAnalysis['businessModel'] ?? 'LEAD_GEN',
+        $pdo
+    );
+
     $result = [
         'query' => $query,
         'mode' => $actualMode,
@@ -2754,6 +2762,7 @@ if ($action === 'discover' && $method === 'POST') {
         'pageSummary' => 'Resmi Google Ads Keyword Planner servisinden çekilen, 2. kontrol yapay zeka süzgecinden geçmiş ve ek fırsat kelimeleriyle zenginleştirilmiş resmi veriler.',
         'suggestedCountries' => $suggestedCountries,
         'locationBreakdown' => $locationBreakdown,
+        'negativeCategories' => $negativeCategories,
         'totalCount' => count($officialKeywords),
         'keywords' => $officialKeywords,
         'timestamp' => date('c')
@@ -2773,27 +2782,417 @@ if ($action === 'discover' && $method === 'POST') {
     exit;
 }
 
-function generateNegativeCategoriesFallback($sector, $lang) {
-    if ($lang === 'ru') {
+function generateNegativeCategoriesAIOrSemantic($pageTitle, $sector, $keywords = [], $lang = 'tr', $pageSnippet = '', $businessModel = 'LEAD_GEN', $pdo = null) {
+    // 1. Try Gemini API first if valid key exists
+    if ($pdo) {
+        try {
+            $apiKeys = getApiKeys($pdo);
+            $geminiKey = $apiKeys['geminiApiKey'] ?: $apiKeys['googleApiKey'];
+            if (!empty($geminiKey) && strlen($geminiKey) > 15 && strpos($geminiKey, 'test_') !== 0) {
+                $kwSample = array_slice($keywords, 0, 15);
+                $prompt = "Sen dünyanın en iyi Google Ads SEM ve Negatif Anahtar Kelime Stratejistisin.\n"
+                    . "Aşağıdaki açılış sayfasını ve hedef niyetini incele:\n"
+                    . "Başlık: '{$pageTitle}'\n"
+                    . "Sektör: '{$sector}'\n"
+                    . "İçerik Özeti: '{$pageSnippet}'\n"
+                    . "İş Modeli: '{$businessModel}'\n"
+                    . "Dil Kodu: '{$lang}'\n"
+                    . "Örnek Pozitif Anahtar Kelimeler: " . implode(', ', $kwSample) . "\n\n"
+                    . "GÖREV:\n"
+                    . "Bu Google Search kampanyasında bütçe israfını önleyecek, dönüşüm getirmeyecek 25-35 adet yüksek etkili NEGATİF anahtar kelimeyi KESİNLİKLE BU SAYFA DİLİNDE ({$lang}) tespit et.\n"
+                    . "Örneğin sayfanın amacına aykırı olan kiralık, iş arama, bedava/ücretsiz, kaçak/iltica, şikayet/dolandırıcılık, forum, ikinci el vb. niyetleri bu dilde filtrele.\n"
+                    . "Yanıtını SADECE geçerli JSON olarak 4 mantıksal kategoride ver:\n"
+                    . "[\n"
+                    . "  {\n"
+                    . "    \"category\": \"Kategori Başlığı (Hedef Dilde ve Türkçe Açıklamalı)\",\n"
+                    . "    \"words\": [\"kelime1\", \"kelime2\", \"kelime3\", \"kelime4\", \"kelime5\", \"kelime6\", \"kelime7\"]\n"
+                    . "  }\n"
+                    . "]";
+
+                $modelsToTry = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'];
+                foreach ($modelsToTry as $modelName) {
+                    $geminiUrl = "https://generativelanguage.googleapis.com/v1beta/models/{$modelName}:generateContent?key=" . urlencode($geminiKey);
+                    $payload = [
+                        "contents" => [["parts" => [["text" => $prompt]]]],
+                        "generationConfig" => ["temperature" => 0.2, "responseMimeType" => "application/json"]
+                    ];
+                    $ch = curl_init($geminiUrl);
+                    curl_setopt($ch, CURLOPT_POST, true);
+                    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+                    curl_setopt($ch, CURLOPT_TIMEOUT, 12);
+                    $res = curl_exec($ch);
+                    curl_close($ch);
+
+                    $gJson = json_decode($res, true);
+                    if (isset($gJson['candidates'][0]['content']['parts'][0]['text'])) {
+                        $rawTxt = $gJson['candidates'][0]['content']['parts'][0]['text'];
+                        $rawTxt = preg_replace('/```json\s*/i', '', $rawTxt);
+                        $rawTxt = preg_replace('/```\s*/', '', $rawTxt);
+                        $parsedNeg = json_decode(trim($rawTxt), true);
+                        if (is_array($parsedNeg) && count($parsedNeg) > 0) {
+                            return $parsedNeg;
+                        }
+                    }
+                }
+            }
+        } catch (Exception $e) {}
+    }
+
+    // 2. High-Precision Multilingual Semantic Intent Engine
+    $context = mb_strtolower($pageTitle . ' ' . $sector . ' ' . $pageSnippet . ' ' . implode(' ', $keywords), 'UTF-8');
+    
+    // Domain 1: Real Estate, Property & Citizenship
+    $isRealEstate = (bool)preg_match('/شهروندی|املاک|سرمایه|ملک|خانه|آپارتمان|خرید ملک|پاسپورت|vatandaş|gayrimenkul|konut|villa|ev al|daire|pasaport|недвижим|гражданств|паспорт|квартир|жилье|real estate|citizenship|property|passport|apartment|immobilien|staatsbürgerschaft|wohnung|عقار|جنسية|شقق|جواز/iu', $context);
+    
+    // Domain 2: Health, Medical Tourism, Dental, Aesthetics, Hair
+    $isHealth = (bool)preg_match('/saç ekim|hair|diş|dental|estetik|hastane|tedavi|clinic|doktor|كاشت مو|دندانپزشکی|پزشکی|زراعة الشعر|طب|клиника|стоматология|пересадка волос|лечение|medizin|zahn/iu', $context);
+    
+    // Domain 3: E-Commerce, Retail, Fashion, Products
+    $isEcommerce = ($businessModel === 'ECOMMERCE') || (bool)preg_match('/ayakkabı|giyim|elbise|sipariş|mağaza|satın al|fiyatları|فروشگاه|خرید آنلاین|لباس|کفش|متجر|تسوق|شراء|купить|магазин|одежда|обувь|shop|store|buy|shoes|fashion|kaufen/iu', $context);
+
+    // Domain 4: B2B, SaaS, Agency, IT Services
+    $isB2B = (bool)preg_match('/yazılım|ajans|b2b|danışmanlık|erp|crm|saas|hizmet|نرم افزار|شرکت|خدمات|طراحی سایت|برمجيات|شركة|خدمات|софт|разработка|агентство|software|agency|consulting|b2b/iu', $context);
+
+    if ($isRealEstate) {
+        if ($lang === 'fa') {
+            return [
+                [
+                    'category' => 'اجاره و اقامت موقت (Kiralık & Geçici Konaklama)',
+                    'words' => ['اجاره', 'اجاره خانه', 'اجاره روزانه', 'اجاره ماهانه', 'خوابگاه', 'خوابگاه دانشجویی', 'رهن و اجاره', 'اجاره ارزان', 'اجاره ویلا', 'پانسیون']
+                ],
+                [
+                    'category' => 'کاریابی، استخدام و اجازه کار (İş İlanları & Çalışma İzni)',
+                    'words' => ['استخدام', 'کاریابی', 'کار در ترکیه', 'اجازه کار', 'حقوق', 'فرصت شغلی', 'استخدام ایرانیان', 'کار بدون تخصص', 'کار در آلانیا', 'کار سیاه']
+                ],
+                [
+                    'category' => 'پناهندگی و روش‌های غیرقانونی (İltica, Kaçak & Bedava)',
+                    'words' => ['پناهندگی', 'قاچاق', 'رایگان', 'پناهجو', 'کمپ پناهندگان', 'ویزای توریستی رایگان', 'اقامت توریستی', 'وکیل رایگان', 'راه های غیرقانونی', 'دیپورت']
+                ],
+                [
+                    'category' => 'کلاهبرداری، شکایات و دست دوم (Dolandırıcılık, Şikayet & İkinci El)',
+                    'words' => ['کلاهبرداری', 'شکایت', 'نظرات منفی', 'تجربیات تلخ', 'فروم', 'دست دوم', 'دیوار', 'شیپور', 'سمساری', 'وسایل کهنه']
+                ]
+            ];
+        } elseif ($lang === 'ar') {
+            return [
+                [
+                    'category' => 'إيجار وسكن مؤقت (Kiralık & Geçici Konaklama)',
+                    'words' => ['ايجار', 'للايجار', 'ايجار شهري', 'ايجار يومي', 'سكن طلاب', 'شقق مفروشة للايجار', 'ايجار رخيص', 'غرف للايجار']
+                ],
+                [
+                    'category' => 'وظائف وتصاريح عمل (İş İlanları & Çalışma İzni)',
+                    'words' => ['وظائف', 'فرص عمل', 'توظيف', 'رواتب', 'تصريح عمل', 'عمل في تركيا', 'شغل', 'فيزا عمل']
+                ],
+                [
+                    'category' => 'لجوء وهجرة غير شرعية (İltica & Kaçak)',
+                    'words' => ['لجوء', 'تهريب', 'مجاني', 'مخيمات اللجوء', 'فيزا سياحية مجانية', 'هجرة غير شرعية', 'محامي مجاني']
+                ],
+                [
+                    'category' => 'احتيال وشكاوى ومستعمل (Dolandırıcılık, Şikayet & İkinci El)',
+                    'words' => ['احتيال', 'نصب', 'شكاوي', 'تجارب سيئة', 'منتدى', 'مستعمل', 'حراج', 'اثاث مستعمل']
+                ]
+            ];
+        } elseif ($lang === 'ru') {
+            return [
+                [
+                    'category' => 'Аренда и Временное Жилье (Kiralık & Geçici Konaklama)',
+                    'words' => ['аренда', 'снять квартиру', 'посуточно', 'долгосрочная аренда', 'общежитие', 'комната посуточно', 'недорого снять', 'хостел']
+                ],
+                [
+                    'category' => 'Работа, Вакансии и Разрешение на Работу (İş & Maaşlar)',
+                    'words' => ['вакансии', 'работа', 'резюме', 'стажировка', 'зарплата', 'требуются', 'работа в турции', 'разрешение на работу']
+                ],
+                [
+                    'category' => 'Беженство, Нелегалы и Бесплатно (İltica & Bedava)',
+                    'words' => ['беженство', 'убежище', 'бесплатно', 'нелегально', 'лагерь беженцев', 'гуманитарная виза', 'бесплатный адвокат']
+                ],
+                [
+                    'category' => 'Мошенники, Жалобы и Б/У (Şikayet & İkinci El)',
+                    'words' => ['отзывы плохие', 'форум', 'жалобы', 'мошенники', 'развод', 'обман', 'суд', 'авито', 'б/у мебель']
+                ]
+            ];
+        } elseif ($lang === 'de') {
+            return [
+                [
+                    'category' => 'Miete & Temporäre Unterkunft (Kiralık & Konaklama)',
+                    'words' => ['mieten', 'wohnung mieten', 'tagesmiete', 'studentenwohnheim', 'wg zimmer', 'untermiete', 'monatsmiete', 'ferienwohnung mieten']
+                ],
+                [
+                    'category' => 'Jobs & Arbeitserlaubnis (İş İlanları & İzin)',
+                    'words' => ['jobs', 'stellenangebote', 'gehalt', 'praktikum', 'arbeitserlaubnis', 'arbeiten in der türkei', 'stellenanzeigen', 'beruf']
+                ],
+                [
+                    'category' => 'Asyl & Illegale Einwanderung (İltica & Bedava)',
+                    'words' => ['asyl', 'flüchtlinge', 'kostenlos', 'illegal', 'asylantrag', 'gratis visum', 'kostenlose beratung']
+                ],
+                [
+                    'category' => 'Betrug, Beschwerden & Gebraucht (Şikayet & 2. El)',
+                    'words' => ['betrug', 'abzocke', 'erfahrungen negativ', 'beschwerden', 'forum', 'gebraucht', 'ebay kleinanzeigen']
+                ]
+            ];
+        } elseif ($lang === 'en') {
+            return [
+                [
+                    'category' => 'Rentals & Temporary Housing (Kiralık & Konaklama)',
+                    'words' => ['for rent', 'apartment for rent', 'daily rental', 'cheap rent', 'student dorm', 'sublet', 'room for rent', 'holiday rental']
+                ],
+                [
+                    'category' => 'Jobs, Careers & Work Permits (İş & Maaşlar)',
+                    'words' => ['jobs', 'vacancies', 'salary', 'work permit', 'employment', 'careers', 'internship', 'hiring']
+                ],
+                [
+                    'category' => 'Asylum, Refugees & Free Visas (İltica & Bedava)',
+                    'words' => ['asylum', 'refugee', 'free visa', 'illegal immigration', 'free lawyer', 'humanitarian visa', 'free consultation']
+                ],
+                [
+                    'category' => 'Scam, Complaints & Second Hand (Şikayet & 2. El)',
+                    'words' => ['scam', 'fraud', 'complaints', 'bad reviews', 'forum', 'second hand', 'used furniture', 'craigslist']
+                ]
+            ];
+        } else {
+            return [
+                [
+                    'category' => 'Kiralık & Geçici Konaklama',
+                    'words' => ['kiralık', 'günlük kiralık', 'öğrenci yurdu', 'aylık kiralık', 'apart kiralık', 'pansiyon', 'devren kiralık']
+                ],
+                [
+                    'category' => 'İş İlanları & Çalışma İzni',
+                    'words' => ['iş ilanları', 'maaşları', 'staj', 'eleman arayanlar', 'çalışma izni', 'kariyer', 'iş fırsatları']
+                ],
+                [
+                    'category' => 'İltica, Vize & Ücretsiz',
+                    'words' => ['iltica', 'mülteci', 'ücretsiz vize', 'kaçak yollar', 'ücretsiz avukat', 'bedava vize', 'kaçak geçiş']
+                ],
+                [
+                    'category' => 'Şikayet, Dolandırıcılık & İkinci El',
+                    'words' => ['dolandırıcılığı', 'şikayet', 'yorumlar', 'mağdurları', 'ikinci el', 'sahibinden', 'letgo', 'dolap']
+                ]
+            ];
+        }
+    }
+
+    if ($isHealth) {
+        if ($lang === 'fa') {
+            return [
+                [
+                    'category' => 'خدمات دولتی و بیمه رایگان (Devlet & Sigorta)',
+                    'words' => ['رایگان', 'بیمه دولتی', 'بیمارستان دولتی', 'هزینه صفر', 'تامین اجتماعی', 'تخفیف ۱۰۰ درصد']
+                ],
+                [
+                    'category' => 'شکایات، عوارض و دادگاه (Şikayet & Hata)',
+                    'words' => ['کلاهبرداری', 'شکایت', 'عوارض وحشتناک', 'فلج شدن', 'دادگاه', 'نظرات منفی', 'خطای پزشکی']
+                ],
+                [
+                    'category' => 'درمان خانگی و طب سنتی (Evde Tedavi & Bitkisel)',
+                    'words' => ['درمان خانگی', 'طب سنتی', 'داروی گیاهی', 'بدون جراحی', 'روغن گیاهی', 'روش سنتی']
+                ],
+                [
+                    'category' => 'دوره های آموزشی و مدرک (Kurs & Eğitim)',
+                    'words' => ['دوره آموزشی', 'کلاس کاشت', 'مدرک فنی', 'آموزش تزریق', 'کارگاه آموزشی']
+                ]
+            ];
+        } elseif ($lang === 'ar') {
+            return [
+                [
+                    'category' => 'علاج مجاني وتأمين حكومي (Ücretsiz & Sigorta)',
+                    'words' => ['مجاني', 'مستشفى حكومي', 'تأمين صحي', 'علاج مجاني', 'على حساب الدولة']
+                ],
+                [
+                    'category' => 'أخطاء طبية وشكاوى (Şikayet & Dava)',
+                    'words' => ['تشوه', 'أخطاء طبية', 'شكاوى', 'نصب', 'محكمة', 'تجارب فاشلة']
+                ],
+                [
+                    'category' => 'علاج منزلي وخلطات طبيعية (Evde Tedavi & Bitkisel)',
+                    'words' => ['علاج منزلي', 'طب بديل', 'اعشاب', 'خلطات طبيعية', 'بدون عمليات']
+                ],
+                [
+                    'category' => 'دورات تدريبية وشهادات (Kurs & Sertifika)',
+                    'words' => ['دورات تدريبية', 'كورس تجميل', 'شهادة تدريب', 'تعليم زراعة']
+                ]
+            ];
+        } elseif ($lang === 'ru') {
+            return [
+                [
+                    'category' => 'Бесплатно и Госбольницы (Ücretsiz & Devlet)',
+                    'words' => ['бесплатно', 'по полису ОМС', 'государственная больница', 'квота', 'бесплатный прием']
+                ],
+                [
+                    'category' => 'Ошибки, Осложнения и Жалобы (Şikayet & Hata)',
+                    'words' => ['ошибки врачей', 'неудачная операция', 'жалобы', 'суд', 'мошенники', 'ужасные последствия']
+                ],
+                [
+                    'category' => 'Народные Средства и Самолечение (Evde Tedavi & Bitkisel)',
+                    'words' => ['народные средства', 'в домашних условиях', 'травы', 'без операции', 'бабушкин рецепт']
+                ],
+                [
+                    'category' => 'Курсы и Обучение (Kurs & Eğitim)',
+                    'words' => ['курсы обучения', 'сертификат', 'мастер класс', 'обучение с нуля']
+                ]
+            ];
+        } else {
+            return [
+                [
+                    'category' => 'Ücretsiz & Devlet Hastanesi',
+                    'words' => ['ücretsiz', 'devlet hastanesi', 'sgk karşılıyor mu', 'bedava', 'yeşil kart']
+                ],
+                [
+                    'category' => 'Şikayet, Hata & Dava',
+                    'words' => ['şikayet', 'doktor hatası', 'dava', 'yan etki', 'felç', 'tazminat', 'mahkeme']
+                ],
+                [
+                    'category' => 'Evde Tedavi & Bitkisel Çözümler',
+                    'words' => ['evde tedavi', 'bitkisel çözüm', 'ameliyatsız evde', 'kocakarı ilacı', 'doğal kür']
+                ],
+                [
+                    'category' => 'Kurs, Eğitim & Sertifika',
+                    'words' => ['kursu', 'eğitimi', 'sertifika programı', 'dersleri', 'workshop']
+                ]
+            ];
+        }
+    }
+
+    if ($isEcommerce) {
+        if ($lang === 'fa') {
+            return [
+                [
+                    'category' => 'رایگان، فیک و کرک (Bedava & Sahte)',
+                    'words' => ['رایگان', 'فیک', 'تقلبی', 'کپی', 'دانلود', 'کرک', 'های کپی ارزان']
+                ],
+                [
+                    'category' => 'تعمیرات و قطعات دست دوم (Tamir & 2. El)',
+                    'words' => ['تعمیر', 'چگونه بسازیم', 'قطعات یدکی', 'دست دوم', 'دیوار', 'شیپور']
+                ],
+                [
+                    'category' => 'عمده فروشی و تولیدی (Toptan & İmalat)',
+                    'words' => ['عمده', 'تولید کننده', 'پخش عمده', 'نمایندگی پخش', 'کارخانه']
+                ],
+                [
+                    'category' => 'شکایات و پیگیری تخلفات (Şikayet & Dolandırıcılık)',
+                    'words' => ['کلاهبرداری', 'شکایت', 'نظرات منفی', 'پس ندادن پول', 'پلیس فتا']
+                ]
+            ];
+        } elseif ($lang === 'ar') {
+            return [
+                [
+                    'category' => 'مجاني ومقلد (Bedava & Replika)',
+                    'words' => ['مجاني', 'تقليد', 'مقلد', 'كراك', 'تحميل', 'هاي كواليتي رخيص']
+                ],
+                [
+                    'category' => 'صيانة ومستعمل (Tamir & İkinci El)',
+                    'words' => ['تصليح', 'صيانة', 'قطع غيار', 'مستعمل', 'حراج']
+                ],
+                [
+                    'category' => 'جملة ومصانع (Toptan & Tedarikçi)',
+                    'words' => ['جملة', 'بيع بالجملة', 'موردين', 'مصنع', 'استيراد']
+                ],
+                [
+                    'category' => 'نصب وشكاوى (Şikayet & Dolandırıcılık)',
+                    'words' => ['احتيال', 'نصب', 'شكاوي', 'استرجاع فلوس']
+                ]
+            ];
+        } elseif ($lang === 'ru') {
+            return [
+                [
+                    'category' => 'Бесплатно и Подделки (Bedava & Sahte)',
+                    'words' => ['бесплатно', 'подделка', 'реплика', 'скачать', 'кряк', 'копия дешево']
+                ],
+                [
+                    'category' => 'Ремонт и Б/У (Tamir & İkinci El)',
+                    'words' => ['ремонт своими руками', 'как починить', 'запчасти бу', 'авито бу', 'с пробегом']
+                ],
+                [
+                    'category' => 'Оптом и Поставщики (Toptan & Üretici)',
+                    'words' => ['оптом', 'производитель', 'дропшиппинг', 'поставщик', 'фабрика']
+                ],
+                [
+                    'category' => 'Мошенники и Возврат (Şikayet & İade)',
+                    'words' => ['обман', 'мошенники', 'жалобы', 'не возвращают деньги']
+                ]
+            ];
+        } else {
+            return [
+                [
+                    'category' => 'İsraf, Bedava & Sahte Ürünler',
+                    'words' => ['ücretsiz', 'bedava', 'çakma', 'replika', 'sahte', 'indir', 'crack', 'hile']
+                ],
+                [
+                    'category' => 'Tamir, Kendin Yap & 2. El',
+                    'words' => ['nasıl tamir edilir', 'kendin yap', 'tamiri', 'çıkma parça', 'sahibinden', 'letgo', 'dolap']
+                ],
+                [
+                    'category' => 'Toptan & İmalatçı',
+                    'words' => ['toptan', 'imalatçı', 'üretici', 'tedarikçi', 'merter toptan']
+                ],
+                [
+                    'category' => 'Şikayet & Dolandırıcılık',
+                    'words' => ['dolandırıcılığı', 'şikayet', 'yorumlar', 'para iadesi alamadım', 'tüketici hakem heyeti']
+                ]
+            ];
+        }
+    }
+
+    // Default / General Services Fallback in target language
+    if ($lang === 'fa') {
         return [
             [
-                'category' => 'Мусорные и Бесплатные Запросы',
+                'category' => 'رایگان و دانلود (İsraf & Bedava)',
+                'words' => ['رایگان', 'دانلود', 'کرک', 'پی دی اف', 'بدون هزینه', 'کتاب رایگان']
+            ],
+            [
+                'category' => 'کاریابی و استخدام (İş İlanları & Kariyer)',
+                'words' => ['استخدام', 'کاریابی', 'حقوق', 'فرصت شغلی', 'کارآموزی', 'رزومه']
+            ],
+            [
+                'category' => 'شکایات و دادگاه (Şikayet & Forum)',
+                'words' => ['کلاهبرداری', 'شکایت', 'نظرات منفی', 'دادگاه', 'پلیس', 'فروم']
+            ],
+            [
+                'category' => 'دست دوم و کهنه (İkinci El & Sahibinden)',
+                'words' => ['دست دوم', 'کارکرده', 'دیوار', 'شیپور', 'سمساری']
+            ]
+        ];
+    } elseif ($lang === 'ar') {
+        return [
+            [
+                'category' => 'مجاني وتحميل (İsraf & Bedava)',
+                'words' => ['مجاني', 'تحميل', 'كراك', 'بي دي اف', 'بدون فلوس']
+            ],
+            [
+                'category' => 'وظائف وتوظيف (İş İlanları & Kariyer)',
+                'words' => ['وظائف', 'فرص عمل', 'توظيف', 'رواتب', 'تدريب']
+            ],
+            [
+                'category' => 'شكاوى واحتيال (Şikayet & Forum)',
+                'words' => ['احتيال', 'نصب', 'شكاوي', 'محكمة', 'منتدى']
+            ],
+            [
+                'category' => 'مستعمل وحراج (İkinci El)',
+                'words' => ['مستعمل', 'حراج', 'سوق المستعمل', 'حراج الصواريخ']
+            ]
+        ];
+    } elseif ($lang === 'ru') {
+        return [
+            [
+                'category' => 'Мусорные и Бесплатные Запросы (İsraf & Bedava)',
                 'words' => ['бесплатно', 'скачать', 'торрент', 'халява', 'кряк', 'взлом', 'видео бесплатно', 'pdf']
             ],
             [
-                'category' => 'Работа, Учеба и Карьера',
-                'words' => ['вакансии', 'работа', 'резюме', 'стажировка', 'зарплата', 'требуются', 'курсы', 'обучение']
+                'category' => 'Работа, Учеба и Карьера (İş İlanları & Kariyer)',
+                'words' => ['вакансии', 'работа', 'резюме', 'стажировка', 'зарплата', 'требуются', 'курсы']
             ],
             [
-                'category' => 'Отзывы, Форумы и Жалобы',
-                'words' => ['отзывы', 'форум', 'жалобы', 'мошенники', 'развод', 'обман', 'суд', 'контакты']
+                'category' => 'Отзывы, Форумы и Жалобы (Şikayet & Forum)',
+                'words' => ['отзывы', 'форум', 'жалобы', 'мошенники', 'развод', 'обман', 'суд']
             ],
             [
-                'category' => 'Б/У и Неподходящие Форматы',
-                'words' => ['б/у', 'авито', 'посуточно', 'аренда на день', 'своими руками', 'дешево копейки']
+                'category' => 'Б/У и Неподходящие Форматы (İkinci El)',
+                'words' => ['б/у', 'авито', 'посуточно', 'аренда на день', 'своими руками']
             ]
         ];
     }
+
     return [
         [
             'category' => 'İsraf & Bedava Aramalar',
@@ -2815,78 +3214,30 @@ function generateNegativeCategoriesFallback($sector, $lang) {
 }
 
 // -------------------------------------------------------------
-// ACTION: GENERATE AI NEGATIVE KEYWORDS (LANGUAGE AWARE)
+// ACTION: GENERATE AI NEGATIVE KEYWORDS (LANGUAGE & INTENT AWARE)
 // -------------------------------------------------------------
 if ($action === 'negative_keywords' && $method === 'POST') {
     $input = json_decode(file_get_contents('php://input'), true) ?? [];
     $sector = trim($input['sector'] ?? 'Genel');
     $keywords = $input['keywords'] ?? [];
     $language = trim($input['language'] ?? 'tr');
+    $pageTitle = trim($input['pageTitle'] ?? $input['url'] ?? $sector);
+    $pageSummary = trim($input['pageSummary'] ?? '');
 
-    $apiKeys = getApiKeys($pdo);
-    $geminiKey = $apiKeys['geminiApiKey'] ?: $apiKeys['googleApiKey'];
-
-    $negativeCategories = [];
-
-    if (!empty($geminiKey) && !empty($keywords)) {
-        try {
-            $kwSample = array_slice($keywords, 0, 15);
-            $prompt = "Sen Google Ads negatif anahtar kelime uzmanısın.\n"
-                . "Sektör: '{$sector}', Dil: '{$language}', Anahtar Kelime Örnekleri: " . implode(', ', $kwSample) . ".\n"
-                . "Bu dil ve sektördeki Google Arama kampanyasında bütçe israfını önleyecek, dönüşüm getirmeyen 25-35 adet negatif anahtar kelimeyi KESİNLİKLE BU DİLDE ({$language}) 4 mantıksal kategoride gruplayarak JSON formatında listele.\n"
-                . "Format:\n"
-                . "[\n"
-                . "  {\n"
-                . "    \"category\": \"Kategori Başlığı (Örn: İsraf & Ücretsiz Aramalar)\",\n"
-                . "    \"words\": [\"kelime1\", \"kelime2\", \"kelime3\"]\n"
-                . "  }\n"
-                . "]";
-
-            $modelsToTry = [
-                'gemini-3.7-flash',
-                'gemini-3.5-flash',
-                'gemini-3.1-flash-lite',
-                'gemini-flash-lite-latest',
-                'gemini-3-flash-preview',
-                'gemini-flash-latest'
-            ];
-
-            foreach ($modelsToTry as $modelName) {
-                $geminiUrl = "https://generativelanguage.googleapis.com/v1beta/models/{$modelName}:generateContent?key=" . urlencode($geminiKey);
-                $payload = [
-                    "contents" => [["parts" => [["text" => $prompt]]]],
-                    "generationConfig" => ["temperature" => 0.2, "responseMimeType" => "application/json"]
-                ];
-
-                $ch = curl_init($geminiUrl);
-                curl_setopt($ch, CURLOPT_POST, true);
-                curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
-                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-                curl_setopt($ch, CURLOPT_TIMEOUT, 15);
-                $res = curl_exec($ch);
-                curl_close($ch);
-
-                $gJson = json_decode($res, true);
-                if (isset($gJson['candidates'][0]['content']['parts'][0]['text'])) {
-                    $parsedNeg = json_decode($gJson['candidates'][0]['content']['parts'][0]['text'], true);
-                    if (is_array($parsedNeg) && count($parsedNeg) > 0) {
-                        $negativeCategories = $parsedNeg;
-                        break;
-                    }
-                }
-            }
-        } catch (Exception $e) {}
-    }
-
-    if (empty($negativeCategories)) {
-        $negativeCategories = generateNegativeCategoriesFallback($sector, $language);
-    }
+    $negativeCategories = generateNegativeCategoriesAIOrSemantic(
+        $pageTitle,
+        $sector,
+        $keywords,
+        $language,
+        $pageSummary,
+        'LEAD_GEN',
+        $pdo
+    );
 
     echo json_encode([
         'status' => 'success',
         'categories' => $negativeCategories
-    ]);
+    ], JSON_INVALID_UTF8_SUBSTITUTE | JSON_UNESCAPED_UNICODE);
     exit;
 }
 

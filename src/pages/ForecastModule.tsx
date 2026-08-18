@@ -1453,8 +1453,12 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         // Switch to Step 1 for user review
         setCurrentStep(1);
 
-        // Fetch negative keywords in the detected language
-        loadNegatives(res.sector || 'Genel', res.keywords.map((k: KeywordMetric) => k.keyword), res.detectedLanguage || 'tr');
+        // Populate negative keywords in the detected language & intent
+        if (res.negativeCategories && res.negativeCategories.length > 0) {
+          setNegativeCategories(res.negativeCategories);
+        } else {
+          loadNegatives(res.sector || 'Genel', res.keywords.map((k: KeywordMetric) => k.keyword), res.detectedLanguage || 'tr', res.pageTitle, res.pageSummary);
+        }
       } else {
         setErrorMsg('Bu arama için anahtar kelime verisi üretilemedi.');
       }
@@ -1498,12 +1502,15 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     });
   };
 
-  const loadNegatives = async (sector: string, kwList: string[], lang: string) => {
+  const loadNegatives = async (sector: string, kwList: string[], lang: string, pageTitle?: string, pageSummary?: string) => {
     try {
       const cats = await ApiService.generateNegativeKeywords({
         sector,
         keywords: kwList.slice(0, 15),
-        language: lang
+        language: lang,
+        pageTitle,
+        pageSummary,
+        url: query
       });
       setNegativeCategories(cats || []);
     } catch {
