@@ -1397,6 +1397,12 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
               { id: '2643', resourceName: 'geoTargetConstants/2643', name: 'Rusya', canonicalName: 'Rusya', countryCode: 'RU', targetType: 'Country', reach: 145000000, flag: '🇷🇺', cpcMultiplier: 1.6, volumeMultiplier: 1.8 },
               { id: '2398', resourceName: 'geoTargetConstants/2398', name: 'Kazakistan', canonicalName: 'Kazakistan', countryCode: 'KZ', targetType: 'Country', reach: 19500000, flag: '🇰🇿', cpcMultiplier: 1.4, volumeMultiplier: 0.9 }
             ]);
+          } else if (res.detectedLanguage === 'fa') {
+            setSelectedLocations([
+              { id: '2792', resourceName: 'geoTargetConstants/2792', name: 'Türkiye', canonicalName: 'Türkiye', countryCode: 'TR', targetType: 'Country', reach: 85000000, flag: '🇹🇷', cpcMultiplier: 1.0, volumeMultiplier: 1.0 },
+              { id: '1000010', resourceName: 'geoTargetConstants/1000010', name: 'Dubai', canonicalName: 'Dubai, Birleşik Arap Emirlikleri', countryCode: 'AE', targetType: 'City', reach: 3400000, flag: '🇦🇪', cpcMultiplier: 2.4, volumeMultiplier: 0.8 },
+              { id: '2276', resourceName: 'geoTargetConstants/2276', name: 'Almanya', canonicalName: 'Almanya', countryCode: 'DE', targetType: 'Country', reach: 84000000, flag: '🇩🇪', cpcMultiplier: 2.8, volumeMultiplier: 1.4 }
+            ]);
           } else if (res.detectedLanguage === 'ar') {
             setSelectedLocations([
               { id: '1000010', resourceName: 'geoTargetConstants/1000010', name: 'Dubai', canonicalName: 'Dubai, Birleşik Arap Emirlikleri', countryCode: 'AE', targetType: 'City', reach: 3400000, flag: '🇦🇪', cpcMultiplier: 2.4, volumeMultiplier: 0.8 },

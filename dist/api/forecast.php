@@ -489,7 +489,8 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
         'en' => 'languageConstants/1000',
         'de' => 'languageConstants/1001',
         'ru' => 'languageConstants/1031',
-        'ar' => 'languageConstants/1019'
+        'ar' => 'languageConstants/1019',
+        'fa' => 'languageConstants/1064'
     ];
     $normLangCode = strtolower(trim($langCode));
     if (is_numeric($normLangCode)) {
@@ -1391,11 +1392,35 @@ function detectPageLanguage($title, $text) {
         return ['code' => 'ru', 'name' => 'Rusça'];
     }
     
-    // 1. Script checks
+    // 0.1 Persian / Farsi transliteration cues in URL or text (e.g. shahrvandi, sarmaye, kharid, melk, aprteman, farsi, persian, iran, eghamat)
+    if (preg_match('/(shahrvandi|sarmaye|kharid|melk|aprteman|farsi|persian|iran|tehran|eghamat)/i', $full)) {
+        return ['code' => 'fa', 'name' => 'Farsça'];
+    }
+    
+    // 1. Script checks (Cyrillic vs Arabic / Persian)
     preg_match_all('/[\p{Cyrillic}]/u', $full, $cyr);
     preg_match_all('/[\p{Arabic}]/u', $full, $ara);
     if (count($cyr[0] ?? []) > 8) return ['code' => 'ru', 'name' => 'Rusça'];
-    if (count($ara[0] ?? []) > 8) return ['code' => 'ar', 'name' => 'Arapça'];
+
+    if (count($ara[0] ?? []) > 6) {
+        // High-precision distinction between Persian (Farsi) vs Arabic:
+        // Persian unique letters: گ، چ، پ، ژ (U+06AF, U+0686, U+067E, U+0698)
+        preg_match_all('/[گچپژ]/u', $full, $mPersianChars);
+        $pCharCount = count($mPersianChars[0] ?? []);
+
+        // Persian high-frequency words:
+        preg_match_all('/(?:^|[^\p{L}\p{N}])(در|با|برای|است|این|آن|که|های|شهروندی|ترکیه|سرمایه‌گذاری|سرمایه گذاری|پروژه|خرید|ملک|آپارتمان|خانه|مشاوره|اخذ|ما|شما|پاسپورت|آلانیا|استانبول|اقامت|سازنده|سوالات)(?:[^\p{L}\p{N}]|$)/ui', $full, $mPersianWords);
+        $pWordCount = count($mPersianWords[0] ?? []);
+
+        // Arabic high-frequency words:
+        preg_match_all('/(?:^|[^\p{L}\p{N}])(في|من|على|إلى|عن|مع|هذا|هذه|التي|الذي|شقق|للبيع|للإيجار|عقارات|الجنسية|الاستثمار|اسطنبول|أنطاليا|تركيا|سياحة|فلل)(?:[^\p{L}\p{N}]|$)/ui', $full, $mArabicWords);
+        $aWordCount = count($mArabicWords[0] ?? []);
+
+        if ($pCharCount > 0 || $pWordCount > $aWordCount) {
+            return ['code' => 'fa', 'name' => 'Farsça'];
+        }
+        return ['code' => 'ar', 'name' => 'Arapça'];
+    }
 
     // 2. Character-exclusive markers
     preg_match_all('/[ğşIıİĞŞ]/u', $full, $exclusiveTr);
