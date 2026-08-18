@@ -1917,6 +1917,21 @@ function extractLocationAndSmartSeeds($pageDetails, $query, $langCode = 'en') {
                 'türkiye pasaportu yatırım',
                 'vatandaşlığa uygun satılık daire'
             ];
+        } elseif ($langCode === 'fa' || preg_match('/(shahrvandi|sarmaye|kharid|melk|farsi|persian|[گچپژ])/ui', $full)) {
+            return [
+                'اخذ شهروندی ترکیه با سرمایه‌گذاری ملکی',
+                'خرید ملک در ترکیه و اخذ شهروندی',
+                'خرید آپارتمان در ترکیه',
+                'خرید ملک در آلانیا',
+                'خرید ملک در استانبول',
+                'اقامت ترکیه با خرید ملک',
+                'پاسپورت ترکیه با سرمایه گذاری',
+                'سرمایه گذاری در ترکیه',
+                'خرید ویلا در ترکیه',
+                'قیمت آپارتمان در آلانیا ترکیه',
+                'شهروندی ترکیه با خرید خانه',
+                'پروژه مسکونی آلانیا'
+            ];
         } elseif ($langCode === 'ar' || preg_match('/[\p{Arabic}]/u', $full)) {
             return [
                 'الجنسية التركية عن طريق الاستثمار',
@@ -2024,6 +2039,8 @@ function filterKeywordsByPageContext($keywords, $pageDetails, $query, $langCode)
     $isCitizenshipOrRealEstate = !$isHotelOrTourism && (
         preg_match('/\b(citizenship|citizen|passport|real estate|property|properties|villa|villas|apartment|apartments|investment|invest|residency|residence|residences)\b/ui', $fullContext) ||
         preg_match('/(гражданств|паспорт|недвижим|квартир|вилл|внж|инвестиц)/ui', $fullContext) ||
+        preg_match('/(شهروندی|سرمایه‌گذاری|سرمایه گذاری|ملک|املاک|آپارتمان|ویلا|پاسپورت|اقامت|کیملیک)/ui', $fullContext) ||
+        preg_match('/(الجنسية|الاستثمار|عقارات|شقق|فلل|جواز سفر|اقامة)/ui', $fullContext) ||
         preg_match('/\b(vatandaşlık|pasaport|gayrimenkul|emlak|konut|daire|villa|yatırım|ikamet)\b/ui', $fullContext)
     );
 
@@ -2035,7 +2052,9 @@ function filterKeywordsByPageContext($keywords, $pageDetails, $query, $langCode)
 
     $isTurkeyFocus = !$isCyprusFocus && (
         preg_match('/\b(turkish|turkey|türkiye|türk|turk|istanbul|alanya|antalya|bodrum|fethiye|izmir|ankara|mersin|bursa|trabzon)\b/ui', $fullContext) ||
-        preg_match('/(турци|турецк|стамбул|алань|анталь)/ui', $fullContext)
+        preg_match('/(турци|турецк|стамбул|алань|анталь)/ui', $fullContext) ||
+        preg_match('/(ترکیه|استانبول|آلانیا|آنتالیا|مرسین|بدروم|بورسا)/ui', $fullContext) ||
+        preg_match('/(تركيا|اسطنبول|انطاليا|الانيا|مرسين)/ui', $fullContext)
     );
 
     // Is this a property development for sale / investment? (Strictly NOT rental!)
