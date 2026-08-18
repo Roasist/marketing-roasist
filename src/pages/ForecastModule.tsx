@@ -649,6 +649,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   // Growth Scenario Projection (Muhafazakar / Beklenen / Agresif)
   const [growthScenario, setGrowthScenario] = useState<GrowthScenario>('REALISTIC');
   const [showScenarioTooltip, setShowScenarioTooltip] = useState<boolean>(false);
+  const [isStep2Completed, setIsStep2Completed] = useState<boolean>(false);
 
   // Simulation & Business Model Parameters
   const [businessModel, setBusinessModel] = useState<BusinessModel>('LEAD_GEN');
@@ -2402,6 +2403,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         subCampaigns: updatedSubCampaigns
       });
       setSubCampaigns(updatedSubCampaigns);
+      setIsStep2Completed(true);
       setPlanSaveSuccess(true);
       setTimeout(() => setPlanSaveSuccess(false), 2500);
       loadSavedPlans();
@@ -3695,7 +3697,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
               width: '26px',
               height: '26px',
               borderRadius: '50%',
-              backgroundColor: currentStep === 1 ? 'var(--brand-primary)' : '#10b981',
+              backgroundColor: currentStep === 2 || isStep2Completed ? '#10b981' : 'var(--brand-primary)',
               color: '#ffffff',
               display: 'flex',
               alignItems: 'center',
@@ -3703,7 +3705,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
               fontSize: '0.8rem',
               fontWeight: 700
             }}>
-              {currentStep === 2 ? <Check size={15} /> : '1'}
+              {currentStep === 2 || isStep2Completed ? <Check size={15} /> : '1'}
             </div>
             <span>1. Adım: STAG Kelime Keşfi & Gruplar</span>
           </button>
@@ -3719,9 +3721,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
               gap: '0.75rem',
               padding: '0.85rem 1.25rem',
               borderRadius: 'var(--radius-sm)',
-              border: currentStep === 2 ? '2px solid var(--brand-primary)' : '1px solid var(--border-default)',
-              backgroundColor: currentStep === 2 ? 'rgba(37, 99, 235, 0.12)' : 'var(--bg-surface-elevated)',
-              color: currentStep === 2 ? 'var(--brand-primary)' : 'var(--text-secondary)',
+              border: currentStep === 2 ? '2px solid var(--brand-primary)' : (isStep2Completed ? '1.5px solid #10b981' : '1px solid var(--border-default)'),
+              backgroundColor: currentStep === 2 ? 'rgba(37, 99, 235, 0.12)' : (isStep2Completed ? 'rgba(16, 185, 129, 0.08)' : 'var(--bg-surface-elevated)'),
+              color: currentStep === 2 ? 'var(--brand-primary)' : (isStep2Completed ? '#10b981' : 'var(--text-secondary)'),
               cursor: 'pointer',
               fontWeight: currentStep === 2 ? 700 : 500,
               fontSize: '0.9rem',
@@ -3733,7 +3735,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
               width: '26px',
               height: '26px',
               borderRadius: '50%',
-              backgroundColor: currentStep === 2 ? 'var(--brand-primary)' : 'var(--border-default)',
+              backgroundColor: isStep2Completed ? '#10b981' : (currentStep === 2 ? 'var(--brand-primary)' : 'var(--border-default)'),
               color: '#ffffff',
               display: 'flex',
               alignItems: 'center',
@@ -3741,7 +3743,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
               fontSize: '0.8rem',
               fontWeight: 700
             }}>
-              2
+              {isStep2Completed ? <Check size={15} /> : '2'}
             </div>
             <span>2. Adım: 360° Medya Karması & Büyüme Simülatörü</span>
           </button>
@@ -4738,10 +4740,18 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       type="button"
                       onClick={handleSavePlan}
                       className="btn-primary"
-                      style={{ fontSize: '0.75rem', padding: '0.35rem 0.75rem', display: 'flex', alignItems: 'center', gap: '0.35rem', fontWeight: 600 }}
+                      style={{ 
+                        fontSize: '0.75rem', 
+                        padding: '0.35rem 0.75rem', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '0.35rem', 
+                        fontWeight: 600,
+                        backgroundColor: (planSaveSuccess || isStep2Completed) ? '#10b981' : undefined
+                      }}
                     >
-                      {planSaveSuccess ? <Check size={13} /> : <Save size={13} />}
-                      <span>{planSaveSuccess ? 'Plan Kaydedildi!' : 'Planı Kaydet'}</span>
+                      {planSaveSuccess || isStep2Completed ? <Check size={13} /> : <Save size={13} />}
+                      <span>{planSaveSuccess ? 'Alt Kampanya Kaydedildi!' : (isStep2Completed ? 'Alt Kampanya Kayıtlı' : 'Alt Kampanyayı Kaydet')}</span>
                     </button>
                   </div>
                 </div>
@@ -7020,6 +7030,55 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     )}
                   </tbody>
                 </table>
+              </div>
+
+              {/* Step 2 Bottom Navigation & Save Action Bar */}
+              <div className="card" style={{ 
+                padding: '0.85rem 1.25rem', 
+                backgroundColor: 'var(--bg-surface-elevated)', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'space-between', 
+                flexWrap: 'wrap', 
+                gap: '0.85rem',
+                border: '1px solid var(--border-default)',
+                borderRadius: 'var(--radius-sm)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentStep(1)}
+                    className="btn-secondary"
+                    style={{ fontSize: '0.82rem', padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+                  >
+                    <ArrowLeft size={15} />
+                    <span>1. Adıma Geri Dön</span>
+                  </button>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                    Alt Kampanya: <strong style={{ color: 'var(--text-primary)' }}>{activeSubCampaign?.name || 'Ana Kampanya'}</strong> • Bütçe: <strong style={{ color: 'var(--brand-primary)' }}>₺{monthlyBudget.toLocaleString('tr-TR')}</strong>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                  <button
+                    type="button"
+                    onClick={handleSavePlan}
+                    className="btn-primary"
+                    style={{ 
+                      fontSize: '0.85rem', 
+                      padding: '0.55rem 1.35rem', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '0.45rem', 
+                      fontWeight: 600,
+                      backgroundColor: (planSaveSuccess || isStep2Completed) ? '#10b981' : undefined
+                    }}
+                  >
+                    {planSaveSuccess || isStep2Completed ? <Check size={16} /> : <Save size={16} />}
+                    <span>{planSaveSuccess ? 'Alt Kampanya Çatı Plana Kaydedildi!' : (isStep2Completed ? 'Alt Kampanya Çatı Plana Kayıtlı' : 'Alt Kampanyayı Çatı Plana Kaydet')}</span>
+                    {!planSaveSuccess && !isStep2Completed && <ArrowRight size={15} />}
+                  </button>
+                </div>
               </div>
 
             </div>
