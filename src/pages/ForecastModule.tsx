@@ -27,7 +27,8 @@ import {
   Calendar,
   Building2,
   Bookmark,
-  ListPlus
+  ListPlus,
+  Info
 } from 'lucide-react';
 import { 
   KeywordMetric, 
@@ -647,6 +648,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
   // Growth Scenario Projection (Muhafazakar / Beklenen / Agresif)
   const [growthScenario, setGrowthScenario] = useState<GrowthScenario>('REALISTIC');
+  const [showScenarioTooltip, setShowScenarioTooltip] = useState<boolean>(false);
 
   // Simulation & Business Model Parameters
   const [businessModel, setBusinessModel] = useState<BusinessModel>('LEAD_GEN');
@@ -4618,9 +4620,79 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
                 {/* Right: Strategic Growth Scenario 3-Toggle Buttons */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-                    🎯 Büyüme Senaryosu:
-                  </span>
+                  <div 
+                    style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}
+                    onMouseEnter={() => setShowScenarioTooltip(true)}
+                    onMouseLeave={() => setShowScenarioTooltip(false)}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer' }}>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+                        🎯 Büyüme Senaryosu:
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setShowScenarioTooltip(prev => !prev)}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: '18px',
+                          height: '18px',
+                          borderRadius: '50%',
+                          border: 'none',
+                          backgroundColor: 'rgba(37, 99, 235, 0.12)',
+                          color: 'var(--brand-primary)',
+                          cursor: 'pointer',
+                          padding: 0
+                        }}
+                        title="Büyüme Senaryosu Bilgi"
+                      >
+                        <Info size={11} />
+                      </button>
+                    </div>
+
+                    {showScenarioTooltip && (
+                      <div style={{
+                        position: 'absolute',
+                        top: 'calc(100% + 8px)',
+                        right: '-20px',
+                        width: '340px',
+                        padding: '0.9rem 1rem',
+                        backgroundColor: 'var(--bg-surface)',
+                        border: '1px solid var(--border-default)',
+                        borderRadius: 'var(--radius-sm)',
+                        boxShadow: '0 12px 28px -4px rgba(0, 0, 0, 0.25), 0 8px 12px -6px rgba(0, 0, 0, 0.15)',
+                        zIndex: 200,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.55rem',
+                        fontSize: '0.75rem',
+                        lineHeight: 1.45,
+                        color: 'var(--text-secondary)'
+                      }}>
+                        <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span>🎯</span> Büyüme Senaryosu Projeksiyon Modeli
+                        </div>
+                        <div style={{ fontSize: '0.74rem' }}>
+                          Pazar rekabeti, risk toleransı ve açılış sayfası performansına göre tüm kanallardaki <strong>TBM maliyetlerini</strong> ve <strong>dönüşüm oranlarını</strong> dinamik olarak çarpar:
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                          <div style={{ padding: '0.4rem 0.55rem', backgroundColor: 'rgba(100, 116, 139, 0.08)', borderRadius: 'var(--radius-xs)', borderLeft: '3px solid #64748b' }}>
+                            <strong style={{ color: 'var(--text-primary)' }}>🛡️ Muhafazakar:</strong> Maliyetler +%15 artırılır, dönüşüm oranları -%15 temkinli tutulur. <em>(Taban / En Kötü Durum Projeksiyonu)</em>
+                          </div>
+                          <div style={{ padding: '0.4rem 0.55rem', backgroundColor: 'rgba(37, 99, 235, 0.08)', borderRadius: 'var(--radius-xs)', borderLeft: '3px solid var(--brand-primary)' }}>
+                            <strong style={{ color: 'var(--text-primary)' }}>⚖️ Beklenen:</strong> Google Ads pazar medyanı ve sektörün baz metrikleri (1.0x) kullanılır. <em>(Standart Pazar Projeksiyonu)</em>
+                          </div>
+                          <div style={{ padding: '0.4rem 0.55rem', backgroundColor: 'rgba(16, 185, 129, 0.08)', borderRadius: 'var(--radius-xs)', borderLeft: '3px solid #10b981' }}>
+                            <strong style={{ color: 'var(--text-primary)' }}>🚀 Agresif:</strong> Yüksek reklam alaka düzeyi & optimize açılış sayfası varsayılır; dönüşüm +%20, nitelikli lead +%15 artırılır. <em>(Büyüme & Ölçeklenme Projeksiyonu)</em>
+                          </div>
+                        </div>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', borderTop: '1px solid var(--border-default)', paddingTop: '0.45rem' }}>
+                          💡 <em>Google Ads'in TBM verisi veremediği niş kelimeler de dahil olmak üzere seçili pazar rayici bu senaryo çarpanıyla modellenir.</em>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                   
                   {[
                     { id: 'CONSERVATIVE', label: '🛡️ Muhafazakar', desc: 'Temkinli Projeksiyon (-15% CR, +15% Maliyet)', color: '#64748b' },
