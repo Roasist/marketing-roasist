@@ -2540,12 +2540,12 @@ if ($action === 'discover' && $method === 'POST') {
     $deterministicLang = detectPageLanguage(($pageDetails['title'] ?? '') . ' ' . $query, $pageDetails['textSnippet'] ?? '');
 
     if (!empty($requestedLanguage) && strtolower($requestedLanguage) !== 'auto') {
-        $langNames = ['tr' => 'Türkçe', 'en' => 'İngilizce', 'de' => 'Almanca', 'ru' => 'Rusça', 'ar' => 'Arapça', 'uk' => 'Ukraynaca', 'fr' => 'Fransızca', 'es' => 'İspanyolca', 'it' => 'İtalyanca', 'nl' => 'Felemenkçe', 'az' => 'Azerbaycanca', 'kk' => 'Kazakça', 'uz' => 'Özbekçe'];
+        $langNames = ['tr' => 'Türkçe', 'en' => 'İngilizce', 'de' => 'Almanca', 'ru' => 'Rusça', 'ar' => 'Arapça', 'fa' => 'Farsça', 'uk' => 'Ukraynaca', 'fr' => 'Fransızca', 'es' => 'İspanyolca', 'it' => 'İtalyanca', 'nl' => 'Felemenkçe', 'az' => 'Azerbaycanca', 'kk' => 'Kazakça', 'uz' => 'Özbekçe'];
         $langInfo = [
             'code' => $requestedLanguage,
             'name' => $langNames[$requestedLanguage] ?? 'Seçili Dil'
         ];
-    } elseif ($deterministicLang && in_array($deterministicLang['code'], ['ru', 'ar', 'de', 'tr', 'uk'])) {
+    } elseif ($deterministicLang && in_array($deterministicLang['code'], ['ru', 'ar', 'de', 'tr', 'uk', 'fa'])) {
         $langInfo = $deterministicLang;
     } elseif ($aiAnalysis && !empty($aiAnalysis['detectedLanguage']) && $aiAnalysis['detectedLanguage'] !== 'auto') {
         $langInfo = [
