@@ -4723,7 +4723,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     </button>
                   ))}
 
-                  <div style={{ display: 'flex', gap: '0.45rem', marginLeft: '0.5rem' }}>
+                  <div style={{ display: 'flex', gap: '0.45rem', marginLeft: '0.5rem', alignItems: 'center' }}>
                     <button
                       type="button"
                       onClick={() => setIsLocationModalOpen(true)}
@@ -4732,6 +4732,16 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     >
                       <Globe size={13} />
                       <span>Lokasyon ({selectedLocations.length})</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleSavePlan}
+                      className="btn-primary"
+                      style={{ fontSize: '0.75rem', padding: '0.35rem 0.75rem', display: 'flex', alignItems: 'center', gap: '0.35rem', fontWeight: 600 }}
+                    >
+                      {planSaveSuccess ? <Check size={13} /> : <Save size={13} />}
+                      <span>{planSaveSuccess ? 'Plan Kaydedildi!' : 'Planı Kaydet'}</span>
                     </button>
                   </div>
                 </div>
