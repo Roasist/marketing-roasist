@@ -375,42 +375,92 @@ export const groupKeywordsSemantically = (
 
   const clusters: KeywordCluster[] = [];
 
-  // Global campaign benchmark low/high CPC for clusters that have zero direct Google CPC data
-  const globalValidKws = uniqueKwList.filter(k => k.lowCpc > 0.05 && k.highCpc > 0.05);
-  const globalTotalVol = globalValidKws.reduce((s, k) => s + Math.max(k.monthlyVolume, 10), 0);
-  const globalBenchmarkLow = globalValidKws.length > 0 
-    ? globalValidKws.reduce((s, k) => s + (k.lowCpc * Math.max(k.monthlyVolume, 10)), 0) / globalTotalVol 
-    : 5.0;
-  const globalBenchmarkHigh = globalValidKws.length > 0 
-    ? globalValidKws.reduce((s, k) => s + (k.highCpc * Math.max(k.monthlyVolume, 10)), 0) / globalTotalVol 
-    : 15.0;
+  // Robust Multi-Tier Benchmark Calculation
+  // 1. Find all keywords that have valid Google Ads auction bids (> 0.50 TL)
+  const campaignValidLowKws = uniqueKwList.filter(k => k.lowCpc > 0.50);
+  const campaignValidHighKws = uniqueKwList.filter(k => k.highCpc > 0.50);
+
+  const campaignLowSum = campaignValidLowKws.reduce((s, k) => s + (k.lowCpc * Math.max(k.monthlyVolume, 10)), 0);
+  const campaignLowVol = campaignValidLowKws.reduce((s, k) => s + Math.max(k.monthlyVolume, 10), 0);
+  const campaignAvgLow = campaignLowVol > 0 ? campaignLowSum / campaignLowVol : 0;
+
+  const campaignHighSum = campaignValidHighKws.reduce((s, k) => s + (k.highCpc * Math.max(k.monthlyVolume, 10)), 0);
+  const campaignHighVol = campaignValidHighKws.reduce((s, k) => s + Math.max(k.monthlyVolume, 10), 0);
+  const campaignAvgHigh = campaignHighVol > 0 ? campaignHighSum / campaignHighVol : 0;
+
+  // Sector Default Fallback: For Real Estate & Immigration searches, realistic baseline is ₺8.50 - ₺26.00
+  const defaultSectorLow = 8.50;
+  const defaultSectorHigh = 26.00;
+
+  const globalBenchmarkLow = campaignAvgLow >= 1.0 ? campaignAvgLow : defaultSectorLow;
+  const globalBenchmarkHigh = campaignAvgHigh > globalBenchmarkLow ? campaignAvgHigh : Math.max(defaultSectorHigh, globalBenchmarkLow * 2.8);
 
   const processClusterKeywords = (list: KeywordMetric[], clusterName: string): KeywordMetric[] => {
-    const clusterValidKws = list.filter(k => k.lowCpc > 0.05 && k.highCpc > 0.05);
-    const clusterTotalVol = clusterValidKws.reduce((s, k) => s + Math.max(k.monthlyVolume, 10), 0);
-    const clusterBenchLow = clusterValidKws.length > 0 
-      ? clusterValidKws.reduce((s, k) => s + (k.lowCpc * Math.max(k.monthlyVolume, 10)), 0) / clusterTotalVol 
+    const clusterValidLow = list.filter(k => k.lowCpc > 0.50);
+    const clusterValidHigh = list.filter(k => k.highCpc > 0.50);
+
+    const clusterLowSum = clusterValidLow.reduce((s, k) => s + (k.lowCpc * Math.max(k.monthlyVolume, 10)), 0);
+    const clusterLowVol = clusterValidLow.reduce((s, k) => s + Math.max(k.monthlyVolume, 10), 0);
+    const clusterBenchLow = (clusterLowVol > 0 && (clusterLowSum / clusterLowVol) >= 1.0) 
+      ? (clusterLowSum / clusterLowVol) 
       : globalBenchmarkLow;
-    const clusterBenchHigh = clusterValidKws.length > 0 
-      ? clusterValidKws.reduce((s, k) => s + (k.highCpc * Math.max(k.monthlyVolume, 10)), 0) / clusterTotalVol 
+
+    const clusterHighSum = clusterValidHigh.reduce((s, k) => s + (k.highCpc * Math.max(k.monthlyVolume, 10)), 0);
+    const clusterHighVol = clusterValidHigh.reduce((s, k) => s + Math.max(k.monthlyVolume, 10), 0);
+    const clusterBenchHigh = (clusterHighVol > 0 && (clusterHighSum / clusterHighVol) > clusterBenchLow) 
+      ? (clusterHighSum / clusterHighVol) 
       : globalBenchmarkHigh;
 
     return list.map(k => {
+      // Missing or zero CPC handling
       if ((k.lowCpc <= 0.05 && k.highCpc <= 0.05) && (imputationSettings?.autoImputeMissingCpc ?? true)) {
         const mult = k.intent === 'TRANSACTIONAL' 
           ? (imputationSettings?.transactionalMultiplier ?? 1.15)
           : (k.intent === 'INFORMATIONAL' 
               ? (imputationSettings?.informationalMultiplier ?? 0.85)
               : (imputationSettings?.commercialMultiplier ?? 1.00));
-        const imputedLow = Math.max(0.50, Math.round(clusterBenchLow * mult * 100) / 100);
-        const imputedHigh = Math.max(imputedLow + 0.50, Math.round(clusterBenchHigh * mult * 100) / 100);
+        
+        let clusterSpecificFactor = 1.0;
+        if (/cbi|vatandaşlık|citizenship|yatırım|invest/i.test(clusterName)) {
+          clusterSpecificFactor = 1.25;
+        } else if (/villa|lüks|luxury/i.test(clusterName)) {
+          clusterSpecificFactor = 1.20;
+        } else if (/fiyat|pricing|satın al|almak|buy/i.test(clusterName)) {
+          clusterSpecificFactor = 1.10;
+        } else if (/kiralık|rent/i.test(clusterName)) {
+          clusterSpecificFactor = 0.85;
+        } else if (/rehber|yaşam|nedir|how/i.test(clusterName)) {
+          clusterSpecificFactor = 0.80;
+        }
+
+        const imputedLow = Math.max(1.50, Math.round(clusterBenchLow * mult * clusterSpecificFactor * 100) / 100);
+        const imputedHigh = Math.max(Math.round(imputedLow * 1.6 * 100) / 100, Math.round(clusterBenchHigh * mult * clusterSpecificFactor * 100) / 100);
+
         return {
           ...k,
           lowCpc: imputedLow,
           highCpc: imputedHigh,
           isCpcEstimated: true,
           cpcEstimationCluster: clusterName,
-          cpcEstimationMultiplier: mult
+          cpcEstimationMultiplier: Math.round(mult * clusterSpecificFactor * 100) / 100
+        };
+      } else if (k.lowCpc <= 0.05 && k.highCpc > 0.50) {
+        const estimatedLow = Math.max(1.00, Math.round(k.highCpc * 0.35 * 100) / 100);
+        return {
+          ...k,
+          lowCpc: estimatedLow,
+          isCpcEstimated: true,
+          cpcEstimationCluster: clusterName,
+          cpcEstimationMultiplier: 1.0
+        };
+      } else if (k.lowCpc > 0.50 && k.highCpc <= 0.05) {
+        const estimatedHigh = Math.round(k.lowCpc * 2.8 * 100) / 100;
+        return {
+          ...k,
+          highCpc: estimatedHigh,
+          isCpcEstimated: true,
+          cpcEstimationCluster: clusterName,
+          cpcEstimationMultiplier: 1.0
         };
       }
       return k;

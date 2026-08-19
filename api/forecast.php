@@ -1244,6 +1244,32 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
         }
     }
 
+    // Post-processing: If Google Ads auction data was sparse (common in foreign languages / long-tail keywords),
+    // compute campaign-level or sector-intelligent benchmark bids and impute missing CPCs
+    $validLowBids = [];
+    $validHighBids = [];
+    foreach ($parsedKeywords as $pk) {
+        if (!empty($pk['lowCpc']) && $pk['lowCpc'] > 0.50) {
+            $validLowBids[] = (float)$pk['lowCpc'];
+        }
+        if (!empty($pk['highCpc']) && $pk['highCpc'] > 0.50) {
+            $validHighBids[] = (float)$pk['highCpc'];
+        }
+    }
+
+    $benchLow = count($validLowBids) > 0 ? round(array_sum($validLowBids) / count($validLowBids), 2) : 8.50;
+    $benchHigh = count($validHighBids) > 0 ? round(array_sum($validHighBids) / count($validHighBids), 2) : 26.00;
+
+    foreach ($parsedKeywords as &$pk) {
+        if (empty($pk['lowCpc']) || $pk['lowCpc'] <= 0.05) {
+            $mult = $pk['intent'] === 'TRANSACTIONAL' ? 1.15 : ($pk['intent'] === 'INFORMATIONAL' ? 0.85 : 1.00);
+            $pk['lowCpc'] = round($benchLow * $mult, 2);
+            $pk['highCpc'] = round($benchHigh * $mult, 2);
+            $pk['isCpcEstimated'] = true;
+        }
+    }
+    unset($pk);
+
     return $parsedKeywords;
 }
 
