@@ -2799,7 +2799,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       const off = findOfficial(loc);
       const mult = loc.cpcMultiplier || getCountryCpcMultiplier(loc.countryCode) || 1.0;
 
-      // Volume calculation: Keyword geoVolumes -> Official Breakdown -> Population reach distribution
+      // 1. Ülkenin Toplam Hacmi: Seçili kelimelerin o ülkedeki geoVolumes toplamı
       let cVol = 0;
       if (poolHasAnyGeoVolume && (locGeoVolumes[locKey] !== undefined) && totalPoolVol > 0) {
         cVol = locGeoVolumes[locKey];
@@ -2810,21 +2810,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         cVol = Math.round(totalAllKeywordsVol * reachShare);
       }
 
-      // CPC calculation:
-      // Base realistic CPC for this location is the selected keywords average CPC multiplied by country multiplier
+      // 2. Ülkenin Ortalama TBM'si: 1. Adım Seçili Kelimelerin Ortalama TBM'si * Ülke Pazar Çarpanı
       const locationTargetCpc = poolAvgCpc * mult;
-
-      let cCpc = locationTargetCpc;
-      if (locGeoCpcSums[locKey]?.count > 0) {
-        const keywordGeoAvg = locGeoCpcSums[locKey].sum / locGeoCpcSums[locKey].count;
-        // If keyword-level geo CPC is realistic (not depressed by 0 values), accept it; otherwise use location target
-        cCpc = keywordGeoAvg >= (locationTargetCpc * 0.6) ? keywordGeoAvg : locationTargetCpc;
-      } else if (off && (off.avgCpc || 0) > 0) {
-        // If Google Ads official location breakdown returned competitive data >= 75% of target, use it; otherwise protect with location target
-        cCpc = (off.avgCpc >= locationTargetCpc * 0.75) ? off.avgCpc : locationTargetCpc;
-      }
-
-      const finalCpc = Number((cCpc * scenarioMultiplier.cpcMult).toFixed(2));
+      const finalCpc = Number((locationTargetCpc * scenarioMultiplier.cpcMult).toFixed(2));
 
       return {
         id: String(loc.id),
@@ -7977,28 +7965,41 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                         </span>
                       )}
                     </div>
-                    {countryBreakdown.map((cm) => (
-                      <div key={cm.name + cm.code} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.76rem', padding: '0.2rem 0' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          <span style={{ fontSize: '0.95rem' }}>{cm.flag}</span>
-                          <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{cm.name}</span>
-                          {cm.sharePercent > 0 && (
-                            <span className="badge badge-neutral" style={{ fontSize: '0.65rem', padding: '1px 4px' }}>
-                              %{cm.sharePercent}
+                    {countryBreakdown.map((cm) => {
+                      const mult = getCountryCpcMultiplier(cm.code);
+                      return (
+                        <div key={cm.name + cm.code} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.76rem', padding: '0.25rem 0' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            <span style={{ fontSize: '0.95rem' }}>{cm.flag}</span>
+                            <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{cm.name}</span>
+                            {cm.sharePercent > 0 && (
+                              <span className="badge badge-neutral" style={{ fontSize: '0.65rem', padding: '1px 4px' }}>
+                                %{cm.sharePercent}
+                              </span>
+                            )}
+                            <span 
+                              className="badge badge-subtle" 
+                              title={`1. Adım Havuz Ortalaması (₺${baseTopPageCpc.toFixed(2)}) × ${mult}x Pazar Katsayısı`}
+                              style={{ fontSize: '0.62rem', padding: '1px 4px', color: 'var(--text-muted)', background: 'var(--bg-surface)' }}
+                            >
+                              {mult}x Çarpan
                             </span>
-                          )}
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', whiteSpace: 'nowrap' }}>
+                            <span style={{ color: 'var(--text-secondary)' }}>
+                              <strong style={{ color: 'var(--text-primary)' }}>{cm.monthlyVolume.toLocaleString('tr-TR')}</strong> arama
+                            </span>
+                            <span style={{ color: 'var(--border-default)' }}>•</span>
+                            <span 
+                              title={`1. Adım Seçili Kelimelerin Ortalama TBM'si (₺${baseTopPageCpc.toFixed(2)}) × ${mult} = ₺${cm.avgCpc.toFixed(2)}`}
+                              style={{ color: cm.avgCpc > 0 ? 'var(--brand-primary)' : 'var(--text-muted)', fontWeight: 700 }}
+                            >
+                              {cm.avgCpc > 0 ? `₺${cm.avgCpc.toFixed(2)} TBM` : 'TBM Yok'}
+                            </span>
+                          </div>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', whiteSpace: 'nowrap' }}>
-                          <span style={{ color: 'var(--text-secondary)' }}>
-                            <strong style={{ color: 'var(--text-primary)' }}>{cm.monthlyVolume.toLocaleString('tr-TR')}</strong> arama
-                          </span>
-                          <span style={{ color: 'var(--border-default)' }}>•</span>
-                          <span style={{ color: cm.avgCpc > 0 ? 'var(--brand-primary)' : 'var(--text-muted)', fontWeight: 600 }}>
-                            {cm.avgCpc > 0 ? `₺${cm.avgCpc.toFixed(2)} TBM` : 'TBM Yok'}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
 
