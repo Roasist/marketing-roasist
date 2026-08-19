@@ -2651,14 +2651,18 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     return Math.max(...activeKeywordsGrid.map(k => k.monthlyVolume), 1);
   }, [activeKeywordsGrid]);
 
-  const scopedTotalVolume = useMemo(() => {
-    return scopedKeywords.reduce((s, k) => s + k.monthlyVolume, 0);
-  }, [scopedKeywords]);
+  const selectedScopedKeywords = useMemo(() => {
+    return scopedKeywords.filter(k => selectedKeywordIds.has(k.id));
+  }, [scopedKeywords, selectedKeywordIds]);
 
-  const scopedAvgCpc = useMemo(() => {
-    if (scopedKeywords.length === 0) return 0;
-    return scopedKeywords.reduce((s, k) => s + ((k.lowCpc + k.highCpc) / 2), 0) / scopedKeywords.length;
-  }, [scopedKeywords]);
+  const selectedTotalVolume = useMemo(() => {
+    return selectedScopedKeywords.reduce((s, k) => s + k.monthlyVolume, 0);
+  }, [selectedScopedKeywords]);
+
+  const selectedAvgCpc = useMemo(() => {
+    if (selectedScopedKeywords.length === 0) return 0;
+    return selectedScopedKeywords.reduce((s, k) => s + ((k.lowCpc + k.highCpc) / 2), 0) / selectedScopedKeywords.length;
+  }, [selectedScopedKeywords]);
 
   // Copy Negative Keywords to Clipboard
   const handleCopyNegatives = (words: string[], categoryTitle: string) => {
@@ -4468,10 +4472,10 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     </div>
                     <div>
                       <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-                        {activeLocationScope !== 'ALL' && activeScopeLocation ? `${activeScopeLocation.name.toUpperCase()} ARAMA HAVUZU` : 'TOPLAM ARAMA HAVUZU'}
+                        {activeLocationScope !== 'ALL' && activeScopeLocation ? `${activeScopeLocation.name.toUpperCase()} SEÇİLİ ARAMA HAVUZU` : 'SEÇİLİ TOPLAM ARAMA HAVUZU'}
                       </div>
                       <div style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                        {scopedTotalVolume.toLocaleString('tr-TR')} <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-muted)' }}>/ay</span>
+                        {selectedTotalVolume.toLocaleString('tr-TR')} <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-muted)' }}>/ay</span>
                       </div>
                     </div>
                   </div>
@@ -4482,10 +4486,10 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     </div>
                     <div>
                       <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-                        {activeLocationScope !== 'ALL' && activeScopeLocation ? `${activeScopeLocation.name.toUpperCase()} ORT. TBM` : 'ORTALAMA SAYFA ÜSTÜ TBM'}
+                        {activeLocationScope !== 'ALL' && activeScopeLocation ? `${activeScopeLocation.name.toUpperCase()} SEÇİLİ ORT. TBM` : 'SEÇİLİ ORTALAMA SAYFA ÜSTÜ TBM'}
                       </div>
                       <div style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                        ₺{scopedAvgCpc.toFixed(2)}
+                        ₺{selectedAvgCpc.toFixed(2)}
                       </div>
                     </div>
                   </div>
@@ -4567,7 +4571,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       </div>
 
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                        <span>📈 {keywords.reduce((s, k) => s + k.monthlyVolume, 0).toLocaleString('tr-TR')} arama</span>
+                        <span>📈 {selectedTotalVolume.toLocaleString('tr-TR')} arama (Seçili)</span>
                         <span>Seçili: <strong style={{ color: 'var(--brand-primary)' }}>{selectedKeywordIds.size}</strong>/{keywords.length}</span>
                       </div>
 
@@ -4581,7 +4585,12 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', maxHeight: '560px', overflowY: 'auto', paddingRight: '0.2rem' }}>
                       {keywordClusters.map(cluster => {
                         const isActive = activeClusterId === cluster.id;
-                        const clusterSelectedCount = cluster.keywords.filter(k => selectedKeywordIds.has(k.id)).length;
+                        const clusterSelectedKws = cluster.keywords.filter(k => selectedKeywordIds.has(k.id));
+                        const clusterSelectedCount = clusterSelectedKws.length;
+                        const clusterSelectedVol = clusterSelectedKws.reduce((s, k) => s + k.monthlyVolume, 0);
+                        const clusterSelectedAvgCpc = clusterSelectedKws.length > 0 
+                          ? clusterSelectedKws.reduce((s, k) => s + ((k.lowCpc + k.highCpc) / 2), 0) / clusterSelectedKws.length 
+                          : 0;
                         const isAllClusterSelected = cluster.keywords.length > 0 && clusterSelectedCount === cluster.keywords.length;
                         const isPartialClusterSelected = clusterSelectedCount > 0 && !isAllClusterSelected;
                         const selectionPercent = Math.round((clusterSelectedCount / (cluster.keywords.length || 1)) * 100);
@@ -4626,7 +4635,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                             </div>
 
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.68rem', color: 'var(--text-muted)' }}>
-                              <span>📈 {cluster.totalVolume.toLocaleString('tr-TR')} arama • ₺{cluster.avgCpc.toFixed(2)}</span>
+                              <span>📈 {clusterSelectedVol.toLocaleString('tr-TR')} arama • ₺{clusterSelectedAvgCpc.toFixed(2)}</span>
                               <span>
                                 <strong style={{ color: isAllClusterSelected ? '#10b981' : isPartialClusterSelected ? 'var(--brand-primary)' : 'var(--text-muted)' }}>
                                   {clusterSelectedCount}/{cluster.keywords.length}
@@ -4667,14 +4676,23 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
                       {/* Group KPI Badges & Group Action */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                        <div style={{ display: 'flex', gap: '0.4rem' }}>
-                          <span style={{ fontSize: '0.72rem', padding: '0.25rem 0.6rem', borderRadius: 'var(--radius-xs)', backgroundColor: 'var(--bg-surface-elevated)', border: '1px solid var(--border-default)', color: 'var(--text-secondary)' }}>
-                            📈 Hacim: <strong style={{ color: 'var(--text-primary)' }}>{activeCluster.totalVolume.toLocaleString('tr-TR')}</strong>
-                          </span>
-                          <span style={{ fontSize: '0.72rem', padding: '0.25rem 0.6rem', borderRadius: 'var(--radius-xs)', backgroundColor: 'var(--bg-surface-elevated)', border: '1px solid var(--border-default)', color: 'var(--text-secondary)' }}>
-                            💵 Ort. TBM: <strong style={{ color: 'var(--text-primary)' }}>₺{activeCluster.avgCpc.toFixed(2)}</strong>
-                          </span>
-                        </div>
+                        {(() => {
+                          const activeSelectedKws = activeCluster.keywords.filter(k => selectedKeywordIds.has(k.id));
+                          const activeSelectedVol = activeSelectedKws.reduce((s, k) => s + k.monthlyVolume, 0);
+                          const activeSelectedAvgCpc = activeSelectedKws.length > 0 
+                            ? activeSelectedKws.reduce((s, k) => s + ((k.lowCpc + k.highCpc) / 2), 0) / activeSelectedKws.length 
+                            : 0;
+                          return (
+                            <div style={{ display: 'flex', gap: '0.4rem' }}>
+                              <span style={{ fontSize: '0.72rem', padding: '0.25rem 0.6rem', borderRadius: 'var(--radius-xs)', backgroundColor: 'var(--bg-surface-elevated)', border: '1px solid var(--border-default)', color: 'var(--text-secondary)' }}>
+                                📈 Seçili Hacim: <strong style={{ color: 'var(--text-primary)' }}>{activeSelectedVol.toLocaleString('tr-TR')}</strong>
+                              </span>
+                              <span style={{ fontSize: '0.72rem', padding: '0.25rem 0.6rem', borderRadius: 'var(--radius-xs)', backgroundColor: 'var(--bg-surface-elevated)', border: '1px solid var(--border-default)', color: 'var(--text-secondary)' }}>
+                                💵 Seçili Ort. TBM: <strong style={{ color: 'var(--text-primary)' }}>₺{activeSelectedAvgCpc.toFixed(2)}</strong>
+                              </span>
+                            </div>
+                          );
+                        })()}
 
                         <button
                           type="button"
