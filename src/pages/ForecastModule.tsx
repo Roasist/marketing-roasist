@@ -993,7 +993,6 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   const [newCampName, setNewCampName] = useState<string>('');
   const [newCampPlatform, setNewCampPlatform] = useState<CampaignPlatform>('GOOGLE');
   const [newCampObjective, setNewCampObjective] = useState<CampaignObjective>('GOOGLE_SEARCH');
-  const [newCampLang, setNewCampLang] = useState<string>('en');
 
   // Negative Keywords State
   const [negativeCategories, setNegativeCategories] = useState<NegativeCategory[]>([]);
@@ -1164,31 +1163,18 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   // Create new Sub-Campaign
   const handleCreateNewSubCampaign = async () => {
     syncActiveSubCampaign();
-    const langObj = GOOGLE_ADS_LANGUAGES.find(l => l.code === newCampLang) || { code: newCampLang, name: newCampLang, nativeName: newCampLang, flag: '🌐' };
-    
-    // Suggest default locations by language
-    let defaultLocs = DEFAULT_LOCATIONS;
-    if (newCampLang === 'en') {
-      defaultLocs = [{ id: '2826', resourceName: 'geoTargetConstants/2826', name: 'Birleşik Krallık', canonicalName: 'Birleşik Krallık', countryCode: 'GB', targetType: 'Country', reach: 67000000, flag: '🇬🇧', cpcMultiplier: 3.2, volumeMultiplier: 1.3 }];
-    } else if (newCampLang === 'ru') {
-      defaultLocs = [{ id: '2643', resourceName: 'geoTargetConstants/2643', name: 'Rusya', canonicalName: 'Rusya', countryCode: 'RU', targetType: 'Country', reach: 145000000, flag: '🇷🇺', cpcMultiplier: 1.6, volumeMultiplier: 1.8 }];
-    } else if (newCampLang === 'ar') {
-      defaultLocs = [{ id: '1000010', resourceName: 'geoTargetConstants/1000010', name: 'Dubai', canonicalName: 'Dubai, Birleşik Arap Emirlikleri', countryCode: 'AE', targetType: 'City', reach: 3400000, flag: '🇦🇪', cpcMultiplier: 2.4, volumeMultiplier: 0.8 }];
-    } else if (newCampLang === 'de') {
-      defaultLocs = [{ id: '2276', resourceName: 'geoTargetConstants/2276', name: 'Almanya', canonicalName: 'Almanya', countryCode: 'DE', targetType: 'Country', reach: 84000000, flag: '🇩🇪', cpcMultiplier: 2.8, volumeMultiplier: 1.4 }];
-    }
 
     const newId = 'sub_' + Date.now();
-    const campTitle = newCampName.trim() || `${newCampPlatform} (${langObj.name})`;
+    const campTitle = newCampName.trim() || `${newCampPlatform} Kampanya ${subCampaigns.length + 1}`;
     const newCamp: SubCampaignItem = {
       id: newId,
       name: campTitle,
       platform: newCampPlatform,
       objective: newCampObjective,
-      languageCode: newCampLang,
-      languageName: langObj.name,
-      languageFlag: langObj.flag,
-      targetLocations: defaultLocs,
+      languageCode: 'auto',
+      languageName: 'Otomatik (Sayfa Dili)',
+      languageFlag: '🌐',
+      targetLocations: DEFAULT_LOCATIONS,
       monthlyBudget: 0,
       selectedKeywords: [],
       discoveredKeywords: [],
@@ -1220,10 +1206,10 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     setKeywords([]);
     setSelectedKeywordIds(new Set());
     setNegativeCategories([]);
-    setSelectedLocations(defaultLocs);
-    setTargetLanguage(newCampLang);
-    setDetectedLanguage(newCampLang);
-    setDetectedLanguageName(langObj.name);
+    setSelectedLocations(DEFAULT_LOCATIONS);
+    setTargetLanguage('auto');
+    setDetectedLanguage('auto');
+    setDetectedLanguageName('Otomatik (Sayfa Dili)');
     setMonthlyBudget(0);
     setQuery('');
     setIsAddCampaignModalOpen(false);
@@ -1261,13 +1247,13 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         tags: planTags,
         targetUrl: mode === 'URL' ? query : '',
         seedKeywords: mode === 'KEYWORDS' ? query : '',
-        detectedLanguage: newCampLang,
-        detectedLanguageName: langObj.name,
+        detectedLanguage: 'auto',
+        detectedLanguageName: 'Otomatik (Sayfa Dili)',
         monthlyBudget: updatedSubs.reduce((acc, curr) => acc + (curr.monthlyBudget || 0), 0),
         selectedKeywords: [],
         simulationResult: simulation,
         negativeKeywords: [],
-        targetCountries: defaultLocs.map(c => c.name),
+        targetCountries: DEFAULT_LOCATIONS.map((c: any) => c.name),
         countryBreakdown,
         subCampaigns: updatedSubs
       });
@@ -2630,6 +2616,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         const isStrategistKw = !!k.isAiStrategistPick || k.id?.startsWith('ai_strat_') || k.id?.startsWith('ai_alt_');
         const isUserSeed = !!k.isUserSeed || k.source === 'USER_SEED' || k.id?.startsWith('seed_kw_') || k.id?.startsWith('user_seed_');
         const matchesSource = 
+          mode !== 'KEYWORDS' ||
           step1SourceFilter === 'ALL' || 
           (step1SourceFilter === 'USER_SEED' ? isUserSeed : !isUserSeed);
         const matchesIntent = 
@@ -2644,7 +2631,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         if (step1SortBy === 'ALPHABETICAL') return a.keyword.localeCompare(b.keyword);
         return 0;
       });
-  }, [activeCluster, scopedKeywords, step1SearchFilter, step1SourceFilter, step1IntentFilter, step1SortBy]);
+  }, [activeCluster, scopedKeywords, step1SearchFilter, step1SourceFilter, step1IntentFilter, step1SortBy, mode]);
 
   const maxVolumeInGrid = useMemo(() => {
     return Math.max(...activeKeywordsGrid.map(k => k.monthlyVolume), 1);
@@ -3669,24 +3656,6 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     <option value="GOOGLE_SEARCH">🔍 Bing Search Network</option>
                   </>
                 )}
-              </select>
-            </div>
-
-            {/* Language Selection */}
-            <div>
-              <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)', display: 'block', marginBottom: '0.35rem' }}>
-                Hedef Dil:
-              </label>
-              <select
-                value={newCampLang}
-                onChange={(e) => setNewCampLang(e.target.value)}
-                style={{ width: '100%', fontSize: '0.85rem', padding: '0.5rem' }}
-              >
-                {GOOGLE_ADS_LANGUAGES.map((l) => (
-                  <option key={l.code} value={l.code}>
-                    {l.flag} {l.name} ({l.nativeName})
-                  </option>
-                ))}
               </select>
             </div>
 
@@ -4720,35 +4689,37 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                           />
                         </div>
 
-                        {/* Source Filter Pills: ALL / USER_SEED / EXPANSION */}
-                        <div style={{ display: 'flex', gap: '0.2rem', backgroundColor: 'var(--bg-surface-elevated)', padding: '2px', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-default)' }}>
-                          {[
-                            { key: 'ALL', label: `Tümü (${activeCluster.keywords.length})` },
-                            { key: 'USER_SEED', label: `🎯 Girdiğiniz Tohumlar (${userSeedsCountInView})` },
-                            { key: 'EXPANSION', label: `✨ Bunu da Hedefleyebilirsiniz (${expansionCountInView})` }
-                          ].map(tab => (
-                            <button
-                              key={tab.key}
-                              type="button"
-                              onClick={() => setStep1SourceFilter(tab.key as any)}
-                              style={{
-                                padding: '0.25rem 0.55rem',
-                                fontSize: '0.68rem',
-                                fontWeight: step1SourceFilter === tab.key ? 700 : 500,
-                                borderRadius: 'var(--radius-xs)',
-                                border: 'none',
-                                cursor: 'pointer',
-                                backgroundColor: step1SourceFilter === tab.key 
-                                  ? (tab.key === 'USER_SEED' ? 'var(--brand-primary)' : (tab.key === 'EXPANSION' ? '#059669' : 'var(--brand-primary)')) 
-                                  : 'transparent',
-                                color: step1SourceFilter === tab.key ? '#ffffff' : 'var(--text-secondary)',
-                                transition: 'all 0.15s ease'
-                              }}
-                            >
-                              {tab.label}
-                            </button>
-                          ))}
-                        </div>
+                        {/* Source Filter Pills: ONLY in KEYWORDS mode */}
+                        {mode === 'KEYWORDS' && (
+                          <div style={{ display: 'flex', gap: '0.2rem', backgroundColor: 'var(--bg-surface-elevated)', padding: '2px', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-default)' }}>
+                            {[
+                              { key: 'ALL', label: `Tümü (${activeCluster.keywords.length})` },
+                              { key: 'USER_SEED', label: `🎯 Girdiğiniz Tohumlar (${userSeedsCountInView})` },
+                              { key: 'EXPANSION', label: `✨ Bunu da Hedefleyebilirsiniz (${expansionCountInView})` }
+                            ].map(tab => (
+                              <button
+                                key={tab.key}
+                                type="button"
+                                onClick={() => setStep1SourceFilter(tab.key as any)}
+                                style={{
+                                  padding: '0.25rem 0.55rem',
+                                  fontSize: '0.68rem',
+                                  fontWeight: step1SourceFilter === tab.key ? 700 : 500,
+                                  borderRadius: 'var(--radius-xs)',
+                                  border: 'none',
+                                  cursor: 'pointer',
+                                  backgroundColor: step1SourceFilter === tab.key 
+                                    ? (tab.key === 'USER_SEED' ? 'var(--brand-primary)' : (tab.key === 'EXPANSION' ? '#059669' : 'var(--brand-primary)')) 
+                                    : 'transparent',
+                                  color: step1SourceFilter === tab.key ? '#ffffff' : 'var(--text-secondary)',
+                                  transition: 'all 0.15s ease'
+                                }}
+                              >
+                                {tab.label}
+                              </button>
+                            ))}
+                          </div>
+                        )}
 
                         {/* Intent Pills */}
                         <div style={{ display: 'flex', gap: '0.2rem', backgroundColor: 'var(--bg-surface-elevated)', padding: '2px', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-default)' }}>
@@ -4787,36 +4758,40 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                         {/* Quick Selection Buttons */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
                           <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>Hızlı Seçim:</span>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const next = new Set(selectedKeywordIds);
-                              activeKeywordsGrid.forEach(k => {
-                                const isUser = !!k.isUserSeed || k.source === 'USER_SEED' || k.id?.startsWith('seed_kw_') || k.id?.startsWith('user_seed_');
-                                if (isUser) next.add(k.id);
-                              });
-                              setSelectedKeywordIds(next);
-                            }}
-                            className="btn-ghost"
-                            style={{ fontSize: '0.68rem', padding: '2px 8px', borderRadius: 'var(--radius-xs)', border: '1px solid rgba(37, 99, 235, 0.3)', color: 'var(--brand-primary)', fontWeight: 600 }}
-                          >
-                            🎯 Yalnızca Girdiğim Tohumları Seç
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const next = new Set(selectedKeywordIds);
-                              activeKeywordsGrid.forEach(k => {
-                                const isUser = !!k.isUserSeed || k.source === 'USER_SEED' || k.id?.startsWith('seed_kw_') || k.id?.startsWith('user_seed_');
-                                if (!isUser) next.add(k.id);
-                              });
-                              setSelectedKeywordIds(next);
-                            }}
-                            className="btn-ghost"
-                            style={{ fontSize: '0.68rem', padding: '2px 8px', borderRadius: 'var(--radius-xs)', border: '1px solid rgba(16, 185, 129, 0.3)', color: '#059669', fontWeight: 600 }}
-                          >
-                            ✨ Yalnızca Ek Önerileri Seç
-                          </button>
+                          {mode === 'KEYWORDS' && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const next = new Set(selectedKeywordIds);
+                                  activeKeywordsGrid.forEach(k => {
+                                    const isUser = !!k.isUserSeed || k.source === 'USER_SEED' || k.id?.startsWith('seed_kw_') || k.id?.startsWith('user_seed_');
+                                    if (isUser) next.add(k.id);
+                                  });
+                                  setSelectedKeywordIds(next);
+                                }}
+                                className="btn-ghost"
+                                style={{ fontSize: '0.68rem', padding: '2px 8px', borderRadius: 'var(--radius-xs)', border: '1px solid rgba(37, 99, 235, 0.3)', color: 'var(--brand-primary)', fontWeight: 600 }}
+                              >
+                                🎯 Yalnızca Girdiğim Tohumları Seç
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const next = new Set(selectedKeywordIds);
+                                  activeKeywordsGrid.forEach(k => {
+                                    const isUser = !!k.isUserSeed || k.source === 'USER_SEED' || k.id?.startsWith('seed_kw_') || k.id?.startsWith('user_seed_');
+                                    if (!isUser) next.add(k.id);
+                                  });
+                                  setSelectedKeywordIds(next);
+                                }}
+                                className="btn-ghost"
+                                style={{ fontSize: '0.68rem', padding: '2px 8px', borderRadius: 'var(--radius-xs)', border: '1px solid rgba(16, 185, 129, 0.3)', color: '#059669', fontWeight: 600 }}
+                              >
+                                ✨ Yalnızca Ek Önerileri Seç
+                              </button>
+                            </>
+                          )}
                           <button
                             type="button"
                             onClick={() => {
@@ -4998,43 +4973,45 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                                     <div style={{ fontWeight: isSelected ? 600 : 500, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
                                       <span>{kw.keyword}</span>
                                       
-                                      {/* Seed vs Expansion Badges */}
-                                      {isUserSeed ? (
-                                        <span
-                                          style={{
-                                            fontSize: '0.62rem',
-                                            padding: '1px 6px',
-                                            borderRadius: '3px',
-                                            fontWeight: 700,
-                                            backgroundColor: 'rgba(37, 99, 235, 0.12)',
-                                            color: 'var(--brand-primary)',
-                                            border: '1px solid rgba(37, 99, 235, 0.25)',
-                                            display: 'inline-flex',
-                                            alignItems: 'center',
-                                            gap: '2px'
-                                          }}
-                                          title="Sizin doğrudan girdiğiniz tohum anahtar kelime"
-                                        >
-                                          🎯 Girdiğiniz Tohum
-                                        </span>
-                                      ) : (
-                                        <span
-                                          style={{
-                                            fontSize: '0.62rem',
-                                            padding: '1px 6px',
-                                            borderRadius: '3px',
-                                            fontWeight: 600,
-                                            backgroundColor: 'rgba(16, 185, 129, 0.12)',
-                                            color: '#059669',
-                                            border: '1px solid rgba(16, 185, 129, 0.25)',
-                                            display: 'inline-flex',
-                                            alignItems: 'center',
-                                            gap: '2px'
-                                          }}
-                                          title="Google Ads API & AI tarafından arama grafiğinden keşfedilen ek öneri"
-                                        >
-                                          ✨ Bunu da Hedefleyebilirsiniz
-                                        </span>
+                                      {/* Seed vs Expansion Badges (Only in KEYWORDS mode) */}
+                                      {mode === 'KEYWORDS' && (
+                                        isUserSeed ? (
+                                          <span
+                                            style={{
+                                              fontSize: '0.62rem',
+                                              padding: '1px 6px',
+                                              borderRadius: '3px',
+                                              fontWeight: 700,
+                                              backgroundColor: 'rgba(37, 99, 235, 0.12)',
+                                              color: 'var(--brand-primary)',
+                                              border: '1px solid rgba(37, 99, 235, 0.25)',
+                                              display: 'inline-flex',
+                                              alignItems: 'center',
+                                              gap: '2px'
+                                            }}
+                                            title="Sizin doğrudan girdiğiniz tohum anahtar kelime"
+                                          >
+                                            🎯 Girdiğiniz Tohum
+                                          </span>
+                                        ) : (
+                                          <span
+                                            style={{
+                                              fontSize: '0.62rem',
+                                              padding: '1px 6px',
+                                              borderRadius: '3px',
+                                              fontWeight: 600,
+                                              backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                                              color: '#059669',
+                                              border: '1px solid rgba(16, 185, 129, 0.25)',
+                                              display: 'inline-flex',
+                                              alignItems: 'center',
+                                              gap: '2px'
+                                            }}
+                                            title="Google Ads API & AI tarafından arama grafiğinden keşfedilen ek öneri"
+                                          >
+                                            ✨ Bunu da Hedefleyebilirsiniz
+                                          </span>
+                                        )
                                       )}
 
                                       {kw.isAiStrategistPick && (
