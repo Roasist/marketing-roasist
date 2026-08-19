@@ -994,7 +994,6 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   const [newCampPlatform, setNewCampPlatform] = useState<CampaignPlatform>('GOOGLE');
   const [newCampObjective, setNewCampObjective] = useState<CampaignObjective>('GOOGLE_SEARCH');
   const [newCampLang, setNewCampLang] = useState<string>('en');
-  const [newCampBudget, setNewCampBudget] = useState<number>(30000);
 
   // Negative Keywords State
   const [negativeCategories, setNegativeCategories] = useState<NegativeCategory[]>([]);
@@ -1178,7 +1177,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       languageName: langObj.name,
       languageFlag: langObj.flag,
       targetLocations: defaultLocs,
-      monthlyBudget: newCampBudget,
+      monthlyBudget: monthlyBudget || 30000,
       selectedKeywords: [],
       discoveredKeywords: [],
       negativeCategories: [],
@@ -1213,7 +1212,6 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     setTargetLanguage(newCampLang);
     setDetectedLanguage(newCampLang);
     setDetectedLanguageName(langObj.name);
-    setMonthlyBudget(newCampBudget);
     setQuery('');
     setIsAddCampaignModalOpen(false);
     setNewCampName('');
@@ -3674,26 +3672,6 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                   </option>
                 ))}
               </select>
-            </div>
-
-            {/* Monthly Budget */}
-            <div>
-              <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)', display: 'block', marginBottom: '0.35rem' }}>
-                Bu Kampanya İçin Aylık Bütçe (₺):
-              </label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <input
-                  type="number"
-                  min={1000}
-                  step={1000}
-                  value={newCampBudget}
-                  onChange={(e) => setNewCampBudget(Number(e.target.value))}
-                  style={{ flex: 1, fontSize: '0.85rem' }}
-                />
-                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                  ₺{Math.round(newCampBudget / 30.4).toLocaleString('tr-TR')} / gün
-                </span>
-              </div>
             </div>
 
             {/* Modal Actions */}
