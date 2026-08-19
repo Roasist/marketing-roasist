@@ -2566,12 +2566,27 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     ) || null;
   }, [activeLocationScope, activeScopeLocation, countryBreakdown]);
 
-  // Scoped keywords adapted to chosen location (or aggregated if ALL)
+  // Imputed keywords flat list from base clusters (Single source of truth for semantic enrichment and CPC imputation)
+  const imputedKeywords = useMemo(() => {
+    const list: KeywordMetric[] = [];
+    const seen = new Set<string>();
+    baseKeywordClusters.forEach(cluster => {
+      cluster.keywords.forEach(kw => {
+        if (!seen.has(kw.id)) {
+          seen.add(kw.id);
+          list.push(kw);
+        }
+      });
+    });
+    return list.length > 0 ? list : normalizedKeywords;
+  }, [baseKeywordClusters, normalizedKeywords]);
+
+  // Scoped keywords adapted to chosen location (or aggregated if ALL), retaining full CPC imputation
   const scopedKeywords = useMemo(() => {
     const activeGeoIds = new Set(selectedLocations.map(l => String(l.id)));
 
     if (activeLocationScope === 'ALL' || !activeScopeLocation) {
-      return keywords.map(k => {
+      return imputedKeywords.map(k => {
         if (k.geoVolumes && Object.keys(k.geoVolumes).length > 0) {
           let sumGeo = 0;
           let hasMatchingGeo = false;
@@ -2594,8 +2609,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
     const targetGeoId = String(activeScopeMetric?.id || activeScopeLocation?.id || '');
     const cleanGeoId = targetGeoId.replace(/[^0-9]/g, '');
+    const locCpcMultiplier = activeScopeLocation?.cpcMultiplier || 1.0;
 
-    return keywords.map(k => {
+    return imputedKeywords.map(k => {
       // 1. Direct official Google Ads volume for this exact location
       const directLocVol = k.geoVolumes ? (
         k.geoVolumes[cleanGeoId] !== undefined ? k.geoVolumes[cleanGeoId] :
@@ -2608,30 +2624,48 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       const directLocLowCpc = directCpcObj?.lowCpc;
       const directLocHighCpc = directCpcObj?.highCpc;
 
+      const baseLow = (directLocLowCpc !== undefined && directLocLowCpc > 0) 
+        ? directLocLowCpc 
+        : (k.lowCpc > 0 ? k.lowCpc * locCpcMultiplier : 0);
+      const baseHigh = (directLocHighCpc !== undefined && directLocHighCpc > 0) 
+        ? directLocHighCpc 
+        : (k.highCpc > 0 ? k.highCpc * locCpcMultiplier : 0);
+
       if (directLocVol !== undefined) {
         return {
           ...k,
           monthlyVolume: directLocVol,
-          lowCpc: directLocLowCpc !== undefined && directLocLowCpc > 0 ? directLocLowCpc : k.lowCpc,
-          highCpc: directLocHighCpc !== undefined && directLocHighCpc > 0 ? directLocHighCpc : k.highCpc,
+          lowCpc: Math.round(baseLow * 100) / 100,
+          highCpc: Math.round(baseHigh * 100) / 100,
         };
       }
 
-      // STRICT ZERO ESTIMATES: If no official Google Ads data exists for this specific location, volume is 0
       return {
         ...k,
-        monthlyVolume: 0,
-        lowCpc: 0,
-        highCpc: 0,
+        lowCpc: Math.round(baseLow * 100) / 100,
+        highCpc: Math.round(baseHigh * 100) / 100,
       };
     });
-  }, [keywords, activeLocationScope, activeScopeMetric, activeScopeLocation, selectedLocations]);
+  }, [imputedKeywords, activeLocationScope, activeScopeMetric, activeScopeLocation, selectedLocations]);
 
   // Scoped clusters (Ad Group Themes)
   const keywordClusters = useMemo(() => {
     const kwMap = new Map(scopedKeywords.map(k => [k.id, k]));
     return baseKeywordClusters.map(cluster => {
-      const cKws = cluster.keywords.map(k => kwMap.get(k.id) || k);
+      const cKws = cluster.keywords.map(k => {
+        const scopedK = kwMap.get(k.id);
+        if (scopedK) {
+          return {
+            ...k,
+            ...scopedK,
+            // Ensure imputation metadata is never lost
+            isCpcEstimated: k.isCpcEstimated || scopedK.isCpcEstimated,
+            cpcEstimationCluster: k.cpcEstimationCluster || scopedK.cpcEstimationCluster || cluster.name,
+            cpcEstimationMultiplier: k.cpcEstimationMultiplier || scopedK.cpcEstimationMultiplier
+          };
+        }
+        return k;
+      });
       const totalVol = cKws.reduce((s, k) => s + k.monthlyVolume, 0);
       const cpcSum = cKws.reduce((s, k) => s + ((k.lowCpc + k.highCpc) / 2), 0);
       const avgCpc = cKws.length > 0 ? (cpcSum / cKws.length) : 0;
@@ -2731,16 +2765,18 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   }, [activeKeywordsGrid]);
 
   const selectedScopedKeywords = useMemo(() => {
-    return scopedKeywords.filter(k => selectedKeywordIds.has(k.id));
-  }, [scopedKeywords, selectedKeywordIds]);
+    const allAvailable = scopedKeywords.length > 0 ? scopedKeywords : imputedKeywords;
+    return allAvailable.filter(k => selectedKeywordIds.has(k.id));
+  }, [scopedKeywords, imputedKeywords, selectedKeywordIds]);
 
   const selectedTotalVolume = useMemo(() => {
-    return selectedScopedKeywords.reduce((s, k) => s + k.monthlyVolume, 0);
+    return selectedScopedKeywords.reduce((s, k) => s + (Number(k.monthlyVolume) || 0), 0);
   }, [selectedScopedKeywords]);
 
   const selectedAvgCpc = useMemo(() => {
     if (selectedScopedKeywords.length === 0) return 0;
-    return selectedScopedKeywords.reduce((s, k) => s + ((k.lowCpc + k.highCpc) / 2), 0) / selectedScopedKeywords.length;
+    const cpcSum = selectedScopedKeywords.reduce((s, k) => s + (((Number(k.lowCpc) || 0) + (Number(k.highCpc) || 0)) / 2), 0);
+    return Math.round((cpcSum / selectedScopedKeywords.length) * 100) / 100;
   }, [selectedScopedKeywords]);
 
   // Copy Negative Keywords to Clipboard
