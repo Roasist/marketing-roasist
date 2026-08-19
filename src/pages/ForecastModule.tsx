@@ -1030,8 +1030,6 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   // Track parameter changes in Step 2 to invalidate green checkmark
   const prevParamsRef = useRef<string>('');
   useEffect(() => {
-    if (isApplyingSubCampaignRef.current) return;
-
     const paramsSignature = JSON.stringify({
       growthScenario,
       businessModel,
@@ -1062,6 +1060,11 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       selectedLocationsCount: selectedLocations.length,
       selectedLocationIds: selectedLocations.map(l => l.id).join(',')
     });
+
+    if (isApplyingSubCampaignRef.current) {
+      prevParamsRef.current = paramsSignature;
+      return;
+    }
 
     if (prevParamsRef.current && prevParamsRef.current !== paramsSignature) {
       setIsStep2Completed(false);
@@ -1100,13 +1103,16 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   // Track keyword selection changes in Step 1 to invalidate green checkmarks
   const prevKeywordsRef = useRef<string>('');
   useEffect(() => {
-    if (isApplyingSubCampaignRef.current) return;
-
     const kwSignature = JSON.stringify({
       kwCount: keywords.length,
       selectedCount: selectedKeywordIds.size,
       selectedIds: Array.from(selectedKeywordIds).sort().join(',')
     });
+
+    if (isApplyingSubCampaignRef.current) {
+      prevKeywordsRef.current = kwSignature;
+      return;
+    }
 
     if (prevKeywordsRef.current && prevKeywordsRef.current !== kwSignature) {
       setIsStep1Completed(false);
@@ -1382,6 +1388,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   // Switch to another sub-campaign
   const handleSelectSubCampaign = (campId: string) => {
     if (campId === activeSubCampaignId) return;
+    try {
+      localStorage.setItem('roasist_active_studio_sub_id', campId);
+    } catch (e) {}
     syncActiveSubCampaign();
     const target = subCampaigns.find(c => c.id === campId);
     if (!target) return;
@@ -1635,6 +1644,13 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
   // Open Master Plan & Target Sub Campaign in Studio
   const handleOpenMasterPlanStudio = (plan: ForecastPlan, targetSubId?: string) => {
+    try {
+      localStorage.setItem('roasist_active_studio_plan_id', plan.id);
+      if (targetSubId) {
+        localStorage.setItem('roasist_active_studio_sub_id', targetSubId);
+      }
+    } catch (e) {}
+
     setCurrentPlanId(plan.id);
     if (plan.name) setPlanName(plan.name);
     if (plan.clientName) setClientName(plan.clientName);
@@ -1701,6 +1717,10 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
   // Back to Portfolio
   const handleBackToPortfolio = () => {
+    try {
+      localStorage.removeItem('roasist_active_studio_plan_id');
+      localStorage.removeItem('roasist_active_studio_sub_id');
+    } catch (e) {}
     syncActiveSubCampaign();
     loadSavedPlans();
     setCurrentPlanId(null);
@@ -1717,6 +1737,10 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     if (window.confirm(`"${name || 'Bu plan'}" planını silmek istediğinize emin misiniz?`)) {
       try {
         await ApiService.deleteForecastPlan(id);
+        if (localStorage.getItem('roasist_active_studio_plan_id') === id) {
+          localStorage.removeItem('roasist_active_studio_plan_id');
+          localStorage.removeItem('roasist_active_studio_sub_id');
+        }
         loadSavedPlans();
       } catch (err: any) {
         alert('Plan silinirken hata: ' + err.message);
@@ -1724,11 +1748,25 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     }
   };
 
+  const isInitialPlansLoadedRef = useRef<boolean>(false);
+
   // Load Saved Plans on Workspace change
   const loadSavedPlans = async () => {
     try {
       const plans = await ApiService.getForecastPlans(workspaceId);
       setSavedPlans(plans || []);
+
+      if (!isInitialPlansLoadedRef.current && plans && plans.length > 0) {
+        isInitialPlansLoadedRef.current = true;
+        const savedPlanId = localStorage.getItem('roasist_active_studio_plan_id');
+        const savedSubId = localStorage.getItem('roasist_active_studio_sub_id');
+        if (savedPlanId) {
+          const match = plans.find(p => p.id === savedPlanId);
+          if (match) {
+            handleOpenMasterPlanStudio(match, savedSubId || undefined);
+          }
+        }
+      }
     } catch {
       setSavedPlans([]);
     }
