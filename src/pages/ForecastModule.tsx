@@ -4308,12 +4308,12 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               
               {/* Context Summary Header */}
-              <div className="card" style={{ padding: '1rem 1.25rem', backgroundColor: 'var(--bg-surface)', borderLeft: '4px solid var(--brand-primary)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+              <div className="card" style={{ padding: '1rem 1.25rem', backgroundColor: 'var(--bg-surface)', borderLeft: '4px solid var(--brand-primary)', display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-                  <div style={{ padding: '8px', borderRadius: '50%', backgroundColor: 'rgba(37, 99, 235, 0.1)', color: 'var(--brand-primary)' }}>
+                  <div style={{ padding: '8px', borderRadius: '50%', backgroundColor: 'rgba(37, 99, 235, 0.1)', color: 'var(--brand-primary)', flexShrink: 0 }}>
                     <Languages size={20} />
                   </div>
-                  <div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                       <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.5px' }}>
                         {mode === 'URL' ? 'AÇILIŞ SAYFASI ANALİZİ' : 'TOHUM ANAHTAR KELİME ANALİZİ'}
@@ -4330,15 +4330,16 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                         <Sparkles size={11} /> 🟢 Resmi Google Ads Keyword Planner Verisi
                       </span>
                     </div>
-                    <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)', marginTop: '0.2rem' }}>
+                    <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)', marginTop: '0.25rem', wordBreak: 'break-word' }}>
                       {pageTitle || query}
                     </div>
                   </div>
                 </div>
 
                 {pageSummary && (
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', maxWidth: '450px', lineHeight: 1.45, backgroundColor: 'var(--bg-surface-elevated)', padding: '0.4rem 0.65rem', borderRadius: 'var(--radius-xs)' }}>
-                    💡 {pageSummary}
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', width: '100%', lineHeight: 1.4, backgroundColor: 'var(--bg-surface-elevated)', padding: '0.45rem 0.85rem', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-default)', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                    <span>💡</span>
+                    <span>{pageSummary}</span>
                   </div>
                 )}
               </div>
