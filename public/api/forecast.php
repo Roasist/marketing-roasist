@@ -1069,12 +1069,12 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
                     . ')(?:[^\p{L}\p{N}]|$)/ui';
 
                 $negativeJunkRentalPattern = '/(?:^|[^\p{L}\p{N}])('
-                    . 'kiralık|kirala|kiralamak|kira|günlük kiralık|aylık kiralık|kiralama'
-                    . '|اجاره|اجاره ای|اجاره دادن|کرایه|رهن'
-                    . '|إيجار|للايجار|استئجار|ايجار'
-                    . '|аренда|снять квартиру|арендовать|посуточно'
-                    . '|rent|rental|to rent|for rent|monthly rent'
-                    . '|mieten|vermieten|miete'
+                    . 'kiralık|kirala|kiralamak|kiralama|kira|günlük kiralık|aylık kiralık|konakla|konaklama|konaklamak|tatil|pansiyon|otel|hotel|apart|airbnb|booking'
+                    . '|اجاره|اجاره ای|اجاره دادن|کرایه|رهن|هتل|اقامت موقت|سكن'
+                    . '|إيجار|للايجار|استئجار|ايجار|فندق|سياحة'
+                    . '|аренда|снять квартиру|арендовать|посуточно|проживание|гостиница|отель'
+                    . '|rent|rental|to rent|for rent|monthly rent|accommodation|stay|holiday|hotel|airbnb|booking'
+                    . '|mieten|vermieten|miete|unterkunft|hotel|ferien'
                     . '|bedava|ücretsiz|free|مجانی|رایگان|бесплатно|kostenlos'
                     . '|iş ilanları|iş ilanı|staj|kariyer|maaş|استخدام|وظائف|работа|вакансии|jobs|karriere'
                     . ')(?:[^\p{L}\p{N}]|$)/ui';
@@ -1091,19 +1091,24 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
                 $isUserSeed = isset($seedKeys[$kwKey]);
                 $oppScore = min(99, max(50, 95 - round($compIdx * 0.3) + ($avgVol > 5000 ? 10 : 5)));
 
-                if (preg_match($negativeJunkRentalPattern, $kwText)) {
+                $isNegativeRental = (bool)preg_match($negativeJunkRentalPattern, $kwText);
+
+                if ($isNegativeRental) {
                     $intent = 'COMMERCIAL';
                     $isAiStrategist = false;
                 } elseif (preg_match($transactionalPattern, $kwText)) {
                     $intent = 'TRANSACTIONAL';
-                    // High-converting transactional search: Mark as AI Strategist Pick if it is core transactional, high opportunity score or user seed
-                    $isAiStrategist = $isUserSeed || $oppScore >= 75 || preg_match('/(?:^|[^\p{L}\p{N}])(satın al|satılık|купить|خرید|شراء|buy|invest|yatırım|سرمایه|vatandaşlık|citizenship|гражданство|شهروندی|جنسية)(?:[^\p{L}\p{N}]|$)/ui', $kwText);
+                    // High-converting transactional search: Mark as AI Strategist Pick only if strictly transactional and NOT negative/rental
+                    $isAiStrategist = $isUserSeed || (
+                        !$isNegativeRental && 
+                        preg_match('/(?:^|[^\p{L}\p{N}])(satın al|satılık|sipariş|fiyat|ücret|başvuru|randevu|купить|цена|стоимость|خرید|قیمت|شراء|اسعار|buy|price|order|invest|yatırım|سرمایه|vatandaşlık|citizenship|гражданство|شهروندی|جنسية)(?:[^\p{L}\p{N}]|$)/ui', $kwText)
+                    );
                 } elseif (preg_match($informationalPattern, $kwText)) {
                     $intent = 'INFORMATIONAL';
                     $isAiStrategist = false;
                 } else {
                     $intent = 'COMMERCIAL';
-                    $isAiStrategist = $isUserSeed;
+                    $isAiStrategist = $isUserSeed && !$isNegativeRental;
                 }
 
                 $keywordIndexMap[$kwKey] = count($parsedKeywords);
@@ -2732,13 +2737,16 @@ if ($action === 'discover' && $method === 'POST') {
             foreach ($aiAnalysis['strategistKeywords'] as $skw) {
                 $sText = trim($skw['keyword'] ?? '');
                 if (empty($sText) || mb_strlen($sText, 'UTF-8') < 3) continue;
+                if (preg_match($negativeJunkRentalPattern, $sText)) continue;
                 $sKey = mb_strtolower(preg_replace('/\s+/', ' ', $sText), 'UTF-8');
 
                 if (isset($existingMap[$sKey])) {
                     // Grounded in official Google Ads API data
-                    $officialKeywords[$existingMap[$sKey]]['isAiStrategistPick'] = true;
-                    $officialKeywords[$existingMap[$sKey]]['intent'] = 'TRANSACTIONAL';
-                    $officialKeywords[$existingMap[$sKey]]['opportunityScore'] = max(95, $officialKeywords[$existingMap[$sKey]]['opportunityScore'] ?? 95);
+                    if (!preg_match($negativeJunkRentalPattern, $officialKeywords[$existingMap[$sKey]]['keyword'])) {
+                        $officialKeywords[$existingMap[$sKey]]['isAiStrategistPick'] = true;
+                        $officialKeywords[$existingMap[$sKey]]['intent'] = 'TRANSACTIONAL';
+                        $officialKeywords[$existingMap[$sKey]]['opportunityScore'] = max(95, $officialKeywords[$existingMap[$sKey]]['opportunityScore'] ?? 95);
+                    }
                 }
             }
         }

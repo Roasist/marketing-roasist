@@ -417,17 +417,17 @@ export const groupKeywordsSemantically = (
       const isOriginallyMissing = k.isCpcEstimated || (rawLow <= 0.05 && rawHigh <= 0.05);
 
       // Check if keyword is rental/negative to sanitize SEM Uzmanı
-      const isRentalOrNegative = /kiralık|kirala|kiralamak|kira|اجاره|rent|rental|аренда|bedava|ücretsiz|ucuz/i.test(k.keyword);
+      const isRentalOrNegative = /kiralık|kirala|kiralamak|kiralama|kira|konakla|konaklama|konaklamak|tatil|pansiyon|otel|hotel|apart|airbnb|booking|rent|rental|accommodation|stay|holiday|аренда|проживание|посуточно|гостиница|отель|اجاره|کرایه|فندق|سكن|bedava|ücretsiz|ucuz|free|бесплатно/i.test(k.keyword);
       const sanitizedIsAiStrategist = isRentalOrNegative ? false : k.isAiStrategistPick;
+
+      const mult = k.intent === 'TRANSACTIONAL' 
+        ? (imputationSettings?.transactionalMultiplier ?? 1.15)
+        : (k.intent === 'INFORMATIONAL' 
+            ? (imputationSettings?.informationalMultiplier ?? 0.85)
+            : (imputationSettings?.commercialMultiplier ?? 1.00));
 
       if (isOriginallyMissing) {
         if (imputationSettings?.autoImputeMissingCpc ?? true) {
-          const mult = k.intent === 'TRANSACTIONAL' 
-            ? (imputationSettings?.transactionalMultiplier ?? 1.15)
-            : (k.intent === 'INFORMATIONAL' 
-                ? (imputationSettings?.informationalMultiplier ?? 0.85)
-                : (imputationSettings?.commercialMultiplier ?? 1.00));
-          
           let clusterSpecificFactor = 1.0;
           if (/cbi|vatandaşlık|citizenship|yatırım|invest/i.test(clusterName)) {
             clusterSpecificFactor = 1.25;
@@ -467,37 +467,45 @@ export const groupKeywordsSemantically = (
           };
         }
       } else if (rawLow <= 0.05 && rawHigh > 0.50) {
-        const estimatedLow = Math.max(1.00, Math.round(rawHigh * 0.35 * 100) / 100);
+        const estimatedLow = Math.max(1.00, Math.round(rawHigh * 0.35 * mult * 100) / 100);
+        const scaledHigh = Math.round(rawHigh * mult * 100) / 100;
         return {
           ...k,
           rawLowCpc: rawLow,
           rawHighCpc: rawHigh,
           lowCpc: estimatedLow,
-          highCpc: rawHigh,
+          highCpc: scaledHigh,
           isCpcEstimated: true,
           isAiStrategistPick: sanitizedIsAiStrategist,
           cpcEstimationCluster: clusterName,
-          cpcEstimationMultiplier: 1.0
+          cpcEstimationMultiplier: mult
         };
       } else if (rawLow > 0.50 && rawHigh <= 0.05) {
-        const estimatedHigh = Math.round(rawLow * 2.8 * 100) / 100;
+        const scaledLow = Math.round(rawLow * mult * 100) / 100;
+        const estimatedHigh = Math.round(rawLow * 2.8 * mult * 100) / 100;
         return {
           ...k,
           rawLowCpc: rawLow,
           rawHighCpc: rawHigh,
-          lowCpc: rawLow,
+          lowCpc: scaledLow,
           highCpc: estimatedHigh,
           isCpcEstimated: true,
           isAiStrategistPick: sanitizedIsAiStrategist,
           cpcEstimationCluster: clusterName,
-          cpcEstimationMultiplier: 1.0
+          cpcEstimationMultiplier: mult
         };
       }
+
+      const scaledLow = Math.round(rawLow * mult * 100) / 100;
+      const scaledHigh = Math.round(rawHigh * mult * 100) / 100;
 
       return {
         ...k,
         rawLowCpc: rawLow,
         rawHighCpc: rawHigh,
+        lowCpc: scaledLow,
+        highCpc: scaledHigh,
+        cpcEstimationMultiplier: mult,
         isAiStrategistPick: sanitizedIsAiStrategist
       };
     });
@@ -833,6 +841,21 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     });
   }, [normalizedKeywords, selectedKeywordIds, cpcImputationSettings]);
 
+  // Imputed keywords flat list from base clusters (Single source of truth for semantic enrichment and CPC imputation)
+  const imputedKeywords = useMemo(() => {
+    const list: KeywordMetric[] = [];
+    const seen = new Set<string>();
+    baseKeywordClusters.forEach(cluster => {
+      cluster.keywords.forEach(kw => {
+        if (!seen.has(kw.id)) {
+          seen.add(kw.id);
+          list.push(kw);
+        }
+      });
+    });
+    return list.length > 0 ? list : normalizedKeywords;
+  }, [baseKeywordClusters, normalizedKeywords]);
+
   const toggleGroupSelection = (cluster: { id: string; keywords: KeywordMetric[] }) => {
     const next = new Set(selectedKeywordIds);
     const clusterIds = cluster.keywords.map(k => k.id);
@@ -1166,6 +1189,13 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   // Multi-Campaign Sub-Campaigns State
   const [subCampaigns, setSubCampaigns] = useState<SubCampaignItem[]>([]);
   const [activeSubCampaignId, setActiveSubCampaignId] = useState<string | null>(null);
+  const activeSubCampaign = useMemo(() => {
+    return subCampaigns.find(c => c.id === activeSubCampaignId);
+  }, [subCampaigns, activeSubCampaignId]);
+  const isGoogleSearchActive = useMemo(() => {
+    if (!activeSubCampaign) return true;
+    return activeSubCampaign.platform === 'GOOGLE' && (!activeSubCampaign.objective || activeSubCampaign.objective === 'GOOGLE_SEARCH');
+  }, [activeSubCampaign]);
   const [isAddCampaignModalOpen, setIsAddCampaignModalOpen] = useState<boolean>(false);
 
   // New Sub-Campaign Wizard Form State
@@ -1183,17 +1213,34 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
   // Total Master Monthly Budget
   const totalMasterMonthlyBudget = useMemo(() => {
+    if (subCampaigns.length === 0) return monthlyBudget || 0;
     return subCampaigns.reduce((sum, c) => sum + (c.monthlyBudget || 0), 0);
-  }, [subCampaigns]);
+  }, [subCampaigns, monthlyBudget]);
+
+  // Whenever monthlyBudget changes in any step/tab, keep active sub-campaign's monthlyBudget synchronized in real time
+  useEffect(() => {
+    if (isApplyingSubCampaignRef.current) return;
+    if (!activeSubCampaignId) return;
+    setSubCampaigns(prev => {
+      let changed = false;
+      const next = prev.map(c => {
+        if (c.id === activeSubCampaignId && c.monthlyBudget !== monthlyBudget) {
+          changed = true;
+          return { ...c, monthlyBudget: monthlyBudget || 0 };
+        }
+        return c;
+      });
+      return changed ? next : prev;
+    });
+  }, [monthlyBudget, activeSubCampaignId]);
 
   // Sync active sub-campaign snapshot
   const syncActiveSubCampaign = () => {
     setSubCampaigns(prev => prev.map(c => {
       if (c.id !== activeSubCampaignId) return c;
       const selectedKws = Array.from(selectedKeywordIds).map(id => keywords.find(k => k.id === id)).filter(Boolean) as KeywordMetric[];
-      const isGoogleSearch = c.platform === 'GOOGLE' && (c.objective === 'GOOGLE_SEARCH' || !c.objective);
       const hasKeywords = keywords.length > 0 || selectedKws.length > 0;
-      const subBudget = (isGoogleSearch && !hasKeywords) ? 0 : (monthlyBudget || 0);
+      const subBudget = (monthlyBudget !== undefined && monthlyBudget !== null && monthlyBudget > 0) ? monthlyBudget : 35000;
 
       return {
         ...c,
@@ -1264,10 +1311,10 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     setDetectedLanguage(lCode && lCode !== 'auto' ? lCode : 'tr');
     setDetectedLanguageName(lName);
 
-    if (target.monthlyBudget !== undefined) {
+    if (target.monthlyBudget !== undefined && target.monthlyBudget > 0) {
       setMonthlyBudget(target.monthlyBudget);
     } else {
-      setMonthlyBudget(0);
+      setMonthlyBudget(35000);
     }
     if (target.businessModel) {
       setBusinessModel(target.businessModel);
@@ -1345,6 +1392,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
     const newId = 'sub_' + Date.now();
     const campTitle = newCampName.trim() || `${newCampPlatform} Kampanya ${subCampaigns.length + 1}`;
+    const defaultBudget = (monthlyBudget && monthlyBudget > 0) ? monthlyBudget : 35000;
     const newCamp: SubCampaignItem = {
       id: newId,
       name: campTitle,
@@ -1354,7 +1402,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       languageName: 'Otomatik (Sayfa Dili)',
       languageFlag: '🌐',
       targetLocations: DEFAULT_LOCATIONS,
-      monthlyBudget: 0,
+      monthlyBudget: defaultBudget,
       selectedKeywords: [],
       discoveredKeywords: [],
       negativeCategories: [],
@@ -1389,7 +1437,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     setTargetLanguage('auto');
     setDetectedLanguage('auto');
     setDetectedLanguageName('Otomatik (Sayfa Dili)');
-    setMonthlyBudget(0);
+    setMonthlyBudget(defaultBudget);
     setQuery('');
     setIsAddCampaignModalOpen(false);
     setNewCampName('');
@@ -1594,11 +1642,15 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     if (plan.tags) setPlanTags(plan.tags);
 
     if (Array.isArray(plan.subCampaigns)) {
-      setSubCampaigns(plan.subCampaigns);
-      if (plan.subCampaigns.length > 0) {
+      const sanitizedSubs = plan.subCampaigns.map(c => ({
+        ...c,
+        monthlyBudget: (c.monthlyBudget && c.monthlyBudget > 0) ? c.monthlyBudget : (plan.monthlyBudget || 35000)
+      }));
+      setSubCampaigns(sanitizedSubs);
+      if (sanitizedSubs.length > 0) {
         const chosenSub = targetSubId 
-          ? (plan.subCampaigns.find(c => c.id === targetSubId) || plan.subCampaigns[0])
-          : plan.subCampaigns[0];
+          ? (sanitizedSubs.find(c => c.id === targetSubId) || sanitizedSubs[0])
+          : sanitizedSubs[0];
         
         applySubCampaignToState(chosenSub);
       } else {
@@ -2104,9 +2156,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
   // Selected Keyword Pool for Simulation (Pure Official Google Ads metrics)
   const selectedKeywordsPool = useMemo(() => {
-    if (selectedKeywordIds.size === 0) return normalizedKeywords;
-    return normalizedKeywords.filter(k => selectedKeywordIds.has(k.id));
-  }, [normalizedKeywords, selectedKeywordIds]);
+    if (selectedKeywordIds.size === 0) return imputedKeywords;
+    return imputedKeywords.filter(k => selectedKeywordIds.has(k.id));
+  }, [imputedKeywords, selectedKeywordIds]);
 
   // Overall Aggregate KPIs (Pure Official Sum across selected locations - Zero proportional estimation)
   const baseSearchVolume = useMemo(() => {
@@ -2164,28 +2216,62 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
   // 🔄 Bidirectional Synchronization Handlers (Budget <-> Impression Share <-> CTR)
   const handleGoogleBudgetChange = (newSpend: number) => {
-    if (monthlyBudget > 0) {
-      const newAlloc = Math.max(0, Math.min(100, Math.round((newSpend / monthlyBudget) * 100)));
-      updateChannelAllocation('google', newAlloc);
-      if (activeSearchCpc > 0 && expectedCtr > 0 && totalSearchVolume > 0) {
-        const theoreticalClicks = newSpend / activeSearchCpc;
-        const theoreticalImpressions = theoreticalClicks / (expectedCtr / 100);
-        const calculatedIS = Math.max(5, Math.min(95, Math.round((theoreticalImpressions / totalSearchVolume) * 100)));
-        setTargetImpressionShare(calculatedIS);
+    const validSpend = isNaN(newSpend) ? 0 : Math.max(0, Math.round(newSpend));
+    if (isGoogleSearchActive || allocGoogleSearch === 100) {
+      setMonthlyBudget(validSpend);
+    } else {
+      const currentGoogleSpend = Math.round((monthlyBudget * allocGoogleSearch) / 100);
+      const otherSpend = Math.max(0, monthlyBudget - currentGoogleSpend);
+      if (otherSpend > 0) {
+        const newTotal = validSpend + otherSpend;
+        setMonthlyBudget(newTotal);
+        const newAlloc = newTotal > 0 ? Math.max(1, Math.min(100, Math.round((validSpend / newTotal) * 100))) : 50;
+        updateChannelAllocation('google', newAlloc);
+      } else {
+        const alloc = allocGoogleSearch > 0 ? allocGoogleSearch : 50;
+        const newTotal = Math.round(validSpend / (alloc / 100));
+        setMonthlyBudget(newTotal);
+        // If allocGoogleSearch was 0, set it to 50% so the input reflects the spend
+        if (allocGoogleSearch === 0 && newTotal > 0) {
+          updateChannelAllocation('google', 50);
+        }
       }
+    }
+
+    if (activeSearchCpc > 0 && expectedCtr > 0 && totalSearchVolume > 0 && validSpend > 0) {
+      const theoreticalClicks = validSpend / activeSearchCpc;
+      const theoreticalImpressions = theoreticalClicks / (expectedCtr / 100);
+      const calculatedIS = Math.max(1, Math.min(95, Math.round((theoreticalImpressions / totalSearchVolume) * 100)));
+      setTargetImpressionShare(calculatedIS);
+    } else if (validSpend === 0) {
+      setTargetImpressionShare(0);
     }
   };
 
   const handleImpressionShareChange = (newIS: number) => {
-    const clampedIS = Math.max(5, Math.min(95, newIS));
+    const clampedIS = Math.max(5, Math.min(95, Math.round(newIS)));
     setTargetImpressionShare(clampedIS);
     // In BY_IMPRESSION_SHARE mode, dynamically compute required spend and update channel allocation
-    if (budgetMode === 'BY_IMPRESSION_SHARE' && activeSearchCpc > 0 && expectedCtr > 0 && totalSearchVolume > 0 && monthlyBudget > 0) {
+    if (activeSearchCpc > 0 && expectedCtr > 0 && totalSearchVolume > 0) {
       const estImps = Math.round(totalSearchVolume * (clampedIS / 100));
       const estClicks = Math.round(estImps * (expectedCtr / 100));
       const requiredSpend = Math.round(estClicks * activeSearchCpc);
-      const newAlloc = Math.max(1, Math.min(100, Math.round((requiredSpend / monthlyBudget) * 100)));
-      updateChannelAllocation('google', newAlloc);
+      if (isGoogleSearchActive || allocGoogleSearch === 100) {
+        setMonthlyBudget(requiredSpend);
+      } else {
+        const currentGoogleSpend = Math.round((monthlyBudget * allocGoogleSearch) / 100);
+        const otherSpend = Math.max(0, monthlyBudget - currentGoogleSpend);
+        if (otherSpend > 0) {
+          const newTotal = requiredSpend + otherSpend;
+          setMonthlyBudget(newTotal);
+          const newAlloc = newTotal > 0 ? Math.max(1, Math.min(100, Math.round((requiredSpend / newTotal) * 100))) : 50;
+          updateChannelAllocation('google', newAlloc);
+        } else {
+          const alloc = allocGoogleSearch > 0 ? allocGoogleSearch : 50;
+          const newTotal = Math.round(requiredSpend / (alloc / 100));
+          setMonthlyBudget(newTotal);
+        }
+      }
     }
   };
 
@@ -2196,26 +2282,59 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   // Keep targetImpressionShare in sync when monthlyBudget or allocGoogleSearch changes from other tabs
   useEffect(() => {
     if (budgetMode === 'BY_BUDGET') {
-      const currentSpend = Math.round((monthlyBudget * allocGoogleSearch) / 100);
-      if (activeSearchCpc > 0 && expectedCtr > 0 && totalSearchVolume > 0) {
+      const currentSpend = isGoogleSearchActive ? monthlyBudget : Math.round((monthlyBudget * allocGoogleSearch) / 100);
+      if (activeSearchCpc > 0 && expectedCtr > 0 && totalSearchVolume > 0 && currentSpend > 0) {
         const clicks = currentSpend / activeSearchCpc;
         const impressions = clicks / (expectedCtr / 100);
-        const calculatedIS = Math.max(5, Math.min(95, Math.round((impressions / totalSearchVolume) * 100)));
+        const calculatedIS = Math.max(1, Math.min(95, Math.round((impressions / totalSearchVolume) * 100)));
         setTargetImpressionShare(prev => (prev !== calculatedIS ? calculatedIS : prev));
+      } else if (currentSpend === 0) {
+        setTargetImpressionShare(0);
       }
     }
-  }, [budgetMode, monthlyBudget, allocGoogleSearch, expectedCtr, activeSearchCpc, totalSearchVolume]);
+  }, [budgetMode, monthlyBudget, allocGoogleSearch, isGoogleSearchActive, expectedCtr, activeSearchCpc, totalSearchVolume]);
 
   // 🎛️ Real-Time Dynamic Simulation Calculation (Strictly Capped by Total Market Search Volume & Impression Share)
   const simulation: ForecastSimulation = useMemo(() => {
     const activeCpc = activeSearchCpc;
     const availableMarketVolume = totalSearchVolume; // Total searches in selected target markets
-    const googleSearchBudget = Math.round((monthlyBudget * allocGoogleSearch) / 100);
+    const googleSearchBudget = isGoogleSearchActive ? monthlyBudget : Math.round((monthlyBudget * allocGoogleSearch) / 100);
     
     // 1. Calculate Maximum Market Capacity (95% Impression Share)
     const maxPossibleImpressions = Math.max(1, availableMarketVolume);
     const maxPossibleClicks = Math.max(1, Math.round(maxPossibleImpressions * (expectedCtr / 100)));
     const marketCapacitySpend = Math.round(maxPossibleClicks * activeCpc);
+
+    const baseConvRate = businessModel === 'LEAD_GEN' ? leadConversionRate : ecommerceConversionRate;
+    const activeConvRate = Number((baseConvRate * scenarioMultiplier.crMult).toFixed(2));
+    const activeCloseRate = Number((leadCloseRate * scenarioMultiplier.crMult).toFixed(2));
+
+    // If budget is zero, return clean zero projection without fake impressions/clicks
+    if (googleSearchBudget <= 0 && budgetMode === 'BY_BUDGET') {
+      return {
+        businessModel,
+        monthlyBudget: 0,
+        dailyBudget: 0,
+        actualSpend: 0,
+        marketCapacitySpend,
+        isMarketSaturated: false,
+        targetImpressionShare: 0,
+        estImpressions: 0,
+        estClicks: 0,
+        avgCpc: activeCpc,
+        avgCtr: expectedCtr,
+        conversionRate: activeConvRate,
+        estConversions: 0,
+        cpa: 0,
+        leadCloseRate: activeCloseRate,
+        estDeals: 0,
+        cac: 0,
+        avgOrderValue,
+        estRevenue: 0,
+        projectedRoas: 0,
+        targetCountries: selectedLocations.map(l => l.name)
+      };
+    }
 
     // 2. Calculate Effective Impression Share and Actual Spend based on Budget Mode
     let effectiveIS = targetImpressionShare;
@@ -2233,7 +2352,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         isMarketSaturated = true;
         actualSpend = marketCapacitySpend;
       } else {
-        effectiveIS = Math.max(5, Math.min(95, Math.round(calculatedIS)));
+        effectiveIS = Math.max(1, Math.min(94, Math.round(calculatedIS)));
         actualSpend = googleSearchBudget;
       }
     } else {
@@ -2246,19 +2365,16 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
     // 3. Realistic Impressions & Clicks (Strictly bounded by available searches in market)
     const estImpressions = Math.min(availableMarketVolume, Math.round(availableMarketVolume * (effectiveIS / 100)));
-    const estClicks = Math.max(1, Math.round(estImpressions * (expectedCtr / 100)));
+    const estClicks = Math.max(actualSpend > 0 ? 1 : 0, Math.round(estImpressions * (expectedCtr / 100)));
     const dailyBudget = Math.round(actualSpend / 30.4);
 
     // 4. Conversions based on Business Model
-    const baseConvRate = businessModel === 'LEAD_GEN' ? leadConversionRate : ecommerceConversionRate;
-    const activeConvRate = Number((baseConvRate * scenarioMultiplier.crMult).toFixed(2));
     const estConversions = Math.max(0, Math.round(estClicks * (activeConvRate / 100)));
-    const cpa = estConversions > 0 ? Math.round(actualSpend / estConversions) : actualSpend;
+    const cpa = estConversions > 0 ? Math.round(actualSpend / estConversions) : 0;
 
     // 5. Deals & CAC (For Lead Gen)
-    const activeCloseRate = Number((leadCloseRate * scenarioMultiplier.crMult).toFixed(2));
-    const estDeals = businessModel === 'LEAD_GEN' ? Math.round(estConversions * (activeCloseRate / 100)) : 0;
-    const cac = estDeals > 0 ? Math.round(actualSpend / estDeals) : actualSpend;
+    const estDeals = businessModel === 'LEAD_GEN' ? Math.round(estConversions * (activeCloseRate / 100)) : (businessModel === 'ECOMMERCE' ? estConversions : 0);
+    const cac = estDeals > 0 ? Math.round(actualSpend / estDeals) : 0;
 
     // 6. Revenue & ROAS (For E-Commerce or Deal Value)
     let estRevenue = 0;
@@ -2297,9 +2413,10 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     budgetMode,
     monthlyBudget,
     allocGoogleSearch,
+    isGoogleSearchActive,
     targetImpressionShare,
     expectedCtr,
-    avgTopPageCpc,
+    activeSearchCpc,
     totalSearchVolume,
     leadConversionRate,
     leadCloseRate,
@@ -2652,20 +2769,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     ) || null;
   }, [activeLocationScope, activeScopeLocation, countryBreakdown]);
 
-  // Imputed keywords flat list from base clusters (Single source of truth for semantic enrichment and CPC imputation)
-  const imputedKeywords = useMemo(() => {
-    const list: KeywordMetric[] = [];
-    const seen = new Set<string>();
-    baseKeywordClusters.forEach(cluster => {
-      cluster.keywords.forEach(kw => {
-        if (!seen.has(kw.id)) {
-          seen.add(kw.id);
-          list.push(kw);
-        }
-      });
-    });
-    return list.length > 0 ? list : normalizedKeywords;
-  }, [baseKeywordClusters, normalizedKeywords]);
+
 
   // Scoped keywords adapted to chosen location (or aggregated if ALL), retaining full CPC imputation
   const scopedKeywords = useMemo(() => {
@@ -2710,11 +2814,12 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       const directLocLowCpc = directCpcObj?.lowCpc;
       const directLocHighCpc = directCpcObj?.highCpc;
 
+      const intentMultiplier = k.cpcEstimationMultiplier || 1.0;
       const baseLow = (directLocLowCpc !== undefined && directLocLowCpc > 0) 
-        ? directLocLowCpc 
+        ? directLocLowCpc * intentMultiplier
         : (k.lowCpc > 0 ? k.lowCpc * locCpcMultiplier : 0);
       const baseHigh = (directLocHighCpc !== undefined && directLocHighCpc > 0) 
-        ? directLocHighCpc 
+        ? directLocHighCpc * intentMultiplier
         : (k.highCpc > 0 ? k.highCpc * locCpcMultiplier : 0);
 
       if (directLocVol !== undefined) {
@@ -2993,9 +3098,6 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     link.click();
     document.body.removeChild(link);
   };
-
-  const activeSubCampaign = subCampaigns.find(c => c.id === activeSubCampaignId);
-  const isGoogleSearchActive = activeSubCampaign?.platform === 'GOOGLE' && activeSubCampaign?.objective === 'GOOGLE_SEARCH';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -3630,7 +3732,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     fontWeight: 600 
                   }}
                 >
-                  ₺{(camp.monthlyBudget || 0).toLocaleString('tr-TR')}
+                  ₺{(isActive ? (monthlyBudget || camp.monthlyBudget || 0) : (camp.monthlyBudget || 0)).toLocaleString('tr-TR')}
                 </span>
 
                 <button
@@ -5483,9 +5585,19 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
                   <button
                     onClick={() => {
-                      syncActiveSubCampaign();
+                      let b = monthlyBudget;
+                      if (b <= 0) {
+                        const selVol = keywords.filter(k => selectedKeywordIds.has(k.id)).reduce((s, k) => s + k.monthlyVolume, 0);
+                        const avgCpc = avgTopPageCpc > 0 ? avgTopPageCpc : 12.0;
+                        b = Math.max(25000, Math.round((selVol > 0 ? selVol : 1000) * 0.15 * avgCpc * 2));
+                        setMonthlyBudget(b);
+                      }
                       setIsStep1Completed(true);
                       setCurrentStep(2);
+                      // sync after state update or pass explicit update
+                      setTimeout(() => {
+                        syncActiveSubCampaign();
+                      }, 50);
                     }}
                     disabled={selectedKeywordIds.size === 0}
                     className="btn-primary"
@@ -5789,20 +5901,24 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                         Toplam Aylık Medya Bütçesi
                       </label>
                       <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                        Günlük ortalama: <strong>₺{Math.round(monthlyBudget / 30.4).toLocaleString('tr-TR')}</strong> / gün
+                        Günlük ortalama: <strong>₺{Math.round((monthlyBudget || 0) / 30.4).toLocaleString('tr-TR')}</strong> / gün
                       </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                       <span style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-secondary)' }}>₺</span>
                       <input
                         type="number"
-                        min={1000}
-                        max={2000000}
-                        step={1000}
-                        value={monthlyBudget}
-                        onChange={(e) => setMonthlyBudget(Math.max(1000, Number(e.target.value)))}
+                        min={0}
+                        max={10000000}
+                        step={500}
+                        value={monthlyBudget === 0 ? '' : monthlyBudget}
+                        placeholder="0"
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setMonthlyBudget(val === '' ? 0 : Math.max(0, Number(val)));
+                        }}
                         style={{
-                          width: '115px',
+                          width: '120px',
                           padding: '3px 8px',
                           fontSize: '1.1rem',
                           fontWeight: 800,
@@ -5815,29 +5931,59 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       />
                     </div>
                   </div>
-                  <input
-                    type="range"
-                    min={5000}
-                    max={500000}
-                    step={2500}
-                    value={monthlyBudget}
-                    onChange={(e) => setMonthlyBudget(Number(e.target.value))}
-                    style={{
-                      width: '100%',
-                      accentColor: '#2563eb',
-                      cursor: 'pointer',
-                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.min(100, Math.max(0, Math.round(((monthlyBudget - 5000) / 495000) * 100)))}%, var(--border-default) ${Math.min(100, Math.max(0, Math.round(((monthlyBudget - 5000) / 495000) * 100)))}%, var(--border-default) 100%)`,
-                      height: '6px',
-                      borderRadius: 'var(--radius-full)'
-                    }}
-                  />
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                    <span>₺5.000</span>
-                    <span>₺50.000</span>
-                    <span>₺125.000</span>
-                    <span>₺250.000</span>
-                    <span>₺500.000</span>
-                  </div>
+                  {(() => {
+                    const maxBudgetSlider = Math.max(500000, Math.round((monthlyBudget || 35000) * 1.5));
+                    const fillPercent = maxBudgetSlider > 0 ? Math.min(100, Math.max(0, Math.round(((monthlyBudget || 0) / maxBudgetSlider) * 100))) : 0;
+                    return (
+                      <>
+                        <input
+                          type="range"
+                          min={0}
+                          max={maxBudgetSlider}
+                          step={500}
+                          value={monthlyBudget || 0}
+                          onChange={(e) => setMonthlyBudget(Number(e.target.value))}
+                          style={{
+                            width: '100%',
+                            accentColor: '#2563eb',
+                            cursor: 'pointer',
+                            background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${fillPercent}%, var(--border-default) ${fillPercent}%, var(--border-default) 100%)`,
+                            height: '6px',
+                            borderRadius: 'var(--radius-full)'
+                          }}
+                        />
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap', marginTop: '0.1rem' }}>
+                          <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Hızlı Bütçe:</span>
+                          {[
+                            { label: '₺5.000', val: 5000 },
+                            { label: '₺15.000', val: 15000 },
+                            { label: '₺35.000', val: 35000 },
+                            { label: '₺75.000', val: 75000 },
+                            { label: '₺150.000', val: 150000 },
+                            { label: '₺300.000', val: 300000 }
+                          ].map(chip => (
+                            <button
+                              key={chip.label}
+                              type="button"
+                              onClick={() => setMonthlyBudget(chip.val)}
+                              style={{
+                                padding: '2px 7px',
+                                fontSize: '0.68rem',
+                                borderRadius: 'var(--radius-xs)',
+                                border: monthlyBudget === chip.val ? '1px solid var(--brand-primary)' : '1px solid var(--border-default)',
+                                backgroundColor: monthlyBudget === chip.val ? 'rgba(37, 99, 235, 0.12)' : 'var(--bg-surface-elevated)',
+                                color: monthlyBudget === chip.val ? 'var(--brand-primary)' : 'var(--text-secondary)',
+                                cursor: 'pointer',
+                                fontWeight: monthlyBudget === chip.val ? 700 : 500
+                              }}
+                            >
+                              {chip.label}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
 
                 {/* Quick Presets */}
@@ -5906,14 +6052,23 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                         <input
                           type="number"
                           min={0}
-                          max={monthlyBudget}
+                          max={Math.max(10000000, monthlyBudget)}
                           step={250}
-                          value={omnichannelMix.googleSearchSpend}
+                          value={Math.round(omnichannelMix.googleSearchSpend) === 0 ? '' : Math.round(omnichannelMix.googleSearchSpend)}
+                          placeholder="0"
                           onChange={(e) => {
-                            const newSpend = Number(e.target.value);
-                            if (monthlyBudget > 0) {
-                              const newAlloc = Math.max(0, Math.min(100, Math.round((newSpend / monthlyBudget) * 100)));
+                            const newSpend = e.target.value === '' ? 0 : Number(e.target.value);
+                            const currentGoogleSpend = Math.round((monthlyBudget * allocGoogleSearch) / 100);
+                            const otherSpend = Math.max(0, monthlyBudget - currentGoogleSpend);
+                            if (otherSpend > 0) {
+                              const newTotal = newSpend + otherSpend;
+                              setMonthlyBudget(newTotal);
+                              const newAlloc = newTotal > 0 ? Math.max(1, Math.min(100, Math.round((newSpend / newTotal) * 100))) : 50;
                               updateChannelAllocation('google', newAlloc);
+                            } else {
+                              const alloc = allocGoogleSearch > 0 ? allocGoogleSearch : 50;
+                              const newTotal = Math.round(newSpend / (alloc / 100));
+                              setMonthlyBudget(newTotal);
                             }
                           }}
                           style={{
@@ -5964,14 +6119,23 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                         <input
                           type="number"
                           min={0}
-                          max={monthlyBudget}
+                          max={Math.max(10000000, monthlyBudget)}
                           step={250}
-                          value={omnichannelMix.metaAdsSpend}
+                          value={Math.round(omnichannelMix.metaAdsSpend) === 0 ? '' : Math.round(omnichannelMix.metaAdsSpend)}
+                          placeholder="0"
                           onChange={(e) => {
-                            const newSpend = Number(e.target.value);
-                            if (monthlyBudget > 0) {
-                              const newAlloc = Math.max(0, Math.min(100, Math.round((newSpend / monthlyBudget) * 100)));
+                            const newSpend = e.target.value === '' ? 0 : Number(e.target.value);
+                            const currentMetaSpend = Math.round((monthlyBudget * allocMetaAds) / 100);
+                            const otherSpend = Math.max(0, monthlyBudget - currentMetaSpend);
+                            if (otherSpend > 0) {
+                              const newTotal = newSpend + otherSpend;
+                              setMonthlyBudget(newTotal);
+                              const newAlloc = newTotal > 0 ? Math.max(1, Math.min(100, Math.round((newSpend / newTotal) * 100))) : 30;
                               updateChannelAllocation('meta', newAlloc);
+                            } else {
+                              const alloc = allocMetaAds > 0 ? allocMetaAds : 30;
+                              const newTotal = Math.round(newSpend / (alloc / 100));
+                              setMonthlyBudget(newTotal);
                             }
                           }}
                           style={{
@@ -6022,14 +6186,23 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                         <input
                           type="number"
                           min={0}
-                          max={monthlyBudget}
+                          max={Math.max(10000000, monthlyBudget)}
                           step={250}
-                          value={omnichannelMix.youtubeSpend}
+                          value={Math.round(omnichannelMix.youtubeSpend) === 0 ? '' : Math.round(omnichannelMix.youtubeSpend)}
+                          placeholder="0"
                           onChange={(e) => {
-                            const newSpend = Number(e.target.value);
-                            if (monthlyBudget > 0) {
-                              const newAlloc = Math.max(0, Math.min(100, Math.round((newSpend / monthlyBudget) * 100)));
+                            const newSpend = e.target.value === '' ? 0 : Number(e.target.value);
+                            const currentSpend = Math.round((monthlyBudget * allocYouTube) / 100);
+                            const otherSpend = Math.max(0, monthlyBudget - currentSpend);
+                            if (otherSpend > 0) {
+                              const newTotal = newSpend + otherSpend;
+                              setMonthlyBudget(newTotal);
+                              const newAlloc = newTotal > 0 ? Math.max(1, Math.min(100, Math.round((newSpend / newTotal) * 100))) : 10;
                               updateChannelAllocation('youtube', newAlloc);
+                            } else {
+                              const alloc = allocYouTube > 0 ? allocYouTube : 10;
+                              const newTotal = Math.round(newSpend / (alloc / 100));
+                              setMonthlyBudget(newTotal);
                             }
                           }}
                           style={{
@@ -6080,14 +6253,23 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                         <input
                           type="number"
                           min={0}
-                          max={monthlyBudget}
+                          max={Math.max(10000000, monthlyBudget)}
                           step={250}
-                          value={omnichannelMix.gdnSpend}
+                          value={Math.round(omnichannelMix.gdnSpend) === 0 ? '' : Math.round(omnichannelMix.gdnSpend)}
+                          placeholder="0"
                           onChange={(e) => {
-                            const newSpend = Number(e.target.value);
-                            if (monthlyBudget > 0) {
-                              const newAlloc = Math.max(0, Math.min(100, Math.round((newSpend / monthlyBudget) * 100)));
+                            const newSpend = e.target.value === '' ? 0 : Number(e.target.value);
+                            const currentSpend = Math.round((monthlyBudget * allocGdn) / 100);
+                            const otherSpend = Math.max(0, monthlyBudget - currentSpend);
+                            if (otherSpend > 0) {
+                              const newTotal = newSpend + otherSpend;
+                              setMonthlyBudget(newTotal);
+                              const newAlloc = newTotal > 0 ? Math.max(1, Math.min(100, Math.round((newSpend / newTotal) * 100))) : 10;
                               updateChannelAllocation('gdn', newAlloc);
+                            } else {
+                              const alloc = allocGdn > 0 ? allocGdn : 10;
+                              const newTotal = Math.round(newSpend / (alloc / 100));
+                              setMonthlyBudget(newTotal);
                             }
                           }}
                           style={{
@@ -6818,11 +7000,11 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     <button
                       onClick={() => {
                         setBudgetMode('BY_BUDGET');
-                        const currentSpend = Math.round((monthlyBudget * allocGoogleSearch) / 100);
-                        if (activeSearchCpc > 0 && expectedCtr > 0 && totalSearchVolume > 0) {
+                        const currentSpend = isGoogleSearchActive ? monthlyBudget : Math.round((monthlyBudget * allocGoogleSearch) / 100);
+                        if (activeSearchCpc > 0 && expectedCtr > 0 && totalSearchVolume > 0 && currentSpend > 0) {
                           const clicks = currentSpend / activeSearchCpc;
                           const impressions = clicks / (expectedCtr / 100);
-                          const calculatedIS = Math.max(5, Math.min(95, Math.round((impressions / totalSearchVolume) * 100)));
+                          const calculatedIS = Math.max(1, Math.min(95, Math.round((impressions / totalSearchVolume) * 100)));
                           setTargetImpressionShare(calculatedIS);
                         }
                       }}
@@ -6842,13 +7024,27 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     <button
                       onClick={() => {
                         setBudgetMode('BY_IMPRESSION_SHARE');
-                        if (totalSearchVolume > 0 && expectedCtr > 0 && activeSearchCpc > 0 && monthlyBudget > 0) {
-                          const clampedIS = Math.max(5, Math.min(95, targetImpressionShare));
+                        if (totalSearchVolume > 0 && expectedCtr > 0 && activeSearchCpc > 0) {
+                          const clampedIS = Math.max(5, Math.min(95, targetImpressionShare || 70));
                           const impressions = totalSearchVolume * (clampedIS / 100);
                           const clicks = impressions * (expectedCtr / 100);
                           const requiredSpend = Math.round(clicks * activeSearchCpc);
-                          const newAlloc = Math.max(0, Math.min(100, Math.round((requiredSpend / monthlyBudget) * 100)));
-                          updateChannelAllocation('google', newAlloc);
+                          if (isGoogleSearchActive || allocGoogleSearch === 100) {
+                            setMonthlyBudget(requiredSpend);
+                          } else {
+                            const currentGoogleSpend = Math.round((monthlyBudget * allocGoogleSearch) / 100);
+                            const otherSpend = Math.max(0, monthlyBudget - currentGoogleSpend);
+                            if (otherSpend > 0) {
+                              const newTotal = requiredSpend + otherSpend;
+                              setMonthlyBudget(newTotal);
+                              const newAlloc = newTotal > 0 ? Math.max(1, Math.min(100, Math.round((requiredSpend / newTotal) * 100))) : 50;
+                              updateChannelAllocation('google', newAlloc);
+                            } else {
+                              const alloc = allocGoogleSearch > 0 ? allocGoogleSearch : 50;
+                              const newTotal = Math.round(requiredSpend / (alloc / 100));
+                              setMonthlyBudget(newTotal);
+                            }
+                          }
                         }
                       }}
                       style={{
@@ -6869,27 +7065,35 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
                 {/* Monthly Budget Slider */}
                 {budgetMode === 'BY_BUDGET' ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                       <div>
                         <label style={{ fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                          Google Search Ayrılan Bütçe (%{allocGoogleSearch})
+                          {isGoogleSearchActive ? 'Google Search Aylık Bütçesi' : `Google Search Ayrılan Bütçe (%${allocGoogleSearch})`}
                         </label>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                          Toplam ₺{monthlyBudget.toLocaleString('tr-TR')} medya bütçesinin %{allocGoogleSearch}'i • <strong>Günlük: ₺{Math.round(Math.round((monthlyBudget * allocGoogleSearch) / 100) / 30.4).toLocaleString('tr-TR')}/gün</strong> • <strong>Tahmini Gösterim Payı: %{simulation.targetImpressionShare}</strong>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                          {isGoogleSearchActive ? (
+                            <>Günlük ortalama: <strong>₺{Math.round((monthlyBudget || 0) / 30.4).toLocaleString('tr-TR')}/gün</strong> • Tahmini Gösterim Payı: <strong>%{simulation.targetImpressionShare}</strong></>
+                          ) : (
+                            <>Toplam ₺{(monthlyBudget || 0).toLocaleString('tr-TR')} medya bütçesinin %{allocGoogleSearch}'i • <strong>Günlük: ₺{Math.round(Math.round(((monthlyBudget || 0) * allocGoogleSearch) / 100) / 30.4).toLocaleString('tr-TR')}/gün</strong> • <strong>Tahmini Gösterim Payı: %{simulation.targetImpressionShare}</strong></>
+                          )}
                         </div>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                         <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-secondary)' }}>₺</span>
                         <input
                           type="number"
-                          min={100}
-                          max={Math.max(1000, monthlyBudget)}
+                          min={0}
+                          max={10000000}
                           step={250}
-                          value={Math.round((monthlyBudget * allocGoogleSearch) / 100)}
-                          onChange={(e) => handleGoogleBudgetChange(Number(e.target.value))}
+                          value={isGoogleSearchActive ? ((monthlyBudget || 0) === 0 ? '' : monthlyBudget) : (Math.round(((monthlyBudget || 0) * allocGoogleSearch) / 100) === 0 ? '' : Math.round(((monthlyBudget || 0) * allocGoogleSearch) / 100))}
+                          placeholder="0"
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            handleGoogleBudgetChange(val === '' ? 0 : Number(val));
+                          }}
                           style={{
-                            width: '90px',
+                            width: '110px',
                             padding: '3px 6px',
                             fontSize: '0.95rem',
                             fontWeight: 800,
@@ -6902,22 +7106,60 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                         />
                       </div>
                     </div>
-                    <input
-                      type="range"
-                      min={500}
-                      max={Math.max(1000, monthlyBudget)}
-                      step={250}
-                      value={Math.round((monthlyBudget * allocGoogleSearch) / 100)}
-                      onChange={(e) => handleGoogleBudgetChange(Number(e.target.value))}
-                      style={{
-                        width: '100%',
-                        accentColor: '#2563eb',
-                        cursor: 'pointer',
-                        background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${allocGoogleSearch}%, var(--border-default) ${allocGoogleSearch}%, var(--border-default) 100%)`,
-                        height: '6px',
-                        borderRadius: 'var(--radius-full)'
-                      }}
-                    />
+                    {(() => {
+                      const curGoogleSpend = isGoogleSearchActive ? (monthlyBudget || 0) : Math.round((monthlyBudget * allocGoogleSearch) / 100);
+                      const maxSliderVal = Math.max(50000, Math.round((simulation.marketCapacitySpend || 50000) * 1.3), Math.round(curGoogleSpend * 1.3));
+                      const percentFill = maxSliderVal > 0 ? Math.min(100, Math.max(0, Math.round((curGoogleSpend / maxSliderVal) * 100))) : 0;
+                      return (
+                        <>
+                          <input
+                            type="range"
+                            min={0}
+                            max={maxSliderVal}
+                            step={250}
+                            value={curGoogleSpend}
+                            onChange={(e) => handleGoogleBudgetChange(Number(e.target.value))}
+                            style={{
+                              width: '100%',
+                              accentColor: '#2563eb',
+                              cursor: 'pointer',
+                              background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${percentFill}%, var(--border-default) ${percentFill}%, var(--border-default) 100%)`,
+                              height: '6px',
+                              borderRadius: 'var(--radius-full)'
+                            }}
+                          />
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap', marginTop: '0.1rem' }}>
+                            <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Hızlı Bütçe:</span>
+                            {[
+                              { label: '₺2.500', val: 2500 },
+                              { label: '₺5.000', val: 5000 },
+                              { label: '₺10.000', val: 10000 },
+                              { label: '₺25.000', val: 25000 },
+                              { label: '₺50.000', val: 50000 },
+                              ...(simulation.marketCapacitySpend > 0 ? [{ label: `🎯 Pazar Tavanı (₺${Math.round(simulation.marketCapacitySpend).toLocaleString('tr-TR')})`, val: Math.round(simulation.marketCapacitySpend) }] : [])
+                            ].map(chip => (
+                              <button
+                                key={chip.label}
+                                type="button"
+                                onClick={() => handleGoogleBudgetChange(chip.val)}
+                                style={{
+                                  padding: '2px 7px',
+                                  fontSize: '0.68rem',
+                                  borderRadius: 'var(--radius-xs)',
+                                  border: curGoogleSpend === chip.val ? '1px solid var(--brand-primary)' : '1px solid var(--border-default)',
+                                  backgroundColor: curGoogleSpend === chip.val ? 'rgba(37, 99, 235, 0.12)' : 'var(--bg-surface-elevated)',
+                                  color: curGoogleSpend === chip.val ? 'var(--brand-primary)' : 'var(--text-secondary)',
+                                  cursor: 'pointer',
+                                  fontWeight: curGoogleSpend === chip.val ? 700 : 500
+                                }}
+                              >
+                                {chip.label}
+                              </button>
+                            ))}
+                          </div>
+                        </>
+                      );
+                    })()}
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
@@ -6926,8 +7168,8 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                         <label style={{ fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                           Hedef Pazar Gösterim Payı (IS %)
                         </label>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                          Ayrılan Bütçe: <strong>₺{simulation.actualSpend.toLocaleString('tr-TR')}</strong>/ay (%{allocGoogleSearch})
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                          Ayrılan Bütçe: <strong>₺{simulation.actualSpend.toLocaleString('tr-TR')}</strong>/ay {isGoogleSearchActive ? '' : `(%${allocGoogleSearch})`}
                         </div>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
@@ -6969,6 +7211,34 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                         borderRadius: 'var(--radius-full)'
                       }}
                     />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap', marginTop: '0.1rem' }}>
+                      <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Hedef Pay:</span>
+                      {[
+                        { label: '%25 Başlangıç', val: 25 },
+                        { label: '%50 Dengeli', val: 50 },
+                        { label: '%70 Rekabetçi', val: 70 },
+                        { label: '%85 Yüksek', val: 85 },
+                        { label: '%95 Pazar Hakimiyeti', val: 95 }
+                      ].map(chip => (
+                        <button
+                          key={chip.label}
+                          type="button"
+                          onClick={() => handleImpressionShareChange(chip.val)}
+                          style={{
+                            padding: '2px 7px',
+                            fontSize: '0.68rem',
+                            borderRadius: 'var(--radius-xs)',
+                            border: targetImpressionShare === chip.val ? '1px solid var(--brand-primary)' : '1px solid var(--border-default)',
+                            backgroundColor: targetImpressionShare === chip.val ? 'rgba(37, 99, 235, 0.12)' : 'var(--bg-surface-elevated)',
+                            color: targetImpressionShare === chip.val ? 'var(--brand-primary)' : 'var(--text-secondary)',
+                            cursor: 'pointer',
+                            fontWeight: targetImpressionShare === chip.val ? 700 : 500
+                          }}
+                        >
+                          {chip.label}
+                        </button>
+                      ))}
+                    </div>
                     <div style={{
                       padding: '0.55rem 0.75rem',
                       backgroundColor: 'var(--bg-surface-elevated)',
@@ -6983,7 +7253,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     }}>
                       <span>Bu pay için gereken bütçe: <strong>₺{simulation.actualSpend.toLocaleString('tr-TR')}</strong>/ay</span>
                       <span style={{ fontSize: '0.7rem', color: '#10b981', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '3px' }}>
-                        ✓ Otomatik Senkronize (%{allocGoogleSearch})
+                        ✓ Otomatik Senkronize {isGoogleSearchActive ? '' : `(%${allocGoogleSearch})`}
                       </span>
                     </div>
                   </div>
