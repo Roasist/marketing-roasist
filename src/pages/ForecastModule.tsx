@@ -2172,7 +2172,16 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   }, [baseSearchVolume]);
 
   const baseTopPageCpc = useMemo(() => {
-    // 1. If official location breakdown is present, calculate exact blended weighted CPC across selected target locations
+    // 1. If user selected specific keywords in Step 1, prioritize the exact selected keywords' average CPC
+    if (selectedKeywordIds.size > 0 && selectedKeywordsPool.length > 0) {
+      const cpcSum = selectedKeywordsPool.reduce((sum, k) => sum + (((Number(k.lowCpc) || 0) + (Number(k.highCpc) || 0)) / 2), 0);
+      const avg = cpcSum / selectedKeywordsPool.length;
+      if (avg > 0) {
+        return Math.round(avg * 100) / 100;
+      }
+    }
+
+    // 2. If official location breakdown is present, calculate exact blended weighted CPC across selected target locations
     if (officialLocationBreakdown && officialLocationBreakdown.length > 0 && selectedLocations.length > 0) {
       let totalWeightedCpc = 0;
       let totalLocationVol = 0;
@@ -2192,7 +2201,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       }
     }
 
-    // 2. Fallback to volume-weighted keyword pool CPC
+    // 3. Fallback to volume-weighted keyword pool CPC
     if (selectedKeywordsPool.length === 0) return 6.50;
     const sumWeightedCpc = selectedKeywordsPool.reduce((sum, k) => {
       const avgKwCpc = (k.lowCpc + k.highCpc) / 2;
@@ -2205,7 +2214,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
     const simpleSumCpc = selectedKeywordsPool.reduce((sum, k) => sum + ((k.lowCpc + k.highCpc) / 2), 0);
     return simpleSumCpc > 0 ? simpleSumCpc / selectedKeywordsPool.length : 6.50;
-  }, [selectedKeywordsPool, officialLocationBreakdown, selectedLocations]);
+  }, [selectedKeywordIds, selectedKeywordsPool, officialLocationBreakdown, selectedLocations]);
 
   const avgTopPageCpc = useMemo(() => {
     return baseTopPageCpc;
