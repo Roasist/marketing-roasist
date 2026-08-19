@@ -355,93 +355,107 @@ export const groupKeywordsSemantically = (kwList: KeywordMetric[]): KeywordClust
 
   const clusters: KeywordCluster[] = [];
 
-  // 2. High-converting Granular STAG Theme Rules (Multi-Lingual: Russian, Turkish, English, German, Arabic)
+  // 2. High-converting Granular STAG Theme Rules (Strict Priority Hierarchy: CBI -> Citizenship -> Residency -> Rental -> Pricing -> Legal -> Process -> Luxury -> Location -> Property Buying)
   const stagRules = [
-    // 1. Yatırım Yoluyla Vatandaşlık & CBI (Citizenship by Investment)
+    // 1. Yatırım Yoluyla Vatandaşlık & CBI (Citizenship by Investment) - HIGHEST SPECIFICITY
     {
       id: 'stag_cbi_investment',
       name: '💎 Yatırım Yoluyla Vatandaşlık (CBI)',
       icon: '💎',
-      regex: /(?:^|[^\p{L}\p{N}])(за инвестиции|через инвестиции|инвестиции в недвижимость|инвестиционн|инвестиции|инвестор|инвесторов|инвестировать|yatırım yoluyla|yatırımla|yatırım ile|yatırımcı|gayrimenkul yatırımı|citizenship by investment|golden visa|cbi|investor visa|invest in property|investition|investor|عن طريق الإستثمار|عبر الإستثمار|استثمار|استثماري|عقاري|فيزا ذهبية|إقامة مستثمر|از طریق سرمایه‌گذاری|سرمایه‌گذاری|سرمایه گذاری|سرمایه گذار|ویزای طلایی)(?:[^\p{L}\p{N}]|$)/ui
+      regex: /(?:^|[^\p{L}\p{N}])(за инвестиции|через инвестиции|инвестиции в недвижимость|инвестиционн|инвестиции|инвестор|инвесторов|инвестировать|yatırım yoluyla|yatırımla|yatırım ile|yatırımcı|gayrimenkul yatırımı|fon yatırımı|citizenship by investment|golden visa|cbi|investor visa|invest in property|investment program|investition|investor|عن طريق الإستثمار|عبر الإستثمار|استثمار|استثماري|عقاري|فيزا ذهبية|إقامة مستثمر|از طریق سرمایه‌گذاری|سرمایه‌گذاری|سرمایه گذاری|سرمایه گذار|ویزای طلایی)(?:[^\p{L}\p{N}]|$)/ui
     },
-    // 2. Fiyat, Harç & Maliyetler (Pricing, Costs & Investment Amount)
-    {
-      id: 'stag_pricing',
-      name: '💰 Fiyat, Harç & Uygun Seçenekler',
-      icon: '💰',
-      regex: /(?:^|[^\p{L}\p{N}])(цена|цены|цену|ценам|стоимост|стоимость|сколько стоит|расход|расходы|пошлин|пошлина|пошлины|тариф|тарифы|дешев|дешево|недорог|недорого|прайс|минимальн|fiyat|fiyatı|fiyatları|ücret|ücreti|ücretleri|maliyet|maliyeti|paket|paketleri|kaç para|ne kadar|masraf|harç|teklif al|bütçe|hesaplama|price|prices|pricing|cost|costs|fee|fees|package|packages|how much|budget|cheap|affordable|quote|rates|calculator|preise|preis|kosten|gebühr|سعر|اسعار|أسعار|تكلفة|تكاليف|رسوم|كم سعر|رخيص|رخيصة|ميزانية|أرخص|قیمت|قیمت‌ها|هزینه|هزینه‌ها|چقدر است|ارزان|ارزان‌ترین|تعرفه)(?:[^\p{L}\p{N}]|$)/ui
-    },
-    // 3. Gayrimenkul & Konut Satın Alma (Real Estate & Property Buying)
-    {
-      id: 'stag_realestate',
-      name: '🏢 Gayrimenkul & Konut Satın Alma',
-      icon: '🏢',
-      regex: /(?:^|[^\p{L}\p{N}])(купить квартиру|купить апартаменты|купить дом|купить виллу|купить жилье|купить|покупк|покупка|недвижим|недвижимость|недвижимости|квартир|квартира|квартиры|квартиру|вилл|вилла|виллы|новостройк|новостройка|новостройки|жк|жилой комплекс|апартамент|апартаменты|застройщик|застройщика|собственност|собственность|satılık daire|satılık konut|satılık villa|satılık mülk|satılık ev|kiralık daire|kiralık villa|konut projeleri|emlak|gayrimenkul|satılık|kiralık|daire|villa|ev|mülk|proje|rezidans|arsa|satın al|yazlık|penthouse|real estate|property|properties|apartment|apartments|villas|house|houses|flat|flats|buy property|for sale|wohnung|wohnungen|immobilien|kaufen|شراء شقة|شقق للبيع|فلل للبيع|بيوت للبيع|عقارات للبيع|للبيع|للإيجار|شقق|شقة|فلل|فيلا|بيوت|بيت|عقار|عقارات|شراء عقار|مجمع سكني|مشروع|خرید ملک|خرید آپارتمان|خرید خانه|خرید ویلا|املاک|آپارتمان|ویلا|خانه|ملک|برای فروش|اجاره|پروژه)(?:[^\p{L}\p{N}]|$)/ui
-    },
-    // 4. Türk Vatandaşlığı & Pasaport (Citizenship & Passport)
+    // 2. Türk Vatandaşlığı & Pasaport (Citizenship & Passport)
     {
       id: 'stag_citizenship_passport',
       name: '🏛️ Türk Vatandaşlığı & Pasaport',
       icon: '🏛️',
-      regex: /(?:^|[^\p{L}\p{N}])(гражданств|гражданство|гражданства|паспорт|паспорта|турецкое гражданство|паспорт турции|vatandaşlık|vatandaslik|pasaport|türk vatandaşlığı|citizenship|passport|turkish citizenship|turkish passport|staatsbürgerschaft|pass|reisepass|الجنسية التركية|جواز سفر تركي|جواز السفر|الجنسية|جنسية|جواز سفر|شهروندی ترکیه|پاسپورت ترکیه|شهروندی|تابعیت|پاسپورت)(?:[^\p{L}\p{N}]|$)/ui
+      regex: /(?:^|[^\p{L}\p{N}])(гражданств|гражданство|гражданства|паспорт|паспорта|турецкое гражданство|паспорт турции|турецкий паспорт|vatandaşlık|vatandaslik|vatandaşlığı|pasaport|pasaportu|türk vatandaşlığı|türk pasaportu|citizenship|passport|turkish citizenship|turkish passport|staatsbürgerschaft|reisepass|الجنسية التركية|جواز سفر تركي|جواز السفر|الجنسية|جنسية|جواز سفر|شهروندی ترکیه|پاسپورت ترکیه|شهروندی|تابعیت ترکیه|تابعیت|پاسپورت)(?:[^\p{L}\p{N}]|$)/ui
     },
-    // 5. İkamet İzni & Oturum (Residency & Residence Permit / ВНЖ и ПМЖ)
+    // 3. İkamet İzni & Oturum (Residency & Residence Permit / ВНЖ и ПМЖ)
     {
       id: 'stag_residency_permit',
       name: '🪪 İkamet İzni & Oturum (ВНЖ)',
       icon: '🪪',
-      regex: /(?:^|[^\p{L}\p{N}])(внж|пмж|икамет|вид на жительство|ikamet|oturum|oturum izni|ikamet izni|residence permit|residency|residence|aufenthalt|aufenthaltstitel|residenz|إقامة|اقامة|إقامة سياحية|إقامة عقارية|تصريح إقامة|إقامة في تركيا|اقامت|اقامت ترکیه|اقامت توریستی|اقامت ملکی|کارت کیملیک)(?:[^\p{L}\p{N}]|$)/ui
+      regex: /(?:^|[^\p{L}\p{N}])(внж|пмж|икамет|вид на жительство|разрешение на проживание|проживание в турции|ikamet|ikametgah|oturum|oturum izni|ikamet izni|oturma izni|oturum iznine|oturum izniyle|oturum hakkı|residence permit|residency permit|residency|permanent residence|residence in turkey|aufenthalt|aufenthaltstitel|aufenthaltserlaubnis|residenz|إقامة|اقامة|إقامة سياحية|إقامة عقارية|تصريح إقامة|إقامة في تركيا|بطاقة الإقامة|الكيملك|اقامت|اقامت ترکیه|اقامت توریستی|اقامت ملکی|اقامت کاری|کارت کیملیک|کیملیک|اجازه اقامت)(?:[^\p{L}\p{N}]|$)/ui
     },
-    // 6. Lokasyon: İstanbul, Alanya, Antalya & Bölge (Location Specific)
+    // 4. Kiralık Konut & Daire Kiralama (Rentals / Property Renting) - STRICTLY SEPARATE FROM BUYING
     {
-      id: 'stag_locations',
-      name: '📍 Lokasyon: İstanbul, Alanya, Antalya & Bölge',
-      icon: '📍',
-      regex: /(?:^|[^\p{L}\p{N}])(алань|аланья|аланье|аланьи|аланью|анталь|анталья|анталии|анталию|стамбул|стамбуле|бодрум|мерсин|махмутlar|оба|кестель|каргыджак|авсалlar|у моря|первая линия|alanya|antalya|istanbul|bodrum|mersin|denize sıfır|seafront|beachfront|اسطنبول|إسطنبول|انطاليا|أنطاليا|الانيا|ألانيا|مرسين|بودروم|بورصة|يلوا|طرابزون|تركيا|استانبول|آنتالیا|آلانیا|مرسین|بدروم|بورسا|ترکیه)(?:[^\p{L}\p{N}]|$)/ui
+      id: 'stag_rental',
+      name: '🔑 Kiralık Konut & Daire Kiralama',
+      icon: '🔑',
+      regex: /(?:^|[^\p{L}\p{N}])(kiralık|kiralama|kiralamak|kirası|kira bedeli|kira|kiralık daire|kiralık ev|kiralık konut|kiralık villa|kiralık mülk|yıllık ev kirası|aylık kira|daire kiralama|ev kiralama|аренда|арендовать|снять квартиру|снять жилье|снять дом|снять апартаменты|аренда жилья|сдать квартиру|посуточно|долгосрочная аренда|for rent|to rent|rent apartment|rent house|rent flat|rental|renting|property rental|monthly rent|yearly rent|house rent|للإيجار|إيجار|ايجار|استئجار|شقق للإيجار|بيوت للإيجار|إيجار سنوي|إيجار شهري|تأجير|اجاره|اجاره خانه|اجاره آپارتمان|اجاره ویلا|اجاره ملک|اجاره سالیانه|اجاره ماهانه|رهن و اجاره|کرایه خانه|کرایه آپارتمان|کرایه|mieten|miete|vermieten|wohnung mieten|haus mieten|kaltmiete|warmmiete)(?:[^\p{L}\p{N}]|$)/ui
     },
-    // 7. Hukuk & Danışmanlık Hizmetleri (Legal, Lawyers & Professional Help)
+    // 5. Fiyat, Harç & Maliyetler (Pricing, Costs & Investment Amount)
+    {
+      id: 'stag_pricing',
+      name: '💰 Fiyat, Harç & Uygun Seçenekler',
+      icon: '💰',
+      regex: /(?:^|[^\p{L}\p{N}])(цена|цены|цену|ценам|стоимост|стоимость|сколько стоит|расход|расходы|пошлин|пошлина|пошлины|тариф|тарифы|дешев|дешево|недорог|недорого|прайс|минимальн|рассрочка|fiyat|fiyatı|fiyatları|ücret|ücreti|ücretleri|maliyet|maliyeti|masraf|masrafları|harç|harçları|paket|paketleri|kaç para|ne kadar|teklif al|bütçe|hesaplama|en ucuz|en uygun|ucuz|uygun fiyatlı|taksit|taksitle|ödeme planı|price|prices|pricing|cost|costs|fee|fees|package|packages|how much|budget|cheap|affordable|quote|rates|calculator|installment|preise|preis|kosten|gebühr|wie viel|günstig|billig|سعر|اسعار|أسعار|تكلفة|تكاليف|رسوم|كم سعر|رخيص|رخيصة|ميزانية|أرخص|بالتقسيط|تقسيط|قیمت|قیمت‌ها|قیمت خانه|قیمت ملک|قیمت آپارتمان|هزینه|هزینه‌ها|چقدر است|ارزان|ارزان‌ترین|تعرفه|اقساط|قسطی)(?:[^\p{L}\p{N}]|$)/ui
+    },
+    // 6. Hukuk & Danışmanlık Hizmetleri (Legal, Lawyers & Professional Help)
     {
       id: 'stag_legal_services',
       name: '⚖️ Hukuk, Avukat & Danışmanlık',
       icon: '⚖️',
-      regex: /(?:^|[^\p{L}\p{N}])(юрист|юристы|юриста|адвокат|адвокаты|агентств|агентство|услуг|услуги|консультац|консультация|помощь|сопровожден|сопровождение|под ключ|специалист|эксперт|avukat|danışmanlık|danışmanı|hukuk|hukuk bürosu|ajans|ajansı|hizmet|hizmetleri|müşavirlik|lawyer|legal|services|agency|firm|consulting|consultant|attorney|expert|turnkey|anwalt|beratung|agentur|محامي|محامين|استشارة|استشارات|خدمات|مكتب محاماة|وكالة|وكيل|مستشار|وکیل|وکلا|مشاوره|مشاور|دفتر حقوقی|خدمات حقوقی|آژانس)(?:[^\p{L}\p{N}]|$)/ui
+      regex: /(?:^|[^\p{L}\p{N}])(юрист|юристы|юриста|адвокат|адвокаты|агентств|агентство|услуг|услуги|консультац|консультация|помощь|сопровожден|сопровождение|под ключ|специалист|эксперт|avukat|avukatı|avukatlık|danışmanlık|danışmanı|hukuk|hukuk bürosu|ajans|ajansı|hizmet|hizmetleri|müşavirlik|lawyer|legal|services|agency|firm|consulting|consultant|attorney|expert|turnkey|anwalt|beratung|agentur|rechtsanwalt|محامي|محامين|استشارة|استشارات|خدمات|مكتب محاماة|وكالة|وكيل|مستشار|وکیل|وکلا|مشاوره|مشاور|دفتر حقوقی|خدمات حقوقی|آژانس)(?:[^\p{L}\p{N}]|$)/ui
     },
-    // 8. Başvuru, Evrak & Statü Kontrolü (Application, Documents & Status)
+    // 7. Başvuru, Evrak & Statü Kontrolü (Application, Documents & Status)
     {
       id: 'stag_application_process',
       name: '📜 Başvuru, Evrak & Statü Kontrolü',
       icon: '📜',
-      regex: /(?:^|[^\p{L}\p{N}])(проверить статус|статус внж|статус|проверить|проверка|список документов|документ|документы|документов|пакет документов|подать|подача|подача заявления|анкета|сроки|срок действия|отказ|продлен|продление|şart|şartlar|şartları|evrak|evraklar|gerekli belgeler|gerekli|süreç|nasıl alınır|başvuru|başvurusu|başvuruları|status|requirements|conditions|documents|process|procedure|how to get|how to apply|eligibility|antrag|beantragen|voraussetzungen|dokumente|شروط|الأوراق المطلوبة|أوراق|مستندات|وثائق|إجراءات|تقديم طلب|استعلام|معاملة|شرایط|مدارک لازم|مدارک|مراحل|نحوه دریافت|درخواست)(?:[^\p{L}\p{N}]|$)/ui
+      regex: /(?:^|[^\p{L}\p{N}])(проверить статус|статус внж|статус|проверить|проверка|список документов|документ|документы|документов|пакет документов|подать|подача|подача заявления|анкета|сроки|срок действия|отказ|продлен|продление|şart|şartlar|şartları|evrak|evraklar|gerekli belgeler|gerekli|süreç|nasıl alınır|başvuru|başvurusu|başvuruları|randevu|sorgulama|red|uzatma|status|requirements|conditions|documents|process|procedure|how to get|how to apply|eligibility|renewal|rejection|antrag|beantragen|voraussetzungen|dokumente|verlängerung|شروط|الأوراق المطلوبة|أوراق|مستندات|وثائق|إجراءات|تقديم طلب|استعلام|معاملة|تجديد|شرایط|مدارک لازم|مدارک|مراحل|نحوه دریافت|درخواست|تمدید|رد شدن|پیگیری)(?:[^\p{L}\p{N}]|$)/ui
     },
-    // 9. Göç, Yaşam & Türkiye Rehberi (Living, Relocation & Life in Turkey)
+    // 8. Lüks Konut, Villa & Rezidans Projeleri (Luxury Villas, Penthouses & Projects)
+    {
+      id: 'stag_luxury_villa',
+      name: '🏰 Lüks Konut, Villa & Projeler',
+      icon: '🏰',
+      regex: /(?:^|[^\p{L}\p{N}])(вилл|вилла|виллы|новостройк|новостройка|новостройки|жк|жилой комплекс|апартамент|апартаменты|застройщик|застройщика|элитная недвижимость|пентхаус|у моря|первая линия|villa|villalar|villaları|lüks villa|müstakil ev|yazlık|penthouse|rezidans|residence|proje|projeleri|konut projeleri|sıfır daire|site içi|denize sıfır|luxury villa|luxury properties|residential project|new development|seafront|beachfront|villas|neubau|luxusimmobilien|فلل|فيلا|مجمع سكني|مشروع|مشروع عقاري|برج|بنتهاوس|على البحر|پنت هاوس|ویلا|ویلاها|شهرک|برج|پروژه|نوساز|ساحلی)(?:[^\p{L}\p{N}]|$)/ui
+    },
+    // 9. Lokasyon: İstanbul, Alanya, Antalya & Bölge (Location Specific)
+    {
+      id: 'stag_locations',
+      name: '📍 Lokasyon: İstanbul, Alanya, Antalya & Bölge',
+      icon: '📍',
+      regex: /(?:^|[^\p{L}\p{N}])(алань|аланья|аланье|аланьи|аланью|анталь|анталья|анталии|анталию|стамбул|стамбуле|бодрум|мерсин|махмутlar|оба|кестель|каргыджак|авсалlar|измир|бурса|трабзон|анкара|alanya|antalya|istanbul|bodrum|mersin|izmir|bursa|trabzon|ankara|fethiye|اسطنبول|إسطنبول|انطاليا|أنطاليا|الانيا|ألانيا|مرسين|بودروم|بورصة|يلوا|طرابزون|تركيا|استانبول|آنتالیا|آلانیا|مرسین|بدروم|بورسا|ازمیر|ترکیه)(?:[^\p{L}\p{N}]|$)/ui
+    },
+    // 10. Gayrimenkul & Konut Satın Alma (Real Estate & Property Buying)
+    {
+      id: 'stag_realestate',
+      name: '🏢 Gayrimenkul & Konut Satın Alma',
+      icon: '🏢',
+      regex: /(?:^|[^\p{L}\p{N}])(купить квартиру|купить апартаменты|купить дом|купить виллу|купить жилье|купить недвижимость|купить|покупк|покупка|покупка квартиры|покупка жилья|недвижим|недвижимость|недвижимости|квартир|квартира|квартиры|квартиру|собственност|собственность|продаж|продажа|satılık daire|satılık konut|satılık villa|satılık mülk|satılık ev|satılık|satın al|satın alma|satın almak|ev satın almak|daire satın almak|konut satın almak|ev almak|daire almak|gayrimenkul satın almak|mülk satın almak|emlak alım|mülk edinme|emlak|gayrimenkul|konut|daire|ev|mülk|arsa|buy property|buy apartment|buy house|buy villa|buy flat|buy home|for sale|property for sale|apartments for sale|houses for sale|villas for sale|real estate for sale|real estate turkey|real estate|property|properties|apartment|apartments|flat|flats|house|houses|kaufen|wohnung kaufen|haus kaufen|immobilien kaufen|immobilien türkei|wohnung|wohnungen|immobilien|شراء شقة|شراء عقار|شراء بيت|شراء منزل|شراء فيلا|شراء|للبيع|شقق للبيع|فلل للبيع|بيوت للبيع|عقارات للبيع|عقارات تركيا|بيع وشراء|شقق|شقة|بيوت|بيت|عقار|عقارات|شراء عقار|خرید ملک|خرید آپارتمان|خرید خانه|خرید ویلا|خرید مسکن|خرید زمین|خرید ملک در ترکیه|خرید|برای فروش|فروش ملک|فروش خانه|فروش آپارتمان|املاک در ترکیه|املاک ترکیه|املاک|آپارتمان|خانه|ملک)(?:[^\p{L}\p{N}]|$)/ui
+    },
+    // 11. Göç, Yaşam & Türkiye Rehberi (Living, Relocation & Life in Turkey)
     {
       id: 'stag_relocation_life',
       name: '🌍 Göç, Yaşam & Relokasyon',
       icon: '🌍',
-      regex: /(?:^|[^\p{L}\p{N}])(жизнь в|жизнь|жизни|уровень жизни|переезд|переехать|эмиграц|эмиграция|иммиграц|иммиграция|релокац|релокация|россияне в|русские в|как переехать|yaşam|yaşam şartları|göç|yerleşim|living in|relocation|relocate|immigrate|leben in|auswandern|العيش في تركيا|الحياة في تركيا|الهجرة إلى تركيا|هجرة|زندگی در ترکیه|مهاجرت به ترکیه|مهاجرت)(?:[^\p{L}\p{N}]|$)/ui
+      regex: /(?:^|[^\p{L}\p{N}])(жизнь в турции|жизнь в|жизнь|жизни|уровень жизни|переезд в турцию|переезд|переехать|эмиграц|эмиграция|иммиграц|иммиграция|релокац|релокация|россияне в|русские в|как переехать|yaşam|yaşam şartları|türkiye'de yaşam|türkiye rehberi|göç|yerleşim|living in turkey|living in|relocation to turkey|relocation|relocate|immigrate|leben in|auswandern|العيش في تركيا|الحياة في تركيا|الهجرة إلى تركيا|هجرة|زندگی در ترکیه|مهاجرت به ترکیه|مهاجرت)(?:[^\p{L}\p{N}]|$)/ui
     },
-    // 10. En İyi, Yorumlar & Tecrübeler (Reviews, Experiences & Best)
+    // 12. En İyi, Yorumlar & Tecrübeler (Reviews, Experiences & Best)
     {
       id: 'stag_reviews',
       name: '⭐ En İyi, Yorumlar & Tecrübeler',
       icon: '⭐',
       regex: /(?:^|[^\p{L}\p{N}])(отзывы|отзыв|лучший|лучшие|лучш|рейтинг|плюсы и минусы|опыт|форум|надежн|надежный|проверенный|сравнение|реальный опыт|истории|история|en iyi|en uygun|tavsiye|tavsiyeleri|yorum|yorumları|yorumlar|şikayet|karşılaştırma|güvenilir|tecrübe|deneyim|best|top|top rated|reviews|review|before and after|rating|ratings|comparison|compare|pros and cons|trusted|experience|forum|testimonials|erfahrungen|bewertung|erfahrung|vergleich|افضل|تجارب|تقييم|اراء|نصائح|بهترین|نظرات|تجربه|بررسی)(?:[^\p{L}\p{N}]|$)/ui
     },
-    // 11. Otel, Konaklama & Tatil (Hotels & Vacation)
+    // 13. Otel, Konaklama & Tatil (Hotels & Vacation)
     {
       id: 'stag_hotel_tourism',
       name: '🏨 Otel, Konaklama & Tatil',
       icon: '🏨',
       regex: /(?:^|[^\p{L}\p{N}])(hotel|hotels|otel|otelleri|resort|resorts|pansiyon|pansiyonlar|butik otel|boutique hotel|apart otel|apart|all inclusive|her şey dahil|oda kahvaltı|bungalov|glamping|accommodation|stay|فندق|فنادق|منتجع|حجز فندقي|هتل|رزرو هتل|اقامتگاه)(?:[^\p{L}\p{N}]|$)/ui
     },
-    // 12. Klinik, Hastane & Sağlık (Medical & Clinics)
+    // 14. Klinik, Hastane & Sağlık (Medical & Clinics)
     {
       id: 'stag_clinics_medical',
       name: '🏥 Klinik, Hastane & Uzmanlar',
       icon: '🏥',
       regex: /(?:^|[^\p{L}\p{N}])(klinik|kliniği|klinikleri|hastane|hastanesi|doktor|doktoru|doktorları|uzman doktor|cerrah|cerrahı|diş hekimi|sağlık merkezi|tıp merkezi|estetik merkezi|saç ekim merkezi|saç ekimi|diş|estetik|tedavi|ameliyat|clinic|clinics|hospital|hospitals|surgeon|surgeons|physician|hair transplant|dental|aesthetic|surgery|treatment|medical|arzt|zahn|behandlung|клиник|клиника|больниц|больница|врач|хирург|пересадка волос|стоматолог|лечение|операция|مستشفى|عيادة|طبيب|دكتور|زراعة اسنان|زراعة شعر|تجميل|علاج|کلینیک|بیمارستان|پزشک|دکتر|کاشت مو|ایمپلنت|زیبایی)(?:[^\p{L}\p{N}]|$)/ui
     },
-    // 13. Eğitim, Okul & Kurslar (Education & Schools)
+    // 15. Eğitim, Okul & Kurslar (Education & Schools)
     {
       id: 'stag_education',
       name: '🎓 Eğitim, Okul & Kurslar',
