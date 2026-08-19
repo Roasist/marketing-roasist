@@ -1051,22 +1051,60 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
                     continue;
                 }
 
-                // Multi-Lingual High-Converting Intent Classifier
+                // Multi-Lingual High-Converting Intent Classifier (Turkish, English, Russian, Persian/Farsi, Arabic, German)
                 $intent = 'COMMERCIAL';
-                $transactionalPattern = '/(?:^|[^\p{L}\p{N}])(цена|цены|цену|ценам|стоимость|стоимости|сколько стоит|купить|покупка|покупке|оформить|оформление|заказать|заказ|заявка|за инвестиции|через инвестиции|под ключ|срочно|тариф|расходы|пошлина|fiyat|fiyatı|fiyatları|ücret|ücreti|ücretleri|satın al|sipariş|başvuru yap|randevu al|teklif al|maliyet|maliyeti|masraf|harç|kaç para|satılık|price|prices|pricing|cost|costs|fee|fees|buy|purchase|order|for sale|quote|rates|cheap|turnkey|apply now|by investment|preis|preise|kosten|gebühr|kaufen|angebot|beantragen)(?:[^\p{L}\p{N}]|$)/ui';
-                $informationalPattern = '/(?:^|[^\p{L}\p{N}])(что такое|как|почему|форум|отзывы|статья|википедия|образец|скачать бесплатно|видео|жизнь в|nedir|nasıl|rehber|örnek|forum|yorum|tavsiye|ne demek|ücretsiz|pdf indir|yaşam|what is|how to|guide|tutorial|sample|example|forum|free|download|wiki|life in|was ist|wie|anleitung|forum|erfahrungen|kostenlos|leben in)(?:[^\p{L}\p{N}]|$)/ui';
+                $transactionalPattern = '/(?:^|[^\p{L}\p{N}])('
+                    // Turkish
+                    . 'fiyat|fiyatı|fiyatları|fiyatlar|ücret|ücreti|ücretleri|satın al|satın alma|satın almak|almak|satılık|sipariş|başvuru|başvuru yap|randevu|randevu al|teklif|teklif al|maliyet|maliyeti|masraf|harç|kaç para|kampanya|indirim|paket|danışmanlık al|hizmet al|satılık daire|satılık ev|satılık mülk|satılık villa|konut al|ev al|daire al|vatandaşlık|pasaport|yatırım'
+                    // Persian (Farsi)
+                    . '|خرید|خریدن|خرید ملک|خرید خانه|خرید آپارتمان|خرید ویلا|قیمت|قیمت ها|قیمتها|هزینه|هزینه ها|هزینه‌ها|چقدر است|تعرفه|سرمایه گذاری|سرمایه‌گذاری|اخذ|دریافت|ثبت نام|مشاوره|پاسپورت|شهروندی|اقامت|سند|تاپو|فروش|فروشی|شرایط خرید|پکیج|سرمایه گذار|اقامت ترکیه'
+                    // Arabic
+                    . '|شراء|شراء شقة|شراء عقار|للبيع|اسعار|أسعار|سعر|تكلفة|تكاليف|كم سعر|كم تكلفة|حجز|طلب|تقديم|استثمار|الجنسية|جواز سفر|إقامة|طابو|سند ملكية|عروض|خصم|تسجيل|شقق للبيع|فلل للبيع'
+                    // Russian
+                    . '|цена|цены|цену|ценам|стоимость|стоимости|сколько стоит|купить|покупка|покупке|оформить|оформление|заказать|заказ|заявка|за инвестиции|через инвестиции|под ключ|срочно|тариф|расходы|пошлина|продажа|купить квартиру|купить дом|гражданство|паспорт|внж'
+                    // English
+                    . '|price|prices|pricing|cost|costs|fee|fees|how much|buy|purchase|order|for sale|quote|rates|cheap|turnkey|apply now|by investment|invest in|citizenship|passport|residence permit|book now|hire|consultation|buy apartment|buy house|buy property'
+                    // German
+                    . '|preis|preise|kosten|gebühr|kaufen|angebot|beantragen|wohnung kaufen|haus kaufen|investieren|staatsbürgerschaft|pass'
+                    . ')(?:[^\p{L}\p{N}]|$)/ui';
 
-                if (preg_match($transactionalPattern, $kwText)) {
+                $negativeJunkRentalPattern = '/(?:^|[^\p{L}\p{N}])('
+                    . 'kiralık|kirala|kiralamak|kira|günlük kiralık|aylık kiralık|kiralama'
+                    . '|اجاره|اجاره ای|اجاره دادن|کرایه|رهن'
+                    . '|إيجار|للايجار|استئجار|ايجار'
+                    . '|аренда|снять квартиру|арендовать|посуточно'
+                    . '|rent|rental|to rent|for rent|monthly rent'
+                    . '|mieten|vermieten|miete'
+                    . '|bedava|ücretsiz|free|مجانی|رایگان|бесплатно|kostenlos'
+                    . '|iş ilanları|iş ilanı|staj|kariyer|maaş|استخدام|وظائف|работа|вакансии|jobs|karriere'
+                    . ')(?:[^\p{L}\p{N}]|$)/ui';
+
+                $informationalPattern = '/(?:^|[^\p{L}\p{N}])('
+                    . 'nedir|nasıl|nasıl alınır|nasıl yapılır|şartları|şartlar|kurallar|rehber|örnek|forum|yorum|yorumlar|tavsiye|tavsiyeler|deneyim|ne demek|pdf indir|yaşam|hayat|blog|haber|haberler'
+                    . '|چیست|چگونه|چطور|راهنما|نظرات|تجربیات|معایب|مزایا|قوانین|شرایط|مدارک|عکس|ویدیو|زندگی در|فروم|وبلاگ'
+                    . '|ما هو|كيف|طريقة|شروط|دليل|تجارب|اراء|منتدى|معلومات|الاوراق المطلوبة|الحياة في'
+                    . '|что такое|как|почему|форум|отзывы|статья|википедия|образец|скачать бесплатно|видео|жизнь в|правила|условия|документы'
+                    . '|what is|how to|guide|tutorial|sample|example|forum|reviews|wiki|life in|rules|conditions|documents|requirements'
+                    . '|was ist|wie|anleitung|forum|erfahrungen|leben in|voraussetzungen|regeln'
+                    . ')(?:[^\p{L}\p{N}]|$)/ui';
+
+                $isUserSeed = isset($seedKeys[$kwKey]);
+                $oppScore = min(99, max(50, 95 - round($compIdx * 0.3) + ($avgVol > 5000 ? 10 : 5)));
+
+                if (preg_match($negativeJunkRentalPattern, $kwText)) {
+                    $intent = 'COMMERCIAL';
+                    $isAiStrategist = false;
+                } elseif (preg_match($transactionalPattern, $kwText)) {
                     $intent = 'TRANSACTIONAL';
+                    // High-converting transactional search: Mark as AI Strategist Pick if it is core transactional, high opportunity score or user seed
+                    $isAiStrategist = $isUserSeed || $oppScore >= 75 || preg_match('/(?:^|[^\p{L}\p{N}])(satın al|satılık|купить|خرید|شراء|buy|invest|yatırım|سرمایه|vatandaşlık|citizenship|гражданство|شهروندی|جنسية)(?:[^\p{L}\p{N}]|$)/ui', $kwText);
                 } elseif (preg_match($informationalPattern, $kwText)) {
                     $intent = 'INFORMATIONAL';
+                    $isAiStrategist = false;
+                } else {
+                    $intent = 'COMMERCIAL';
+                    $isAiStrategist = $isUserSeed;
                 }
-
-                $oppScore = min(99, max(50, 95 - round($compIdx * 0.3) + ($avgVol > 5000 ? 10 : 5)));
-                $isUserSeed = isset($seedKeys[$kwKey]);
-                $isAiStrategist = $isUserSeed || 
-                                  ($intent === 'TRANSACTIONAL' && $oppScore >= 80) || 
-                                  ($intent === 'COMMERCIAL' && $oppScore >= 94);
 
                 $keywordIndexMap[$kwKey] = count($parsedKeywords);
                 $parsedKeywords[] = [
@@ -1528,7 +1566,9 @@ function analyzeLandingPageWithAI($pageDetails, $query, $geminiKey) {
         . "1. Sayfanın sunduğu gerçek hizmeti/ürünü, ana sektörünü, iş modelini ('LEAD_GEN', 'ECOMMERCE', 'B2B_SERVICE', 'TOURISM', 'HEALTH_CARE') ve HEDEF ŞEHİR/ÜLKE HİYERARŞİSİNİ ('detectedGeoHierarchy') tespit et.\n"
         . "2. Sektöre özel terimleri, eş anlamlıları ve kısaltmaları ('detectedServiceSynonyms') tespit et.\n"
         . "3. ÇOK ÖNEMLİ KURAL - DİL vs ÜLKE VE ANLAMSAL NETLİK:\n"
-        . "   Kullanıcı tohumunda veya sayfada bir DİL YETKİNLİĞİ (örn: Almanca, İngilizce, Rusça, Fransızca, İspanyolca, Arapça) geçtiğinde bunu ÜLKE veya GÖÇ kavramıyla (Almanya, İngiltere, Rusya vb.) KESİNLİKLE KARIŞTIRMA! Örneğin 'almanca iş ilanları' arandığında tohumlar 'almanca bilen müşteri temsilcisi', 'almanca çağrı merkezi', 'almanca tercüman', 'almanca bilen eleman' olmalıdır; asla 'almanya işçi alımı' veya 'almanya vizesi' üretilmemelidir.\n"
+        . "   a) Kullanıcı tohumunda veya sayfada bir DİL YETKİNLİĞİ (örn: Almanca, İngilizce, Rusça, Fransızca, İspanyolca, Arapça) geçtiğinde bunu ÜLKE veya GÖÇ kavramıyla (Almanya, İngiltere, Rusya vb.) KESİNLİKLE KARIŞTIRMA!\n"
+        . "   b) GAYRİMENKUL / YATIRIM / VATANDAŞLIK / SATIŞ sayfalarında KİRALIK (rent, rental, اجاره, аренда, kiralık daire) veya ücretsiz/öğrenci/iş ilanı terimlerini KESİNLİKLE 'strategistKeywords' veya 'highIntentSeeds' içine EKLEME! Bunlar bütçe yakan negatif kelimelerdir ('negativeExclusions').\n"
+        . "   c) Bir SEM Stratejisti olarak sadece ve sadece sayfanın değer teklifini doğrudan satın alacak veya başvuracak yüksek niyetli (Satın Alma, Yatırım, Başvuru, Fiyat, Vatandaşlık, Tapu) terimleri seç!\n"
         . "4. SEM ÇAPRAZ MATRİS GENİŞLETMESİ (EN AZ 40-50 ADET YÜKSEK DÖNÜŞÜMLÜ KELİME):\n"
         . "   Herhangi bir sektör için (Sağlık, Gayrimenkul, Eğitim, B2B Yazılım, Sanayi, E-Ticaret vb.) bu işletmeye DOĞRUDAN DÖNÜŞÜM getirecek EN AZ 40-50 ADET kelimeyi şu 5 dinamik boyutta eksiksiz üret ('strategistKeywords'):\n"
         . "   a) COĞRAFİ ÇAPRAZLAMA (Şehir <-> Ülke): Şehir bazlı her kelimenin aynı zamanda Ülke/Bölge varyasyonunu da üret.\n"
@@ -2147,8 +2187,8 @@ function filterKeywordsByPageContext($keywords, $pageDetails, $query, $langCode)
     // Generic ungrounded real estate words that MUST have location if page is location-tied
     $genericRealEstatePattern = '/^(house for sale|homes for sale|real estate|homes for rent|searching for properties|apartments luxury|for sale apartments|properties for sell|holiday homes|buy a home|property for sale|houses for sale|luxury homes|dream homes|buying house|house for sale luxury|homes for sale luxury|for sale owner|luxury apartment complex|apartments for sale|apartments in|houses in)$/i';
 
-    // Strict Rent keywords to prune for sale developments
-    $strictRentPattern = '/\b(rent|rental|rentals|for rent|to rent|to let|kiralık|kira|kiralama|sahibinden|roommates|roommate|flatmate)\b/ui';
+    // Strict Multilingual Rent keywords to prune for sale developments (Turkish, Persian, Arabic, Russian, English, German)
+    $strictRentPattern = '/(?:^|[^\p{L}\p{N}])(rent|rental|rentals|for rent|to rent|to let|kiralık|kirala|kiralamak|kira|kiralama|sahibinden|roommates|roommate|flatmate|اجاره|اجاره ای|اجاره دادن|کرایه|رهن|إيجار|للايجار|استئجار|ايجار|аренда|снять квартиру|арендовать|посуточно|mieten|vermieten|miete)(?:[^\p{L}\p{N}]|$)/ui';
 
     // Strict Real Estate / Citizenship keywords to prune on Hotel/Tourism sites
     $realEstateExclusionPattern = '/\b(citizenship|citizen|vatandaşlık|passport|pasaport|real estate|gayrimenkul|satılık|for sale|buy property|invest in property|property for sale|apartments for sale|villas for sale|sale house|satılık daire|satılık ev|satılık mülk|emlak|housing)\b/ui';
