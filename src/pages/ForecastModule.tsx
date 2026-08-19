@@ -30,8 +30,10 @@ import {
   ListPlus,
   Info,
   KeyRound,
-  SlidersHorizontal
+  SlidersHorizontal,
+  FileText
 } from 'lucide-react';
+import { ExportService } from '../services/exportService';
 import { 
   KeywordMetric, 
   ForecastSimulation, 
@@ -3099,6 +3101,68 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     document.body.removeChild(link);
   };
 
+  // Export Sub-Campaign to CSV
+  const handleExportSubCampaignCsv = (subCamp?: SubCampaignItem) => {
+    const target = subCamp || activeSubCampaign;
+    if (!target) {
+      alert('Dışa aktarılacak alt kampanya bulunamadı.');
+      return;
+    }
+    const currentKws = keywords.filter(k => selectedKeywordIds.has(k.id));
+    const toExport: SubCampaignItem = target.id === activeSubCampaignId ? {
+      ...target,
+      monthlyBudget: monthlyBudget || target.monthlyBudget || 35000,
+      selectedKeywords: currentKws.length > 0 ? currentKws : target.selectedKeywords,
+      discoveredKeywords: keywords,
+      negativeCategories,
+      targetLocations: selectedLocations,
+      businessModel,
+      simulationResult: simulation,
+      metaSimulationResult: metaSimulation,
+      youtubeSimulationResult: youtubeSimulation,
+      gdnSimulationResult: gdnSimulation
+    } : target;
+
+    ExportService.exportSubCampaignToCsv(toExport, {
+      name: planName,
+      clientName: clientName,
+      period: planPeriod,
+      startDate: planStartDate,
+      endDate: planEndDate
+    });
+  };
+
+  // Print / Export Sub-Campaign to PDF
+  const handleExportSubCampaignPdf = (subCamp?: SubCampaignItem) => {
+    const target = subCamp || activeSubCampaign;
+    if (!target) {
+      alert('Yazdırılacak alt kampanya bulunamadı.');
+      return;
+    }
+    const currentKws = keywords.filter(k => selectedKeywordIds.has(k.id));
+    const toExport: SubCampaignItem = target.id === activeSubCampaignId ? {
+      ...target,
+      monthlyBudget: monthlyBudget || target.monthlyBudget || 35000,
+      selectedKeywords: currentKws.length > 0 ? currentKws : target.selectedKeywords,
+      discoveredKeywords: keywords,
+      negativeCategories,
+      targetLocations: selectedLocations,
+      businessModel,
+      simulationResult: simulation,
+      metaSimulationResult: metaSimulation,
+      youtubeSimulationResult: youtubeSimulation,
+      gdnSimulationResult: gdnSimulation
+    } : target;
+
+    ExportService.printSubCampaignReport(toExport, {
+      name: planName,
+      clientName: clientName,
+      period: planPeriod,
+      startDate: planStartDate,
+      endDate: planEndDate
+    });
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
 
@@ -3377,8 +3441,44 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                                 </span>
                               </div>
 
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--brand-primary)' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    ExportService.printSubCampaignReport(sc, { 
+                                      name: plan.name, 
+                                      clientName: plan.clientName, 
+                                      period: plan.period, 
+                                      startDate: plan.startDate, 
+                                      endDate: plan.endDate 
+                                    });
+                                  }}
+                                  className="btn-ghost"
+                                  style={{ padding: '3px 6px', fontSize: '0.7rem', color: 'var(--brand-primary)' }}
+                                  title="Alt Kampanya PDF / Baskı Raporu Al"
+                                >
+                                  <FileText size={13} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    ExportService.exportSubCampaignToCsv(sc, { 
+                                      name: plan.name, 
+                                      clientName: plan.clientName, 
+                                      period: plan.period, 
+                                      startDate: plan.startDate, 
+                                      endDate: plan.endDate 
+                                    });
+                                  }}
+                                  className="btn-ghost"
+                                  style={{ padding: '3px 6px', fontSize: '0.7rem', color: 'var(--text-secondary)' }}
+                                  title="Alt Kampanya CSV Raporu İndir"
+                                >
+                                  <Download size={13} />
+                                </button>
+                                <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--brand-primary)', marginLeft: '2px' }}>
                                   ₺{(sc.monthlyBudget || 0).toLocaleString('tr-TR')}
                                 </span>
                                 <ChevronRight size={12} color="var(--text-muted)" />
@@ -3805,6 +3905,52 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           <BarChart3 size={14} />
           <span>360° Konsolide Özet</span>
         </button>
+
+        {/* Sub-Campaign Fast Export Actions */}
+        {activeSubCampaign && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <button
+              type="button"
+              onClick={() => handleExportSubCampaignPdf()}
+              className="btn-secondary"
+              style={{
+                padding: '0.4rem 0.75rem',
+                fontSize: '0.78rem',
+                fontWeight: 600,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                whiteSpace: 'nowrap',
+                color: 'var(--brand-primary)',
+                backgroundColor: 'rgba(37, 99, 235, 0.08)',
+                borderColor: 'rgba(37, 99, 235, 0.25)'
+              }}
+              title="Aktif Alt Kampanyayı PDF / Baskı Raporu Olarak Al"
+            >
+              <FileText size={13} />
+              <span>PDF Raporu</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleExportSubCampaignCsv()}
+              className="btn-secondary"
+              style={{
+                padding: '0.4rem 0.75rem',
+                fontSize: '0.78rem',
+                fontWeight: 600,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                whiteSpace: 'nowrap'
+              }}
+              title="Aktif Alt Kampanyayı CSV Olarak İndir"
+            >
+              <Download size={13} />
+              <span>CSV İndir</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* NEW SUB-CAMPAIGN CREATION MODAL */}
@@ -5778,6 +5924,45 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
                     <button
                       type="button"
+                      onClick={() => handleExportSubCampaignPdf()}
+                      className="btn-secondary"
+                      style={{ 
+                        fontSize: '0.75rem', 
+                        padding: '0.35rem 0.75rem', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '0.35rem', 
+                        fontWeight: 600,
+                        backgroundColor: 'rgba(37, 99, 235, 0.08)',
+                        borderColor: 'rgba(37, 99, 235, 0.25)',
+                        color: 'var(--brand-primary)'
+                      }}
+                      title="Alt Kampanya Yönetici Raporunu PDF / Baskı formatında aç"
+                    >
+                      <FileText size={13} />
+                      <span>PDF Raporu</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleExportSubCampaignCsv()}
+                      className="btn-secondary"
+                      style={{ 
+                        fontSize: '0.75rem', 
+                        padding: '0.35rem 0.75rem', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '0.35rem', 
+                        fontWeight: 600 
+                      }}
+                      title="Alt Kampanya Performans & Kelime Verilerini CSV olarak indir"
+                    >
+                      <Download size={13} />
+                      <span>CSV İndir</span>
+                    </button>
+
+                    <button
+                      type="button"
                       onClick={handleSavePlan}
                       className="btn-primary"
                       style={{ 
@@ -6556,14 +6741,50 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                                   %{share}
                                 </td>
                                 <td style={{ textAlign: 'right' }}>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleSelectSubCampaign(sc.id)}
-                                    className="btn-ghost"
-                                    style={{ fontSize: '0.7rem', padding: '2px 6px', color: 'var(--brand-primary)' }}
-                                  >
-                                    Düzenle
-                                  </button>
+                                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        ExportService.printSubCampaignReport(sc, {
+                                          name: planName,
+                                          clientName: clientName,
+                                          period: planPeriod,
+                                          startDate: planStartDate,
+                                          endDate: planEndDate
+                                        });
+                                      }}
+                                      className="btn-ghost"
+                                      style={{ padding: '2px 5px', fontSize: '0.7rem', color: 'var(--brand-primary)' }}
+                                      title="PDF Raporu Al"
+                                    >
+                                      <FileText size={12} />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        ExportService.exportSubCampaignToCsv(sc, {
+                                          name: planName,
+                                          clientName: clientName,
+                                          period: planPeriod,
+                                          startDate: planStartDate,
+                                          endDate: planEndDate
+                                        });
+                                      }}
+                                      className="btn-ghost"
+                                      style={{ padding: '2px 5px', fontSize: '0.7rem', color: 'var(--text-secondary)' }}
+                                      title="CSV İndir"
+                                    >
+                                      <Download size={12} />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleSelectSubCampaign(sc.id)}
+                                      className="btn-ghost"
+                                      style={{ fontSize: '0.7rem', padding: '2px 6px', color: 'var(--brand-primary)', fontWeight: 600 }}
+                                    >
+                                      Düzenle
+                                    </button>
+                                  </div>
                                 </td>
                               </tr>
                             );
