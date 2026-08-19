@@ -5144,7 +5144,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                                 )}
                               </div>
                             </th>
-                            <th style={{ padding: '0.55rem 0.75rem', fontWeight: 600, color: 'var(--text-secondary)', width: '160px' }}>
+                            <th style={{ padding: '0.55rem 0.75rem', fontWeight: 600, color: 'var(--text-secondary)', minWidth: '190px', width: '200px', whiteSpace: 'nowrap' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                 <span>SAYFA ÜSTÜ TBM</span>
                                 {activeScopeLocation && (
@@ -5348,37 +5348,38 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                                   </td>
 
                                   {/* Top of page CPC */}
-                                  <td style={{ padding: '0.5rem 0.75rem' }}>
+                                  <td style={{ padding: '0.5rem 0.75rem', whiteSpace: 'nowrap' }}>
                                     {kw.isCpcEstimated ? (
-                                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-                                        <span style={{ fontSize: '0.75rem', color: 'var(--text-primary)', fontFamily: 'monospace' }}>
+                                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}>
+                                        <span style={{ fontSize: '0.75rem', color: 'var(--text-primary)', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
                                           ≈ ₺{kw.lowCpc.toFixed(2)} - ₺{kw.highCpc.toFixed(2)}
                                         </span>
                                         <span 
                                           title={`Google açık artırma verisi az olduğundan, '${kw.cpcEstimationCluster || activeCluster.name}' kümesi ortalaması ve ${kw.cpcEstimationMultiplier || 1.0}x niyet çarpanı ile hesaplanmıştır.`} 
                                           style={{ 
-                                            fontSize: '0.62rem', 
-                                            fontWeight: 700, 
-                                            padding: '1px 5px', 
+                                            fontSize: '0.60rem', 
+                                            fontWeight: 600, 
+                                            padding: '1px 4px', 
                                             borderRadius: '3px', 
                                             backgroundColor: 'rgba(139, 92, 246, 0.12)', 
                                             color: '#8b5cf6',
-                                            border: '1px solid rgba(139, 92, 246, 0.25)',
+                                            border: '1px solid rgba(139, 92, 246, 0.22)',
                                             cursor: 'help',
                                             display: 'inline-flex',
                                             alignItems: 'center',
-                                            gap: '2px'
+                                            lineHeight: '1.1',
+                                            whiteSpace: 'nowrap'
                                           }}
                                         >
                                           Tahmin
                                         </span>
                                       </div>
                                     ) : kw.lowCpc > 0 ? (
-                                      <span style={{ fontSize: '0.75rem', color: 'var(--text-primary)', fontFamily: 'monospace' }}>
+                                      <span style={{ fontSize: '0.75rem', color: 'var(--text-primary)', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
                                         ₺{kw.lowCpc.toFixed(2)} - ₺{kw.highCpc.toFixed(2)}
                                       </span>
                                     ) : (
-                                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
                                         ₺0.00 - ₺0.00
                                       </span>
                                     )}
