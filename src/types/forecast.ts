@@ -20,6 +20,16 @@ export interface KeywordMetric {
   strategistStrategy?: 'TRANSACTIONAL' | 'LOCAL_GEO' | 'CONSIDERATION' | 'LEAD_MAGNET';
   geoVolumes?: Record<string, number>;
   geoCpc?: Record<string, { lowCpc: number; highCpc: number }>;
+  isCpcEstimated?: boolean;
+  cpcEstimationCluster?: string;
+  cpcEstimationMultiplier?: number;
+}
+
+export interface CpcImputationSettings {
+  transactionalMultiplier: number; // default 1.15
+  commercialMultiplier: number;    // default 1.00
+  informationalMultiplier: number; // default 0.85
+  autoImputeMissingCpc: boolean;   // default true
 }
 
 export interface CountryOption {

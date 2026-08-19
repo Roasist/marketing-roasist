@@ -29,7 +29,8 @@ import {
   Bookmark,
   ListPlus,
   Info,
-  KeyRound
+  KeyRound,
+  SlidersHorizontal
 } from 'lucide-react';
 import { 
   KeywordMetric, 
@@ -48,7 +49,8 @@ import {
   GrowthScenario,
   CampaignPlatform,
   CampaignObjective,
-  SubCampaignItem
+  SubCampaignItem,
+  CpcImputationSettings
 } from '../types/forecast';
 import { ApiService } from '../services/apiService';
 
@@ -339,7 +341,10 @@ export interface KeywordCluster {
   selectedCount: number;
 }
 
-export const groupKeywordsSemantically = (kwList: KeywordMetric[]): KeywordCluster[] => {
+export const groupKeywordsSemantically = (
+  kwList: KeywordMetric[],
+  imputationSettings?: CpcImputationSettings
+): KeywordCluster[] => {
   if (!kwList || kwList.length === 0) return [];
 
   // 1. Deduplicate incoming list by normalized keyword string
@@ -355,6 +360,48 @@ export const groupKeywordsSemantically = (kwList: KeywordMetric[]): KeywordClust
 
   const clusters: KeywordCluster[] = [];
 
+  // Global campaign benchmark low/high CPC for clusters that have zero direct Google CPC data
+  const globalValidKws = uniqueKwList.filter(k => k.lowCpc > 0.05 && k.highCpc > 0.05);
+  const globalTotalVol = globalValidKws.reduce((s, k) => s + Math.max(k.monthlyVolume, 10), 0);
+  const globalBenchmarkLow = globalValidKws.length > 0 
+    ? globalValidKws.reduce((s, k) => s + (k.lowCpc * Math.max(k.monthlyVolume, 10)), 0) / globalTotalVol 
+    : 5.0;
+  const globalBenchmarkHigh = globalValidKws.length > 0 
+    ? globalValidKws.reduce((s, k) => s + (k.highCpc * Math.max(k.monthlyVolume, 10)), 0) / globalTotalVol 
+    : 15.0;
+
+  const processClusterKeywords = (list: KeywordMetric[], clusterName: string): KeywordMetric[] => {
+    const clusterValidKws = list.filter(k => k.lowCpc > 0.05 && k.highCpc > 0.05);
+    const clusterTotalVol = clusterValidKws.reduce((s, k) => s + Math.max(k.monthlyVolume, 10), 0);
+    const clusterBenchLow = clusterValidKws.length > 0 
+      ? clusterValidKws.reduce((s, k) => s + (k.lowCpc * Math.max(k.monthlyVolume, 10)), 0) / clusterTotalVol 
+      : globalBenchmarkLow;
+    const clusterBenchHigh = clusterValidKws.length > 0 
+      ? clusterValidKws.reduce((s, k) => s + (k.highCpc * Math.max(k.monthlyVolume, 10)), 0) / clusterTotalVol 
+      : globalBenchmarkHigh;
+
+    return list.map(k => {
+      if ((k.lowCpc <= 0.05 && k.highCpc <= 0.05) && (imputationSettings?.autoImputeMissingCpc ?? true)) {
+        const mult = k.intent === 'TRANSACTIONAL' 
+          ? (imputationSettings?.transactionalMultiplier ?? 1.15)
+          : (k.intent === 'INFORMATIONAL' 
+              ? (imputationSettings?.informationalMultiplier ?? 0.85)
+              : (imputationSettings?.commercialMultiplier ?? 1.00));
+        const imputedLow = Math.max(0.50, Math.round(clusterBenchLow * mult * 100) / 100);
+        const imputedHigh = Math.max(imputedLow + 0.50, Math.round(clusterBenchHigh * mult * 100) / 100);
+        return {
+          ...k,
+          lowCpc: imputedLow,
+          highCpc: imputedHigh,
+          isCpcEstimated: true,
+          cpcEstimationCluster: clusterName,
+          cpcEstimationMultiplier: mult
+        };
+      }
+      return k;
+    });
+  };
+
   // 2. High-converting Granular STAG Theme Rules (Strict Priority Hierarchy: CBI -> Citizenship -> Residency -> Rental -> Pricing -> Legal -> Process -> Luxury -> Location -> Property Buying)
   const stagRules = [
     // 1. Yatırım Yoluyla Vatandaşlık & CBI (Citizenship by Investment) - HIGHEST SPECIFICITY
@@ -369,63 +416,63 @@ export const groupKeywordsSemantically = (kwList: KeywordMetric[]): KeywordClust
       id: 'stag_citizenship_passport',
       name: '🏛️ Türk Vatandaşlığı & Pasaport',
       icon: '🏛️',
-      regex: /(?:^|[^\p{L}\p{N}])(гражданств|гражданство|гражданства|паспорт|паспорта|турецкое гражданство|паспорт турции|турецкий паспорт|vatandaşlık|vatandaslik|vatandaşlığı|pasaport|pasaportu|türk vatandaşlığı|türk pasaportu|citizenship|passport|turkish citizenship|turkish passport|staatsbürgerschaft|reisepass|الجنسية التركية|جواز سفر تركي|جواز السفر|الجنسية|جنسية|جواز سفر|شهروندی ترکیه|پاسپورت ترکیه|شهروندی|تابعیت ترکیه|تابعیت|پاسپورت)(?:[^\p{L}\p{N}]|$)/ui
+      regex: /(?:^|[^\p{L}\p{N}])(турецкое гражданство|гражданство турции|гражданство за|гражданство|турецкий паспорт|паспорт турции|паспорт|vatandaşlık|turk vatandasligi|türk vatandaşlığı|türkiye vatandaşlığı|tc vatandaslik|pasaport|turkish citizenship|citizenship turkey|turkish passport|türkische staatsbürgerschaft|staatsbürgerschaft|türkischer pass|الجنسية التركية|جنسية تركية|جواز تركي|جواز سفر تركي|تابعیت ترکیه|شهروندی ترکیه|پاسپورت ترکیه|پاسپورت)(?:[^\p{L}\p{N}]|$)/ui
     },
-    // 3. İkamet İzni & Oturum (Residency & Residence Permit / ВНЖ и ПМЖ)
+    // 3. İkamet İzni & Oturum (Residency & ВНЖ / İkamet)
     {
-      id: 'stag_residency_permit',
+      id: 'stag_residency_ikamet',
       name: '🪪 İkamet İzni & Oturum (ВНЖ)',
       icon: '🪪',
-      regex: /(?:^|[^\p{L}\p{N}])(внж|пмж|икамет|вид на жительство|разрешение на проживание|проживание в турции|ikamet|ikametgah|oturum|oturum izni|ikamet izni|oturma izni|oturum iznine|oturum izniyle|oturum hakkı|residence permit|residency permit|residency|permanent residence|residence in turkey|aufenthalt|aufenthaltstitel|aufenthaltserlaubnis|residenz|إقامة|اقامة|إقامة سياحية|إقامة عقارية|تصريح إقامة|إقامة في تركيا|بطاقة الإقامة|الكيملك|اقامت|اقامت ترکیه|اقامت توریستی|اقامت ملکی|اقامت کاری|کارت کیملیک|کیملیک|اجازه اقامت)(?:[^\p{L}\p{N}]|$)/ui
+      regex: /(?:^|[^\p{L}\p{N}])(внж в турции|внж турция|внж по тапу|внж|икамет|икамет в турции|вид на жительство|оформление внж|получить внж|продление внж|отказ в внж|ikamet izni|ikamet|oturum izni|oturma izni|oturma|oturum|tapu ile ikamet|residence permit|residency permit|turkey ikamet|turkish residence|aufenthaltserlaubnis|ikamet permit|إقامة عقارية|إقامة سياحية|تصريح إقامة|اقامة في تركيا|إقامة تركيا|اقامة تركية|اقامت ترکیه|اقامت توریستی|اقامت ملکی|کارت اقامت|تمدید اقامت)(?:[^\p{L}\p{N}]|$)/ui
     },
-    // 4. Kiralık Konut & Daire Kiralama (Rentals / Property Renting) - STRICTLY SEPARATE FROM BUYING
+    // 4. Kiralık Konut & Daire Kiralama (Rentals & Kiralık) - DEDICATED SEPARATE GROUP
     {
       id: 'stag_rental',
       name: '🔑 Kiralık Konut & Daire Kiralama',
       icon: '🔑',
-      regex: /(?:^|[^\p{L}\p{N}])(kiralık|kiralama|kiralamak|kirası|kira bedeli|kira|kiralık daire|kiralık ev|kiralık konut|kiralık villa|kiralık mülk|yıllık ev kirası|aylık kira|daire kiralama|ev kiralama|аренда|арендовать|снять квартиру|снять жилье|снять дом|снять апартаменты|аренда жилья|сдать квартиру|посуточно|долгосрочная аренда|for rent|to rent|rent apartment|rent house|rent flat|rental|renting|property rental|monthly rent|yearly rent|house rent|للإيجار|إيجار|ايجار|استئجار|شقق للإيجار|بيوت للإيجار|إيجار سنوي|إيجار شهري|تأجير|اجاره|اجاره خانه|اجاره آپارتمان|اجاره ویلا|اجاره ملک|اجاره سالیانه|اجاره ماهانه|رهن و اجاره|کرایه خانه|کرایه آپارتمان|کرایه|mieten|miete|vermieten|wohnung mieten|haus mieten|kaltmiete|warmmiete)(?:[^\p{L}\p{N}]|$)/ui
+      regex: /(?:^|[^\p{L}\p{N}])(аренда в турции|аренда квартир|аренда жилья|аренда апартаментов|аренда недвижимости|аренда дома|аренда виллы|снять квартиру|снять жилье|снять апартаменты|снять дом|снять в турции|посуточная аренда|долгосрочная аренда|арендовать|kiralık daire|kiralık konut|kiralık ev|kiralık villa|kiralık yazlık|ev kirala|daire kirala|kiralama|yıllık kira|aylık kira|apartment for rent|rent apartment|rent house|property for rent|long term rent|short term rent|flat for rent|wohnung mieten|mietwohnung|haus mieten|şş|للإيجار|شقق للإيجار|إيجار في تركيا|استئجار شقة|اجاره خانه|اجاره آپارتمان|اجاره ملک|اجاره سالانه|اجاره در ترکیه)(?:[^\p{L}\p{N}]|$)/ui
     },
-    // 5. Fiyat, Harç & Maliyetler (Pricing, Costs & Investment Amount)
+    // 5. Fiyatlar, Harçlar, Masraflar & Maliyetler (Pricing, Costs & Budget)
     {
-      id: 'stag_pricing',
-      name: '💰 Fiyat, Harç & Uygun Seçenekler',
+      id: 'stag_costs_pricing',
+      name: '💰 Fiyat, Harç & Maliyetler',
       icon: '💰',
-      regex: /(?:^|[^\p{L}\p{N}])(цена|цены|цену|ценам|стоимост|стоимость|сколько стоит|расход|расходы|пошлин|пошлина|пошлины|тариф|тарифы|дешев|дешево|недорог|недорого|прайс|минимальн|рассрочка|fiyat|fiyatı|fiyatları|ücret|ücreti|ücretleri|maliyet|maliyeti|masraf|masrafları|harç|harçları|paket|paketleri|kaç para|ne kadar|teklif al|bütçe|hesaplama|en ucuz|en uygun|ucuz|uygun fiyatlı|taksit|taksitle|ödeme planı|price|prices|pricing|cost|costs|fee|fees|package|packages|how much|budget|cheap|affordable|quote|rates|calculator|installment|preise|preis|kosten|gebühr|wie viel|günstig|billig|سعر|اسعار|أسعار|تكلفة|تكاليف|رسوم|كم سعر|رخيص|رخيصة|ميزانية|أرخص|بالتقسيط|تقسيط|قیمت|قیمت‌ها|قیمت خانه|قیمت ملک|قیمت آپارتمان|هزینه|هزینه‌ها|چقدر است|ارزان|ارزان‌ترین|تعرفه|اقساط|قسطی)(?:[^\p{L}\p{N}]|$)/ui
+      regex: /(?:^|[^\p{L}\p{N}])(цены на недвижимость|цены на квартиры|цены в турции|стоимость недвижимости|стоимость квартир|сколько стоит|дешевые квартиры|недорого|расходы на|налоги|fiyat|fiyatlar|fiyatları|ücret|ücreti|masraf|masrafları|maliyet|maliyeti|harç|harçlar|kaça|ne kadar|en ucuz|uygun fiyat|taksitli|cost of living|prices|property prices|cheap apartments|fees|taxes|preise|kosten|günstig|أسعار العقارات|أسعار الشقق|تكلفة|تكاليف|رسوم|ضرائب|رخيص|قیمت ملک|قیمت خانه|هزینه‌ها|هزینه زندگی|ارزان)(?:[^\p{L}\p{N}]|$)/ui
     },
-    // 6. Hukuk & Danışmanlık Hizmetleri (Legal, Lawyers & Professional Help)
+    // 6. Hukuk, Avukat & Resmi Danışmanlık (Legal, Lawyers & Consultation)
     {
-      id: 'stag_legal_services',
+      id: 'stag_legal_consulting',
       name: '⚖️ Hukuk, Avukat & Danışmanlık',
       icon: '⚖️',
-      regex: /(?:^|[^\p{L}\p{N}])(юрист|юристы|юриста|адвокат|адвокаты|агентств|агентство|услуг|услуги|консультац|консультация|помощь|сопровожден|сопровождение|под ключ|специалист|эксперт|avukat|avukatı|avukatlık|danışmanlık|danışmanı|hukuk|hukuk bürosu|ajans|ajansı|hizmet|hizmetleri|müşavirlik|lawyer|legal|services|agency|firm|consulting|consultant|attorney|expert|turnkey|anwalt|beratung|agentur|rechtsanwalt|محامي|محامين|استشارة|استشارات|خدمات|مكتب محاماة|وكالة|وكيل|مستشار|وکیل|وکلا|مشاوره|مشاور|دفتر حقوقی|خدمات حقوقی|آژانس)(?:[^\p{L}\p{N}]|$)/ui
+      regex: /(?:^|[^\p{L}\p{N}])(адвокат в турции|русскоязычный адвокат|юрист в турции|юридическая помощь|юридические услуги|нотариус|апостиль|доверенность|avukat|hukuk|danışmanlık|danışmanı|danismanlik|hukuki|noter|vekaletname|apostil|lawyer|attorney|legal services|law firm|legal assistance|anwalt|rechtsanwalt|محامي في تركيا|مكتب محاماة|استشارة قانونية|توكيل|نوتر|وکیل در ترکیه|وکیل مهاجرت|مشاوره حقوقی|وکالتنامه)(?:[^\p{L}\p{N}]|$)/ui
     },
-    // 7. Başvuru, Evrak & Statü Kontrolü (Application, Documents & Status)
+    // 7. Başvuru, Şartlar, Evraklar & Statü (Applications, Documents & Requirements)
     {
-      id: 'stag_application_process',
-      name: '📜 Başvuru, Evrak & Statü Kontrolü',
+      id: 'stag_process_documents',
+      name: '📜 Başvuru, Evrak & Koşullar',
       icon: '📜',
-      regex: /(?:^|[^\p{L}\p{N}])(проверить статус|статус внж|статус|проверить|проверка|список документов|документ|документы|документов|пакет документов|подать|подача|подача заявления|анкета|сроки|срок действия|отказ|продлен|продление|şart|şartlar|şartları|evrak|evraklar|gerekli belgeler|gerekli|süreç|nasıl alınır|başvuru|başvurusu|başvuruları|randevu|sorgulama|red|uzatma|status|requirements|conditions|documents|process|procedure|how to get|how to apply|eligibility|renewal|rejection|antrag|beantragen|voraussetzungen|dokumente|verlängerung|شروط|الأوراق المطلوبة|أوراق|مستندات|وثائق|إجراءات|تقديم طلب|استعلام|معاملة|تجديد|شرایط|مدارک لازم|مدارک|مراحل|نحوه دریافت|درخواست|تمدید|رد شدن|پیگیری)(?:[^\p{L}\p{N}]|$)/ui
+      regex: /(?:^|[^\p{L}\p{N}])(как получить|документы для|условия|требования|подача документов|проверить статус|оформление|процедура|список документов|şartları|koşulları|nasıl alınır|başvuru|başvurusu|evraklar|gerekli evraklar|belgeler|süreç|statü sorgulama|requirements|how to apply|documents needed|application process|eligibility|antrag|unterlagen|voraussetzungen|شروط الحصول|الأوراق المطلوبة|طريقة التقديم|كيفية الحصول|مدارک لازم|شرایط اخذ|نحوه دریافت|مراحل ثبت نام)(?:[^\p{L}\p{N}]|$)/ui
     },
-    // 8. Lüks Konut, Villa & Rezidans Projeleri (Luxury Villas, Penthouses & Projects)
+    // 8. Lüks Projeler, Villalar & Rezidans (Luxury, Villas & New Developments)
     {
-      id: 'stag_luxury_villa',
+      id: 'stag_luxury_villas',
       name: '🏰 Lüks Konut, Villa & Projeler',
       icon: '🏰',
-      regex: /(?:^|[^\p{L}\p{N}])(вилл|вилла|виллы|новостройк|новостройка|новостройки|жк|жилой комплекс|апартамент|апартаменты|застройщик|застройщика|элитная недвижимость|пентхаус|у моря|первая линия|villa|villalar|villaları|lüks villa|müstakil ev|yazlık|penthouse|rezidans|residence|proje|projeleri|konut projeleri|sıfır daire|site içi|denize sıfır|luxury villa|luxury properties|residential project|new development|seafront|beachfront|villas|neubau|luxusimmobilien|فلل|فيلا|مجمع سكني|مشروع|مشروع عقاري|برج|بنتهاوس|على البحر|پنت هاوس|ویلا|ویلاها|شهرک|برج|پروژه|نوساز|ساحلی)(?:[^\p{L}\p{N}]|$)/ui
+      regex: /(?:^|[^\p{L}\p{N}])(виллы в турции|вилла в|купить виллу|элитная недвижимость|люкс|новостройки в турции|новостройки|жилой комплекс|жк в турции|пентхаус|villa|lüks konut|rezidans|markalı projeler|yeni projeler|müstakil ev|lüks villa|luxury real estate|luxury villas|new developments|penthouses|luxusimmobilien|neubau|فلل للبيع|فيلا في تركيا|عقارات فاخرة|مشاريع جديدة|مجمعات سكنية|ویلای لوکس|خرید ویلا|پروژه‌های جدید|برج‌های مسکونی)(?:[^\p{L}\p{N}]|$)/ui
     },
-    // 9. Lokasyon: İstanbul, Alanya, Antalya & Bölge (Location Specific)
+    // 9. Lokasyon: İstanbul & Bölge Odaklı (Istanbul Focused)
     {
-      id: 'stag_locations',
-      name: '📍 Lokasyon: İstanbul, Alanya, Antalya & Bölge',
+      id: 'stag_geo_istanbul',
+      name: '📍 Lokasyon: İstanbul & Çevresi',
       icon: '📍',
-      regex: /(?:^|[^\p{L}\p{N}])(алань|аланья|аланье|аланьи|аланью|анталь|анталья|анталии|анталию|стамбул|стамбуле|бодрум|мерсин|махмутlar|оба|кестель|каргыджак|авсалlar|измир|бурса|трабзон|анкара|alanya|antalya|istanbul|bodrum|mersin|izmir|bursa|trabzon|ankara|fethiye|اسطنبول|إسطنبول|انطاليا|أنطاليا|الانيا|ألانيا|مرسين|بودروم|بورصة|يلوا|طرابزون|تركيا|استانبول|آنتالیا|آلانیا|مرسین|بدروم|بورسا|ازمیر|ترکیه)(?:[^\p{L}\p{N}]|$)/ui
+      regex: /(?:^|[^\p{L}\p{N}])(стамбул|стамбуле|в стамбуле|стамбула|istanbul|istanbulda|istanbul'da|istanbul real estate|properties in istanbul|istanbul apartments|wohnungen istanbul|إسطنبول|اسطنبول|في اسطنبول|استانبول|در استانبول)(?:[^\p{L}\p{N}]|$)/ui
     },
-    // 10. Gayrimenkul & Konut Satın Alma (Real Estate & Property Buying)
+    // 10. Lokasyon: Antalya, Alanya & Akdeniz Sahili (Antalya & Coast Focused)
     {
-      id: 'stag_realestate',
-      name: '🏢 Gayrimenkul & Konut Satın Alma',
-      icon: '🏢',
-      regex: /(?:^|[^\p{L}\p{N}])(купить квартиру|купить апартаменты|купить дом|купить виллу|купить жилье|купить недвижимость|купить|покупк|покупка|покупка квартиры|покупка жилья|недвижим|недвижимость|недвижимости|квартир|квартира|квартиры|квартиру|собственност|собственность|продаж|продажа|satılık daire|satılık konut|satılık villa|satılık mülk|satılık ev|satılık|satın al|satın alma|satın almak|ev satın almak|daire satın almak|konut satın almak|ev almak|daire almak|gayrimenkul satın almak|mülk satın almak|emlak alım|mülk edinme|emlak|gayrimenkul|konut|daire|ev|mülk|arsa|buy property|buy apartment|buy house|buy villa|buy flat|buy home|for sale|property for sale|apartments for sale|houses for sale|villas for sale|real estate for sale|real estate turkey|real estate|property|properties|apartment|apartments|flat|flats|house|houses|kaufen|wohnung kaufen|haus kaufen|immobilien kaufen|immobilien türkei|wohnung|wohnungen|immobilien|شراء شقة|شراء عقار|شراء بيت|شراء منزل|شراء فيلا|شراء|للبيع|شقق للبيع|فلل للبيع|بيوت للبيع|عقارات للبيع|عقارات تركيا|بيع وشراء|شقق|شقة|بيوت|بيت|عقار|عقارات|شراء عقار|خرید ملک|خرید آپارتمان|خرید خانه|خرید ویلا|خرید مسکن|خرید زمین|خرید ملک در ترکیه|خرید|برای فروش|فروش ملک|فروش خانه|فروش آپارتمان|املاک در ترکیه|املاک ترکیه|املاک|آپارتمان|خانه|ملک)(?:[^\p{L}\p{N}]|$)/ui
+      id: 'stag_geo_mediterranean',
+      name: '🏖️ Lokasyon: Antalya, Alanya & Sahil',
+      icon: '🏖️',
+      regex: /(?:^|[^\p{L}\p{N}])(анталья|анталье|аланья|аланье|мерсин|мерсине|бодрум|бодруме|маersin|antalya|antalyada|alanya|alanyada|bodrum|mersin|fethiye|properties in antalya|alanya real estate|antalyada ev|أنطاليا|الانيا|مرسين|بودروم|آنتالیا|آلانیا|مرسین|بدروم)(?:[^\p{L}\p{N}]|$)/ui
     },
     // 11. Göç, Yaşam & Türkiye Rehberi (Living, Relocation & Life in Turkey)
     {
@@ -436,31 +483,17 @@ export const groupKeywordsSemantically = (kwList: KeywordMetric[]): KeywordClust
     },
     // 12. En İyi, Yorumlar & Tecrübeler (Reviews, Experiences & Best)
     {
-      id: 'stag_reviews',
-      name: '⭐ En İyi, Yorumlar & Tecrübeler',
+      id: 'stag_reviews_experience',
+      name: '⭐ Yorumlar, Deneyim & Tavsiyeler',
       icon: '⭐',
-      regex: /(?:^|[^\p{L}\p{N}])(отзывы|отзыв|лучший|лучшие|лучш|рейтинг|плюсы и минусы|опыт|форум|надежн|надежный|проверенный|сравнение|реальный опыт|истории|история|en iyi|en uygun|tavsiye|tavsiyeleri|yorum|yorumları|yorumlar|şikayet|karşılaştırma|güvenilir|tecrübe|deneyim|best|top|top rated|reviews|review|before and after|rating|ratings|comparison|compare|pros and cons|trusted|experience|forum|testimonials|erfahrungen|bewertung|erfahrung|vergleich|افضل|تجارب|تقييم|اراء|نصائح|بهترین|نظرات|تجربه|بررسی)(?:[^\p{L}\p{N}]|$)/ui
+      regex: /(?:^|[^\p{L}\p{N}])(отзывы|опыт|советы|форум|стоит ли|плюсы и минусы|лучшие районы|лучший|топ|yorumlar|tavsiyeler|deneyimler|şikayet|forum|en iyi|reviews|best areas|experiences|pros and cons|erfahrungen|bewertungen|تجارب|آراء|أفضل المناطق|نصائح|تجربيات|نظرات|بهترین مناطق)(?:[^\p{L}\p{N}]|$)/ui
     },
-    // 13. Otel, Konaklama & Tatil (Hotels & Vacation)
+    // 13. Gayrimenkul & Konut Satın Alma (Pure Property Buying & Real Estate - BROADEST INTENT)
     {
-      id: 'stag_hotel_tourism',
-      name: '🏨 Otel, Konaklama & Tatil',
-      icon: '🏨',
-      regex: /(?:^|[^\p{L}\p{N}])(hotel|hotels|otel|otelleri|resort|resorts|pansiyon|pansiyonlar|butik otel|boutique hotel|apart otel|apart|all inclusive|her şey dahil|oda kahvaltı|bungalov|glamping|accommodation|stay|فندق|فنادق|منتجع|حجز فندقي|هتل|رزرو هتل|اقامتگاه)(?:[^\p{L}\p{N}]|$)/ui
-    },
-    // 14. Klinik, Hastane & Sağlık (Medical & Clinics)
-    {
-      id: 'stag_clinics_medical',
-      name: '🏥 Klinik, Hastane & Uzmanlar',
-      icon: '🏥',
-      regex: /(?:^|[^\p{L}\p{N}])(klinik|kliniği|klinikleri|hastane|hastanesi|doktor|doktoru|doktorları|uzman doktor|cerrah|cerrahı|diş hekimi|sağlık merkezi|tıp merkezi|estetik merkezi|saç ekim merkezi|saç ekimi|diş|estetik|tedavi|ameliyat|clinic|clinics|hospital|hospitals|surgeon|surgeons|physician|hair transplant|dental|aesthetic|surgery|treatment|medical|arzt|zahn|behandlung|клиник|клиника|больниц|больница|врач|хирург|пересадка волос|стоматолог|лечение|операция|مستشفى|عيادة|طبيب|دكتور|زراعة اسنان|زراعة شعر|تجميل|علاج|کلینیک|بیمارستان|پزشک|دکتر|کاشت مو|ایمپلنت|زیبایی)(?:[^\p{L}\p{N}]|$)/ui
-    },
-    // 15. Eğitim, Okul & Kurslar (Education & Schools)
-    {
-      id: 'stag_education',
-      name: '🎓 Eğitim, Okul & Kurslar',
-      icon: '🎓',
-      regex: /(?:^|[^\p{L}\p{N}])(okul|okulu|okulları|ilkokul|ortaokul|lise|kolej|koleji|özel okul|butik okul|kurs|kursu|kursları|eğitim|eğitimi|eğitimleri|akademi|dershane|üniversite|öğrenci|school|schul|education|academy|college|university|student|tuition|schule|kolleg|ausbildung|школ|школа|колледж|курс|курсы|обучение|образование|академия|университет|студент|جامعة|مدرسة|دورات|تعليم|دراسة|دانشگاه|مدرسه|دوره|آموزش|تحصیل)(?:[^\p{L}\p{N}]|$)/ui
+      id: 'stag_property_buying',
+      name: '🏢 Gayrimenkul & Konut Satın Alma',
+      icon: '🏢',
+      regex: /(?:^|[^\p{L}\p{N}])(купить квартиру|купить недвижимость|купить жилье|купить дом|покупка квартиры|покупка недвижимости|недвижимость в турции|недвижимость турция|квартиры в турции|квартира в турции|апартаменты в турции|продажа квартир|продажа недвижимости|застройщик|satılık daire|satılık ev|satılık konut|satılık mülk|gayrimenkul alımı|konut alımı|ev satın al|daire al|emlak|gayrimenkul|mülk|tapu|inşaat firmaları|sahibinden|buy property in turkey|buy apartment in turkey|real estate turkey|property for sale|turkish property|immobilien türkei|wohnung kaufen türkei|شراء شقة|شراء عقار|عقارات تركيا|شقق للبيع|عقار للبيع|تملك عقار|طابو|خرید ملک در ترکیه|خرید خانه در ترکیه|خرید آپارتمان|املاک ترکیه|فروش آپارتمان)(?:[^\p{L}\p{N}]|$)/ui
     }
   ];
 
@@ -483,19 +516,20 @@ export const groupKeywordsSemantically = (kwList: KeywordMetric[]): KeywordClust
     }
   }
 
-  // Add populated STAG groups
+  // Add populated STAG groups with processed/imputed keywords
   for (const rule of stagRules) {
     const list = assigned.get(rule.id) || [];
     if (list.length > 0) {
-      const vol = list.reduce((s, k) => s + k.monthlyVolume, 0);
-      const cpcSum = list.reduce((s, k) => s + ((k.lowCpc + k.highCpc) / 2), 0);
+      const processed = processClusterKeywords(list, rule.name);
+      const vol = processed.reduce((s, k) => s + k.monthlyVolume, 0);
+      const cpcSum = processed.reduce((s, k) => s + ((k.lowCpc + k.highCpc) / 2), 0);
       clusters.push({
         id: rule.id,
         name: rule.name,
         icon: rule.icon,
-        keywords: list,
+        keywords: processed,
         totalVolume: vol,
-        avgCpc: list.length > 0 ? cpcSum / list.length : 0,
+        avgCpc: processed.length > 0 ? cpcSum / processed.length : 0,
         selectedCount: 0
       });
     }
@@ -627,6 +661,27 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   const [includeSuggestions, setIncludeSuggestions] = useState<boolean>(true);
   const [step1SourceFilter, setStep1SourceFilter] = useState<'ALL' | 'USER_SEED' | 'EXPANSION'>('ALL');
 
+  // CPC Imputation Settings (Hierarchical cluster-intent modifiers for low-volume keywords)
+  const [cpcImputationSettings, setCpcImputationSettings] = useState<CpcImputationSettings>(() => {
+    try {
+      const raw = localStorage.getItem('roasist_cpc_imputation_settings');
+      if (raw) return JSON.parse(raw);
+    } catch (e) {}
+    return {
+      transactionalMultiplier: 1.15,
+      commercialMultiplier: 1.00,
+      informationalMultiplier: 0.85,
+      autoImputeMissingCpc: true,
+    };
+  });
+  const [showCpcSettingsModal, setShowCpcSettingsModal] = useState<boolean>(false);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('roasist_cpc_imputation_settings', JSON.stringify(cpcImputationSettings));
+    } catch (e) {}
+  }, [cpcImputationSettings]);
+
   const parsedSeedList = useMemo(() => {
     if (!query || mode !== 'KEYWORDS') return [];
     return query.split(/[\n\r,;]+/).map(s => s.trim()).filter(s => s.length > 0);
@@ -656,9 +711,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     });
   }, [keywords, selectedLocations]);
 
-  // Semantic Clusters (Base Raw Clusters)
+  // Semantic Clusters (Base Raw Clusters with Hierarchical CPC Imputation)
   const baseKeywordClusters = useMemo(() => {
-    const rawClusters = groupKeywordsSemantically(normalizedKeywords);
+    const rawClusters = groupKeywordsSemantically(normalizedKeywords, cpcImputationSettings);
     return rawClusters.map(cluster => {
       const selectedInCluster = cluster.keywords.filter(k => selectedKeywordIds.has(k.id)).length;
       return {
@@ -666,7 +721,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         selectedCount: selectedInCluster
       };
     });
-  }, [normalizedKeywords, selectedKeywordIds]);
+  }, [normalizedKeywords, selectedKeywordIds, cpcImputationSettings]);
 
   const toggleGroupSelection = (cluster: { id: string; keywords: KeywordMetric[] }) => {
     const next = new Set(selectedKeywordIds);
@@ -4893,6 +4948,34 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                             </select>
                           </div>
 
+                          {/* TBM Imputation Multipliers Button */}
+                          <button
+                            type="button"
+                            onClick={() => setShowCpcSettingsModal(true)}
+                            className="btn-secondary"
+                            title="Google açık artırma verisi bulunmayan düşük hacimli kelimelerin TBM çarpanlarını özelleştirin"
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '5px',
+                              fontSize: '0.74rem',
+                              padding: '0.35rem 0.65rem',
+                              borderRadius: 'var(--radius-xs)',
+                              border: '1px solid rgba(139, 92, 246, 0.35)',
+                              backgroundColor: 'rgba(139, 92, 246, 0.08)',
+                              color: '#8b5cf6',
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                              whiteSpace: 'nowrap'
+                            }}
+                          >
+                            <SlidersHorizontal size={13} />
+                            <span>TBM Çarpanları</span>
+                            <span style={{ fontSize: '0.62rem', backgroundColor: '#8b5cf6', color: '#fff', borderRadius: '10px', padding: '1px 5px' }}>
+                              {cpcImputationSettings.transactionalMultiplier}x
+                            </span>
+                          </button>
+
                           {/* Add Custom Keyword to this Group */}
                           <div style={{ display: 'flex', gap: '0.3rem', minWidth: '180px' }}>
                             <input
@@ -5156,13 +5239,37 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
                                   {/* Top of page CPC */}
                                   <td style={{ padding: '0.5rem 0.75rem' }}>
-                                    {kw.lowCpc > 0 ? (
+                                    {kw.isCpcEstimated ? (
+                                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                                        <span style={{ fontSize: '0.75rem', color: 'var(--text-primary)', fontFamily: 'monospace' }}>
+                                          ≈ ₺{kw.lowCpc.toFixed(2)} - ₺{kw.highCpc.toFixed(2)}
+                                        </span>
+                                        <span 
+                                          title={`Google açık artırma verisi az olduğundan, '${kw.cpcEstimationCluster || activeCluster.name}' kümesi ortalaması ve ${kw.cpcEstimationMultiplier || 1.0}x niyet çarpanı ile hesaplanmıştır.`} 
+                                          style={{ 
+                                            fontSize: '0.62rem', 
+                                            fontWeight: 700, 
+                                            padding: '1px 5px', 
+                                            borderRadius: '3px', 
+                                            backgroundColor: 'rgba(139, 92, 246, 0.12)', 
+                                            color: '#8b5cf6',
+                                            border: '1px solid rgba(139, 92, 246, 0.25)',
+                                            cursor: 'help',
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '2px'
+                                          }}
+                                        >
+                                          Tahmin
+                                        </span>
+                                      </div>
+                                    ) : kw.lowCpc > 0 ? (
                                       <span style={{ fontSize: '0.75rem', color: 'var(--text-primary)', fontFamily: 'monospace' }}>
                                         ₺{kw.lowCpc.toFixed(2)} - ₺{kw.highCpc.toFixed(2)}
                                       </span>
                                     ) : (
                                       <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                                        ₺{(activeCluster.avgCpc * 0.8).toFixed(2)} - ₺{(activeCluster.avgCpc * 1.5).toFixed(2)}
+                                        ₺0.00 - ₺0.00
                                       </span>
                                     )}
                                   </td>
@@ -8654,6 +8761,296 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                 style={{ padding: '0.5rem 1.25rem', fontSize: '0.85rem', fontWeight: 600 }}
               >
                 ✓ Lokasyonları Onayla ({selectedLocations.length} Bölge)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ⚙️ CPC Imputation & Multiplier Settings Modal */}
+      {showCpcSettingsModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            backdropFilter: 'blur(4px)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1rem',
+          }}
+          onClick={() => setShowCpcSettingsModal(false)}
+        >
+          <div
+            style={{
+              backgroundColor: 'var(--bg-surface)',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--border-default)',
+              width: '100%',
+              maxWidth: '560px',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '1.25rem',
+              padding: '1.5rem',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', borderBottom: '1px solid var(--border-default)', paddingBottom: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div style={{ padding: '0.6rem', borderRadius: 'var(--radius-sm)', backgroundColor: 'rgba(139, 92, 246, 0.15)', color: '#8b5cf6' }}>
+                  <SlidersHorizontal size={22} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    TBM Tahmin & Rekabet Çarpanı Ayarları
+                  </h3>
+                  <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                    Düşük hacimli kelimeler için küme ortalaması ve niyet çarpanı ile dinamik TBM tamamlama
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCpcSettingsModal(false)}
+                className="btn-ghost"
+                style={{ padding: '0.35rem', borderRadius: '50%', color: 'var(--text-muted)' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Info Callout */}
+            <div style={{
+              backgroundColor: 'rgba(139, 92, 246, 0.06)',
+              border: '1px solid rgba(139, 92, 246, 0.2)',
+              borderRadius: 'var(--radius-sm)',
+              padding: '0.75rem 1rem',
+              display: 'flex',
+              gap: '0.6rem',
+              alignItems: 'flex-start'
+            }}>
+              <Info size={16} color="#8b5cf6" style={{ flexShrink: 0, marginTop: '2px' }} />
+              <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                <strong style={{ color: 'var(--text-primary)' }}>Neden TBM Tahmini Yapılır?</strong> Google Ads API, arama hacmi düşük olan veya son 30 günde açık artırma verisi kısıtlı kelimeler için TBM aralığı (0 / boş) döndürmez. Roasist, bu kelimeleri ait oldukları STAG kümesinin ağırlıklı ortalaması ve aşağıdaki niyet çarpanlarıyla tamamlar.
+              </div>
+            </div>
+
+            {/* Auto-Impute Toggle */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '0.75rem 1rem',
+              borderRadius: 'var(--radius-sm)',
+              backgroundColor: 'var(--bg-surface-elevated)',
+              border: '1px solid var(--border-default)'
+            }}>
+              <div>
+                <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                  Eksik TBM'leri Küme Ortalamasıyla Otomatik Tamamla
+                </div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                  Kapalıyken Google'dan TBM gelmeyen kelimeler ₺0.00 görünür.
+                </div>
+              </div>
+              <input
+                type="checkbox"
+                checked={cpcImputationSettings.autoImputeMissingCpc}
+                onChange={(e) => setCpcImputationSettings(prev => ({ ...prev, autoImputeMissingCpc: e.target.checked }))}
+                style={{ width: '18px', height: '18px', accentColor: 'var(--brand-primary)', cursor: 'pointer' }}
+              />
+            </div>
+
+            {/* Multiplier Sliders */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                Arama Niyetine Göre Rekabet Çarpanları
+              </div>
+
+              {/* 1. Transactional Multiplier */}
+              <div style={{
+                padding: '0.85rem 1rem',
+                borderRadius: 'var(--radius-sm)',
+                backgroundColor: 'var(--bg-surface-elevated)',
+                border: '1px solid var(--border-default)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.5rem'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div>
+                    <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#10b981' }}>🎯 Satın Alma & Dönüşüm Niyeti</span>
+                    <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', display: 'block' }}>
+                      "satın al", "fiyatı", "kiralık", "başvuru" gibi yüksek dönüşümlü aramalar
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'monospace' }}>
+                      {cpcImputationSettings.transactionalMultiplier.toFixed(2)}x
+                    </span>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <input
+                    type="range"
+                    min="0.50"
+                    max="3.00"
+                    step="0.05"
+                    value={cpcImputationSettings.transactionalMultiplier}
+                    onChange={(e) => setCpcImputationSettings(prev => ({ ...prev, transactionalMultiplier: parseFloat(e.target.value) }))}
+                    style={{ flex: 1, accentColor: '#10b981', cursor: 'pointer' }}
+                  />
+                  <input
+                    type="number"
+                    min="0.50"
+                    max="3.00"
+                    step="0.05"
+                    value={cpcImputationSettings.transactionalMultiplier}
+                    onChange={(e) => setCpcImputationSettings(prev => ({ ...prev, transactionalMultiplier: parseFloat(e.target.value) || 1.0 }))}
+                    style={{ width: '65px', fontSize: '0.75rem', padding: '0.25rem 0.4rem', textAlign: 'center' }}
+                  />
+                </div>
+              </div>
+
+              {/* 2. Commercial Multiplier */}
+              <div style={{
+                padding: '0.85rem 1rem',
+                borderRadius: 'var(--radius-sm)',
+                backgroundColor: 'var(--bg-surface-elevated)',
+                border: '1px solid var(--border-default)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.5rem'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div>
+                    <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--brand-primary)' }}>🔍 Ticari & Karşılaştırma Niyeti</span>
+                    <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', display: 'block' }}>
+                      "en iyi", "karşılaştırma", "projeler", "hizmetler" gibi araştırma aramaları
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'monospace' }}>
+                      {cpcImputationSettings.commercialMultiplier.toFixed(2)}x
+                    </span>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <input
+                    type="range"
+                    min="0.50"
+                    max="3.00"
+                    step="0.05"
+                    value={cpcImputationSettings.commercialMultiplier}
+                    onChange={(e) => setCpcImputationSettings(prev => ({ ...prev, commercialMultiplier: parseFloat(e.target.value) }))}
+                    style={{ flex: 1, accentColor: 'var(--brand-primary)', cursor: 'pointer' }}
+                  />
+                  <input
+                    type="number"
+                    min="0.50"
+                    max="3.00"
+                    step="0.05"
+                    value={cpcImputationSettings.commercialMultiplier}
+                    onChange={(e) => setCpcImputationSettings(prev => ({ ...prev, commercialMultiplier: parseFloat(e.target.value) || 1.0 }))}
+                    style={{ width: '65px', fontSize: '0.75rem', padding: '0.25rem 0.4rem', textAlign: 'center' }}
+                  />
+                </div>
+              </div>
+
+              {/* 3. Informational Multiplier */}
+              <div style={{
+                padding: '0.85rem 1rem',
+                borderRadius: 'var(--radius-sm)',
+                backgroundColor: 'var(--bg-surface-elevated)',
+                border: '1px solid var(--border-default)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.5rem'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div>
+                    <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#f59e0b' }}>💡 Bilgi & Rehber Niyeti</span>
+                    <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', display: 'block' }}>
+                      "nedir", "nasıl alınır", "şartları", "rehber" gibi üst huni bilgi aramaları
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'monospace' }}>
+                      {cpcImputationSettings.informationalMultiplier.toFixed(2)}x
+                    </span>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <input
+                    type="range"
+                    min="0.50"
+                    max="3.00"
+                    step="0.05"
+                    value={cpcImputationSettings.informationalMultiplier}
+                    onChange={(e) => setCpcImputationSettings(prev => ({ ...prev, informationalMultiplier: parseFloat(e.target.value) }))}
+                    style={{ flex: 1, accentColor: '#f59e0b', cursor: 'pointer' }}
+                  />
+                  <input
+                    type="number"
+                    min="0.50"
+                    max="3.00"
+                    step="0.05"
+                    value={cpcImputationSettings.informationalMultiplier}
+                    onChange={(e) => setCpcImputationSettings(prev => ({ ...prev, informationalMultiplier: parseFloat(e.target.value) || 0.85 }))}
+                    style={{ width: '65px', fontSize: '0.75rem', padding: '0.25rem 0.4rem', textAlign: 'center' }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Live Calculation Preview Box */}
+            <div style={{
+              backgroundColor: 'var(--bg-surface-elevated)',
+              border: '1px dashed var(--border-default)',
+              borderRadius: 'var(--radius-sm)',
+              padding: '0.75rem 1rem',
+              fontSize: '0.72rem',
+              color: 'var(--text-secondary)'
+            }}>
+              <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.25rem' }}>
+                📊 Canlı Hesaplama Örneği (Küme TBM Ortalaması ₺10.00 ise):
+              </div>
+              <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <span>🎯 Satın Alma: <strong style={{ color: '#10b981' }}>₺{(10 * cpcImputationSettings.transactionalMultiplier).toFixed(2)}</strong></span>
+                <span>🔍 Ticari: <strong style={{ color: 'var(--brand-primary)' }}>₺{(10 * cpcImputationSettings.commercialMultiplier).toFixed(2)}</strong></span>
+                <span>💡 Bilgi: <strong style={{ color: '#f59e0b' }}>₺{(10 * cpcImputationSettings.informationalMultiplier).toFixed(2)}</strong></span>
+              </div>
+            </div>
+
+            {/* Footer Actions */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid var(--border-default)', paddingTop: '1rem' }}>
+              <button
+                type="button"
+                onClick={() => setCpcImputationSettings({
+                  transactionalMultiplier: 1.15,
+                  commercialMultiplier: 1.00,
+                  informationalMultiplier: 0.85,
+                  autoImputeMissingCpc: true,
+                })}
+                className="btn-ghost"
+                style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}
+              >
+                Varsayılanlara Sıfırla
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowCpcSettingsModal(false)}
+                className="btn-primary"
+                style={{ padding: '0.5rem 1.25rem', fontSize: '0.82rem', fontWeight: 600 }}
+              >
+                ✓ Değişiklikleri Uygula & Kapat
               </button>
             </div>
           </div>
