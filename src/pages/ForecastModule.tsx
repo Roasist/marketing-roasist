@@ -58,92 +58,90 @@ import { ApiService } from '../services/apiService';
 
 export const COUNTRY_CPC_MULTIPLIERS: Record<string, number> = {
   TR: 1.0,
-  US: 2.8,
-  CH: 2.5,
-  GB: 2.3,
-  UK: 2.3,
-  NL: 2.2,
-  DE: 2.1,
-  SE: 2.1,
-  NO: 2.2,
-  DK: 2.1,
-  FI: 2.0,
-  AT: 2.0,
-  BE: 2.0,
-  LU: 2.3,
-  IE: 2.1,
-  CA: 2.2,
-  AU: 2.4,
-  NZ: 2.1,
-  FR: 1.9,
-  IT: 1.8,
-  ES: 1.7,
-  PT: 1.6,
-  AE: 2.0,
-  QA: 1.9,
-  KW: 1.8,
-  SA: 1.7,
-  BH: 1.7,
-  OM: 1.6,
-  IL: 2.0,
-  CY: 1.4,
-  GR: 1.3,
-  PL: 1.3,
-  CZ: 1.4,
-  HU: 1.2,
-  RO: 1.1,
+  US: 1.0,
+  CH: 1.0,
+  GB: 1.0,
+  UK: 1.0,
+  NL: 1.0,
+  DE: 1.0,
+  SE: 1.0,
+  NO: 1.0,
+  DK: 1.0,
+  FI: 1.0,
+  AT: 1.0,
+  BE: 1.0,
+  LU: 1.0,
+  IE: 1.0,
+  CA: 1.0,
+  AU: 1.0,
+  NZ: 1.0,
+  FR: 1.0,
+  IT: 1.0,
+  ES: 1.0,
+  PT: 1.0,
+  AE: 1.0,
+  QA: 1.0,
+  KW: 1.0,
+  SA: 1.0,
+  BH: 1.0,
+  OM: 1.0,
+  IL: 1.0,
+  CY: 1.0,
+  GR: 1.0,
+  PL: 1.0,
+  CZ: 1.0,
+  HU: 1.0,
+  RO: 1.0,
   BG: 1.0,
   RU: 1.0,
-  UA: 0.85,
-  KZ: 0.85,
-  UZ: 0.75,
-  AZ: 0.80,
-  GE: 0.80,
-  KG: 0.75
+  UA: 1.0,
+  KZ: 1.0,
+  UZ: 1.0,
+  AZ: 1.0,
+  GE: 1.0,
+  KG: 1.0
 };
 
-export const getCountryCpcMultiplier = (countryCode?: string): number => {
-  if (!countryCode) return 1.5;
-  const cc = countryCode.toUpperCase();
-  return COUNTRY_CPC_MULTIPLIERS[cc] ?? (cc === 'TR' ? 1.0 : 1.6);
+export const getCountryCpcMultiplier = (_countryCode?: string): number => {
+  return 1.0;
 };
 
 export const CORE_GEO_ENTITIES: Record<string, GeoTargetLocation> = {
   TR: { id: '2792', resourceName: 'geoTargetConstants/2792', name: 'Türkiye', canonicalName: 'Türkiye', countryCode: 'TR', targetType: 'Country', reach: 85000000, flag: '🇹🇷', cpcMultiplier: 1.0, volumeMultiplier: 1.0 },
-  TR_IST: { id: '1012782', resourceName: 'geoTargetConstants/1012782', name: 'İstanbul', canonicalName: 'Istanbul, Turkey', countryCode: 'TR', targetType: 'City', reach: 16000000, flag: '🇹🇷', cpcMultiplier: 1.05, volumeMultiplier: 1.0 },
+  TR_IST: { id: '1012782', resourceName: 'geoTargetConstants/1012782', name: 'İstanbul', canonicalName: 'Istanbul, Turkey', countryCode: 'TR', targetType: 'City', reach: 16000000, flag: '🇹🇷', cpcMultiplier: 1.0, volumeMultiplier: 1.0 },
   TR_ANTALYA: { id: '1012763', resourceName: 'geoTargetConstants/1012763', name: 'Antalya', canonicalName: 'Antalya, Turkey', countryCode: 'TR', targetType: 'City', reach: 2600000, flag: '🇹🇷', cpcMultiplier: 1.0, volumeMultiplier: 1.0 },
   TR_ALANYA: { id: '9199343', resourceName: 'geoTargetConstants/9199343', name: 'Alanya', canonicalName: 'Alanya, Antalya, Turkey', countryCode: 'TR', targetType: 'District', reach: 350000, flag: '🇹🇷', cpcMultiplier: 1.0, volumeMultiplier: 1.0 },
   TR_ANKARA: { id: '1012764', resourceName: 'geoTargetConstants/1012764', name: 'Ankara', canonicalName: 'Ankara, Turkey', countryCode: 'TR', targetType: 'City', reach: 5800000, flag: '🇹🇷', cpcMultiplier: 1.0, volumeMultiplier: 1.0 },
   TR_IZMIR: { id: '1012783', resourceName: 'geoTargetConstants/1012783', name: 'İzmir', canonicalName: 'Izmir, Turkey', countryCode: 'TR', targetType: 'City', reach: 4500000, flag: '🇹🇷', cpcMultiplier: 1.0, volumeMultiplier: 1.0 },
-  TR_BODRUM: { id: '9199587', resourceName: 'geoTargetConstants/9199587', name: 'Bodrum', canonicalName: 'Bodrum, Mugla, Turkey', countryCode: 'TR', targetType: 'District', reach: 200000, flag: '🇹🇷', cpcMultiplier: 1.1, volumeMultiplier: 1.0 },
-  DE: { id: '2276', resourceName: 'geoTargetConstants/2276', name: 'Almanya', canonicalName: 'Germany', countryCode: 'DE', targetType: 'Country', reach: 83000000, flag: '🇩🇪', cpcMultiplier: 2.1, volumeMultiplier: 1.0 },
-  AT: { id: '2040', resourceName: 'geoTargetConstants/2040', name: 'Avusturya', canonicalName: 'Austria', countryCode: 'AT', targetType: 'Country', reach: 9000000, flag: '🇦🇹', cpcMultiplier: 2.0, volumeMultiplier: 1.0 },
-  CH: { id: '2756', resourceName: 'geoTargetConstants/2756', name: 'İsviçre', canonicalName: 'Switzerland', countryCode: 'CH', targetType: 'Country', reach: 8700000, flag: '🇨🇭', cpcMultiplier: 2.5, volumeMultiplier: 1.0 },
-  NL: { id: '2528', resourceName: 'geoTargetConstants/2528', name: 'Hollanda', canonicalName: 'Netherlands', countryCode: 'NL', targetType: 'Country', reach: 17800000, flag: '🇳🇱', cpcMultiplier: 2.2, volumeMultiplier: 1.0 },
-  UK: { id: '2826', resourceName: 'geoTargetConstants/2826', name: 'Birleşik Krallık (İngiltere)', canonicalName: 'United Kingdom', countryCode: 'GB', targetType: 'Country', reach: 67000000, flag: '🇬🇧', cpcMultiplier: 2.3, volumeMultiplier: 1.0 },
-  SE: { id: '2752', resourceName: 'geoTargetConstants/2752', name: 'İsveç', canonicalName: 'Sweden', countryCode: 'SE', targetType: 'Country', reach: 10500000, flag: '🇸🇪', cpcMultiplier: 2.1, volumeMultiplier: 1.0 },
-  NO: { id: '2578', resourceName: 'geoTargetConstants/2578', name: 'Norveç', canonicalName: 'Norway', countryCode: 'NO', targetType: 'Country', reach: 5400000, flag: '🇳🇴', cpcMultiplier: 2.2, volumeMultiplier: 1.0 },
-  DK: { id: '2208', resourceName: 'geoTargetConstants/2208', name: 'Danimarka', canonicalName: 'Denmark', countryCode: 'DK', targetType: 'Country', reach: 5900000, flag: '🇩🇰', cpcMultiplier: 2.1, volumeMultiplier: 1.0 },
-  FI: { id: '2246', resourceName: 'geoTargetConstants/2246', name: 'Finlandiya', canonicalName: 'Finland', countryCode: 'FI', targetType: 'Country', reach: 5500000, flag: '🇫🇮', cpcMultiplier: 2.0, volumeMultiplier: 1.0 },
-  US: { id: '2840', resourceName: 'geoTargetConstants/2840', name: 'Amerika Birleşik Devletleri', canonicalName: 'United States', countryCode: 'US', targetType: 'Country', reach: 330000000, flag: '🇺🇸', cpcMultiplier: 2.8, volumeMultiplier: 1.0 },
-  CA: { id: '2124', resourceName: 'geoTargetConstants/2124', name: 'Kanada', canonicalName: 'Canada', countryCode: 'CA', targetType: 'Country', reach: 39000000, flag: '🇨🇦', cpcMultiplier: 2.2, volumeMultiplier: 1.0 },
-  AU: { id: '2036', resourceName: 'geoTargetConstants/2036', name: 'Avustralya', canonicalName: 'Australia', countryCode: 'AU', targetType: 'Country', reach: 26000000, flag: '🇦🇺', cpcMultiplier: 2.4, volumeMultiplier: 1.0 },
-  FR: { id: '2250', resourceName: 'geoTargetConstants/2250', name: 'Fransa', canonicalName: 'France', countryCode: 'FR', targetType: 'Country', reach: 68000000, flag: '🇫🇷', cpcMultiplier: 1.9, volumeMultiplier: 1.0 },
-  IT: { id: '2380', resourceName: 'geoTargetConstants/2380', name: 'İtalya', canonicalName: 'Italy', countryCode: 'IT', targetType: 'Country', reach: 59000000, flag: '🇮🇹', cpcMultiplier: 1.8, volumeMultiplier: 1.0 },
-  ES: { id: '2724', resourceName: 'geoTargetConstants/2724', name: 'İspanya', canonicalName: 'Spain', countryCode: 'ES', targetType: 'Country', reach: 47000000, flag: '🇪🇸', cpcMultiplier: 1.7, volumeMultiplier: 1.0 },
-  AE: { id: '2784', resourceName: 'geoTargetConstants/2784', name: 'Birleşik Arap Emirlikleri', canonicalName: 'United Arab Emirates', countryCode: 'AE', targetType: 'Country', reach: 9500000, flag: '🇦🇪', cpcMultiplier: 2.0, volumeMultiplier: 1.0 },
-  AE_DUBAI: { id: '1000013', resourceName: 'geoTargetConstants/1000013', name: 'Dubai', canonicalName: 'Dubai, United Arab Emirates', countryCode: 'AE', targetType: 'City', reach: 3500000, flag: '🇦🇪', cpcMultiplier: 2.0, volumeMultiplier: 1.0 },
-  SA: { id: '2682', resourceName: 'geoTargetConstants/2682', name: 'Suudi Arabistan', canonicalName: 'Saudi Arabia', countryCode: 'SA', targetType: 'Country', reach: 36000000, flag: '🇸🇦', cpcMultiplier: 1.7, volumeMultiplier: 1.0 },
-  QA: { id: '2634', resourceName: 'geoTargetConstants/2634', name: 'Katar', canonicalName: 'Qatar', countryCode: 'QA', targetType: 'Country', reach: 2800000, flag: '🇶🇦', cpcMultiplier: 1.9, volumeMultiplier: 1.0 },
-  KW: { id: '2414', resourceName: 'geoTargetConstants/2414', name: 'Kuveyt', canonicalName: 'Kuwait', countryCode: 'KW', targetType: 'Country', reach: 4300000, flag: '🇰🇼', cpcMultiplier: 1.8, volumeMultiplier: 1.0 },
+  TR_BODRUM: { id: '9199587', resourceName: 'geoTargetConstants/9199587', name: 'Bodrum', canonicalName: 'Bodrum, Mugla, Turkey', countryCode: 'TR', targetType: 'District', reach: 200000, flag: '🇹🇷', cpcMultiplier: 1.0, volumeMultiplier: 1.0 },
+  DE: { id: '2276', resourceName: 'geoTargetConstants/2276', name: 'Almanya', canonicalName: 'Germany', countryCode: 'DE', targetType: 'Country', reach: 83000000, flag: '🇩🇪', cpcMultiplier: 1.0, volumeMultiplier: 1.0 },
+  AT: { id: '2040', resourceName: 'geoTargetConstants/2040', name: 'Avusturya', canonicalName: 'Austria', countryCode: 'AT', targetType: 'Country', reach: 9000000, flag: '🇦🇹', cpcMultiplier: 1.0, volumeMultiplier: 1.0 },
+  CH: { id: '2756', resourceName: 'geoTargetConstants/2756', name: 'İsviçre', canonicalName: 'Switzerland', countryCode: 'CH', targetType: 'Country', reach: 8700000, flag: '🇨🇭', cpcMultiplier: 1.0, volumeMultiplier: 1.0 },
+  NL: { id: '2528', resourceName: 'geoTargetConstants/2528', name: 'Hollanda', canonicalName: 'Netherlands', countryCode: 'NL', targetType: 'Country', reach: 17800000, flag: '🇳🇱', cpcMultiplier: 1.0, volumeMultiplier: 1.0 },
+  UK: { id: '2826', resourceName: 'geoTargetConstants/2826', name: 'Birleşik Krallık (İngiltere)', canonicalName: 'United Kingdom', countryCode: 'GB', targetType: 'Country', reach: 67000000, flag: '🇬🇧', cpcMultiplier: 1.0, volumeMultiplier: 1.0 },
+  SE: { id: '2752', resourceName: 'geoTargetConstants/2752', name: 'İsveç', canonicalName: 'Sweden', countryCode: 'SE', targetType: 'Country', reach: 10500000, flag: '🇸🇪', cpcMultiplier: 1.0, volumeMultiplier: 1.0 },
+  NO: { id: '2578', resourceName: 'geoTargetConstants/2578', name: 'Norveç', canonicalName: 'Norway', countryCode: 'NO', targetType: 'Country', reach: 5400000, flag: '🇳🇴', cpcMultiplier: 1.0, volumeMultiplier: 1.0 },
+  DK: { id: '2208', resourceName: 'geoTargetConstants/2208', name: 'Danimarka', canonicalName: 'Denmark', countryCode: 'DK', targetType: 'Country', reach: 5900000, flag: '🇩🇰', cpcMultiplier: 1.0, volumeMultiplier: 1.0 },
+  FI: { id: '2246', resourceName: 'geoTargetConstants/2246', name: 'Finlandiya', canonicalName: 'Finland', countryCode: 'FI', targetType: 'Country', reach: 5500000, flag: '🇫🇮', cpcMultiplier: 1.0, volumeMultiplier: 1.0 },
+  US: { id: '2840', resourceName: 'geoTargetConstants/2840', name: 'Amerika Birleşik Devletleri', canonicalName: 'United States', countryCode: 'US', targetType: 'Country', reach: 330000000, flag: '🇺🇸', cpcMultiplier: 1.0, volumeMultiplier: 1.0 },
+  CA: { id: '2124', resourceName: 'geoTargetConstants/2124', name: 'Kanada', canonicalName: 'Canada', countryCode: 'CA', targetType: 'Country', reach: 39000000, flag: '🇨🇦', cpcMultiplier: 1.0, volumeMultiplier: 1.0 },
+  AU: { id: '2036', resourceName: 'geoTargetConstants/2036', name: 'Avustralya', canonicalName: 'Australia', countryCode: 'AU', targetType: 'Country', reach: 26000000, flag: '🇦🇺', cpcMultiplier: 1.0, volumeMultiplier: 1.0 },
+  FR: { id: '2250', resourceName: 'geoTargetConstants/2250', name: 'Fransa', canonicalName: 'France', countryCode: 'FR', targetType: 'Country', reach: 68000000, flag: '🇫🇷', cpcMultiplier: 1.0, volumeMultiplier: 1.0 },
+  IT: { id: '2380', resourceName: 'geoTargetConstants/2380', name: 'İtalya', canonicalName: 'Italy', countryCode: 'IT', targetType: 'Country', reach: 59000000, flag: '🇮🇹', cpcMultiplier: 1.0, volumeMultiplier: 1.0 },
+  ES: { id: '2724', resourceName: 'geoTargetConstants/2724', name: 'İspanya', canonicalName: 'Spain', countryCode: 'ES', targetType: 'Country', reach: 47000000, flag: '🇪🇸', cpcMultiplier: 1.0, volumeMultiplier: 1.0 },
+  AE: { id: '2784', resourceName: 'geoTargetConstants/2784', name: 'Birleşik Arap Emirlikleri', canonicalName: 'United Arab Emirates', countryCode: 'AE', targetType: 'Country', reach: 9500000, flag: '🇦🇪', cpcMultiplier: 1.0, volumeMultiplier: 1.0 },
+  AE_DUBAI: { id: '1000013', resourceName: 'geoTargetConstants/1000013', name: 'Dubai', canonicalName: 'Dubai, United Arab Emirates', countryCode: 'AE', targetType: 'City', reach: 3500000, flag: '🇦🇪', cpcMultiplier: 1.0, volumeMultiplier: 1.0 },
+  SA: { id: '2682', resourceName: 'geoTargetConstants/2682', name: 'Suudi Arabistan', canonicalName: 'Saudi Arabia', countryCode: 'SA', targetType: 'Country', reach: 36000000, flag: '🇸🇦', cpcMultiplier: 1.0, volumeMultiplier: 1.0 },
+  QA: { id: '2634', resourceName: 'geoTargetConstants/2634', name: 'Katar', canonicalName: 'Qatar', countryCode: 'QA', targetType: 'Country', reach: 2800000, flag: '🇶🇦', cpcMultiplier: 1.0, volumeMultiplier: 1.0 },
+  KW: { id: '2414', resourceName: 'geoTargetConstants/2414', name: 'Kuveyt', canonicalName: 'Kuwait', countryCode: 'KW', targetType: 'Country', reach: 4300000, flag: '🇰🇼', cpcMultiplier: 1.0, volumeMultiplier: 1.0 },
   RU: { id: '2643', resourceName: 'geoTargetConstants/2643', name: 'Rusya', canonicalName: 'Russia', countryCode: 'RU', targetType: 'Country', reach: 144000000, flag: '🇷🇺', cpcMultiplier: 1.0, volumeMultiplier: 1.0 },
-  UA: { id: '2804', resourceName: 'geoTargetConstants/2804', name: 'Ukrayna', canonicalName: 'Ukraine', countryCode: 'UA', targetType: 'Country', reach: 38000000, flag: '🇺🇦', cpcMultiplier: 0.85, volumeMultiplier: 1.0 },
-  UA_KYIV: { id: '1012852', resourceName: 'geoTargetConstants/1012852', name: 'Kiev (Kyiv)', canonicalName: 'Kyiv, Ukraine', countryCode: 'UA', targetType: 'City', reach: 3000000, flag: '🇺🇦', cpcMultiplier: 0.85, volumeMultiplier: 1.0 },
-  UA_ODESA: { id: '1012861', resourceName: 'geoTargetConstants/1012861', name: 'Odessa (Odesa)', canonicalName: 'Odesa, Ukraine', countryCode: 'UA', targetType: 'City', reach: 1000000, flag: '🇺🇦', cpcMultiplier: 0.85, volumeMultiplier: 1.0 },
-  KZ: { id: '2398', resourceName: 'geoTargetConstants/2398', name: 'Kazakistan', canonicalName: 'Kazakhstan', countryCode: 'KZ', targetType: 'Country', reach: 19500000, flag: '🇰🇿', cpcMultiplier: 0.85, volumeMultiplier: 1.0 },
-  UZ: { id: '2860', resourceName: 'geoTargetConstants/2860', name: 'Özbekistan', canonicalName: 'Uzbekistan', countryCode: 'UZ', targetType: 'Country', reach: 35000000, flag: '🇺🇿', cpcMultiplier: 0.75, volumeMultiplier: 1.0 },
-  AZ: { id: '2031', resourceName: 'geoTargetConstants/2031', name: 'Azerbaycan', canonicalName: 'Azerbaijan', countryCode: 'AZ', targetType: 'Country', reach: 10200000, flag: '🇦🇿', cpcMultiplier: 0.8, volumeMultiplier: 1.0 },
-  CY: { id: '2196', resourceName: 'geoTargetConstants/2196', name: 'Kıbrıs (Kuzey & Güney)', canonicalName: 'Cyprus', countryCode: 'CY', targetType: 'Country', reach: 1250000, flag: '🇨🇾', cpcMultiplier: 1.4, volumeMultiplier: 1.0 }
+  UA: { id: '2804', resourceName: 'geoTargetConstants/2804', name: 'Ukrayna', canonicalName: 'Ukraine', countryCode: 'UA', targetType: 'Country', reach: 38000000, flag: '🇺🇦', cpcMultiplier: 1.0, volumeMultiplier: 1.0 },
+  UA_KYIV: { id: '1012852', resourceName: 'geoTargetConstants/1012852', name: 'Kiev (Kyiv)', canonicalName: 'Kyiv, Ukraine', countryCode: 'UA', targetType: 'City', reach: 3000000, flag: '🇺🇦', cpcMultiplier: 1.0, volumeMultiplier: 1.0 },
+  UA_ODESA: { id: '1012861', resourceName: 'geoTargetConstants/1012861', name: 'Odessa (Odesa)', canonicalName: 'Odesa, Ukraine', countryCode: 'UA', targetType: 'City', reach: 1000000, flag: '🇺🇦', cpcMultiplier: 1.0, volumeMultiplier: 1.0 },
+  KZ: { id: '2398', resourceName: 'geoTargetConstants/2398', name: 'Kazakistan', canonicalName: 'Kazakhstan', countryCode: 'KZ', targetType: 'Country', reach: 19500000, flag: '🇰🇿', cpcMultiplier: 1.0, volumeMultiplier: 1.0 },
+  UZ: { id: '2860', resourceName: 'geoTargetConstants/2860', name: 'Özbekistan', canonicalName: 'Uzbekistan', countryCode: 'UZ', targetType: 'Country', reach: 35000000, flag: '🇺🇿', cpcMultiplier: 1.0, volumeMultiplier: 1.0 },
+  AZ: { id: '2031', resourceName: 'geoTargetConstants/2031', name: 'Azerbaycan', canonicalName: 'Azerbaijan', countryCode: 'AZ', targetType: 'Country', reach: 10200000, flag: '🇦🇿', cpcMultiplier: 1.0, volumeMultiplier: 1.0 },
+  CY: { id: '2196', resourceName: 'geoTargetConstants/2196', name: 'Kıbrıs (Kuzey & Güney)', canonicalName: 'Cyprus', countryCode: 'CY', targetType: 'Country', reach: 1250000, flag: '🇨🇾', cpcMultiplier: 1.0, volumeMultiplier: 1.0 }
 };
 
 export const DEFAULT_LOCATIONS: GeoTargetLocation[] = [
@@ -2736,17 +2734,20 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     // 1. Calculate direct geo volumes and CPC sums from active keywords pool
     let poolHasAnyGeoVolume = false;
     const locGeoVolumes: Record<string, number> = {};
-    const locGeoCpcSums: Record<string, { sum: number; count: number }> = {};
+    const locGeoCpcData: Record<string, { weightedCpcSum: number; volSum: number; simpleCpcSum: number; count: number }> = {};
 
     for (const loc of selectedLocations) {
       const locKey = String(loc.id);
       const cleanId = locKey.replace(/\D/g, '');
       const locCc = loc.countryCode?.toUpperCase();
       let volSum = 0;
-      let cpcSum = 0;
+      let weightedCpcSum = 0;
+      let volForCpc = 0;
+      let simpleCpcSum = 0;
       let cpcCount = 0;
 
       for (const k of activePool) {
+        let kwVol = 0;
         if (k.geoVolumes && Object.keys(k.geoVolumes).length > 0) {
           const keysToTry = [
             cleanId,
@@ -2758,7 +2759,6 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
             loc.canonicalName?.toLowerCase()
           ].filter(Boolean) as string[];
 
-          let kwVol = 0;
           for (const key of keysToTry) {
             if (k.geoVolumes[key] !== undefined) {
               kwVol = Number(k.geoVolumes[key]) || 0;
@@ -2772,17 +2772,24 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           }
         }
 
-        // Check if keyword has geoCpc
+        // Check if keyword has geoCpc for this location, or use its known top of page CPC
         const geoCpcObj = (k as any).geoCpc?.[cleanId] || (k as any).geoCpc?.[locKey];
-        if (geoCpcObj && geoCpcObj.highCpc > 0) {
-          const mid = (geoCpcObj.lowCpc + geoCpcObj.highCpc) / 2;
-          cpcSum += mid;
+        const kwMidCpc = (geoCpcObj && geoCpcObj.highCpc > 0)
+          ? ((geoCpcObj.lowCpc + geoCpcObj.highCpc) / 2)
+          : (((Number(k.lowCpc) || 0) + (Number(k.highCpc) || 0)) / 2);
+
+        if (kwMidCpc > 0) {
+          simpleCpcSum += kwMidCpc;
           cpcCount++;
+          if (kwVol > 0) {
+            weightedCpcSum += (kwMidCpc * kwVol);
+            volForCpc += kwVol;
+          }
         }
       }
 
       locGeoVolumes[locKey] = volSum;
-      locGeoCpcSums[locKey] = { sum: cpcSum, count: cpcCount };
+      locGeoCpcData[locKey] = { weightedCpcSum, volSum: volForCpc, simpleCpcSum, count: cpcCount };
     }
 
     // Calculate the baseline average CPC of the active pool (fully imputed with realistic values)
@@ -2797,7 +2804,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     const items: CountryMetric[] = selectedLocations.map(loc => {
       const locKey = String(loc.id);
       const off = findOfficial(loc);
-      const mult = loc.cpcMultiplier || getCountryCpcMultiplier(loc.countryCode) || 1.0;
+      const cpcData = locGeoCpcData[locKey];
 
       // 1. Ülkenin Toplam Hacmi: Seçili kelimelerin o ülkedeki geoVolumes toplamı
       let cVol = 0;
@@ -2810,9 +2817,19 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         cVol = Math.round(totalAllKeywordsVol * reachShare);
       }
 
-      // 2. Ülkenin Ortalama TBM'si: 1. Adım Seçili Kelimelerin Ortalama TBM'si * Ülke Pazar Çarpanı
-      const locationTargetCpc = poolAvgCpc * mult;
-      const finalCpc = Number((locationTargetCpc * scenarioMultiplier.cpcMult).toFixed(2));
+      // 2. Ülkenin Ortalama TBM'si: Seçili kelimelerin hacim ağırlıklı veya doğrudan ortalama TBM'si (yapay ülke katsayısı eklenmez)
+      let locBaseCpc = 0;
+      if (cpcData && cpcData.volSum > 0 && cpcData.weightedCpcSum > 0) {
+        locBaseCpc = cpcData.weightedCpcSum / cpcData.volSum;
+      } else if (cpcData && cpcData.count > 0 && cpcData.simpleCpcSum > 0) {
+        locBaseCpc = cpcData.simpleCpcSum / cpcData.count;
+      } else if (off && (off.avgCpc || 0) > 0) {
+        locBaseCpc = off.avgCpc;
+      } else {
+        locBaseCpc = poolAvgCpc;
+      }
+
+      const finalCpc = Number((locBaseCpc * scenarioMultiplier.cpcMult).toFixed(2));
 
       return {
         id: String(loc.id),
@@ -2895,7 +2912,6 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
     const targetGeoId = String(activeScopeMetric?.id || activeScopeLocation?.id || '');
     const cleanGeoId = targetGeoId.replace(/[^0-9]/g, '');
-    const locCpcMultiplier = activeScopeLocation?.cpcMultiplier || 1.0;
 
     return imputedKeywords.map(k => {
       // 1. Direct official Google Ads volume for this exact location
@@ -2913,10 +2929,10 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       const intentMultiplier = k.cpcEstimationMultiplier || 1.0;
       const baseLow = (directLocLowCpc !== undefined && directLocLowCpc > 0) 
         ? directLocLowCpc * intentMultiplier
-        : (k.lowCpc > 0 ? k.lowCpc * locCpcMultiplier : 0);
+        : (k.lowCpc > 0 ? k.lowCpc : 0);
       const baseHigh = (directLocHighCpc !== undefined && directLocHighCpc > 0) 
         ? directLocHighCpc * intentMultiplier
-        : (k.highCpc > 0 ? k.highCpc * locCpcMultiplier : 0);
+        : (k.highCpc > 0 ? k.highCpc : 0);
 
       if (directLocVol !== undefined) {
         return {
@@ -7966,7 +7982,6 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       )}
                     </div>
                     {countryBreakdown.map((cm) => {
-                      const mult = getCountryCpcMultiplier(cm.code);
                       return (
                         <div key={cm.name + cm.code} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.76rem', padding: '0.25rem 0' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -7977,13 +7992,6 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                                 %{cm.sharePercent}
                               </span>
                             )}
-                            <span 
-                              className="badge badge-subtle" 
-                              title={`1. Adım Havuz Ortalaması (₺${baseTopPageCpc.toFixed(2)}) × ${mult}x Pazar Katsayısı`}
-                              style={{ fontSize: '0.62rem', padding: '1px 4px', color: 'var(--text-muted)', background: 'var(--bg-surface)' }}
-                            >
-                              {mult}x Çarpan
-                            </span>
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', whiteSpace: 'nowrap' }}>
                             <span style={{ color: 'var(--text-secondary)' }}>
@@ -7991,7 +7999,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                             </span>
                             <span style={{ color: 'var(--border-default)' }}>•</span>
                             <span 
-                              title={`1. Adım Seçili Kelimelerin Ortalama TBM'si (₺${baseTopPageCpc.toFixed(2)}) × ${mult} = ₺${cm.avgCpc.toFixed(2)}`}
+                              title={`Seçili Kelimelerin Bu Pazara Ait Ortalama TBM'si: ₺${cm.avgCpc.toFixed(2)}`}
                               style={{ color: cm.avgCpc > 0 ? 'var(--brand-primary)' : 'var(--text-muted)', fontWeight: 700 }}
                             >
                               {cm.avgCpc > 0 ? `₺${cm.avgCpc.toFixed(2)} TBM` : 'TBM Yok'}
