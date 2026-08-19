@@ -28,7 +28,8 @@ import {
   Building2,
   Bookmark,
   ListPlus,
-  Info
+  Info,
+  KeyRound
 } from 'lucide-react';
 import { 
   KeywordMetric, 
@@ -609,6 +610,13 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   const [step1IntentFilter, setStep1IntentFilter] = useState<string>('ALL');
   const [activeLocationScope, setActiveLocationScope] = useState<string>('ALL');
   const [hoveredKwGeoId, setHoveredKwGeoId] = useState<string | null>(null);
+  const [includeSuggestions, setIncludeSuggestions] = useState<boolean>(true);
+  const [step1SourceFilter, setStep1SourceFilter] = useState<'ALL' | 'USER_SEED' | 'EXPANSION'>('ALL');
+
+  const parsedSeedList = useMemo(() => {
+    if (!query || mode !== 'KEYWORDS') return [];
+    return query.split(/[\n\r,;]+/).map(s => s.trim()).filter(s => s.length > 0);
+  }, [query, mode]);
 
   // Keywords normalized with exact multi-location summed volume if geoVolumes exists
   const normalizedKeywords = useMemo(() => {
@@ -1534,6 +1542,8 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     const timer1 = setTimeout(() => setLoadingStage(1), 700);   // Stage 2: Dil & Sektör (%50)
     const timer2 = setTimeout(() => setLoadingStage(2), 1500);  // Stage 3: Google Ads Verileri (%75)
 
+    const seeds = m === 'KEYWORDS' ? q.split(/[\n\r,;]+/).map(s => s.trim()).filter(s => s.length > 0) : [];
+
     try {
       const res = await ApiService.discoverKeywords({
         query: q.trim(),
@@ -1542,6 +1552,8 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         countryCode: selectedLocations[0]?.countryCode || undefined,
         geoTargetConstants: selectedLocations.map(l => l.id),
         locations: selectedLocations,
+        includeSuggestions: includeSuggestions,
+        seedKeywords: seeds.length > 0 ? seeds : undefined,
       });
 
       clearTimeout(timer1);
@@ -2582,6 +2594,17 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     return baseList.filter(k => !!k.isAiStrategistPick || k.id?.startsWith('ai_strat_') || k.id?.startsWith('ai_alt_')).length;
   }, [activeCluster, scopedKeywords]);
 
+  // Count of user seeds vs suggestions in the current view
+  const userSeedsCountInView = useMemo(() => {
+    const baseList = activeCluster ? activeCluster.keywords : scopedKeywords;
+    return baseList.filter(k => !!k.isUserSeed || k.source === 'USER_SEED' || k.id?.startsWith('seed_kw_') || k.id?.startsWith('user_seed_')).length;
+  }, [activeCluster, scopedKeywords]);
+
+  const expansionCountInView = useMemo(() => {
+    const baseList = activeCluster ? activeCluster.keywords : scopedKeywords;
+    return baseList.filter(k => !k.isUserSeed && k.source !== 'USER_SEED' && !k.id?.startsWith('seed_kw_') && !k.id?.startsWith('user_seed_')).length;
+  }, [activeCluster, scopedKeywords]);
+
   // Filtered & Sorted Keywords for the active right-side data grid
   const activeKeywordsGrid = useMemo(() => {
     const baseList = activeCluster ? activeCluster.keywords : scopedKeywords;
@@ -2591,10 +2614,14 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       .filter(k => {
         const matchesSearch = !searchLower || k.keyword.toLowerCase().includes(searchLower);
         const isStrategistKw = !!k.isAiStrategistPick || k.id?.startsWith('ai_strat_') || k.id?.startsWith('ai_alt_');
+        const isUserSeed = !!k.isUserSeed || k.source === 'USER_SEED' || k.id?.startsWith('seed_kw_') || k.id?.startsWith('user_seed_');
+        const matchesSource = 
+          step1SourceFilter === 'ALL' || 
+          (step1SourceFilter === 'USER_SEED' ? isUserSeed : !isUserSeed);
         const matchesIntent = 
           step1IntentFilter === 'ALL' || 
           (step1IntentFilter === 'STRATEGIST' ? isStrategistKw : k.intent === step1IntentFilter);
-        return matchesSearch && matchesIntent;
+        return matchesSearch && matchesSource && matchesIntent;
       })
       .sort((a, b) => {
         if (step1SortBy === 'VOLUME') return b.monthlyVolume - a.monthlyVolume;
@@ -2603,7 +2630,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         if (step1SortBy === 'ALPHABETICAL') return a.keyword.localeCompare(b.keyword);
         return 0;
       });
-  }, [activeCluster, scopedKeywords, step1SearchFilter, step1IntentFilter, step1SortBy]);
+  }, [activeCluster, scopedKeywords, step1SearchFilter, step1SourceFilter, step1IntentFilter, step1SortBy]);
 
   const maxVolumeInGrid = useMemo(() => {
     return Math.max(...activeKeywordsGrid.map(k => k.monthlyVolume), 1);
@@ -3699,139 +3726,326 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           {/* 2. Unified Smart Search & Discovery Control Card */}
           <div className="card" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
         
-        {/* Top Meta Bar with Title and Curated Examples */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-              <Sparkles size={15} color="var(--brand-primary)" /> Akıllı SEM Keşif & Hacim Motoru
-            </span>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-              (Web Sitesi URL'si veya Anahtar Kelime girin)
-            </span>
+            {/* Top Meta Bar: Mode Toggle & Curated Quick Samples */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem', borderBottom: '1px solid var(--border-default)', paddingBottom: '0.75rem' }}>
+              {/* Mode Toggle Switcher */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', backgroundColor: 'var(--bg-surface-elevated)', padding: '3px', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-default)' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode('URL');
+                    if (query && !query.includes('.')) setQuery('');
+                  }}
+                  style={{
+                    padding: '0.35rem 0.75rem',
+                    borderRadius: 'var(--radius-xs)',
+                    fontSize: '0.78rem',
+                    fontWeight: mode === 'URL' ? 700 : 500,
+                    border: 'none',
+                    cursor: 'pointer',
+                    backgroundColor: mode === 'URL' ? 'var(--brand-primary)' : 'transparent',
+                    color: mode === 'URL' ? '#ffffff' : 'var(--text-secondary)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  <Globe size={13} />
+                  <span>Web Sitesi / URL</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode('KEYWORDS');
+                    if (query && (query.startsWith('http') || (query.includes('.') && !query.includes(' ')))) setQuery('');
+                  }}
+                  style={{
+                    padding: '0.35rem 0.75rem',
+                    borderRadius: 'var(--radius-xs)',
+                    fontSize: '0.78rem',
+                    fontWeight: mode === 'KEYWORDS' ? 700 : 500,
+                    border: 'none',
+                    cursor: 'pointer',
+                    backgroundColor: mode === 'KEYWORDS' ? 'var(--brand-primary)' : 'transparent',
+                    color: mode === 'KEYWORDS' ? '#ffffff' : 'var(--text-secondary)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  <KeyRound size={13} />
+                  <span>Anahtar Kelimeler (Toplu Ekle)</span>
+                </button>
+              </div>
+
+              {/* Quick Curated Samples */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', color: 'var(--text-muted)', flexWrap: 'wrap' }}>
+                <span>Örnekler:</span>
+                {(mode === 'URL' ? [
+                  'summerhomes.com',
+                  'dusbahcesiilkokulu.com',
+                  'diksiyonkursu.com'
+                ] : [
+                  'alanya satılık villa',
+                  'alanya satılık lüks daire',
+                  'oba mahallesi satılık konut',
+                  'alanya emlak danışmanı'
+                ]).map((ex) => (
+                  <button
+                    key={ex}
+                    type="button"
+                    onClick={() => {
+                      if (mode === 'KEYWORDS') {
+                        setQuery(prev => prev ? `${prev}\n${ex}` : ex);
+                      } else {
+                        setQuery(ex);
+                        handleDiscover(ex, 'URL');
+                      }
+                    }}
+                    className="btn-ghost"
+                    style={{ padding: '2px 8px', fontSize: '0.72rem', borderRadius: 'var(--radius-full)', border: '1px solid var(--border-default)' }}
+                  >
+                    + {ex}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Input Form Area */}
+            {mode === 'URL' ? (
+              /* URL Single Input Bar */
+              <div style={{ display: 'flex', gap: '0.65rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                <div style={{ flex: 2, minWidth: '260px', position: 'relative' }}>
+                  <Globe size={16} color="var(--text-muted)" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+                  <input
+                    type="text"
+                    placeholder="Web sitesi veya açılış sayfası URL'si girin (örn: summerhomes.com veya https://example.com)..."
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleDiscover(); }}
+                    style={{ width: '100%', paddingLeft: '2.4rem', fontSize: '0.875rem' }}
+                  />
+                </div>
+
+                {/* Location Selector */}
+                <button
+                  type="button"
+                  onClick={() => setIsLocationModalOpen(true)}
+                  className="btn-secondary"
+                  title="Google Ads Coğrafi Lokasyon Hedeflemesi Seçin"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.45rem',
+                    padding: '0.55rem 0.85rem',
+                    fontSize: '0.82rem',
+                    backgroundColor: 'var(--bg-surface-elevated)',
+                    border: '1px solid var(--brand-primary)',
+                    borderRadius: 'var(--radius-xs)',
+                    color: 'var(--text-primary)',
+                    fontWeight: 600,
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  <Globe size={15} color="var(--brand-primary)" />
+                  <span>
+                    {selectedLocations.length === 1
+                      ? `${selectedLocations[0].flag || '📍'} ${selectedLocations[0].name}`
+                      : `📍 ${selectedLocations.length} Bölge (${selectedLocations[0]?.name || ''}...)`}
+                  </span>
+                </button>
+
+                {/* Target Language Selector */}
+                <select
+                  value={targetLanguage}
+                  onChange={(e) => setTargetLanguage(e.target.value)}
+                  style={{
+                    padding: '0.55rem 0.75rem',
+                    fontSize: '0.82rem',
+                    backgroundColor: 'var(--bg-surface-elevated)',
+                    border: '1px solid var(--border-default)',
+                    borderRadius: 'var(--radius-xs)',
+                    color: 'var(--text-primary)',
+                    fontWeight: 500,
+                    maxWidth: '230px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <option value="auto">🌐 Dil: Otomatik (Sayfa Dili)</option>
+                  <optgroup label="── Popüler Hedef Diller ──">
+                    {GOOGLE_ADS_LANGUAGES.slice(1, 6).map(lang => (
+                      <option key={lang.code} value={lang.code}>
+                        {lang.flag} {lang.name} ({lang.nativeName})
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="── Tüm Google Ads Dilleri ──">
+                    {GOOGLE_ADS_LANGUAGES.slice(6).map(lang => (
+                      <option key={lang.code} value={lang.code}>
+                        {lang.flag} {lang.name} ({lang.nativeName})
+                      </option>
+                    ))}
+                  </optgroup>
+                </select>
+
+                {/* Action Button */}
+                <button
+                  onClick={() => handleDiscover()}
+                  disabled={isLoading || !query.trim()}
+                  className="btn-primary"
+                  style={{ padding: '0.55rem 1.35rem', fontSize: '0.875rem', whiteSpace: 'nowrap', fontWeight: 600 }}
+                >
+                  <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
+                  {isLoading ? 'Google Ads Verileri Analiz Ediliyor...' : '🚀 Analiz Et & Keşfet'}
+                </button>
+              </div>
+            ) : (
+              /* KEYWORDS Multi-line Bulk Textarea Input */
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                <div style={{ position: 'relative', width: '100%' }}>
+                  <textarea
+                    rows={3}
+                    placeholder={`Hedeflemek istediğiniz anahtar kelimeleri satır satır veya virgülle ayırarak girin / yapıştırın...\nÖrn:\nalanya satılık villa\nalanya satılık lüks daire\noba mahallesi satılık konut\nalanya emlak danışmanı`}
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem 0.85rem',
+                      fontSize: '0.875rem',
+                      fontFamily: 'inherit',
+                      resize: 'vertical',
+                      minHeight: '85px',
+                      borderRadius: 'var(--radius-xs)',
+                      border: '1px solid var(--border-default)',
+                      backgroundColor: 'var(--bg-surface-elevated)',
+                      color: 'var(--text-primary)',
+                      lineHeight: 1.5
+                    }}
+                  />
+                </div>
+
+                {/* Lower Action & Settings Bar */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+                  {/* Left: Seed Counter Badge & Suggestion Toggle */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                    {parsedSeedList.length > 0 ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <span className="badge badge-active" style={{ fontSize: '0.75rem', padding: '3px 8px' }}>
+                          <CheckCircle2 size={12} /> {parsedSeedList.length} Anahtar Kelime Girildi
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setQuery('')}
+                          className="btn-ghost"
+                          style={{ fontSize: '0.72rem', padding: '2px 6px', color: 'var(--text-muted)' }}
+                        >
+                          Temizle
+                        </button>
+                      </div>
+                    ) : (
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                        💡 İpucu: Listeyi kopyalayıp doğrudan yapıştırabilirsiniz (%100 Google Ads API gerçek verileri çekilir).
+                      </span>
+                    )}
+
+                    {/* Suggestion Expansion Toggle */}
+                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.78rem', color: 'var(--text-primary)', cursor: 'pointer', userSelect: 'none', backgroundColor: 'var(--bg-surface-elevated)', padding: '4px 8px', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-default)' }}>
+                      <input
+                        type="checkbox"
+                        checked={includeSuggestions}
+                        onChange={(e) => setIncludeSuggestions(e.target.checked)}
+                        style={{ cursor: 'pointer' }}
+                      />
+                      <span>✨ Ek Önerileri Getir (<strong>"Bunu da Hedefleyebilirsiniz"</strong>)</span>
+                    </label>
+                  </div>
+
+                  {/* Right: Location, Language & Discover Button */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    {/* Location Selector */}
+                    <button
+                      type="button"
+                      onClick={() => setIsLocationModalOpen(true)}
+                      className="btn-secondary"
+                      title="Google Ads Coğrafi Lokasyon Hedeflemesi Seçin"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.45rem',
+                        padding: '0.5rem 0.8rem',
+                        fontSize: '0.8rem',
+                        backgroundColor: 'var(--bg-surface-elevated)',
+                        border: '1px solid var(--brand-primary)',
+                        borderRadius: 'var(--radius-xs)',
+                        color: 'var(--text-primary)',
+                        fontWeight: 600,
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      <Globe size={14} color="var(--brand-primary)" />
+                      <span>
+                        {selectedLocations.length === 1
+                          ? `${selectedLocations[0].flag || '📍'} ${selectedLocations[0].name}`
+                          : `📍 ${selectedLocations.length} Bölge (${selectedLocations[0]?.name || ''}...)`}
+                      </span>
+                    </button>
+
+                    {/* Language Selector */}
+                    <select
+                      value={targetLanguage}
+                      onChange={(e) => setTargetLanguage(e.target.value)}
+                      style={{
+                        padding: '0.5rem 0.7rem',
+                        fontSize: '0.8rem',
+                        backgroundColor: 'var(--bg-surface-elevated)',
+                        border: '1px solid var(--border-default)',
+                        borderRadius: 'var(--radius-xs)',
+                        color: 'var(--text-primary)',
+                        fontWeight: 500,
+                        maxWidth: '200px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <option value="auto">🌐 Dil: Otomatik (Kelime Dili)</option>
+                      <optgroup label="── Popüler Hedef Diller ──">
+                        {GOOGLE_ADS_LANGUAGES.slice(1, 6).map(lang => (
+                          <option key={lang.code} value={lang.code}>
+                            {lang.flag} {lang.name} ({lang.nativeName})
+                          </option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="── Tüm Google Ads Dilleri ──">
+                        {GOOGLE_ADS_LANGUAGES.slice(6).map(lang => (
+                          <option key={lang.code} value={lang.code}>
+                            {lang.flag} {lang.name} ({lang.nativeName})
+                          </option>
+                        ))}
+                      </optgroup>
+                    </select>
+
+                    {/* Discover Action Button */}
+                    <button
+                      onClick={() => handleDiscover()}
+                      disabled={isLoading || !query.trim()}
+                      className="btn-primary"
+                      style={{ padding: '0.5rem 1.25rem', fontSize: '0.85rem', whiteSpace: 'nowrap', fontWeight: 600 }}
+                    >
+                      <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
+                      {isLoading ? 'Google Ads Verileri Analiz Ediliyor...' : '🚀 Analiz Et & Keşfet'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {errorMsg && (
+              <div style={{ background: 'var(--danger-bg)', color: 'var(--danger)', padding: '0.65rem 0.85rem', borderRadius: 'var(--radius-xs)', fontSize: '0.8rem' }}>
+                {errorMsg}
+              </div>
+            )}
           </div>
-
-          {/* Quick Examples */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', color: 'var(--text-muted)', flexWrap: 'wrap' }}>
-            <span>Örnekler:</span>
-            {[
-              'summerhomes.com',
-              'alanya butik oteller',
-              'diksiyon kursu istanbul',
-              'dusbahcesiilkokulu.com',
-              'buy apartment alanya'
-            ].map((ex) => (
-              <button
-                key={ex}
-                onClick={() => {
-                  setQuery(ex);
-                  const isUrl = ex.includes('.') && !ex.includes(' ');
-                  const newMode = isUrl ? 'URL' : 'KEYWORDS';
-                  setMode(newMode);
-                  handleDiscover(ex, newMode);
-                }}
-                className="btn-ghost"
-                style={{ padding: '2px 8px', fontSize: '0.72rem', borderRadius: 'var(--radius-full)', border: '1px solid var(--border-default)' }}
-              >
-                {ex}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Unified Input Bar with Integrated Location & Language Selectors */}
-        <div style={{ display: 'flex', gap: '0.65rem', flexWrap: 'wrap', alignItems: 'center' }}>
-          {/* Query Input */}
-          <div style={{ flex: 2, minWidth: '260px', position: 'relative' }}>
-            <Search size={16} color="var(--text-muted)" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
-            <input
-              type="text"
-              placeholder="Web sitesi URL'si veya anahtar kelime(ler) girin (örn: summerhomes.com veya alanya satılık villa)..."
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleDiscover(); }}
-              style={{ width: '100%', paddingLeft: '2.4rem', fontSize: '0.875rem' }}
-            />
-          </div>
-
-          {/* 📍 Location Selector Button */}
-          <button
-            type="button"
-            onClick={() => setIsLocationModalOpen(true)}
-            className="btn-secondary"
-            title="Google Ads Coğrafi Lokasyon Hedeflemesi Seçin"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.45rem',
-              padding: '0.55rem 0.85rem',
-              fontSize: '0.82rem',
-              backgroundColor: 'var(--bg-surface-elevated)',
-              border: '1px solid var(--brand-primary)',
-              borderRadius: 'var(--radius-xs)',
-              color: 'var(--text-primary)',
-              fontWeight: 600,
-              whiteSpace: 'nowrap'
-            }}
-          >
-            <Globe size={15} color="var(--brand-primary)" />
-            <span>
-              {selectedLocations.length === 1
-                ? `${selectedLocations[0].flag || '📍'} ${selectedLocations[0].name}`
-                : `📍 ${selectedLocations.length} Bölge (${selectedLocations[0]?.name || ''}...)`}
-            </span>
-          </button>
-
-          {/* 🌐 Target Language Selector (Google Keyword Planner Style) */}
-          <select
-            value={targetLanguage}
-            onChange={(e) => setTargetLanguage(e.target.value)}
-            style={{
-              padding: '0.55rem 0.75rem',
-              fontSize: '0.82rem',
-              backgroundColor: 'var(--bg-surface-elevated)',
-              border: '1px solid var(--border-default)',
-              borderRadius: 'var(--radius-xs)',
-              color: 'var(--text-primary)',
-              fontWeight: 500,
-              maxWidth: '230px',
-              cursor: 'pointer'
-            }}
-          >
-            <option value="auto">🌐 Dil: Otomatik (Sayfa Dili)</option>
-            <optgroup label="── Popüler Hedef Diller ──">
-              {GOOGLE_ADS_LANGUAGES.slice(1, 6).map(lang => (
-                <option key={lang.code} value={lang.code}>
-                  {lang.flag} {lang.name} ({lang.nativeName})
-                </option>
-              ))}
-            </optgroup>
-            <optgroup label="── Tüm Google Ads Dilleri ──">
-              {GOOGLE_ADS_LANGUAGES.slice(6).map(lang => (
-                <option key={lang.code} value={lang.code}>
-                  {lang.flag} {lang.name} ({lang.nativeName})
-                </option>
-              ))}
-            </optgroup>
-          </select>
-
-          {/* Action Button */}
-          <button
-            onClick={() => handleDiscover()}
-            disabled={isLoading || !query.trim()}
-            className="btn-primary"
-            style={{ padding: '0.55rem 1.35rem', fontSize: '0.875rem', whiteSpace: 'nowrap', fontWeight: 600 }}
-          >
-            <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
-            {isLoading ? 'Google Ads Verileri Analiz Ediliyor...' : '🚀 Analiz Et & Keşfet'}
-          </button>
-        </div>
-
-        {errorMsg && (
-          <div style={{ background: 'var(--danger-bg)', color: 'var(--danger)', padding: '0.65rem 0.85rem', borderRadius: 'var(--radius-xs)', fontSize: '0.8rem' }}>
-            {errorMsg}
-          </div>
-        )}
-      </div>
 
       {/* 3. SCENARIO A: DYNAMIC ANIMATED LOADING SCREEN (When Loading, ONLY this screen is visible) */}
       {isLoading && (
@@ -4496,110 +4710,207 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     </div>
 
                     {/* Table Filter & Sort Toolbar */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.65rem' }}>
-                      
-                      {/* Search in Active Group */}
-                      <div style={{ position: 'relative', flex: 1, minWidth: '180px' }}>
-                        <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                        <input
-                          type="text"
-                          placeholder={`${activeCluster.name} içinde filtrele...`}
-                          value={step1SearchFilter}
-                          onChange={(e) => setStep1SearchFilter(e.target.value)}
-                          style={{ width: '100%', fontSize: '0.78rem', padding: '0.35rem 0.6rem 0.35rem 1.9rem' }}
-                        />
-                      </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                      {/* Top Filter Row: Search + Source Filters + Intent Pills */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.65rem' }}>
+                        {/* Search in Active Group */}
+                        <div style={{ position: 'relative', flex: 1, minWidth: '180px' }}>
+                          <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                          <input
+                            type="text"
+                            placeholder={`${activeCluster.name} içinde filtrele...`}
+                            value={step1SearchFilter}
+                            onChange={(e) => setStep1SearchFilter(e.target.value)}
+                            style={{ width: '100%', fontSize: '0.78rem', padding: '0.35rem 0.6rem 0.35rem 1.9rem' }}
+                          />
+                        </div>
 
-                      {/* Intent Pills */}
-                      <div style={{ display: 'flex', gap: '0.2rem', backgroundColor: 'var(--bg-surface-elevated)', padding: '2px', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-default)' }}>
-                        {[
-                          { key: 'ALL', label: 'Tüm Niyetler' },
-                          { key: 'STRATEGIST', label: `🚀 SEM Uzman Seçimi (${strategistCountInView})` },
-                          { key: 'TRANSACTIONAL', label: 'Satın Alma' },
-                          { key: 'COMMERCIAL', label: 'Araştırma / Ticari' }
-                        ].map(tab => (
-                          <button
-                            key={tab.key}
-                            type="button"
-                            onClick={() => setStep1IntentFilter(tab.key)}
-                            style={{
-                              padding: '0.25rem 0.5rem',
-                              fontSize: '0.68rem',
-                              fontWeight: step1IntentFilter === tab.key ? 600 : 400,
-                              borderRadius: 'var(--radius-xs)',
-                              border: 'none',
-                              cursor: 'pointer',
-                              backgroundColor: step1IntentFilter === tab.key 
-                                ? (tab.key === 'STRATEGIST' ? '#9333ea' : 'var(--brand-primary)') 
-                                : 'transparent',
-                              color: step1IntentFilter === tab.key ? '#ffffff' : 'var(--text-secondary)',
-                              transition: 'all 0.15s ease'
-                            }}
-                          >
-                            {tab.label}
-                          </button>
-                        ))}
-                      </div>
-
-                      {/* Location Scope Selector Dropdown */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                        <Globe size={13} color="var(--brand-primary)" />
-                        <select
-                          value={activeLocationScope}
-                          onChange={(e) => setActiveLocationScope(e.target.value)}
-                          style={{
-                            fontSize: '0.75rem',
-                            padding: '0.35rem 0.55rem',
-                            borderRadius: 'var(--radius-xs)',
-                            border: activeLocationScope !== 'ALL' ? '1.5px solid var(--brand-primary)' : '1px solid var(--border-default)',
-                            backgroundColor: activeLocationScope !== 'ALL' ? 'rgba(37, 99, 235, 0.08)' : 'var(--bg-surface-elevated)',
-                            color: activeLocationScope !== 'ALL' ? 'var(--brand-primary)' : 'var(--text-primary)',
-                            fontWeight: 600,
-                            cursor: 'pointer'
-                          }}
-                        >
-                          <option value="ALL">🌐 Tüm Lokasyonlar ({selectedLocations.length} Toplam)</option>
-                          {selectedLocations.map(loc => (
-                            <option key={loc.id} value={String(loc.id)}>
-                              {loc.flag || '📍'} {loc.name} ({getLocationTypeLabel(loc.targetType)})
-                            </option>
+                        {/* Source Filter Pills: ALL / USER_SEED / EXPANSION */}
+                        <div style={{ display: 'flex', gap: '0.2rem', backgroundColor: 'var(--bg-surface-elevated)', padding: '2px', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-default)' }}>
+                          {[
+                            { key: 'ALL', label: `Tümü (${activeCluster.keywords.length})` },
+                            { key: 'USER_SEED', label: `🎯 Girdiğiniz Tohumlar (${userSeedsCountInView})` },
+                            { key: 'EXPANSION', label: `✨ Bunu da Hedefleyebilirsiniz (${expansionCountInView})` }
+                          ].map(tab => (
+                            <button
+                              key={tab.key}
+                              type="button"
+                              onClick={() => setStep1SourceFilter(tab.key as any)}
+                              style={{
+                                padding: '0.25rem 0.55rem',
+                                fontSize: '0.68rem',
+                                fontWeight: step1SourceFilter === tab.key ? 700 : 500,
+                                borderRadius: 'var(--radius-xs)',
+                                border: 'none',
+                                cursor: 'pointer',
+                                backgroundColor: step1SourceFilter === tab.key 
+                                  ? (tab.key === 'USER_SEED' ? 'var(--brand-primary)' : (tab.key === 'EXPANSION' ? '#059669' : 'var(--brand-primary)')) 
+                                  : 'transparent',
+                                color: step1SourceFilter === tab.key ? '#ffffff' : 'var(--text-secondary)',
+                                transition: 'all 0.15s ease'
+                              }}
+                            >
+                              {tab.label}
+                            </button>
                           ))}
-                        </select>
+                        </div>
+
+                        {/* Intent Pills */}
+                        <div style={{ display: 'flex', gap: '0.2rem', backgroundColor: 'var(--bg-surface-elevated)', padding: '2px', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-default)' }}>
+                          {[
+                            { key: 'ALL', label: 'Tüm Niyetler' },
+                            { key: 'STRATEGIST', label: `🚀 SEM Uzman Seçimi (${strategistCountInView})` },
+                            { key: 'TRANSACTIONAL', label: 'Satın Alma' },
+                            { key: 'COMMERCIAL', label: 'Araştırma / Ticari' }
+                          ].map(tab => (
+                            <button
+                              key={tab.key}
+                              type="button"
+                              onClick={() => setStep1IntentFilter(tab.key)}
+                              style={{
+                                padding: '0.25rem 0.5rem',
+                                fontSize: '0.68rem',
+                                fontWeight: step1IntentFilter === tab.key ? 600 : 400,
+                                borderRadius: 'var(--radius-xs)',
+                                border: 'none',
+                                cursor: 'pointer',
+                                backgroundColor: step1IntentFilter === tab.key 
+                                  ? (tab.key === 'STRATEGIST' ? '#9333ea' : 'var(--brand-primary)') 
+                                  : 'transparent',
+                                color: step1IntentFilter === tab.key ? '#ffffff' : 'var(--text-secondary)',
+                                transition: 'all 0.15s ease'
+                              }}
+                            >
+                              {tab.label}
+                            </button>
+                          ))}
+                        </div>
                       </div>
 
-                      {/* Sort Dropdown */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                        <ArrowUpDown size={13} color="var(--text-muted)" />
-                        <select
-                          value={step1SortBy}
-                          onChange={(e) => setStep1SortBy(e.target.value as any)}
-                          style={{ fontSize: '0.75rem', padding: '0.35rem 0.5rem', borderRadius: 'var(--radius-xs)' }}
-                        >
-                          <option value="VOLUME">Arama Hacmi (En Yüksek)</option>
-                          <option value="CPC_LOW">TBM Maliyeti (En Düşük)</option>
-                          <option value="CPC_HIGH">TBM Maliyeti (En Yüksek)</option>
-                          <option value="ALPHABETICAL">Alfabetik (A-Z)</option>
-                        </select>
-                      </div>
+                      {/* Second Row: Location + Sort + Quick Bulk Selection Actions */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.65rem', paddingTop: '0.25rem' }}>
+                        {/* Quick Selection Buttons */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>Hızlı Seçim:</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const next = new Set(selectedKeywordIds);
+                              activeKeywordsGrid.forEach(k => {
+                                const isUser = !!k.isUserSeed || k.source === 'USER_SEED' || k.id?.startsWith('seed_kw_') || k.id?.startsWith('user_seed_');
+                                if (isUser) next.add(k.id);
+                              });
+                              setSelectedKeywordIds(next);
+                            }}
+                            className="btn-ghost"
+                            style={{ fontSize: '0.68rem', padding: '2px 8px', borderRadius: 'var(--radius-xs)', border: '1px solid rgba(37, 99, 235, 0.3)', color: 'var(--brand-primary)', fontWeight: 600 }}
+                          >
+                            🎯 Yalnızca Girdiğim Tohumları Seç
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const next = new Set(selectedKeywordIds);
+                              activeKeywordsGrid.forEach(k => {
+                                const isUser = !!k.isUserSeed || k.source === 'USER_SEED' || k.id?.startsWith('seed_kw_') || k.id?.startsWith('user_seed_');
+                                if (!isUser) next.add(k.id);
+                              });
+                              setSelectedKeywordIds(next);
+                            }}
+                            className="btn-ghost"
+                            style={{ fontSize: '0.68rem', padding: '2px 8px', borderRadius: 'var(--radius-xs)', border: '1px solid rgba(16, 185, 129, 0.3)', color: '#059669', fontWeight: 600 }}
+                          >
+                            ✨ Yalnızca Ek Önerileri Seç
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const next = new Set(selectedKeywordIds);
+                              activeKeywordsGrid.forEach(k => next.add(k.id));
+                              setSelectedKeywordIds(next);
+                            }}
+                            className="btn-ghost"
+                            style={{ fontSize: '0.68rem', padding: '2px 8px', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-default)', color: 'var(--text-secondary)' }}
+                          >
+                            Tümünü Seç ({activeKeywordsGrid.length})
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const next = new Set(selectedKeywordIds);
+                              activeKeywordsGrid.forEach(k => next.delete(k.id));
+                              setSelectedKeywordIds(next);
+                            }}
+                            className="btn-ghost"
+                            style={{ fontSize: '0.68rem', padding: '2px 8px', borderRadius: 'var(--radius-xs)', color: 'var(--text-muted)' }}
+                          >
+                            Temizle
+                          </button>
+                        </div>
 
-                      {/* Add Custom Keyword to this Group */}
-                      <div style={{ display: 'flex', gap: '0.3rem', minWidth: '220px' }}>
-                        <input
-                          type="text"
-                          placeholder="Yeni kelime ekle..."
-                          value={newKeywordInput}
-                          onChange={(e) => setNewKeywordInput(e.target.value)}
-                          onKeyDown={(e) => { if (e.key === 'Enter') handleAddCustomKeyword(); }}
-                          style={{ flex: 1, fontSize: '0.78rem', padding: '0.35rem 0.55rem' }}
-                        />
-                        <button
-                          onClick={handleAddCustomKeyword}
-                          disabled={!newKeywordInput.trim()}
-                          className="btn-secondary"
-                          style={{ fontSize: '0.72rem', padding: '0.35rem 0.65rem', whiteSpace: 'nowrap' }}
-                        >
-                          <Plus size={12} /> Ekle
-                        </button>
+                        {/* Location & Sort Controls */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                          {/* Location Scope Selector Dropdown */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                            <Globe size={13} color="var(--brand-primary)" />
+                            <select
+                              value={activeLocationScope}
+                              onChange={(e) => setActiveLocationScope(e.target.value)}
+                              style={{
+                                fontSize: '0.75rem',
+                                padding: '0.35rem 0.55rem',
+                                borderRadius: 'var(--radius-xs)',
+                                border: activeLocationScope !== 'ALL' ? '1.5px solid var(--brand-primary)' : '1px solid var(--border-default)',
+                                backgroundColor: activeLocationScope !== 'ALL' ? 'rgba(37, 99, 235, 0.08)' : 'var(--bg-surface-elevated)',
+                                color: activeLocationScope !== 'ALL' ? 'var(--brand-primary)' : 'var(--text-primary)',
+                                fontWeight: 600,
+                                cursor: 'pointer'
+                              }}
+                            >
+                              <option value="ALL">🌐 Tüm Lokasyonlar ({selectedLocations.length} Toplam)</option>
+                              {selectedLocations.map(loc => (
+                                <option key={loc.id} value={String(loc.id)}>
+                                  {loc.flag || '📍'} {loc.name} ({getLocationTypeLabel(loc.targetType)})
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* Sort Dropdown */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                            <ArrowUpDown size={13} color="var(--text-muted)" />
+                            <select
+                              value={step1SortBy}
+                              onChange={(e) => setStep1SortBy(e.target.value as any)}
+                              style={{ fontSize: '0.75rem', padding: '0.35rem 0.5rem', borderRadius: 'var(--radius-xs)' }}
+                            >
+                              <option value="VOLUME">Arama Hacmi (En Yüksek)</option>
+                              <option value="CPC_LOW">TBM Maliyeti (En Düşük)</option>
+                              <option value="CPC_HIGH">TBM Maliyeti (En Yüksek)</option>
+                              <option value="ALPHABETICAL">Alfabetik (A-Z)</option>
+                            </select>
+                          </div>
+
+                          {/* Add Custom Keyword to this Group */}
+                          <div style={{ display: 'flex', gap: '0.3rem', minWidth: '180px' }}>
+                            <input
+                              type="text"
+                              placeholder="Yeni kelime ekle..."
+                              value={newKeywordInput}
+                              onChange={(e) => setNewKeywordInput(e.target.value)}
+                              onKeyDown={(e) => { if (e.key === 'Enter') handleAddCustomKeyword(); }}
+                              style={{ flex: 1, fontSize: '0.78rem', padding: '0.35rem 0.55rem' }}
+                            />
+                            <button
+                              onClick={handleAddCustomKeyword}
+                              disabled={!newKeywordInput.trim()}
+                              className="btn-secondary"
+                              style={{ fontSize: '0.72rem', padding: '0.35rem 0.65rem', whiteSpace: 'nowrap' }}
+                            >
+                              <Plus size={12} /> Ekle
+                            </button>
+                          </div>
+                        </div>
                       </div>
 
                     </div>
@@ -4662,6 +4973,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                           ) : (
                             activeKeywordsGrid.map((kw, idx) => {
                               const isSelected = selectedKeywordIds.has(kw.id);
+                              const isUserSeed = !!kw.isUserSeed || kw.source === 'USER_SEED' || kw.id?.startsWith('seed_kw_') || kw.id?.startsWith('user_seed_');
                               const volumePercent = Math.max(8, Math.min(100, Math.round((kw.monthlyVolume / maxVolumeInGrid) * 100)));
 
                               return (
@@ -4690,6 +5002,46 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                                   <td style={{ padding: '0.5rem 0.75rem' }}>
                                     <div style={{ fontWeight: isSelected ? 600 : 500, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
                                       <span>{kw.keyword}</span>
+                                      
+                                      {/* Seed vs Expansion Badges */}
+                                      {isUserSeed ? (
+                                        <span
+                                          style={{
+                                            fontSize: '0.62rem',
+                                            padding: '1px 6px',
+                                            borderRadius: '3px',
+                                            fontWeight: 700,
+                                            backgroundColor: 'rgba(37, 99, 235, 0.12)',
+                                            color: 'var(--brand-primary)',
+                                            border: '1px solid rgba(37, 99, 235, 0.25)',
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '2px'
+                                          }}
+                                          title="Sizin doğrudan girdiğiniz tohum anahtar kelime"
+                                        >
+                                          🎯 Girdiğiniz Tohum
+                                        </span>
+                                      ) : (
+                                        <span
+                                          style={{
+                                            fontSize: '0.62rem',
+                                            padding: '1px 6px',
+                                            borderRadius: '3px',
+                                            fontWeight: 600,
+                                            backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                                            color: '#059669',
+                                            border: '1px solid rgba(16, 185, 129, 0.25)',
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '2px'
+                                          }}
+                                          title="Google Ads API & AI tarafından arama grafiğinden keşfedilen ek öneri"
+                                        >
+                                          ✨ Bunu da Hedefleyebilirsiniz
+                                        </span>
+                                      )}
+
                                       {kw.isAiStrategistPick && (
                                         <span
                                           style={{
@@ -4705,7 +5057,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                                             gap: '2px',
                                             letterSpacing: '0.02em'
                                           }}
-                                          title="Yapay Zeka Kıdemli SEM Direktörü tarafından doğrudan satış/kayıt getirecek şekilde üretildi"
+                                          title="Yüksek dönüşümlü satın alma terimi"
                                         >
                                           ⚡ SEM UZMANI
                                         </span>

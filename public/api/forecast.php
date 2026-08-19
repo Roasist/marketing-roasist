@@ -998,7 +998,7 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
             curl_multi_close($mh);
 
             if ($batchIdx < count($batches) - 1) {
-                usleep(80000); // 80ms pause between batches
+                usleep(50000); // 50ms pause between batches
             }
         }
         return $results;
@@ -1063,13 +1063,14 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
                 }
 
                 $oppScore = min(99, max(50, 95 - round($compIdx * 0.3) + ($avgVol > 5000 ? 10 : 5)));
-                $isAiStrategist = isset($seedKeys[$kwKey]) || 
+                $isUserSeed = isset($seedKeys[$kwKey]);
+                $isAiStrategist = $isUserSeed || 
                                   ($intent === 'TRANSACTIONAL' && $oppScore >= 80) || 
                                   ($intent === 'COMMERCIAL' && $oppScore >= 94);
 
                 $keywordIndexMap[$kwKey] = count($parsedKeywords);
                 $parsedKeywords[] = [
-                    'id' => ($isAiStrategist ? 'ai_strat_' : 'ads_kw_') . (count($parsedKeywords) + 1) . '_' . substr(md5($kwText), 0, 6),
+                    'id' => ($isUserSeed ? 'seed_kw_' : ($isAiStrategist ? 'ai_strat_' : 'ads_kw_')) . (count($parsedKeywords) + 1) . '_' . substr(md5($kwText), 0, 6),
                     'keyword' => $kwText,
                     'monthlyVolume' => $avgVol,
                     'lowCpc' => $lowBid,
@@ -1080,6 +1081,9 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
                     'trendChangePercent' => 0,
                     'opportunityScore' => $oppScore,
                     'isAiStrategistPick' => $isAiStrategist,
+                    'isUserSeed' => $isUserSeed,
+                    'isSuggested' => !$isUserSeed,
+                    'source' => $isUserSeed ? 'USER_SEED' : 'EXPANSION',
                     'geoVolumes' => [$geoId => $avgVol],
                     'geoCpc' => [$geoId => ['lowCpc' => $lowBid, 'highCpc' => $highBid]]
                 ];
@@ -1099,7 +1103,7 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
 
     $uniqueSeeds = [];
     if (!empty($keywords) && is_array($keywords) && count($keywords) > 0) {
-        $uniqueSeeds = array_slice(array_values(array_unique(array_filter($keywords))), 0, 20);
+        $uniqueSeeds = array_values(array_unique(array_filter($keywords)));
     }
 
     // If URL is provided and we need more seeds, query site once for top keyword ideas (0.5s)
@@ -1135,30 +1139,61 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
         }
     }
 
-    // Build Individual Location Requests (Every single location queried INDIVIDUALLY)
+    // Build Individual Location Requests (Support multi-batch for unlimited bulk user seeds in chunks of 20)
     $requests = [];
     if (!empty($uniqueSeeds)) {
-        $seedList = array_slice($uniqueSeeds, 0, 20);
-        foreach ($finalGeoList as $geo) {
-            $geoResource = strpos($geo, 'geoTargetConstants/') === 0 ? $geo : "geoTargetConstants/{$geo}";
-            $geoId = preg_replace('/[^0-9]/', '', $geo);
+        $seedBatches = array_chunk($uniqueSeeds, 20);
+        foreach ($seedBatches as $seedList) {
+            foreach ($finalGeoList as $geo) {
+                $geoResource = strpos($geo, 'geoTargetConstants/') === 0 ? $geo : "geoTargetConstants/{$geo}";
+                $geoId = preg_replace('/[^0-9]/', '', $geo);
 
-            $requests[] = [
-                'geoId' => $geoId,
-                'isSeed' => true,
-                'payload' => [
-                    "keywordPlanNetwork" => "GOOGLE_SEARCH",
-                    "language" => $langConst,
-                    "geoTargetConstants" => [$geoResource],
-                    "keywordSeed" => ["keywords" => $seedList]
-                ]
-            ];
+                $requests[] = [
+                    'geoId' => $geoId,
+                    'isSeed' => true,
+                    'payload' => [
+                        "keywordPlanNetwork" => "GOOGLE_SEARCH",
+                        "language" => $langConst,
+                        "geoTargetConstants" => [$geoResource],
+                        "keywordSeed" => ["keywords" => $seedList]
+                    ]
+                ];
+            }
         }
     }
 
     // Execute ALL individual location requests in fast parallel batches of 4!
     $parallelResults = $executeParallelGoogleAdsCalls($requests, 4);
     $parseLocationResults($parallelResults);
+
+    // Guaranteed inclusion of all user seed keywords with honest official Google Ads data
+    foreach ($uniqueSeeds as $uSeed) {
+        $uClean = is_array($uSeed) ? ($uSeed['keyword'] ?? '') : (string)$uSeed;
+        $uClean = trim($uClean);
+        if (empty($uClean)) continue;
+        $uKey = mb_strtolower(preg_replace('/\s+/', ' ', $uClean), 'UTF-8');
+        if (isset($seedKeys[$uKey]) && !isset($keywordIndexMap[$uKey])) {
+            $keywordIndexMap[$uKey] = count($parsedKeywords);
+            $parsedKeywords[] = [
+                'id' => 'user_seed_' . (count($parsedKeywords) + 1) . '_' . substr(md5($uClean), 0, 6),
+                'keyword' => $uClean,
+                'monthlyVolume' => 0, // Real 0 volume from Google Ads Keyword Planner
+                'lowCpc' => 0.0,
+                'highCpc' => 0.0,
+                'competition' => 'LOW',
+                'competitionIndex' => 10,
+                'intent' => 'TRANSACTIONAL',
+                'trendChangePercent' => 0,
+                'opportunityScore' => 70,
+                'isAiStrategistPick' => false,
+                'isUserSeed' => true,
+                'isSuggested' => false,
+                'source' => 'USER_SEED',
+                'geoVolumes' => [],
+                'geoCpc' => []
+            ];
+        }
+    }
 
     // 4. SMART FALLBACK TIER 2: If still empty (e.g. niche unindexed site), query language core market!
     if (empty($parsedKeywords)) {
@@ -2486,7 +2521,10 @@ if ($action === 'discover' && $method === 'POST') {
         exit;
     }
 
-    $cacheKey = md5("forecast_v25_{$mode}_{$query}_" . ($requestedLanguage ?: 'auto') . '_' . ($requestedCountryCode ?: 'auto') . '_' . implode('_', (array)$requestedGeoTargetConstants));
+    $includeSuggestions = isset($input['includeSuggestions']) ? (bool)$input['includeSuggestions'] : true;
+    $clientSeeds = !empty($input['seedKeywords']) && is_array($input['seedKeywords']) ? $input['seedKeywords'] : [];
+
+    $cacheKey = md5("forecast_v26_{$mode}_{$query}_" . ($includeSuggestions ? 'sug_1_' : 'sug_0_') . ($requestedLanguage ?: 'auto') . '_' . ($requestedCountryCode ?: 'auto') . '_' . implode('_', (array)$requestedGeoTargetConstants));
 
     // 1. Check Server-Side Cache
     $stmtCache = $pdo->prepare("SELECT data, created_at FROM keyword_cache WHERE cache_key = ?");
@@ -2517,11 +2555,14 @@ if ($action === 'discover' && $method === 'POST') {
     } else {
         $actualMode = 'KEYWORDS';
         $userSeeds = preg_split('/[,;\n\r]+/', $query);
-        $cleanUserSeeds = array_values(array_filter(array_map('trim', $userSeeds)));
+        if (!empty($clientSeeds)) {
+            $userSeeds = array_merge($userSeeds, $clientSeeds);
+        }
+        $cleanUserSeeds = array_values(array_unique(array_filter(array_map('trim', $userSeeds))));
         $pageDetails = [
-            'title' => implode(', ', $cleanUserSeeds),
-            'description' => "Google Ads SEM Keyword Targeting: {$query}",
-            'headings' => $cleanUserSeeds,
+            'title' => implode(', ', array_slice($cleanUserSeeds, 0, 10)),
+            'description' => "Google Ads SEM Keyword Targeting: " . implode(', ', array_slice($cleanUserSeeds, 0, 5)),
+            'headings' => array_slice($cleanUserSeeds, 0, 10),
             'textSnippet' => "Google Ads search intent and keyword planning for seeds: " . implode(' | ', $cleanUserSeeds)
         ];
     }
@@ -2609,27 +2650,12 @@ if ($action === 'discover' && $method === 'POST') {
             return !preg_match($singleWordBroadJunk, $kw);
         }));
 
-        // Merge and cross-reference AI-generated Strategist Keywords from Gemini
+        // Tag AI Strategist picks without creating synthetic/unverified numbers
         if (!empty($aiAnalysis['strategistKeywords']) && is_array($aiAnalysis['strategistKeywords'])) {
             $existingMap = [];
             foreach ($officialKeywords as $idx => $okw) {
                 $key = mb_strtolower(preg_replace('/\s+/', ' ', $okw['keyword']), 'UTF-8');
                 $existingMap[$key] = $idx;
-            }
-
-            // Compute average CPC / Metrics from official list to ground any AI seeds with real market numbers
-            $avgLowCpc = 8.0;
-            $avgHighCpc = 28.0;
-            if (count($officialKeywords) > 0) {
-                $totLow = 0; $totHigh = 0; $cnt = 0;
-                foreach ($officialKeywords as $okw) {
-                    if (($okw['lowCpc'] ?? 0) > 0) { $totLow += $okw['lowCpc']; $cnt++; }
-                    if (($okw['highCpc'] ?? 0) > 0) { $totHigh += $okw['highCpc']; }
-                }
-                if ($cnt > 0) {
-                    $avgLowCpc = round($totLow / $cnt, 2);
-                    $avgHighCpc = round($totHigh / $cnt, 2);
-                }
             }
 
             foreach ($aiAnalysis['strategistKeywords'] as $skw) {
@@ -2638,51 +2664,22 @@ if ($action === 'discover' && $method === 'POST') {
                 $sKey = mb_strtolower(preg_replace('/\s+/', ' ', $sText), 'UTF-8');
 
                 if (isset($existingMap[$sKey])) {
-                    // Already in official list -> ensure tagged as AI Strategist Pick!
+                    // Grounded in official Google Ads API data
                     $officialKeywords[$existingMap[$sKey]]['isAiStrategistPick'] = true;
                     $officialKeywords[$existingMap[$sKey]]['intent'] = 'TRANSACTIONAL';
                     $officialKeywords[$existingMap[$sKey]]['opportunityScore'] = max(95, $officialKeywords[$existingMap[$sKey]]['opportunityScore'] ?? 95);
-                } else {
-                    // Add as top AI Strategist Pick
-                    $officialKeywords[] = [
-                        'id' => 'ai_strat_' . (count($officialKeywords) + 1) . '_' . substr(md5($sText), 0, 6),
-                        'keyword' => $sText,
-                        'monthlyVolume' => (int)($skw['monthlyVolume'] ?? 1200),
-                        'lowCpc' => (float)($skw['lowCpc'] ?? $avgLowCpc),
-                        'highCpc' => (float)($skw['highCpc'] ?? $avgHighCpc),
-                        'competition' => $skw['competition'] ?? 'HIGH',
-                        'competitionIndex' => (int)($skw['competitionIndex'] ?? 85),
-                        'intent' => 'TRANSACTIONAL',
-                        'trendChangePercent' => (int)($skw['trendChangePercent'] ?? 20),
-                        'opportunityScore' => (int)($skw['opportunityScore'] ?? 97),
-                        'isAiStrategistPick' => true,
-                        'strategistStrategy' => $skw['strategy'] ?? 'TRANSACTIONAL'
-                    ];
                 }
             }
         }
+
+        // If user requested only user seeds (includeSuggestions === false), filter out expansions
+        if (!$includeSuggestions && !empty($cleanUserSeeds)) {
+            $officialKeywords = array_values(array_filter($officialKeywords, function($k) {
+                return !empty($k['isUserSeed']);
+            }));
+        }
     } else {
         $officialKeywords = [];
-        if (!empty($aiAnalysis['strategistKeywords']) && is_array($aiAnalysis['strategistKeywords'])) {
-            foreach ($aiAnalysis['strategistKeywords'] as $skw) {
-                $sText = trim($skw['keyword'] ?? '');
-                if (empty($sText) || mb_strlen($sText, 'UTF-8') < 3) continue;
-                $officialKeywords[] = [
-                    'id' => 'ai_strat_' . (count($officialKeywords) + 1) . '_' . substr(md5($sText), 0, 6),
-                    'keyword' => $sText,
-                    'monthlyVolume' => (int)($skw['monthlyVolume'] ?? 1200),
-                    'lowCpc' => (float)($skw['lowCpc'] ?? 7.5),
-                    'highCpc' => (float)($skw['highCpc'] ?? 25.0),
-                    'competition' => $skw['competition'] ?? 'HIGH',
-                    'competitionIndex' => (int)($skw['competitionIndex'] ?? 85),
-                    'intent' => 'TRANSACTIONAL',
-                    'trendChangePercent' => (int)($skw['trendChangePercent'] ?? 20),
-                    'opportunityScore' => (int)($skw['opportunityScore'] ?? 97),
-                    'isAiStrategistPick' => true,
-                    'strategistStrategy' => $skw['strategy'] ?? 'TRANSACTIONAL'
-                ];
-            }
-        }
     }
 
     // Sort

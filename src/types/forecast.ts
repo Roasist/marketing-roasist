@@ -14,6 +14,9 @@ export interface KeywordMetric {
   opportunityScore: number;
   isSelected?: boolean;
   isAiStrategistPick?: boolean;
+  isUserSeed?: boolean;
+  isSuggested?: boolean;
+  source?: 'USER_SEED' | 'EXPANSION' | 'AI_STRATEGIST';
   strategistStrategy?: 'TRANSACTIONAL' | 'LOCAL_GEO' | 'CONSIDERATION' | 'LEAD_MAGNET';
   geoVolumes?: Record<string, number>;
   geoCpc?: Record<string, { lowCpc: number; highCpc: number }>;

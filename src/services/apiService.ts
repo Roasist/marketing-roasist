@@ -260,6 +260,8 @@ export class ApiService {
     language?: string;
     geoTargetConstants?: string[];
     locations?: any[];
+    includeSuggestions?: boolean;
+    seedKeywords?: string[];
   }): Promise<any> {
     const res = await this.request<{ status: string; data?: any; message?: string }>('/forecast.php?action=discover', {
       method: 'POST',
