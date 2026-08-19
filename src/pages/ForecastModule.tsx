@@ -1013,11 +1013,15 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     setSubCampaigns(prev => prev.map(c => {
       if (c.id !== activeSubCampaignId) return c;
       const selectedKws = Array.from(selectedKeywordIds).map(id => keywords.find(k => k.id === id)).filter(Boolean) as KeywordMetric[];
+      const isGoogleSearch = c.platform === 'GOOGLE' && (c.objective === 'GOOGLE_SEARCH' || !c.objective);
+      const hasKeywords = keywords.length > 0 || selectedKws.length > 0;
+      const subBudget = (isGoogleSearch && !hasKeywords) ? 0 : (monthlyBudget || 0);
+
       return {
         ...c,
         targetUrl: mode === 'URL' ? query : '',
         seedKeywords: mode === 'KEYWORDS' ? query : '',
-        monthlyBudget,
+        monthlyBudget: subBudget,
         discoveredKeywords: keywords,
         selectedKeywords: selectedKws,
         negativeCategories,
@@ -1050,7 +1054,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           gdnCtr,
           gdnAssistedCr
         },
-        simulationResult: simulation,
+        simulationResult: hasKeywords ? simulation : undefined,
         metaSimulationResult: metaSimulation,
         youtubeSimulationResult: youtubeSimulation,
         gdnSimulationResult: gdnSimulation
@@ -1082,8 +1086,10 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     setDetectedLanguage(lCode && lCode !== 'auto' ? lCode : 'tr');
     setDetectedLanguageName(lName);
 
-    if (target.monthlyBudget) {
+    if (target.monthlyBudget !== undefined) {
       setMonthlyBudget(target.monthlyBudget);
+    } else {
+      setMonthlyBudget(0);
     }
     if (target.businessModel) {
       setBusinessModel(target.businessModel);
@@ -1091,6 +1097,8 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     if (target.targetUrl || target.seedKeywords) {
       setQuery(target.targetUrl || target.seedKeywords || '');
       setMode(target.targetUrl ? 'URL' : 'KEYWORDS');
+    } else {
+      setQuery('');
     }
     if (target.parameters) {
       if (target.parameters.growthScenario) setGrowthScenario(target.parameters.growthScenario);
@@ -1132,8 +1140,12 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       setActiveChannelTab('GOOGLE_SEARCH');
     }
 
-    setIsStep1Completed(true);
-    setIsStep2Completed(true);
+    const hasKeywords = (target.discoveredKeywords && target.discoveredKeywords.length > 0) || (target.selectedKeywords && target.selectedKeywords.length > 0);
+    setIsStep1Completed(hasKeywords);
+    setIsStep2Completed(hasKeywords || target.platform !== 'GOOGLE');
+    if (!hasKeywords && target.platform === 'GOOGLE' && (target.objective === 'GOOGLE_SEARCH' || !target.objective)) {
+      setCurrentStep(1);
+    }
 
     setTimeout(() => {
       isApplyingSubCampaignRef.current = false;
@@ -1177,7 +1189,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       languageName: langObj.name,
       languageFlag: langObj.flag,
       targetLocations: defaultLocs,
-      monthlyBudget: monthlyBudget || 30000,
+      monthlyBudget: 0,
       selectedKeywords: [],
       discoveredKeywords: [],
       negativeCategories: [],
@@ -1212,9 +1224,13 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     setTargetLanguage(newCampLang);
     setDetectedLanguage(newCampLang);
     setDetectedLanguageName(langObj.name);
+    setMonthlyBudget(0);
     setQuery('');
     setIsAddCampaignModalOpen(false);
     setNewCampName('');
+    setIsStep1Completed(false);
+    setIsStep2Completed(false);
+    setCurrentStep(1);
     
     // Switch channel sub tab to match objective
     if (newCampPlatform === 'META') {
@@ -3408,7 +3424,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     fontWeight: 600 
                   }}
                 >
-                  ₺{camp.monthlyBudget?.toLocaleString('tr-TR')}
+                  ₺{(camp.monthlyBudget || 0).toLocaleString('tr-TR')}
                 </span>
 
                 <button
