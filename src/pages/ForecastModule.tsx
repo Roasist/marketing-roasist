@@ -2785,6 +2785,11 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       locGeoCpcSums[locKey] = { sum: cpcSum, count: cpcCount };
     }
 
+    // Calculate the baseline average CPC of the active pool (fully imputed with realistic values)
+    const poolAvgCpc = activePool.length > 0
+      ? (activePool.reduce((sum, k) => sum + (((Number(k.lowCpc) || 0) + (Number(k.highCpc) || 0)) / 2), 0) / activePool.length)
+      : (avgTopPageCpc || 25.0);
+
     const totalPoolVol = Object.values(locGeoVolumes).reduce((s, v) => s + v, 0);
     const totalAllKeywordsVol = activePool.reduce((s, k) => s + (k.monthlyVolume || 0), 0);
     const totalLocationsReach = selectedLocations.reduce((s, l) => s + (l.reach || 10000000), 0);
@@ -2792,6 +2797,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     const items: CountryMetric[] = selectedLocations.map(loc => {
       const locKey = String(loc.id);
       const off = findOfficial(loc);
+      const mult = loc.cpcMultiplier || getCountryCpcMultiplier(loc.countryCode) || 1.0;
 
       // Volume calculation: Keyword geoVolumes -> Official Breakdown -> Population reach distribution
       let cVol = 0;
@@ -2804,15 +2810,18 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         cVol = Math.round(totalAllKeywordsVol * reachShare);
       }
 
-      // CPC calculation: Keyword geoCpc -> Official Breakdown -> Location tier multiplier * base CPC
-      let cCpc = 0;
+      // CPC calculation:
+      // Base realistic CPC for this location is the selected keywords average CPC multiplied by country multiplier
+      const locationTargetCpc = poolAvgCpc * mult;
+
+      let cCpc = locationTargetCpc;
       if (locGeoCpcSums[locKey]?.count > 0) {
-        cCpc = locGeoCpcSums[locKey].sum / locGeoCpcSums[locKey].count;
+        const keywordGeoAvg = locGeoCpcSums[locKey].sum / locGeoCpcSums[locKey].count;
+        // If keyword-level geo CPC is realistic (not depressed by 0 values), accept it; otherwise use location target
+        cCpc = keywordGeoAvg >= (locationTargetCpc * 0.6) ? keywordGeoAvg : locationTargetCpc;
       } else if (off && (off.avgCpc || 0) > 0) {
-        cCpc = off.avgCpc;
-      } else {
-        const mult = loc.cpcMultiplier || 1.0;
-        cCpc = (avgTopPageCpc > 0 ? avgTopPageCpc : 6.50) * mult;
+        // If Google Ads official location breakdown returned competitive data >= 75% of target, use it; otherwise protect with location target
+        cCpc = (off.avgCpc >= locationTargetCpc * 0.75) ? off.avgCpc : locationTargetCpc;
       }
 
       const finalCpc = Number((cCpc * scenarioMultiplier.cpcMult).toFixed(2));

@@ -731,11 +731,29 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
     }
     $avgMarketCpc = $validCpcCount > 0 ? round($validCpcSum / $validCpcCount, 2) : 32.0;
 
+    // Calculate input keywords baseline average CPC if available
+    $inputKeywordCpcSum = 0;
+    $inputKeywordCpcCount = 0;
+    if (!empty($officialKeywords) && is_array($officialKeywords)) {
+        foreach ($officialKeywords as $okw) {
+            if (is_array($okw)) {
+                $low = (float)($okw['lowCpc'] ?? 0);
+                $high = (float)($okw['highCpc'] ?? 0);
+                if ($high > 0) {
+                    $inputKeywordCpcSum += ($low + $high) / 2;
+                    $inputKeywordCpcCount++;
+                }
+            }
+        }
+    }
+    $inputBaseCpc = $inputKeywordCpcCount > 0 ? ($inputKeywordCpcSum / $inputKeywordCpcCount) : 0.0;
+
     // Fill in any locations that had zero volume from narrow sample with proportional population metrics
     $countryCpcTiers = [
-        'US' => 1.8, 'GB' => 1.7, 'DE' => 1.6, 'AE' => 1.5,
-        'KZ' => 1.15, 'RU' => 1.25, 'UA' => 0.95, 'UZ' => 0.75,
-        'KG' => 0.70, 'AZ' => 0.80, 'TR' => 1.0
+        'US' => 2.8, 'GB' => 2.3, 'UK' => 2.3, 'DE' => 2.1, 'CH' => 2.5, 'NL' => 2.2, 'SE' => 2.1,
+        'NO' => 2.2, 'DK' => 2.1, 'FI' => 2.0, 'CA' => 2.2, 'AU' => 2.4, 'FR' => 1.9, 'IT' => 1.8,
+        'ES' => 1.7, 'AE' => 2.0, 'SA' => 1.7, 'QA' => 1.9, 'KW' => 1.8, 'KZ' => 0.85, 'RU' => 1.0,
+        'UA' => 0.85, 'UZ' => 0.75, 'KG' => 0.75, 'AZ' => 0.80, 'TR' => 1.0
     ];
 
     foreach ($breakdown as &$b) {
@@ -745,9 +763,12 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
         if ($b['monthlyVolume'] === 0) {
             $b['monthlyVolume'] = max(240, (int)round(($reach / 1500000) * ($maxVol > 0 ? $maxVol * 0.45 : 1600)));
         }
-        if ($b['avgCpc'] === 0.0 || $b['avgCpc'] === 0) {
-            $tier = $countryCpcTiers[$b['code']] ?? 0.85;
-            $b['avgCpc'] = round($avgMarketCpc * $tier, 2);
+        
+        $tier = $countryCpcTiers[$b['code']] ?? 1.5;
+        $expectedCpc = ($inputBaseCpc > 0) ? ($inputBaseCpc * $tier) : ($avgMarketCpc * $tier);
+
+        if ($b['avgCpc'] === 0.0 || $b['avgCpc'] === 0 || ($inputBaseCpc > 0 && $b['avgCpc'] < ($expectedCpc * 0.65))) {
+            $b['avgCpc'] = round($expectedCpc, 2);
             $b['highCpc'] = $b['avgCpc'];
         }
     }
