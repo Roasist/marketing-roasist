@@ -7774,6 +7774,20 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     </div>
                   </div>
 
+                  <div style={{ padding: '0.8rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Tahmini Ort. TBM</div>
+                    <div style={{ fontSize: '1.35rem', fontWeight: 700, color: 'var(--brand-primary)', marginTop: '2px' }}>
+                      ₺{(simulation.avgCpc > 0 ? simulation.avgCpc : (simulation.estClicks > 0 ? simulation.actualSpend / simulation.estClicks : 0)).toFixed(2)}
+                    </div>
+                  </div>
+
+                  <div style={{ padding: '0.8rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Tahmini Tıklama Oranı (CTR)</div>
+                    <div style={{ fontSize: '1.35rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
+                      %{(simulation.avgCtr || (simulation.estImpressions > 0 ? (simulation.estClicks / simulation.estImpressions) * 100 : expectedCtr)).toFixed(1)}
+                    </div>
+                  </div>
+
                   {businessModel === 'LEAD_GEN' ? (
                     <>
                       <div style={{ padding: '0.8rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
@@ -7824,6 +7838,13 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                         <div style={{ fontSize: '0.72rem', color: '#059669', fontWeight: 700 }}>TAHMİNİ ROAS</div>
                         <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#059669', marginTop: '2px' }}>
                           {simulation.projectedRoas > 0 ? `${simulation.projectedRoas}x` : '—'}
+                        </div>
+                      </div>
+
+                      <div style={{ padding: '0.8rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Tahmini Ciro Projeksiyonu</div>
+                        <div style={{ fontSize: '1.35rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
+                          ₺{simulation.estRevenue.toLocaleString('tr-TR')}
                         </div>
                       </div>
                     </>
