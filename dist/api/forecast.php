@@ -1393,7 +1393,7 @@ function detectPageLanguage($title, $text) {
     }
     
     // 0.1 Persian / Farsi transliteration cues in URL or text (e.g. shahrvandi, sarmaye, kharid, melk, aprteman, farsi, persian, iran, eghamat)
-    if (preg_match('/(shahrvandi|sarmaye|kharid|melk|aprteman|farsi|persian|iran|tehran|eghamat)/i', $full)) {
+    if (preg_match('/(shahrvandi|sarmaye|kharid|melk|aprteman|farsi|persian|iran|tehran|eghamat|alan(y|i)a|turkey|turkiye)/i', $full) && preg_match('/[\p{Arabic}]/u', $full)) {
         return ['code' => 'fa', 'name' => 'Farsça'];
     }
     
@@ -1402,21 +1402,21 @@ function detectPageLanguage($title, $text) {
     preg_match_all('/[\p{Arabic}]/u', $full, $ara);
     if (count($cyr[0] ?? []) > 8) return ['code' => 'ru', 'name' => 'Rusça'];
 
-    if (count($ara[0] ?? []) > 6) {
+    if (count($ara[0] ?? []) > 4) {
         // High-precision distinction between Persian (Farsi) vs Arabic:
-        // Persian unique letters: گ، چ، پ، ژ (U+06AF, U+0686, U+067E, U+0698)
-        preg_match_all('/[گچپژ]/u', $full, $mPersianChars);
+        // Persian unique letters: گ، چ، پ، ژ (U+06AF, U+0686, U+067E, U+0698), Persian Yeh/Kaf (ک, ی)
+        preg_match_all('/[گچپژکی]/u', $full, $mPersianChars);
         $pCharCount = count($mPersianChars[0] ?? []);
 
         // Persian high-frequency words:
-        preg_match_all('/(?:^|[^\p{L}\p{N}])(در|با|برای|است|این|آن|که|های|شهروندی|ترکیه|سرمایه‌گذاری|سرمایه گذاری|پروژه|خرید|ملک|آپارتمان|خانه|مشاوره|اخذ|ما|شما|پاسپورت|آلانیا|استانبول|اقامت|سازنده|سوالات)(?:[^\p{L}\p{N}]|$)/ui', $full, $mPersianWords);
+        preg_match_all('/(?:^|[^\p{L}\p{N}])(در|با|برای|است|این|آن|که|های|شهروندی|ترکیه|سرمایه‌گذاری|سرمایه گذاری|پروژه|خرید|ملک|آپارتمان|خانه|مشاوره|اخذ|ما|شما|پاسپورت|آلانیا|استانبول|اقامت|سازنده|سوالات|سود|هنگام|دریافت|پکیج|سند|تاپو|پشتیبانی|فارسی|دارایی)(?:[^\p{L}\p{N}]|$)/ui', $full, $mPersianWords);
         $pWordCount = count($mPersianWords[0] ?? []);
 
         // Arabic high-frequency words:
-        preg_match_all('/(?:^|[^\p{L}\p{N}])(في|من|على|إلى|عن|مع|هذا|هذه|التي|الذي|شقق|للبيع|للإيجار|عقارات|الجنسية|الاستثمار|اسطنبول|أنطاليا|تركيا|سياحة|فلل)(?:[^\p{L}\p{N}]|$)/ui', $full, $mArabicWords);
+        preg_match_all('/(?:^|[^\p{L}\p{N}])(في|من|على|إلى|عن|مع|هذا|هذه|التي|الذي|شقق|للبيع|للإيجار|عقارات|الجنسية|الاستثمار|اسطنبول|أنطاليا|تركيا|سياحة|فلل|شركة|خدمات)(?:[^\p{L}\p{N}]|$)/ui', $full, $mArabicWords);
         $aWordCount = count($mArabicWords[0] ?? []);
 
-        if ($pCharCount > 0 || $pWordCount > $aWordCount) {
+        if ($pCharCount > 0 || $pWordCount >= $aWordCount) {
             return ['code' => 'fa', 'name' => 'Farsça'];
         }
         return ['code' => 'ar', 'name' => 'Arapça'];
@@ -2486,7 +2486,7 @@ if ($action === 'discover' && $method === 'POST') {
         exit;
     }
 
-    $cacheKey = md5("forecast_v22_{$mode}_{$query}_" . ($requestedLanguage ?: 'auto') . '_' . ($requestedCountryCode ?: 'auto') . '_' . implode('_', (array)$requestedGeoTargetConstants));
+    $cacheKey = md5("forecast_v25_{$mode}_{$query}_" . ($requestedLanguage ?: 'auto') . '_' . ($requestedCountryCode ?: 'auto') . '_' . implode('_', (array)$requestedGeoTargetConstants));
 
     // 1. Check Server-Side Cache
     $stmtCache = $pdo->prepare("SELECT data, created_at FROM keyword_cache WHERE cache_key = ?");

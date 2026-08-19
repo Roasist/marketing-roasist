@@ -995,9 +995,13 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     if (target.targetLocations && target.targetLocations.length > 0) {
       setSelectedLocations(target.targetLocations);
     }
-    if (target.languageCode) {
-      setTargetLanguage(target.languageCode);
-    }
+    const lCode = target.languageCode || 'tr';
+    const lObj = GOOGLE_ADS_LANGUAGES.find(l => l.code === lCode);
+    const lName = target.languageName || lObj?.name || 'Türkçe';
+    setTargetLanguage(lCode);
+    setDetectedLanguage(lCode);
+    setDetectedLanguageName(lName);
+
     if (target.monthlyBudget) {
       setMonthlyBudget(target.monthlyBudget);
     }
@@ -1126,6 +1130,8 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     setNegativeCategories([]);
     setSelectedLocations(defaultLocs);
     setTargetLanguage(newCampLang);
+    setDetectedLanguage(newCampLang);
+    setDetectedLanguageName(langObj.name);
     setMonthlyBudget(newCampBudget);
     setQuery('');
     setIsAddCampaignModalOpen(false);
@@ -1480,8 +1486,12 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       if (res && res.keywords && res.keywords.length > 0) {
         setKeywords(res.keywords);
         setSectorName(res.sector || 'Genel');
-        setDetectedLanguage(res.detectedLanguage || 'tr');
-        setDetectedLanguageName(res.detectedLanguageName || 'Türkçe');
+        const langCode = res.detectedLanguage || 'tr';
+        const langObj = GOOGLE_ADS_LANGUAGES.find(l => l.code === langCode);
+        const langName = res.detectedLanguageName || langObj?.name || 'Türkçe';
+        setDetectedLanguage(langCode);
+        setDetectedLanguageName(langName);
+        setTargetLanguage(langCode);
         setPageTitle(res.pageTitle || '');
         setPageSummary(res.pageSummary || '');
 
