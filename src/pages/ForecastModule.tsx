@@ -203,6 +203,58 @@ export const GOOGLE_ADS_LANGUAGES: GoogleAdsLanguageOption[] = [
   { code: 'lt', name: 'Litvanca', nativeName: 'Lietuvių', flag: '🇱🇹' }
 ];
 
+// Automatic Context & Keyword Language Detection Helper
+export const detectLanguageFromTextOrKeywords = (text: string, kwList: { keyword: string }[] = []): { code: string; name: string; flag: string } => {
+  const combined = (text + ' ' + kwList.map(k => k.keyword).join(' ')).trim();
+  if (!combined) {
+    return { code: 'tr', name: 'Türkçe', flag: '🇹🇷' };
+  }
+
+  // 1. Persian / Farsi transliterations or specific characters
+  if (/(shahrvandi|sarmaye|kharid|melk|aprteman|farsi|persian|iran|tehran|eghamat|alan(y|i)a|turkey|turkiye)/i.test(combined) && /[\u0600-\u06FF]/.test(combined)) {
+    return { code: 'fa', name: 'Farsça', flag: '🇮🇷' };
+  }
+  if (/[گچپژ]/.test(combined)) {
+    return { code: 'fa', name: 'Farsça', flag: '🇮🇷' };
+  }
+  if (/(در|با|برای|است|این|آن|که|های|شهروندی|ترکیه|سرمایه‌گذاری|سرمایه گذاری|پروژه|خرید|ملک|آپارتمان|خانه|مشاوره|اخذ|ما|شما|پاسپورت|آلانیا|استانبول|اقامت|سازنده|سوالات|سود|هنگام|دریافت|پکیج|سند|تاپو|پشتیبانی|فارسی|دارایی)/i.test(combined)) {
+    return { code: 'fa', name: 'Farsça', flag: '🇮🇷' };
+  }
+
+  // 2. Arabic
+  if (/[\u0600-\u06FF]/.test(combined)) {
+    if (/(في|من|على|إلى|عن|مع|هذا|هذه|التي|الذي|شقق|للبيع|للإيجار|عقارات|الجنسية|الاستثمار|اسطنبول|أنطاليا|تركيا|سياحة|فلل|شركة|خدمات)/i.test(combined)) {
+      return { code: 'ar', name: 'Arapça', flag: '🇸🇦' };
+    }
+    if (/[کی]/.test(combined)) {
+      return { code: 'fa', name: 'Farsça', flag: '🇮🇷' };
+    }
+    return { code: 'ar', name: 'Arapça', flag: '🇸🇦' };
+  }
+
+  // 3. Cyrillic (Russian)
+  if (/[\u0400-\u04FF]/.test(combined)) {
+    return { code: 'ru', name: 'Rusça', flag: '🇷🇺' };
+  }
+
+  // 4. Turkish
+  if (/[ğşIıİĞŞ]/.test(combined) || /\b(ve|ile|için|bir|bu|da|de|olarak|gibi|satılık|kiralık|fiyatları|konut|daire|otel|villa|emlak|vatandaşlık|pasaport|gayrimenkul|yatırım|hakkımızda|iletişim)\b/i.test(combined)) {
+    return { code: 'tr', name: 'Türkçe', flag: '🇹🇷' };
+  }
+
+  // 5. German
+  if (/[äÄß]/.test(combined) || /\b(und|für|mit|der|die|das|dem|den|des|ein|eine|von|bei|aus|nach|über|unter|nicht|wir|sie|ihr|uns|unsere)\b/i.test(combined)) {
+    return { code: 'de', name: 'Almanca', flag: '🇩🇪' };
+  }
+
+  // 6. English
+  if (/\b(the|of|in|and|for|with|by|to|is|are|citizenship|investment|property|real estate|passport|turkey|turkish|houses|villas|apartment|apartments)\b/i.test(combined)) {
+    return { code: 'en', name: 'İngilizce', flag: '🇬🇧' };
+  }
+
+  return { code: 'tr', name: 'Türkçe', flag: '🇹🇷' };
+};
+
 // Official Brand SVG Icons
 export const GoogleIcon: React.FC<{ size?: number }> = ({ size = 15 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" style={{ flexShrink: 0, verticalAlign: 'middle', display: 'inline-block' }}>
@@ -529,6 +581,20 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   const [keywords, setKeywords] = useState<KeywordMetric[]>([]);
   const [selectedKeywordIds, setSelectedKeywordIds] = useState<Set<string>>(new Set());
   const [newKeywordInput, setNewKeywordInput] = useState<string>('');
+
+  // Guaranteed Non-Auto Resolved Language for UI Display & APIs
+  const effectiveLanguage = useMemo(() => {
+    if (detectedLanguage && detectedLanguage !== 'auto') {
+      const obj = GOOGLE_ADS_LANGUAGES.find(l => l.code === detectedLanguage);
+      return {
+        code: detectedLanguage,
+        name: (detectedLanguageName && detectedLanguageName !== 'Otomatik' && detectedLanguageName !== 'Otomatik (Sayfa Dili)') ? detectedLanguageName : (obj?.name || 'Türkçe'),
+        flag: obj?.flag || '🌐'
+      };
+    }
+    // Auto-detect from query, pageTitle and keywords
+    return detectLanguageFromTextOrKeywords(query + ' ' + (pageTitle || ''), keywords);
+  }, [detectedLanguage, detectedLanguageName, query, pageTitle, keywords]);
 
   // Target Locations (Google Keyword Planner Style Engine)
   const [selectedLocations, setSelectedLocations] = useState<GeoTargetLocation[]>(DEFAULT_LOCATIONS);
@@ -995,11 +1061,18 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     if (target.targetLocations && target.targetLocations.length > 0) {
       setSelectedLocations(target.targetLocations);
     }
-    const lCode = target.languageCode || 'tr';
+    let lCode = target.languageCode;
+    if (!lCode || lCode === 'auto') {
+      const autoLang = detectLanguageFromTextOrKeywords(
+        (target.targetUrl || target.seedKeywords || '') + ' ' + (target.name || ''),
+        target.discoveredKeywords || target.selectedKeywords || []
+      );
+      lCode = autoLang.code;
+    }
     const lObj = GOOGLE_ADS_LANGUAGES.find(l => l.code === lCode);
-    const lName = target.languageName || lObj?.name || 'Türkçe';
-    setTargetLanguage(lCode);
-    setDetectedLanguage(lCode);
+    const lName = (lCode && lCode !== 'auto') ? (target.languageName && target.languageName !== 'Otomatik (Sayfa Dili)' ? target.languageName : (lObj?.name || 'Türkçe')) : 'Türkçe';
+    setTargetLanguage(target.languageCode || 'auto');
+    setDetectedLanguage(lCode && lCode !== 'auto' ? lCode : 'tr');
     setDetectedLanguageName(lName);
 
     if (target.monthlyBudget) {
@@ -1486,9 +1559,15 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       if (res && res.keywords && res.keywords.length > 0) {
         setKeywords(res.keywords);
         setSectorName(res.sector || 'Genel');
-        const langCode = res.detectedLanguage || 'tr';
+        let langCode = res.detectedLanguage;
+        if (!langCode || langCode === 'auto') {
+          const autoL = detectLanguageFromTextOrKeywords(q + ' ' + (res.pageTitle || ''), res.keywords);
+          langCode = autoL.code;
+        }
         const langObj = GOOGLE_ADS_LANGUAGES.find(l => l.code === langCode);
-        const langName = res.detectedLanguageName || langObj?.name || 'Türkçe';
+        const langName = (res.detectedLanguageName && res.detectedLanguageName !== 'Otomatik' && res.detectedLanguageName !== 'Otomatik (Sayfa Dili)')
+          ? res.detectedLanguageName
+          : (langObj?.name || 'Türkçe');
         setDetectedLanguage(langCode);
         setDetectedLanguageName(langName);
         setTargetLanguage(langCode);
@@ -4032,7 +4111,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                         {mode === 'URL' ? 'AÇILIŞ SAYFASI ANALİZİ' : 'TOHUM ANAHTAR KELİME ANALİZİ'}
                       </span>
                       <span className="badge badge-active" style={{ fontSize: '0.725rem' }}>
-                        <CheckCircle2 size={11} /> {detectedLanguageName} ({detectedLanguage.toUpperCase()})
+                        <CheckCircle2 size={11} /> {effectiveLanguage.name} ({effectiveLanguage.code.toUpperCase()})
                       </span>
                       {sectorName && (
                         <span className="badge badge-neutral" style={{ fontSize: '0.725rem' }}>
@@ -4853,7 +4932,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     </span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '0.78rem', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
-                    <span>Dil: <strong>{detectedLanguageName}</strong></span>
+                    <span>Dil: <strong>{effectiveLanguage.name}</strong></span>
                     <span>•</span>
                     <span>Aylık Bütçe: <strong>₺{monthlyBudget.toLocaleString('tr-TR')}</strong></span>
                     <span>•</span>

@@ -2541,21 +2541,37 @@ if ($action === 'discover' && $method === 'POST') {
     // Determine Language: Deterministic text detection has highest fidelity for script/alphabet
     $deterministicLang = detectPageLanguage(($pageDetails['title'] ?? '') . ' ' . $query, $pageDetails['textSnippet'] ?? '');
 
+    $langNames = [
+        'tr' => 'Türkçe', 'en' => 'İngilizce', 'de' => 'Almanca',
+        'ru' => 'Rusça', 'ar' => 'Arapça', 'fa' => 'Farsça',
+        'uk' => 'Ukraynaca', 'fr' => 'Fransızca', 'es' => 'İspanyolca',
+        'it' => 'İtalyanca', 'nl' => 'Felemenkçe', 'az' => 'Azerbaycanca',
+        'kk' => 'Kazakça', 'uz' => 'Özbekçe', 'ka' => 'Gürcüce'
+    ];
+
     if (!empty($requestedLanguage) && strtolower($requestedLanguage) !== 'auto') {
-        $langNames = ['tr' => 'Türkçe', 'en' => 'İngilizce', 'de' => 'Almanca', 'ru' => 'Rusça', 'ar' => 'Arapça', 'fa' => 'Farsça', 'uk' => 'Ukraynaca', 'fr' => 'Fransızca', 'es' => 'İspanyolca', 'it' => 'İtalyanca', 'nl' => 'Felemenkçe', 'az' => 'Azerbaycanca', 'kk' => 'Kazakça', 'uz' => 'Özbekçe'];
+        $lCode = strtolower(trim($requestedLanguage));
         $langInfo = [
-            'code' => $requestedLanguage,
-            'name' => $langNames[$requestedLanguage] ?? 'Seçili Dil'
+            'code' => $lCode,
+            'name' => $langNames[$lCode] ?? 'Seçili Dil'
         ];
-    } elseif ($deterministicLang && in_array($deterministicLang['code'], ['ru', 'ar', 'de', 'tr', 'uk', 'fa'])) {
-        $langInfo = $deterministicLang;
-    } elseif ($aiAnalysis && !empty($aiAnalysis['detectedLanguage']) && $aiAnalysis['detectedLanguage'] !== 'auto') {
+    } elseif ($deterministicLang && !empty($deterministicLang['code']) && $deterministicLang['code'] !== 'auto') {
+        $lCode = $deterministicLang['code'];
         $langInfo = [
-            'code' => $aiAnalysis['detectedLanguage'],
-            'name' => $aiAnalysis['detectedLanguageName'] ?? 'Otomatik'
+            'code' => $lCode,
+            'name' => $langNames[$lCode] ?? ($deterministicLang['name'] ?? 'Türkçe')
+        ];
+    } elseif ($aiAnalysis && !empty($aiAnalysis['detectedLanguage']) && $aiAnalysis['detectedLanguage'] !== 'auto') {
+        $lCode = strtolower(trim($aiAnalysis['detectedLanguage']));
+        $langInfo = [
+            'code' => $lCode,
+            'name' => $langNames[$lCode] ?? ($aiAnalysis['detectedLanguageName'] ?? 'Türkçe')
         ];
     } else {
-        $langInfo = $deterministicLang ?: ['code' => 'en', 'name' => 'İngilizce'];
+        $langInfo = [
+            'code' => 'tr',
+            'name' => 'Türkçe'
+        ];
     }
 
     $sectorTitle = $aiAnalysis['sector'] ?? ($pageDetails['title'] ?? 'Google Ads Kampanyası');
