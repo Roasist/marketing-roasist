@@ -376,15 +376,15 @@ export const groupKeywordsSemantically = (
   const clusters: KeywordCluster[] = [];
 
   // Robust Multi-Tier Benchmark Calculation
-  // 1. Find all keywords that have valid Google Ads auction bids (> 0.50 TL)
-  const campaignValidLowKws = uniqueKwList.filter(k => k.lowCpc > 0.50);
-  const campaignValidHighKws = uniqueKwList.filter(k => k.highCpc > 0.50);
+  // 1. Find all keywords that have valid Google Ads auction bids (> 0.50 TL and NOT estimated)
+  const campaignValidLowKws = uniqueKwList.filter(k => !k.isCpcEstimated && (k.rawLowCpc !== undefined ? k.rawLowCpc > 0.50 : k.lowCpc > 0.50));
+  const campaignValidHighKws = uniqueKwList.filter(k => !k.isCpcEstimated && (k.rawHighCpc !== undefined ? k.rawHighCpc > 0.50 : k.highCpc > 0.50));
 
-  const campaignLowSum = campaignValidLowKws.reduce((s, k) => s + (k.lowCpc * Math.max(k.monthlyVolume, 10)), 0);
+  const campaignLowSum = campaignValidLowKws.reduce((s, k) => s + ((k.rawLowCpc ?? k.lowCpc) * Math.max(k.monthlyVolume, 10)), 0);
   const campaignLowVol = campaignValidLowKws.reduce((s, k) => s + Math.max(k.monthlyVolume, 10), 0);
   const campaignAvgLow = campaignLowVol > 0 ? campaignLowSum / campaignLowVol : 0;
 
-  const campaignHighSum = campaignValidHighKws.reduce((s, k) => s + (k.highCpc * Math.max(k.monthlyVolume, 10)), 0);
+  const campaignHighSum = campaignValidHighKws.reduce((s, k) => s + ((k.rawHighCpc ?? k.highCpc) * Math.max(k.monthlyVolume, 10)), 0);
   const campaignHighVol = campaignValidHighKws.reduce((s, k) => s + Math.max(k.monthlyVolume, 10), 0);
   const campaignAvgHigh = campaignHighVol > 0 ? campaignHighSum / campaignHighVol : 0;
 
@@ -396,74 +396,110 @@ export const groupKeywordsSemantically = (
   const globalBenchmarkHigh = campaignAvgHigh > globalBenchmarkLow ? campaignAvgHigh : Math.max(defaultSectorHigh, globalBenchmarkLow * 2.8);
 
   const processClusterKeywords = (list: KeywordMetric[], clusterName: string): KeywordMetric[] => {
-    const clusterValidLow = list.filter(k => k.lowCpc > 0.50);
-    const clusterValidHigh = list.filter(k => k.highCpc > 0.50);
+    const clusterValidLow = list.filter(k => !k.isCpcEstimated && (k.rawLowCpc !== undefined ? k.rawLowCpc > 0.50 : k.lowCpc > 0.50));
+    const clusterValidHigh = list.filter(k => !k.isCpcEstimated && (k.rawHighCpc !== undefined ? k.rawHighCpc > 0.50 : k.highCpc > 0.50));
 
-    const clusterLowSum = clusterValidLow.reduce((s, k) => s + (k.lowCpc * Math.max(k.monthlyVolume, 10)), 0);
+    const clusterLowSum = clusterValidLow.reduce((s, k) => s + ((k.rawLowCpc ?? k.lowCpc) * Math.max(k.monthlyVolume, 10)), 0);
     const clusterLowVol = clusterValidLow.reduce((s, k) => s + Math.max(k.monthlyVolume, 10), 0);
     const clusterBenchLow = (clusterLowVol > 0 && (clusterLowSum / clusterLowVol) >= 1.0) 
       ? (clusterLowSum / clusterLowVol) 
       : globalBenchmarkLow;
 
-    const clusterHighSum = clusterValidHigh.reduce((s, k) => s + (k.highCpc * Math.max(k.monthlyVolume, 10)), 0);
+    const clusterHighSum = clusterValidHigh.reduce((s, k) => s + ((k.rawHighCpc ?? k.highCpc) * Math.max(k.monthlyVolume, 10)), 0);
     const clusterHighVol = clusterValidHigh.reduce((s, k) => s + Math.max(k.monthlyVolume, 10), 0);
     const clusterBenchHigh = (clusterHighVol > 0 && (clusterHighSum / clusterHighVol) > clusterBenchLow) 
       ? (clusterHighSum / clusterHighVol) 
       : globalBenchmarkHigh;
 
     return list.map(k => {
-      // Missing or zero CPC handling
-      if ((k.lowCpc <= 0.05 && k.highCpc <= 0.05) && (imputationSettings?.autoImputeMissingCpc ?? true)) {
-        const mult = k.intent === 'TRANSACTIONAL' 
-          ? (imputationSettings?.transactionalMultiplier ?? 1.15)
-          : (k.intent === 'INFORMATIONAL' 
-              ? (imputationSettings?.informationalMultiplier ?? 0.85)
-              : (imputationSettings?.commercialMultiplier ?? 1.00));
-        
-        let clusterSpecificFactor = 1.0;
-        if (/cbi|vatandaşlık|citizenship|yatırım|invest/i.test(clusterName)) {
-          clusterSpecificFactor = 1.25;
-        } else if (/villa|lüks|luxury/i.test(clusterName)) {
-          clusterSpecificFactor = 1.20;
-        } else if (/fiyat|pricing|satın al|almak|buy/i.test(clusterName)) {
-          clusterSpecificFactor = 1.10;
-        } else if (/kiralık|rent/i.test(clusterName)) {
-          clusterSpecificFactor = 0.85;
-        } else if (/rehber|yaşam|nedir|how/i.test(clusterName)) {
-          clusterSpecificFactor = 0.80;
+      const rawLow = k.rawLowCpc !== undefined ? k.rawLowCpc : (k.isCpcEstimated ? 0 : k.lowCpc);
+      const rawHigh = k.rawHighCpc !== undefined ? k.rawHighCpc : (k.isCpcEstimated ? 0 : k.highCpc);
+      const isOriginallyMissing = k.isCpcEstimated || (rawLow <= 0.05 && rawHigh <= 0.05);
+
+      // Check if keyword is rental/negative to sanitize SEM Uzmanı
+      const isRentalOrNegative = /kiralık|kirala|kiralamak|kira|اجاره|rent|rental|аренда|bedava|ücretsiz|ucuz/i.test(k.keyword);
+      const sanitizedIsAiStrategist = isRentalOrNegative ? false : k.isAiStrategistPick;
+
+      if (isOriginallyMissing) {
+        if (imputationSettings?.autoImputeMissingCpc ?? true) {
+          const mult = k.intent === 'TRANSACTIONAL' 
+            ? (imputationSettings?.transactionalMultiplier ?? 1.15)
+            : (k.intent === 'INFORMATIONAL' 
+                ? (imputationSettings?.informationalMultiplier ?? 0.85)
+                : (imputationSettings?.commercialMultiplier ?? 1.00));
+          
+          let clusterSpecificFactor = 1.0;
+          if (/cbi|vatandaşlık|citizenship|yatırım|invest/i.test(clusterName)) {
+            clusterSpecificFactor = 1.25;
+          } else if (/villa|lüks|luxury/i.test(clusterName)) {
+            clusterSpecificFactor = 1.20;
+          } else if (/fiyat|pricing|satın al|almak|buy/i.test(clusterName)) {
+            clusterSpecificFactor = 1.10;
+          } else if (/kiralık|rent/i.test(clusterName)) {
+            clusterSpecificFactor = 0.85;
+          } else if (/rehber|yaşam|nedir|how/i.test(clusterName)) {
+            clusterSpecificFactor = 0.80;
+          }
+
+          const imputedLow = Math.max(1.50, Math.round(clusterBenchLow * mult * clusterSpecificFactor * 100) / 100);
+          const imputedHigh = Math.max(Math.round(imputedLow * 1.6 * 100) / 100, Math.round(clusterBenchHigh * mult * clusterSpecificFactor * 100) / 100);
+
+          return {
+            ...k,
+            rawLowCpc: rawLow,
+            rawHighCpc: rawHigh,
+            lowCpc: imputedLow,
+            highCpc: imputedHigh,
+            isCpcEstimated: true,
+            isAiStrategistPick: sanitizedIsAiStrategist,
+            cpcEstimationCluster: clusterName,
+            cpcEstimationMultiplier: Math.round(mult * clusterSpecificFactor * 100) / 100
+          };
+        } else {
+          return {
+            ...k,
+            rawLowCpc: rawLow,
+            rawHighCpc: rawHigh,
+            lowCpc: 0,
+            highCpc: 0,
+            isCpcEstimated: false,
+            isAiStrategistPick: sanitizedIsAiStrategist
+          };
         }
-
-        const imputedLow = Math.max(1.50, Math.round(clusterBenchLow * mult * clusterSpecificFactor * 100) / 100);
-        const imputedHigh = Math.max(Math.round(imputedLow * 1.6 * 100) / 100, Math.round(clusterBenchHigh * mult * clusterSpecificFactor * 100) / 100);
-
+      } else if (rawLow <= 0.05 && rawHigh > 0.50) {
+        const estimatedLow = Math.max(1.00, Math.round(rawHigh * 0.35 * 100) / 100);
         return {
           ...k,
-          lowCpc: imputedLow,
-          highCpc: imputedHigh,
-          isCpcEstimated: true,
-          cpcEstimationCluster: clusterName,
-          cpcEstimationMultiplier: Math.round(mult * clusterSpecificFactor * 100) / 100
-        };
-      } else if (k.lowCpc <= 0.05 && k.highCpc > 0.50) {
-        const estimatedLow = Math.max(1.00, Math.round(k.highCpc * 0.35 * 100) / 100);
-        return {
-          ...k,
+          rawLowCpc: rawLow,
+          rawHighCpc: rawHigh,
           lowCpc: estimatedLow,
+          highCpc: rawHigh,
           isCpcEstimated: true,
+          isAiStrategistPick: sanitizedIsAiStrategist,
           cpcEstimationCluster: clusterName,
           cpcEstimationMultiplier: 1.0
         };
-      } else if (k.lowCpc > 0.50 && k.highCpc <= 0.05) {
-        const estimatedHigh = Math.round(k.lowCpc * 2.8 * 100) / 100;
+      } else if (rawLow > 0.50 && rawHigh <= 0.05) {
+        const estimatedHigh = Math.round(rawLow * 2.8 * 100) / 100;
         return {
           ...k,
+          rawLowCpc: rawLow,
+          rawHighCpc: rawHigh,
+          lowCpc: rawLow,
           highCpc: estimatedHigh,
           isCpcEstimated: true,
+          isAiStrategistPick: sanitizedIsAiStrategist,
           cpcEstimationCluster: clusterName,
           cpcEstimationMultiplier: 1.0
         };
       }
-      return k;
+
+      return {
+        ...k,
+        rawLowCpc: rawLow,
+        rawHighCpc: rawHigh,
+        isAiStrategistPick: sanitizedIsAiStrategist
+      };
     });
   };
 

@@ -1299,7 +1299,12 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
     $benchHigh = count($validHighBids) > 0 ? round(array_sum($validHighBids) / count($validHighBids), 2) : 26.00;
 
     foreach ($parsedKeywords as &$pk) {
-        if (empty($pk['lowCpc']) || $pk['lowCpc'] <= 0.05) {
+        $origLow = isset($pk['rawLowCpc']) ? $pk['rawLowCpc'] : (float)($pk['lowCpc'] ?? 0);
+        $origHigh = isset($pk['rawHighCpc']) ? $pk['rawHighCpc'] : (float)($pk['highCpc'] ?? 0);
+        $pk['rawLowCpc'] = $origLow;
+        $pk['rawHighCpc'] = $origHigh;
+
+        if ($origLow <= 0.05 && $origHigh <= 0.05) {
             $mult = $pk['intent'] === 'TRANSACTIONAL' ? 1.15 : ($pk['intent'] === 'INFORMATIONAL' ? 0.85 : 1.00);
             $pk['lowCpc'] = round($benchLow * $mult, 2);
             $pk['highCpc'] = round($benchHigh * $mult, 2);

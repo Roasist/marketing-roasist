@@ -20,6 +20,8 @@ export interface KeywordMetric {
   strategistStrategy?: 'TRANSACTIONAL' | 'LOCAL_GEO' | 'CONSIDERATION' | 'LEAD_MAGNET';
   geoVolumes?: Record<string, number>;
   geoCpc?: Record<string, { lowCpc: number; highCpc: number }>;
+  rawLowCpc?: number;
+  rawHighCpc?: number;
   isCpcEstimated?: boolean;
   cpcEstimationCluster?: string;
   cpcEstimationMultiplier?: number;
