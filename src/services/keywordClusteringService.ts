@@ -230,6 +230,8 @@ export const groupKeywordsSemantically = (
         lowCpc: scaledLow,
         highCpc: scaledHigh,
         isCpcEstimated: false,
+        cpcEstimationCluster: undefined,
+        cpcEstimationMultiplier: undefined,
         isAiStrategistPick: sanitizedIsAiStrategist
       };
     });

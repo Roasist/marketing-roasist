@@ -5733,7 +5733,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
                                   {/* Top of page CPC */}
                                   <td style={{ padding: '0.5rem 0.75rem', whiteSpace: 'nowrap' }}>
-                                    {Boolean(kw.isCpcEstimated || kw.cpcEstimationMultiplier || kw.cpcEstimationCluster) ? (
+                                    {kw.isCpcEstimated ? (
                                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}>
                                         <span style={{ fontSize: '0.75rem', color: 'var(--text-primary)', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
                                           ≈ ₺{kw.lowCpc.toFixed(2)} - ₺{kw.highCpc.toFixed(2)}
