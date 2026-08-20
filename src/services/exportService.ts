@@ -812,20 +812,58 @@ export class ExportService {
             font-weight: 600;
           }
 
+          /* Unified Growth & Simulation Block */
+          .unified-growth-block {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 22px 0 24px 0;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.03);
+          }
+          .unified-growth-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 15.5px;
+            font-weight: 800;
+            color: #0f172a;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #f1f5f9;
+            margin-bottom: 18px;
+          }
+          .growth-sub-section {
+            margin-bottom: 18px;
+          }
+          .growth-sub-section:last-child {
+            margin-bottom: 0;
+          }
+          .growth-sub-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: #475569;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+          }
+
           /* KPI Stat Grid */
           .stat-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-            gap: 14px;
-            margin-bottom: 28px;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            margin-bottom: 24px;
           }
           .stat-card {
             background: #ffffff;
             border: 1px solid #e2e8f0;
             border-radius: 10px;
-            padding: 16px;
+            padding: 14px 16px;
             border-top: 3px solid #2563eb;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.02);
           }
           .stat-card.emerald { border-top-color: #10b981; background: #f0fdf4; }
           .stat-card.purple { border-top-color: #9333ea; }
@@ -1070,110 +1108,143 @@ export class ExportService {
             </div>` : ''}
           </div>
 
-          <!-- SECTION 1: Kanal & Simülasyon Hesaplama Parametreleri -->
-          ${config.includeChannelParameters && sub.parameters ? `
-          <div class="section-title">
-            <span>⚙️</span>
-            <span>Kanal & Simülasyon Hesaplama Parametreleri</span>
-          </div>
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 18px; margin-bottom: 20px;">
-            ${sub.parameters.targetImpressionShare ? `<div><strong style="display:block; font-size:11px; color:#64748b; margin-bottom:2px;">Hedef Gösterim Payı (IS)</strong><span style="font-weight:700; color:#0f172a; font-size:14px;">%${sub.parameters.targetImpressionShare}</span></div>` : ''}
-            ${sub.parameters.expectedCtr ? `<div><strong style="display:block; font-size:11px; color:#64748b; margin-bottom:2px;">Beklenen TO (CTR)</strong><span style="font-weight:700; color:#0f172a; font-size:14px;">%${sub.parameters.expectedCtr}</span></div>` : ''}
-            ${sub.parameters.searchLeadCr ? `<div><strong style="display:block; font-size:11px; color:#64748b; margin-bottom:2px;">Lead Dönüşüm Oranı (CR)</strong><span style="font-weight:700; color:#0f172a; font-size:14px;">%${sub.parameters.searchLeadCr}</span></div>` : ''}
-            ${sub.parameters.searchHealthyLeadRate ? `<div><strong style="display:block; font-size:11px; color:#64748b; margin-bottom:2px;">Nitelikli Lead Oranı</strong><span style="font-weight:700; color:#0f172a; font-size:14px;">%${sub.parameters.searchHealthyLeadRate}</span></div>` : ''}
-            ${sub.parameters.searchCloseRate ? `<div><strong style="display:block; font-size:11px; color:#64748b; margin-bottom:2px;">Satış Kapatma Oranı</strong><span style="font-weight:700; color:#0f172a; font-size:14px;">%${sub.parameters.searchCloseRate}</span></div>` : ''}
-            ${sub.parameters.avgDealValue ? `<div><strong style="display:block; font-size:11px; color:#64748b; margin-bottom:2px;">Ort. Anlaşma Tutarı</strong><span style="font-weight:700; color:#0f172a; font-size:14px;">₺${sub.parameters.avgDealValue.toLocaleString('tr-TR')}</span></div>` : ''}
-            ${sub.parameters.metaCpm ? `<div><strong style="display:block; font-size:11px; color:#64748b; margin-bottom:2px;">Meta Hedef CPM</strong><span style="font-weight:700; color:#0f172a; font-size:14px;">₺${sub.parameters.metaCpm}</span></div>` : ''}
-            ${sub.parameters.youtubeCpv ? `<div><strong style="display:block; font-size:11px; color:#64748b; margin-bottom:2px;">YouTube Hedef CPV</strong><span style="font-weight:700; color:#0f172a; font-size:14px;">₺${sub.parameters.youtubeCpv}</span></div>` : ''}
+          <!-- UNIFIED GROWTH, SIMULATION & FUNNEL BLOCK -->
+          ${(config.includeChannelParameters || config.includeFunnel || config.includeKpiSummary) ? `
+          <div class="unified-growth-block">
+            <div class="unified-growth-header">
+              <span>📈</span>
+              <span>Kampanya Büyüme Modeli, Simülasyon & Dönüşüm Hunisi</span>
+            </div>
+
+            <!-- Sub-Section 1: Simülasyon Hesaplama Parametreleri -->
+            ${config.includeChannelParameters && sub.parameters ? `
+            <div class="growth-sub-section">
+              <div class="growth-sub-title">
+                <span>⚙️</span>
+                <span>1. Kanal & Simülasyon Hesaplama Parametreleri</span>
+              </div>
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px;">
+                ${sub.parameters.targetImpressionShare ? `<div><strong style="display:block; font-size:10.5px; color:#64748b; margin-bottom:2px;">Hedef Gösterim Payı (IS)</strong><span style="font-weight:700; color:#0f172a; font-size:13.5px;">%${sub.parameters.targetImpressionShare}</span></div>` : ''}
+                ${sub.parameters.expectedCtr ? `<div><strong style="display:block; font-size:10.5px; color:#64748b; margin-bottom:2px;">Beklenen TO (CTR)</strong><span style="font-weight:700; color:#0f172a; font-size:13.5px;">%${sub.parameters.expectedCtr}</span></div>` : ''}
+                ${sub.parameters.searchLeadCr ? `<div><strong style="display:block; font-size:10.5px; color:#64748b; margin-bottom:2px;">Lead Dönüşüm Oranı (CR)</strong><span style="font-weight:700; color:#0f172a; font-size:13.5px;">%${sub.parameters.searchLeadCr}</span></div>` : ''}
+                ${sub.parameters.searchHealthyLeadRate ? `<div><strong style="display:block; font-size:10.5px; color:#64748b; margin-bottom:2px;">Nitelikli Lead Oranı</strong><span style="font-weight:700; color:#0f172a; font-size:13.5px;">%${sub.parameters.searchHealthyLeadRate}</span></div>` : ''}
+                ${!isLeadGen && sub.parameters.searchCloseRate ? `<div><strong style="display:block; font-size:10.5px; color:#64748b; margin-bottom:2px;">Satış Kapatma Oranı</strong><span style="font-weight:700; color:#0f172a; font-size:13.5px;">%${sub.parameters.searchCloseRate}</span></div>` : ''}
+                ${!isLeadGen && sub.parameters.avgDealValue ? `<div><strong style="display:block; font-size:10.5px; color:#64748b; margin-bottom:2px;">Ort. Sepet / Anlaşma</strong><span style="font-weight:700; color:#0f172a; font-size:13.5px;">₺${sub.parameters.avgDealValue.toLocaleString('tr-TR')}</span></div>` : ''}
+                ${sub.parameters.metaCpm ? `<div><strong style="display:block; font-size:10.5px; color:#64748b; margin-bottom:2px;">Meta Hedef CPM</strong><span style="font-weight:700; color:#0f172a; font-size:13.5px;">₺${sub.parameters.metaCpm}</span></div>` : ''}
+                ${sub.parameters.youtubeCpv ? `<div><strong style="display:block; font-size:10.5px; color:#64748b; margin-bottom:2px;">YouTube Hedef CPV</strong><span style="font-weight:700; color:#0f172a; font-size:13.5px;">₺${sub.parameters.youtubeCpv}</span></div>` : ''}
+              </div>
+            </div>
+            ` : ''}
+
+            <!-- Sub-Section 2: Uçtan Uca Büyüme & Dönüşüm Hunisi Projeksiyonu -->
+            ${config.includeFunnel ? `
+            <div class="growth-sub-section">
+              <div class="growth-sub-title">
+                <span>🎯</span>
+                <span>2. Uçtan Uca Büyüme & Dönüşüm Hunisi Projeksiyonu</span>
+              </div>
+              <div class="funnel-box" style="margin-bottom: 0;">
+                ${vm.impressions ? `
+                <div class="funnel-step">
+                  <div class="val">${m.impressions.toLocaleString('tr-TR')}</div>
+                  <div class="lbl">1. Pazar Gösterimi</div>
+                  <div class="rate">${m.marketShare > 0 ? `%${m.marketShare} IS` : 'Hedef Kitle'}</div>
+                </div>` : ''}
+
+                ${vm.clicks ? `
+                <div class="funnel-step">
+                  <div class="val">${m.clicks.toLocaleString('tr-TR')}</div>
+                  <div class="lbl">2. Nitelikli Trafik</div>
+                  <div class="rate">${vm.ctr ? `%${m.ctr.toFixed(2)} TO` : 'Tıklama'}</div>
+                </div>` : ''}
+
+                ${vm.conversions ? `
+                <div class="funnel-step">
+                  <div class="val">${m.conversions.toLocaleString('tr-TR')}</div>
+                  <div class="lbl">3. ${isLeadGen ? 'Brüt Talep / Lead' : 'Sepet / Satış'}</div>
+                  <div class="rate">${vm.cpl ? `₺${m.cpl.toLocaleString('tr-TR')} ${isLeadGen ? 'CPL' : 'CPA'}` : 'Dönüşüm'}</div>
+                </div>` : ''}
+
+                ${(isLeadGen ? vm.healthyLeads : vm.conversions) ? `
+                <div class="funnel-step" style="border-color: #86efac; background: #f0fdf4;">
+                  <div class="val" style="color: #16a34a;">${(isLeadGen ? m.healthyLeads : m.conversions).toLocaleString('tr-TR')}</div>
+                  <div class="lbl">4. ${isLeadGen ? 'Nitelikli SQL Lead' : 'Net Sipariş'}</div>
+                  <div class="rate" style="background:#dcfce7; color:#166534;">${isLeadGen ? (vm.cpql ? `₺${m.cpql.toLocaleString('tr-TR')} CPQL` : 'Nitelikli') : 'Satış'}</div>
+                </div>` : ''}
+
+                ${!isLeadGen && (vm.deals || vm.revenue) ? `
+                <div class="funnel-step" style="border-color: #86efac; background: #f0fdf4;">
+                  <div class="val" style="color: #16a34a;">${vm.revenue ? `₺${m.revenue.toLocaleString('tr-TR')}` : `${m.deals} Sipariş`}</div>
+                  <div class="lbl">5. Ciro & ROAS</div>
+                  <div class="rate" style="background:#dcfce7; color:#166534;">${m.roas > 0 ? `${m.roas.toFixed(1)}x ROAS` : 'Satış'}</div>
+                </div>` : ''}
+              </div>
+            </div>
+            ` : ''}
+
+            <!-- Sub-Section 3: Temel Performans & KPI Kartları -->
+            ${config.includeKpiSummary ? `
+            <div class="growth-sub-section" style="margin-top: 14px;">
+              <div class="growth-sub-title">
+                <span>📊</span>
+                <span>3. Temel Performans & KPI Kartları</span>
+              </div>
+              <div class="stat-grid" style="margin-bottom: 0;">
+                ${vm.budget ? `
+                <div class="stat-card">
+                  <div class="stat-label">Aylık Medya Bütçesi</div>
+                  <div class="stat-value" style="color: #2563eb;">₺${(sub.monthlyBudget || 0).toLocaleString('tr-TR')}</div>
+                  <div class="stat-sub">Günlük ₺${Math.round((sub.monthlyBudget || 0) / 30.4).toLocaleString('tr-TR')} Harcama Tavanı</div>
+                </div>` : ''}
+
+                ${vm.cpc ? `
+                <div class="stat-card">
+                  <div class="stat-label">Ortalama TBM & CPM</div>
+                  <div class="stat-value" style="color: #2563eb;">₺${m.cpc.toFixed(2)}</div>
+                  <div class="stat-sub">${vm.cpm && m.cpm > 0 ? `CPM: ₺${m.cpm.toFixed(2)}` : 'Sistem Ortalama TBM'}</div>
+                </div>` : ''}
+
+                ${isLeadGen ? `
+                  ${vm.conversions ? `
+                  <div class="stat-card emerald">
+                    <div class="stat-label">Tahmini Brüt Talep (CPL)</div>
+                    <div class="stat-value" style="color: #16a34a;">${m.conversions.toLocaleString('tr-TR')} Talep</div>
+                    <div class="stat-sub">${vm.cpl ? `CPL: ₺${m.cpl.toLocaleString('tr-TR')}` : 'Form / WhatsApp'}</div>
+                  </div>` : ''}
+
+                  ${vm.healthyLeads ? `
+                  <div class="stat-card emerald">
+                    <div class="stat-label">Nitelikli SQL Talep (CPQL)</div>
+                    <div class="stat-value" style="color: #16a34a;">${m.healthyLeads.toLocaleString('tr-TR')} Lead</div>
+                    <div class="stat-sub">${vm.cpql ? `CPQL: ₺${m.cpql.toLocaleString('tr-TR')}` : 'Satışa Uygun'}</div>
+                  </div>` : ''}
+                ` : `
+                  ${vm.conversions ? `
+                  <div class="stat-card emerald">
+                    <div class="stat-label">Tahmini Satış (CPA)</div>
+                    <div class="stat-value" style="color: #16a34a;">${m.conversions.toLocaleString('tr-TR')} Adet</div>
+                    <div class="stat-sub">${vm.cpl ? `CPA: ₺${m.cpl.toLocaleString('tr-TR')}` : 'Sipariş'}</div>
+                  </div>` : ''}
+
+                  ${vm.revenue ? `
+                  <div class="stat-card emerald">
+                    <div class="stat-label">Tahmini Toplam Ciro</div>
+                    <div class="stat-value" style="color: #16a34a;">₺${m.revenue.toLocaleString('tr-TR')}</div>
+                    <div class="stat-sub">${m.roas > 0 ? `Tahmini ROAS: <strong>${m.roas.toFixed(1)}x</strong>` : 'Gelir Modeli'}</div>
+                  </div>` : ''}
+
+                  ${vm.roas ? `
+                  <div class="stat-card emerald">
+                    <div class="stat-label">Tahmini ROAS (Yatırım Getirisi)</div>
+                    <div class="stat-value" style="color: #16a34a;">${m.roas.toFixed(1)}x</div>
+                    <div class="stat-sub">Gelir / Harcama Çarpanı</div>
+                  </div>` : ''}
+                `}
+              </div>
+            </div>
+            ` : ''}
           </div>
           ` : ''}
-
-          <!-- SECTION 2: Uçtan Uca Büyüme & Dönüşüm Hunisi Projeksiyonu -->
-          ${config.includeFunnel ? `
-          <div class="section-title">
-            <span>🎯</span>
-            <span>Uçtan Uca Büyüme & Dönüşüm Hunisi Projeksiyonu</span>
-          </div>
-
-          <div class="funnel-box">
-            ${vm.impressions ? `
-            <div class="funnel-step">
-              <div class="val">${m.impressions.toLocaleString('tr-TR')}</div>
-              <div class="lbl">1. Pazar Gösterimi</div>
-              <div class="rate">${m.marketShare > 0 ? `%${m.marketShare} IS` : 'Hedef Gösterim'}</div>
-            </div>` : ''}
-
-            ${vm.clicks ? `
-            <div class="funnel-step">
-              <div class="val">${m.clicks.toLocaleString('tr-TR')}</div>
-              <div class="lbl">2. Nitelikli Trafik</div>
-              <div class="rate">${vm.ctr ? `%${m.ctr.toFixed(2)} TO` : 'Tıklama'}</div>
-            </div>` : ''}
-
-            ${vm.conversions ? `
-            <div class="funnel-step">
-              <div class="val">${m.conversions.toLocaleString('tr-TR')}</div>
-              <div class="lbl">3. Brüt Talep / Sipariş</div>
-              <div class="rate">${vm.cpl ? `₺${m.cpl.toLocaleString('tr-TR')} CPL` : 'Dönüşüm'}</div>
-            </div>` : ''}
-
-            ${(isLeadGen ? vm.healthyLeads : vm.conversions) ? `
-            <div class="funnel-step" style="border-color: #86efac; background: #f0fdf4;">
-              <div class="val" style="color: #16a34a;">${(isLeadGen ? m.healthyLeads : m.conversions).toLocaleString('tr-TR')}</div>
-              <div class="lbl">4. ${isLeadGen ? 'Nitelikli SQL Lead' : 'Net Sipariş'}</div>
-              <div class="rate" style="background:#dcfce7; color:#166534;">${isLeadGen ? `₺${m.cpql.toLocaleString('tr-TR')} CPQL` : 'Satış'}</div>
-            </div>` : ''}
-
-            ${(vm.deals || vm.revenue) ? `
-            <div class="funnel-step" style="border-color: #86efac; background: #f0fdf4;">
-              <div class="val" style="color: #16a34a;">${m.deals > 0 ? `${m.deals} Müşteri` : (vm.revenue ? `₺${m.revenue.toLocaleString('tr-TR')}` : 'Tamamlandı')}</div>
-              <div class="lbl">5. Kapanan Satış</div>
-              <div class="rate" style="background:#dcfce7; color:#166534;">${m.cac > 0 ? `₺${m.cac.toLocaleString('tr-TR')} CAC` : 'Satış'}</div>
-            </div>` : ''}
-          </div>` : ''}
-
-          <!-- SECTION 3: Temel Performans & KPI Kartları (Mükerrer Olmayan Finansal & Büyüme Kartları) -->
-          ${config.includeKpiSummary ? `
-          <div class="section-title">
-            <span>📊</span>
-            <span>Temel Performans & KPI Kartları</span>
-          </div>
-          <div class="stat-grid">
-            ${vm.budget ? `
-            <div class="stat-card">
-              <div class="stat-label">Aylık Medya Bütçesi</div>
-              <div class="stat-value" style="color: #2563eb;">₺${(sub.monthlyBudget || 0).toLocaleString('tr-TR')}</div>
-              <div class="stat-sub">Günlük ₺${Math.round((sub.monthlyBudget || 0) / 30.4).toLocaleString('tr-TR')} Harcama Tavanı</div>
-            </div>` : ''}
-
-            ${vm.cpc ? `
-            <div class="stat-card">
-              <div class="stat-label">Ortalama TBM & CPM</div>
-              <div class="stat-value" style="color: #2563eb;">₺${m.cpc.toFixed(2)}</div>
-              <div class="stat-sub">${vm.cpm && m.cpm > 0 ? `CPM: ₺${m.cpm.toFixed(2)}` : 'Sistem Ortalama TBM'}</div>
-            </div>` : ''}
-
-            ${(isLeadGen && vm.cac && m.cac > 0) ? `
-            <div class="stat-card emerald">
-              <div class="stat-label">Müşteri Edinme Maliyeti (CAC)</div>
-              <div class="stat-value" style="color: #16a34a;">₺${m.cac.toLocaleString('tr-TR')}</div>
-              <div class="stat-sub">Kapanan Müşteri Başı Maliyet</div>
-            </div>` : ''}
-
-            ${vm.revenue ? `
-            <div class="stat-card emerald">
-              <div class="stat-label">Tahmini Toplam Ciro</div>
-              <div class="stat-value" style="color: #16a34a;">₺${m.revenue.toLocaleString('tr-TR')}</div>
-              <div class="stat-sub">${m.deals > 0 ? `${m.deals} Kapanan Müşteri Projeksiyonu` : 'Model Geliri'}</div>
-            </div>` : ''}
-
-            ${vm.roas ? `
-            <div class="stat-card emerald">
-              <div class="stat-label">Tahmini ROAS (Yatırım Getirisi)</div>
-              <div class="stat-value" style="color: #16a34a;">${m.roas.toFixed(1)}x</div>
-              <div class="stat-sub">Gelir / Harcama Çarpanı</div>
-            </div>` : ''}
-          </div>` : ''}
 
           <!-- Keywords Table (if Google Search / Keywords exist) -->
           ${config.includeKeywords && keywords.length > 0 ? `
@@ -1209,6 +1280,7 @@ export class ExportService {
                       <td>
                         <strong>${k.keyword}</strong>
                         ${vc.aiPick && k.isAiStrategistPick ? '<span class="badge badge-ai-pick" style="margin-left: 4px;">✨ SEM Önerisi</span>' : ''}
+                        ${cpc.isEstimated ? '<span class="badge" style="background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; margin-left:4px;">Tahmin</span>' : ''}
                       </td>` : ''}
                       ${vc.intent ? `<td><span class="badge ${intentClass}">${intentLabel}</span></td>` : ''}
                       ${vc.volume ? `<td style="text-align:right; font-weight:700;">${(k.monthlyVolume || 0).toLocaleString('tr-TR')}</td>` : ''}
@@ -1250,6 +1322,30 @@ export class ExportService {
             }).join('')}
           </div>
           ` : ''}
+
+          <!-- Algorithmic CPC Estimation Methodology Disclosure Note (If any keyword was estimated) -->
+          ${(() => {
+            const estimatedKws = keywords.filter(k => k.isCpcEstimated || (k.rawLowCpc !== undefined && k.rawLowCpc <= 0.05));
+            if (estimatedKws.length === 0) return '';
+            return `
+            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-left: 4px solid #16a34a; border-radius: 8px; padding: 14px 18px; margin-top: 24px; font-size: 11.5px; color: #166534; line-height: 1.6;">
+              <div style="display:flex; align-items:center; gap:6px; font-size:13px; font-weight:700; color:#15803d; margin-bottom:6px;">
+                <span>ℹ️</span>
+                <span>Algoritmik TBM Tahminleme ve Açık Artırma Simülasyon Metodolojisi</span>
+              </div>
+              <p style="margin-bottom:6px;">
+                Bu raporda yer alan <strong>${keywords.length}</strong> anahtar kelimeden <strong>${estimatedKws.length}</strong> adedinde Google Ads API tarafından geçmiş açık artırma teklif verisi (0 ₺ TBM) dönmemiştir. 
+                Sıfır TL verilerin kampanya bütçe ve dönüşüm projeksiyonlarını yanıltmasını engellemek için, Roasist Marketing OS tescilli <strong>STAG (Single Theme Ad Group) Semantik Kümeleme ve Ağırlıklı TBM Tahmin Algoritması</strong> kullanılmıştır.
+              </p>
+              <div style="background: #ffffff; border: 1px solid #dcfce7; border-radius: 6px; padding: 10px 14px; margin-top: 6px; font-family: monospace; font-size: 11px; color: #0f172a;">
+                <strong>📐 Uygulanan Tahminleme Formülü & Çarpanlar:</strong><br/>
+                1. <strong>Küme İçi Ağırlıklı TBM Benchmarkı:</strong> [Küme Ort. TBM = Σ (Aylık Hacim × TBM) / Σ Aylık Hacim] <em>(Kümede hiç teklif yoksa sektör tabanı: ₺8.50 - ₺26.00)</em><br/>
+                2. <strong>Arama Niyeti (Intent) Çarpanı:</strong> Satın Alma (Transactional) = <code>1.15x</code> | Ticari (Commercial) = <code>1.00x</code> | Bilgi Arama (Informational) = <code>0.85x</code><br/>
+                3. <strong>Semantik Küme Katsayısı:</strong> Yüksek ticari değere sahip aramalarda (örn: Yatırım, Lüks, Fiyat) = <code>1.10x - 1.25x</code> çarpan uygulanarak nihai <strong>Min TBM (lowCpc)</strong> ve <strong>Max TBM (highCpc)</strong> değerleri açık artırma gerçekliğinde simüle edilmiştir.
+              </div>
+            </div>
+            `;
+          })()}
 
           <!-- Strategic Notes -->
           ${config.includeStrategicNotes ? `
