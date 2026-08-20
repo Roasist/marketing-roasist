@@ -2626,7 +2626,7 @@ if ($action === 'discover' && $method === 'POST') {
     $includeSuggestions = isset($input['includeSuggestions']) ? (bool)$input['includeSuggestions'] : true;
     $clientSeeds = !empty($input['seedKeywords']) && is_array($input['seedKeywords']) ? $input['seedKeywords'] : [];
 
-    $cacheKey = md5("forecast_v26_{$mode}_{$query}_" . ($includeSuggestions ? 'sug_1_' : 'sug_0_') . ($requestedLanguage ?: 'auto') . '_' . ($requestedCountryCode ?: 'auto') . '_' . implode('_', (array)$requestedGeoTargetConstants));
+    $cacheKey = md5("forecast_v28_{$mode}_{$query}_" . ($includeSuggestions ? 'sug_1_' : 'sug_0_') . ($requestedLanguage ?: 'auto') . '_' . ($requestedCountryCode ?: 'auto') . '_' . implode('_', (array)$requestedGeoTargetConstants));
 
     // 1. Check Server-Side Cache
     $stmtCache = $pdo->prepare("SELECT data, created_at FROM keyword_cache WHERE cache_key = ?");

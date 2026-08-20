@@ -316,19 +316,23 @@ export class ApiService {
     geoTargetConstants: string[];
     keywords?: any[];
     locations?: any[];
-  }): Promise<any[]> {
-    const res = await this.request<{ status: string; locationBreakdown: any[] }>(
+  }): Promise<{ breakdown: any[]; keywordGeoMap: Record<string, any> }> {
+    const res = await this.request<{ status: string; locationBreakdown: any[]; keywordGeoMap?: Record<string, any> }>(
       '/forecast.php?action=location_breakdown',
       {
         method: 'POST',
         body: JSON.stringify(payload),
       }
     );
+    let list: any[] = [];
     if (res.locationBreakdown) {
-      if (Array.isArray(res.locationBreakdown)) return res.locationBreakdown;
-      if (Array.isArray((res.locationBreakdown as any).breakdown)) return (res.locationBreakdown as any).breakdown;
+      if (Array.isArray(res.locationBreakdown)) list = res.locationBreakdown;
+      else if (Array.isArray((res.locationBreakdown as any).breakdown)) list = (res.locationBreakdown as any).breakdown;
     }
-    return [];
+    return {
+      breakdown: list,
+      keywordGeoMap: res.keywordGeoMap || {}
+    };
   }
 
   public static async getForecastPlans(workspaceId?: string): Promise<any[]> {

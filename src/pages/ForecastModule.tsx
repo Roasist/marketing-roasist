@@ -2494,16 +2494,38 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     const fetchBreakdown = async () => {
       setIsLoadingLocationBreakdown(true);
       try {
-        const breakdown = await ApiService.getLocationBreakdown({
-          query: mode === 'URL' ? query : keywords.slice(0, 10).map(k => k.keyword).join(', '),
+        const res = await ApiService.getLocationBreakdown({
+          query: mode === 'URL' ? query : keywords.map(k => k.keyword).join(', '),
           mode,
           language: detectedLanguage || 'tr',
           geoTargetConstants: selectedLocations.map(l => l.id),
-          keywords: keywords.slice(0, 10),
+          keywords: keywords,
           locations: selectedLocations
         });
-        if (isMounted && breakdown && breakdown.length > 0) {
-          setOfficialLocationBreakdown(breakdown);
+        if (isMounted && res) {
+          if (res.breakdown && res.breakdown.length > 0) {
+            setOfficialLocationBreakdown(res.breakdown);
+          }
+          if (res.keywordGeoMap && Object.keys(res.keywordGeoMap).length > 0) {
+            setKeywords(prev => prev.map(k => {
+              const kNorm = k.keyword.toLowerCase().trim();
+              const geoData = res.keywordGeoMap[kNorm];
+              if (geoData) {
+                const newGeoVolumes = { ...(k.geoVolumes || {}) };
+                const newGeoCpc = { ...(k.geoCpc || {}) };
+                for (const [gId, metrics] of Object.entries(geoData as Record<string, any>)) {
+                  newGeoVolumes[gId] = metrics.monthlyVolume;
+                  newGeoCpc[gId] = { lowCpc: metrics.lowCpc, highCpc: metrics.highCpc };
+                }
+                return {
+                  ...k,
+                  geoVolumes: newGeoVolumes,
+                  geoCpc: newGeoCpc
+                };
+              }
+              return k;
+            }));
+          }
         }
       } catch (err) {
         console.warn('Error fetching official location breakdown:', err);
