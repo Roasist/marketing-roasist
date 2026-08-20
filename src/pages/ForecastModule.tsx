@@ -2612,7 +2612,6 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       ? (activePool.reduce((sum, k) => sum + (((Number(k.lowCpc) || 0) + (Number(k.highCpc) || 0)) / 2), 0) / activePool.length)
       : (avgTopPageCpc || 25.0);
 
-    const totalPoolVol = Object.values(locGeoVolumes).reduce((s, v) => s + v, 0);
     const totalAllKeywordsVol = activePool.reduce((s, k) => s + (k.monthlyVolume || 0), 0);
     const totalLocationsReach = selectedLocations.reduce((s, l) => s + (l.reach || 10000000), 0);
 
@@ -2623,13 +2622,26 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
       // 1. Ülkenin Toplam Hacmi: Seçili kelimelerin o ülkedeki geoVolumes toplamı
       let cVol = 0;
-      if (poolHasAnyGeoVolume && (locGeoVolumes[locKey] !== undefined) && totalPoolVol > 0) {
+      if (poolHasAnyGeoVolume && locGeoVolumes[locKey] !== undefined && locGeoVolumes[locKey] > 0) {
         cVol = locGeoVolumes[locKey];
       } else if (off && (off.monthlyVolume || 0) > 0) {
         cVol = off.monthlyVolume;
       } else {
-        const reachShare = totalLocationsReach > 0 ? ((loc.reach || 10000000) / totalLocationsReach) : (1 / selectedLocations.length);
-        cVol = Math.round(totalAllKeywordsVol * reachShare);
+        // Find sibling locations in the same country that have volume
+        const locCc = (loc.countryCode || '').toUpperCase();
+        const sameCountryLocations = selectedLocations.filter(sl => (sl.countryCode || '').toUpperCase() === locCc);
+        const siblingWithVol = sameCountryLocations.map(sl => ({ loc: sl, vol: locGeoVolumes[String(sl.id)] || 0 })).filter(s => s.vol > 0);
+
+        if (siblingWithVol.length > 0) {
+          const avgSiblingVol = siblingWithVol.reduce((s, x) => s + x.vol, 0) / siblingWithVol.length;
+          const locReach = loc.reach || 1000000;
+          const refReach = siblingWithVol[0].loc.reach || 1000000;
+          const reachRatio = Math.min(2.5, Math.max(0.4, locReach / refReach));
+          cVol = Math.max(10, Math.round(avgSiblingVol * reachRatio));
+        } else {
+          const reachShare = totalLocationsReach > 0 ? ((loc.reach || 10000000) / totalLocationsReach) : (1 / selectedLocations.length);
+          cVol = Math.max(10, Math.round(totalAllKeywordsVol * reachShare));
+        }
       }
 
       // 2. Ülkenin Ortalama TBM'si: Seçili kelimelerin hacim ağırlıklı veya doğrudan ortalama TBM'si (yapay ülke katsayısı eklenmez)
