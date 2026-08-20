@@ -52,8 +52,10 @@ export const groupKeywordsSemantically = (
 
   // Robust Multi-Tier Benchmark Calculation
   // 1. Find all keywords that have valid Google Ads auction bids (> 0.50 TL and NOT estimated)
-  const campaignValidLowKws = uniqueKwList.filter(k => !k.isCpcEstimated && (k.rawLowCpc !== undefined ? k.rawLowCpc > 0.50 : k.lowCpc > 0.50));
-  const campaignValidHighKws = uniqueKwList.filter(k => !k.isCpcEstimated && (k.rawHighCpc !== undefined ? k.rawHighCpc > 0.50 : k.highCpc > 0.50));
+  const isRealBid = (k: KeywordMetric) => !k.isCpcEstimated && !(k as any).isEstimated && (k.rawLowCpc !== undefined ? k.rawLowCpc > 0.50 : (k.lowCpc > 0.50 && !k.isCpcEstimated));
+  
+  const campaignValidLowKws = uniqueKwList.filter(k => isRealBid(k));
+  const campaignValidHighKws = uniqueKwList.filter(k => isRealBid(k));
 
   const campaignLowSum = campaignValidLowKws.reduce((s, k) => s + ((k.rawLowCpc ?? k.lowCpc) * Math.max(k.monthlyVolume, 10)), 0);
   const campaignLowVol = campaignValidLowKws.reduce((s, k) => s + Math.max(k.monthlyVolume, 10), 0);
@@ -71,8 +73,8 @@ export const groupKeywordsSemantically = (
   const globalBenchmarkHigh = campaignAvgHigh > globalBenchmarkLow ? campaignAvgHigh : Math.max(defaultSectorHigh, globalBenchmarkLow * 2.8);
 
   const processClusterKeywords = (list: KeywordMetric[], clusterName: string): KeywordMetric[] => {
-    const clusterValidLow = list.filter(k => !k.isCpcEstimated && (k.rawLowCpc !== undefined ? k.rawLowCpc > 0.50 : k.lowCpc > 0.50));
-    const clusterValidHigh = list.filter(k => !k.isCpcEstimated && (k.rawHighCpc !== undefined ? k.rawHighCpc > 0.50 : k.highCpc > 0.50));
+    const clusterValidLow = list.filter(k => isRealBid(k));
+    const clusterValidHigh = list.filter(k => isRealBid(k));
 
     const clusterLowSum = clusterValidLow.reduce((s, k) => s + ((k.rawLowCpc ?? k.lowCpc) * Math.max(k.monthlyVolume, 10)), 0);
     const clusterLowVol = clusterValidLow.reduce((s, k) => s + Math.max(k.monthlyVolume, 10), 0);
@@ -87,9 +89,14 @@ export const groupKeywordsSemantically = (
       : globalBenchmarkHigh;
 
     return list.map(k => {
-      const rawLow = k.rawLowCpc !== undefined ? k.rawLowCpc : (k.isCpcEstimated ? 0 : k.lowCpc);
-      const rawHigh = k.rawHighCpc !== undefined ? k.rawHighCpc : (k.isCpcEstimated ? 0 : k.highCpc);
-      const isOriginallyMissing = k.isCpcEstimated || (rawLow <= 0.05 && rawHigh <= 0.05);
+      const isOriginallyMissing = Boolean(
+        k.isCpcEstimated || 
+        (k as any).isEstimated || 
+        (k.rawLowCpc !== undefined && k.rawLowCpc <= 0.05) || 
+        ((k.lowCpc <= 0.05 || k.lowCpc === undefined) && (k.highCpc <= 0.05 || k.highCpc === undefined))
+      );
+      const rawLow = k.rawLowCpc !== undefined ? k.rawLowCpc : (isOriginallyMissing ? 0 : k.lowCpc);
+      const rawHigh = k.rawHighCpc !== undefined ? k.rawHighCpc : (isOriginallyMissing ? 0 : k.highCpc);
 
       // Check if keyword is rental/negative to sanitize SEM Uzmanı
       const isRentalOrNegative = /kiralık|kirala|kiralamak|kiralama|kira|konakla|konaklama|konaklamak|tatil|pansiyon|otel|hotel|apart|airbnb|booking|rent|rental|accommodation|stay|holiday|аренда|проживание|посуточно|гостиница|отель|اجاره|کرایه|فندق|سكن|bedava|ücretsiz|ucuz|free|бесплатно/i.test(k.keyword);
@@ -405,12 +412,6 @@ export const enrichKeywordsWithClusterCpc = (
 ): KeywordMetric[] => {
   if (!kwList || kwList.length === 0) return [];
   
-  // If all keywords already have valid lowCpc > 0.05 and highCpc > 0.05, return them directly
-  const allValid = kwList.every(k => (Number(k.lowCpc) || 0) > 0.05 && (Number(k.highCpc) || 0) > 0.05);
-  if (allValid) {
-    return kwList;
-  }
-
   const clusters = groupKeywordsSemantically(kwList, imputationSettings);
   const result: KeywordMetric[] = [];
   const seen = new Set<string>();
