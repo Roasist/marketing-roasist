@@ -2810,7 +2810,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         ? directLocHighCpc * intentMultiplier
         : (k.highCpc > 0 ? k.highCpc : 0);
       const hasDirectLocCpc = directLocLowCpc !== undefined && directLocLowCpc > 0.05;
-      const isEstimated = !hasDirectLocCpc && Boolean(k.isCpcEstimated || (k.rawLowCpc !== undefined && k.rawLowCpc <= 0.05) || k.cpcEstimationCluster);
+      const isEstimated = !hasDirectLocCpc && Boolean(k.isCpcEstimated);
 
       if (directLocVol !== undefined) {
         return {
