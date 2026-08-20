@@ -363,7 +363,7 @@ export const groupKeywordsSemantically = (
 
     const claimedIds = new Set<string>();
     const existingThemeNames = new Set(clusters.map(c => c.name.toLowerCase()));
-
+    let dynIdx = 0;
     for (const [stemToken] of sortedTokens) {
       const matched = unassigned.filter(k => !claimedIds.has(k.id) && normalizeForSemanticClustering(k.keyword).includes(stemToken));
       if (matched.length >= 4) {
@@ -380,8 +380,9 @@ export const groupKeywordsSemantically = (
         const processed = processClusterKeywords(matched, themeName);
         const vol = processed.reduce((s, k) => s + k.monthlyVolume, 0);
         const cpcSum = processed.reduce((s, k) => s + ((k.lowCpc + k.highCpc) / 2), 0);
+        dynIdx++;
         clusters.push({
-          id: 'stag_dyn_' + stemToken.replace(/[^a-z0-9]/gi, '_'),
+          id: `stag_dyn_${dynIdx}_` + encodeURIComponent(stemToken).replace(/%/g, '').slice(0, 24),
           name: themeName,
           icon: '✨',
           keywords: processed,
@@ -423,7 +424,20 @@ export const groupKeywordsSemantically = (
     });
   }
 
-  return clusters.sort((a, b) => b.totalVolume - a.totalVolume);
+  // Ensure 100% Globally Unique Cluster IDs across all character sets
+  const seenClusterIds = new Set<string>();
+  const uniqueClusters: KeywordCluster[] = [];
+  for (const c of clusters) {
+    let finalId = c.id;
+    let counter = 1;
+    while (seenClusterIds.has(finalId)) {
+      finalId = `${c.id}_${counter++}`;
+    }
+    seenClusterIds.add(finalId);
+    uniqueClusters.push({ ...c, id: finalId });
+  }
+
+  return uniqueClusters.sort((a, b) => b.totalVolume - a.totalVolume);
 };
 
 /**

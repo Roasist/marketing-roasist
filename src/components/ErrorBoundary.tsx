@@ -73,7 +73,7 @@ export class ErrorBoundary extends Component<Props, State> {
           <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary, #64748b)', maxWidth: '480px', marginBottom: '1.5rem', lineHeight: 1.5 }}>
             Tarayıcı eklentisi (çeviri/reklam engelleyici) veya anlık veri güncellemesi nedeniyle bir hata meydana geldi. Sayfayı yenileyerek çalışmaya devam edebilirsiniz.
           </p>
-          <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem' }}>
             <button
               onClick={this.handleReset}
               style={{
@@ -108,6 +108,28 @@ export class ErrorBoundary extends Component<Props, State> {
               <RefreshCw size={15} /> Sayfayı Yenile
             </button>
           </div>
+
+          {this.state.error && (
+            <details style={{ marginTop: '0.5rem', maxWidth: '600px', width: '100%', textAlign: 'left' }}>
+              <summary style={{ fontSize: '0.75rem', color: 'var(--text-muted, #94a3b8)', cursor: 'pointer', textAlign: 'center' }}>
+                Hata Teknik Detayı
+              </summary>
+              <pre style={{
+                marginTop: '0.5rem',
+                padding: '0.75rem',
+                backgroundColor: 'var(--bg-surface-elevated, #0f172a)',
+                color: '#ef4444',
+                fontSize: '0.72rem',
+                borderRadius: '6px',
+                overflowX: 'auto',
+                whiteSpace: 'pre-wrap',
+                fontFamily: 'monospace'
+              }}>
+                {this.state.error.toString()}
+                {this.state.error.stack ? `\n\n${this.state.error.stack}` : ''}
+              </pre>
+            </details>
+          )}
         </div>
       );
     }
