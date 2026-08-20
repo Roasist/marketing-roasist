@@ -13,13 +13,18 @@ import {
   Settings, 
   Layers, 
   BarChart2, 
-  Table 
+  Table,
+  RotateCcw,
+  Edit2
 } from 'lucide-react';
 import { SubCampaignItem, KeywordMetric } from '../types/forecast';
 import { 
   ExportService, 
   SubCampaignExportConfig, 
   DEFAULT_EXPORT_CONFIG,
+  DEFAULT_VISIBLE_METRICS,
+  DEFAULT_VISIBLE_COLUMNS,
+  DEFAULT_VISIBLE_PARAMETERS,
   VisibleMetricsConfig,
   VisibleKeywordColumnsConfig,
   VisibleParametersConfig
@@ -31,6 +36,7 @@ interface ExportCustomizationModalProps {
   subCampaign: SubCampaignItem | null;
   masterPlan?: { name?: string; clientName?: string; period?: string; startDate?: string; endDate?: string };
   initialFormat?: 'PDF' | 'CSV';
+  onRenameSubCampaign?: (id: string, newName: string) => void;
 }
 
 export const ExportCustomizationModal: React.FC<ExportCustomizationModalProps> = ({
@@ -38,24 +44,100 @@ export const ExportCustomizationModal: React.FC<ExportCustomizationModalProps> =
   onClose,
   subCampaign,
   masterPlan,
-  initialFormat = 'PDF'
+  initialFormat = 'PDF',
+  onRenameSubCampaign
 }) => {
-  const [format, setFormat] = useState<'PDF' | 'CSV'>(initialFormat);
-  const [config, setConfig] = useState<SubCampaignExportConfig>(DEFAULT_EXPORT_CONFIG);
-  const [activeTab, setActiveTab] = useState<'SECTIONS' | 'METRICS' | 'COLUMNS'>('SECTIONS');
+  const [format, setFormat] = useState<'PDF' | 'CSV'>(() => {
+    try {
+      const savedFormat = localStorage.getItem('roasist_export_format');
+      if (savedFormat === 'PDF' || savedFormat === 'CSV') return savedFormat;
+    } catch (e) {}
+    return initialFormat;
+  });
 
-  // Sync format with initialFormat when opened & handle Escape key
+  const [config, setConfig] = useState<SubCampaignExportConfig>(() => {
+    try {
+      const saved = localStorage.getItem('roasist_export_customization_config');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return {
+          ...DEFAULT_EXPORT_CONFIG,
+          ...parsed,
+          visibleMetrics: { ...DEFAULT_VISIBLE_METRICS, ...(parsed.visibleMetrics || {}) },
+          visibleKeywordColumns: { ...DEFAULT_VISIBLE_COLUMNS, ...(parsed.visibleKeywordColumns || {}) },
+          visibleParameters: { ...DEFAULT_VISIBLE_PARAMETERS, ...(parsed.visibleParameters || {}) },
+        };
+      }
+    } catch (e) {}
+    return DEFAULT_EXPORT_CONFIG;
+  });
+
+  const [activeTab, setActiveTab] = useState<'SECTIONS' | 'METRICS' | 'COLUMNS'>('SECTIONS');
+  const [subName, setSubName] = useState(subCampaign?.name || 'Alt Kampanya');
+  const [isEditingName, setIsEditingName] = useState(false);
+
+  useEffect(() => {
+    if (subCampaign) {
+      setSubName(subCampaign.name || 'Alt Kampanya');
+    }
+  }, [subCampaign]);
+
+  // Persist config to localStorage on change
+  useEffect(() => {
+    try {
+      localStorage.setItem('roasist_export_customization_config', JSON.stringify(config));
+    } catch (e) {}
+  }, [config]);
+
+  // Persist format to localStorage on change
+  useEffect(() => {
+    try {
+      localStorage.setItem('roasist_export_format', format);
+    } catch (e) {}
+  }, [format]);
+
+  // Sync state and handle Escape key on modal open
   useEffect(() => {
     if (isOpen) {
-      setFormat(initialFormat);
-      setConfig(DEFAULT_EXPORT_CONFIG);
+      try {
+        const saved = localStorage.getItem('roasist_export_customization_config');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          setConfig({
+            ...DEFAULT_EXPORT_CONFIG,
+            ...parsed,
+            visibleMetrics: { ...DEFAULT_VISIBLE_METRICS, ...(parsed.visibleMetrics || {}) },
+            visibleKeywordColumns: { ...DEFAULT_VISIBLE_COLUMNS, ...(parsed.visibleKeywordColumns || {}) },
+            visibleParameters: { ...DEFAULT_VISIBLE_PARAMETERS, ...(parsed.visibleParameters || {}) },
+          });
+        }
+      } catch (e) {}
+
       const handleKeyDown = (e: KeyboardEvent) => {
         if (e.key === 'Escape') onClose();
       };
       window.addEventListener('keydown', handleKeyDown);
       return () => window.removeEventListener('keydown', handleKeyDown);
     }
-  }, [isOpen, initialFormat, onClose]);
+  }, [isOpen, onClose]);
+
+  const handleResetToDefaults = () => {
+    setConfig(DEFAULT_EXPORT_CONFIG);
+    try {
+      localStorage.removeItem('roasist_export_customization_config');
+    } catch (e) {}
+  };
+
+  const handleSaveSubName = () => {
+    const trimmed = subName.trim();
+    if (trimmed && subCampaign) {
+      subCampaign.name = trimmed;
+      if (onRenameSubCampaign) {
+        onRenameSubCampaign(subCampaign.id, trimmed);
+      }
+    }
+    setIsEditingName(false);
+  };
 
   if (!isOpen || !subCampaign) return null;
 
@@ -299,25 +381,48 @@ export const ExportCustomizationModal: React.FC<ExportCustomizationModalProps> =
               </p>
             </div>
           </div>
-          <button 
-            onClick={onClose}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              padding: '6px',
-              borderRadius: 'var(--radius-sm, 6px)',
-              color: 'var(--text-muted)',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'background-color 0.15s ease'
-            }}
-            onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)')}
-            onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
-          >
-            <X size={20} />
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <button
+              type="button"
+              onClick={handleResetToDefaults}
+              style={{
+                background: 'none',
+                border: '1px solid var(--border-default)',
+                borderRadius: 'var(--radius-xs, 4px)',
+                padding: '4px 8px',
+                fontSize: '0.72rem',
+                fontWeight: 600,
+                color: 'var(--text-secondary)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}
+              title="Varsayılan Rapor Ayarlarına Sıfırla"
+            >
+              <RotateCcw size={12} />
+              <span>Sıfırla</span>
+            </button>
+            <button 
+              onClick={onClose}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                padding: '6px',
+                borderRadius: 'var(--radius-sm, 6px)',
+                color: 'var(--text-muted)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'background-color 0.15s ease'
+              }}
+              onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)')}
+              onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+            >
+              <X size={20} />
+            </button>
+          </div>
         </div>
 
         {/* Sub-Campaign Prominent Ribbon (Alt Kampanya İsmi) */}
@@ -338,9 +443,79 @@ export const ExportCustomizationModal: React.FC<ExportCustomizationModalProps> =
                 <span style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--brand-primary, #2563eb)', letterSpacing: '0.5px' }}>
                   Alt Kampanya:
                 </span>
-                <span style={{ fontWeight: 800, color: 'var(--text-primary)', fontSize: '0.88rem' }}>
-                  {subCampaign.name || 'Alt Kampanya'}
-                </span>
+                {isEditingName ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <input
+                      type="text"
+                      value={subName}
+                      onChange={(e) => setSubName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleSaveSubName();
+                        if (e.key === 'Escape') {
+                          setSubName(subCampaign.name || '');
+                          setIsEditingName(false);
+                        }
+                      }}
+                      onBlur={handleSaveSubName}
+                      autoFocus
+                      style={{
+                        padding: '2px 6px',
+                        fontSize: '0.85rem',
+                        fontWeight: 800,
+                        borderRadius: '4px',
+                        border: '1px solid var(--brand-primary, #4f46e5)',
+                        outline: 'none',
+                        backgroundColor: '#ffffff',
+                        color: 'var(--text-primary)'
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleSaveSubName}
+                      style={{
+                        padding: '2px 6px',
+                        fontSize: '0.7rem',
+                        borderRadius: '4px',
+                        backgroundColor: 'var(--brand-primary, #4f46e5)',
+                        color: '#ffffff',
+                        border: 'none',
+                        cursor: 'pointer',
+                        fontWeight: 700
+                      }}
+                    >
+                      Kaydet
+                    </button>
+                  </div>
+                ) : (
+                  <div 
+                    onClick={() => setIsEditingName(true)}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}
+                    title="Alt kampanya adını düzenlemek için tıklayın"
+                  >
+                    <span style={{ fontWeight: 800, color: 'var(--text-primary)', fontSize: '0.88rem' }}>
+                      {subName}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsEditingName(true);
+                      }}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        padding: '2px',
+                        color: 'var(--brand-primary, #4f46e5)',
+                        display: 'flex',
+                        alignItems: 'center'
+                      }}
+                      title="İsmi Düzenle"
+                    >
+                      <Edit2 size={12} />
+                    </button>
+                  </div>
+                )}
               </div>
               <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
                 {subCampaign.platform} ({subCampaign.objective}) • {subCampaign.languageName || 'Türkçe'}

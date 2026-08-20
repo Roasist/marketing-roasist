@@ -31,7 +31,8 @@ import {
   Info,
   KeyRound,
   SlidersHorizontal,
-  FileText
+  FileText,
+  Edit2
 } from 'lucide-react';
 import { ExportCustomizationModal } from '../components/ExportCustomizationModal';
 import { KeywordCluster, groupKeywordsSemantically, enrichKeywordsWithClusterCpc } from '../services/keywordClusteringService';
@@ -888,6 +889,31 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     return activeSubCampaign.platform === 'GOOGLE' && (!activeSubCampaign.objective || activeSubCampaign.objective === 'GOOGLE_SEARCH');
   }, [activeSubCampaign]);
   const [isAddCampaignModalOpen, setIsAddCampaignModalOpen] = useState<boolean>(false);
+
+  // Sub-Campaign Rename State & Handlers
+  const [editingSubCampaignId, setEditingSubCampaignId] = useState<string | null>(null);
+  const [tempSubCampaignName, setTempSubCampaignName] = useState<string>('');
+
+  const handleStartRename = (campId: string, currentName: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setEditingSubCampaignId(campId);
+    setTempSubCampaignName(currentName);
+  };
+
+  const handleSaveRename = (campId: string) => {
+    const trimmed = tempSubCampaignName.trim();
+    if (trimmed && trimmed.length > 0) {
+      setSubCampaigns(prev => prev.map(c => c.id === campId ? { ...c, name: trimmed } : c));
+    }
+    setEditingSubCampaignId(null);
+  };
+
+  const handleRenameSubCampaign = (campId: string, newName: string) => {
+    const trimmed = newName.trim();
+    if (trimmed && trimmed.length > 0) {
+      setSubCampaigns(prev => prev.map(c => c.id === campId ? { ...c, name: trimmed } : c));
+    }
+  };
 
   // New Sub-Campaign Wizard Form State
   const [newCampName, setNewCampName] = useState<string>('');
@@ -3597,7 +3623,58 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
               >
                 <span>{camp.languageFlag || '🌐'}</span>
                 {getPlatformIcon(camp.platform, 14)}
-                <span>{camp.name}</span>
+                
+                {editingSubCampaignId === camp.id ? (
+                  <input
+                    type="text"
+                    value={tempSubCampaignName}
+                    onChange={(e) => setTempSubCampaignName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleSaveRename(camp.id);
+                      if (e.key === 'Escape') setEditingSubCampaignId(null);
+                    }}
+                    onBlur={() => handleSaveRename(camp.id)}
+                    onClick={(e) => e.stopPropagation()}
+                    autoFocus
+                    style={{
+                      padding: '1px 6px',
+                      fontSize: '0.8rem',
+                      borderRadius: '3px',
+                      border: '1px solid var(--brand-primary)',
+                      outline: 'none',
+                      backgroundColor: '#ffffff',
+                      color: 'var(--text-primary)',
+                      fontWeight: 700,
+                      width: '120px'
+                    }}
+                  />
+                ) : (
+                  <span 
+                    onDoubleClick={(e) => handleStartRename(camp.id, camp.name, e)}
+                    title="İsmi düzenlemek için çift tıklayın veya kaleme basın"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}
+                  >
+                    <span>{camp.name}</span>
+                    <button
+                      type="button"
+                      onClick={(e) => handleStartRename(camp.id, camp.name, e)}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        padding: '1px',
+                        color: isActive ? 'var(--brand-primary)' : 'var(--text-muted)',
+                        opacity: isActive ? 0.9 : 0.45,
+                        display: 'inline-flex',
+                        alignItems: 'center'
+                      }}
+                      title="Alt Kampanya İsmini Düzenle"
+                    >
+                      <Edit2 size={11} />
+                    </button>
+                  </span>
+                )}
+
                 <span 
                   style={{ 
                     fontSize: '0.7rem', 
@@ -6531,11 +6608,51 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                               >
                                 <td>
                                   <div style={{ fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                                    <span>{sc.name}</span>
-                                    {isActive && (
-                                      <span style={{ fontSize: '0.62rem', padding: '1px 4px', borderRadius: '2px', backgroundColor: 'var(--brand-primary)', color: '#ffffff', fontWeight: 700 }}>
-                                        AKTİF
-                                      </span>
+                                    {editingSubCampaignId === sc.id ? (
+                                      <input
+                                        type="text"
+                                        value={tempSubCampaignName}
+                                        onChange={(e) => setTempSubCampaignName(e.target.value)}
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Enter') handleSaveRename(sc.id);
+                                          if (e.key === 'Escape') setEditingSubCampaignId(null);
+                                        }}
+                                        onBlur={() => handleSaveRename(sc.id)}
+                                        autoFocus
+                                        style={{
+                                          padding: '2px 6px',
+                                          fontSize: '0.75rem',
+                                          borderRadius: '3px',
+                                          border: '1px solid var(--brand-primary)',
+                                          outline: 'none',
+                                          backgroundColor: '#ffffff',
+                                          fontWeight: 600,
+                                          width: '130px'
+                                        }}
+                                      />
+                                    ) : (
+                                      <>
+                                        <span 
+                                          onDoubleClick={() => handleStartRename(sc.id, sc.name)}
+                                          title="İsmi düzenlemek için çift tıklayın veya kaleme basın"
+                                          style={{ cursor: 'pointer' }}
+                                        >
+                                          {sc.name}
+                                        </span>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleStartRename(sc.id, sc.name)}
+                                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '1px', color: 'var(--text-muted)' }}
+                                          title="İsmi Düzenle"
+                                        >
+                                          <Edit2 size={11} />
+                                        </button>
+                                        {isActive && (
+                                          <span style={{ fontSize: '0.62rem', padding: '1px 4px', borderRadius: '2px', backgroundColor: 'var(--brand-primary)', color: '#ffffff', fontWeight: 700 }}>
+                                            AKTİF
+                                          </span>
+                                        )}
+                                      </>
                                     )}
                                   </div>
                                 </td>
@@ -9545,6 +9662,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           onClose={() => setExportModalState(prev => ({ ...prev, isOpen: false }))}
           subCampaign={exportModalState.subCampaign}
           initialFormat={exportModalState.format}
+          onRenameSubCampaign={handleRenameSubCampaign}
           masterPlan={exportModalState.masterPlan || {
             name: planName,
             clientName: clientName,
