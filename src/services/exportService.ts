@@ -1,6 +1,36 @@
 import { AdItem, Competitor } from '../types/ad';
 import { SubCampaignItem, KeywordMetric, NegativeCategory } from '../types/forecast';
 
+export interface VisibleMetricsConfig {
+  budget: boolean;        // Aylık Medya Bütçesi
+  impressions: boolean;   // Gösterim (Impressions)
+  clicks: boolean;        // Tıklama / Trafik (Clicks)
+  ctr: boolean;           // Tıklama Oranı (CTR)
+  cpc: boolean;           // Tıklama Başı Maliyet (CPC / TBM)
+  cpm: boolean;           // Bin Gösterim Başı Maliyet (CPM)
+  conversions: boolean;   // Brüt Dönüşüm (Leads / Satış)
+  cpl: boolean;           // Dönüşüm Başı Maliyet (CPL / CPA)
+  healthyLeads: boolean;  // Nitelikli Talep (SQL Leads)
+  cpql: boolean;          // Nitelikli Lead Başı Maliyet (CPQL)
+  deals: boolean;         // Satış / Müşteri (Deals)
+  cac: boolean;           // Müşteri Edinme Maliyeti (CAC)
+  revenue: boolean;       // Ciro Projeksiyonu (Revenue)
+  roas: boolean;          // ROAS (Yatırım Getirisi)
+}
+
+export interface VisibleKeywordColumnsConfig {
+  keyword: boolean;       // Anahtar Kelime
+  intent: boolean;        // Arama Niyeti
+  volume: boolean;        // Aylık Aranma Hacmi
+  trend: boolean;         // 3 Aylık Trend
+  competition: boolean;   // Rekabet Derecesi
+  lowCpc: boolean;        // Min TBM (₺)
+  highCpc: boolean;       // Max TBM (₺)
+  avgCpc: boolean;        // Ortalama TBM (₺)
+  opportunity: boolean;   // Fırsat Skoru
+  aiPick: boolean;        // SEM Uzmanı / AI Önerisi
+}
+
 export interface SubCampaignExportConfig {
   includeGeneralInfo: boolean;       // Kampanya & Çatı Plan Bilgileri
   includeKpiSummary: boolean;         // Temel Performans & KPI Özeti
@@ -11,7 +41,39 @@ export interface SubCampaignExportConfig {
   includeStrategicNotes: boolean;     // Stratejik Uygulama Notları
   keywordFilter: 'ALL' | 'SELECTED_ONLY' | 'AI_PICKS_ONLY'; // Kelime Filtresi
   maxKeywordCount: number;            // Kelime Adedi Limiti (0 = Tümü)
+  visibleMetrics: VisibleMetricsConfig;
+  visibleKeywordColumns: VisibleKeywordColumnsConfig;
 }
+
+export const DEFAULT_VISIBLE_METRICS: VisibleMetricsConfig = {
+  budget: true,
+  impressions: true,
+  clicks: true,
+  ctr: true,
+  cpc: true,
+  cpm: true,
+  conversions: true,
+  cpl: true,
+  healthyLeads: true,
+  cpql: true,
+  deals: true,
+  cac: true,
+  revenue: true,
+  roas: true
+};
+
+export const DEFAULT_VISIBLE_COLUMNS: VisibleKeywordColumnsConfig = {
+  keyword: true,
+  intent: true,
+  volume: true,
+  trend: true,
+  competition: true,
+  lowCpc: true,
+  highCpc: true,
+  avgCpc: true,
+  opportunity: true,
+  aiPick: true
+};
 
 export const DEFAULT_EXPORT_CONFIG: SubCampaignExportConfig = {
   includeGeneralInfo: true,
@@ -22,7 +84,9 @@ export const DEFAULT_EXPORT_CONFIG: SubCampaignExportConfig = {
   includeChannelParameters: true,
   includeStrategicNotes: true,
   keywordFilter: 'ALL',
-  maxKeywordCount: 50
+  maxKeywordCount: 50,
+  visibleMetrics: DEFAULT_VISIBLE_METRICS,
+  visibleKeywordColumns: DEFAULT_VISIBLE_COLUMNS
 };
 
 export class ExportService {
@@ -47,66 +111,66 @@ export class ExportService {
 
     const rows = ads.map(ad => [
       `"${ad.id}"`,
-      `"${ad.pageName}"`,
-      `"${ad.activeStatus === 'ACTIVE' ? 'Aktif' : 'Geçmiş'}"`,
+      `"${(ad.pageName || '').replace(/"/g, '""')}"`,
+      `"${ad.activeStatus === 'ACTIVE' ? 'Aktif' : 'Pasif'}"`,
       `"${ad.format}"`,
-      `"${ad.activeDaysCount} Gün"`,
-      `"${new Date(ad.startDate).toLocaleDateString('tr-TR')}"`,
-      `"${ad.adHeadline.replace(/"/g, '""')}"`,
-      `"${ad.adBodyText.replace(/"/g, '""')}"`,
-      `"${ad.adCta}"`,
-      `"${ad.estimatedImpressions || 'Belirtilmedi'}"`,
-      `"${ad.hookType}"`,
-      `"${ad.metaLibraryUrl}"`
+      ad.activeDaysCount,
+      `"${ad.startDate}"`,
+      `"${(ad.adHeadline || '').replace(/"/g, '""')}"`,
+      `"${(ad.adBodyText || '').replace(/"/g, '""')}"`,
+      `"${ad.adCta || '-'}"`,
+      `"${ad.estimatedImpressions || '-'}"`,
+      `"${ad.hookType || '-'}"`,
+      `"${ad.metaLibraryUrl || ''}"`
     ]);
 
-    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const csvContent = [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
     const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     
     const link = document.createElement('a');
     link.href = url;
-    link.download = `Rakip_Reklam_Raporu_${competitorName}_${new Date().toISOString().split('T')[0]}.csv`;
+    link.download = `Roasist_Rakip_Analizi_${competitorName.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   }
 
   /**
-   * Generates formatted text report for AI Executive Summary or PDF printing
+   * Generates a printable HTML report for Competitor Ads
    */
   public static printAiReport(competitor: Competitor, ads: AdItem[]): void {
-    const activeAds = ads.filter(a => a.activeStatus === 'ACTIVE');
-    const pastAds = ads.filter(a => a.activeStatus === 'INACTIVE');
-    const winnerAds = [...ads].sort((a, b) => b.activeDaysCount - a.activeDaysCount).slice(0, 3);
-
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
+
+    const activeAds = ads.filter(a => a.activeStatus === 'ACTIVE');
+    const pastAds = ads.filter(a => a.activeStatus === 'INACTIVE');
+    const winnerAds = [...ads].sort((a, b) => b.activeDaysCount - a.activeDaysCount).slice(0, 5);
 
     const html = `
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Rakip Reklam Stratejisi Raporu - ${competitor.name}</title>
+        <title>Roasist AI Rakip Analiz Raporu - ${competitor.name}</title>
         <style>
-          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; color: #111; line-height: 1.6; }
-          h1 { color: #4F46E5; border-bottom: 2px solid #E5E7EB; padding-bottom: 10px; }
-          .header-info { background: #F3F4F6; padding: 15px; border-radius: 8px; margin-bottom: 25px; }
-          .stat-grid { display: flex; gap: 20px; margin-bottom: 30px; }
-          .stat-card { background: #EEF2FF; padding: 15px 20px; border-radius: 8px; flex: 1; border-left: 4px solid #4F46E5; }
-          .stat-number { font-size: 24px; font-weight: bold; color: #312E81; }
-          .section { margin-bottom: 35px; }
-          table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-          th, td { border: 1px solid #E5E7EB; padding: 10px; text-align: left; font-size: 13px; }
-          th { background: #F9FAFB; }
-          .winner-badge { background: #FEF3C7; color: #92400E; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; }
+          body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #1e293b; padding: 24px; line-height: 1.5; }
+          .header { border-bottom: 2px solid #0f172a; padding-bottom: 16px; margin-bottom: 24px; }
+          h1 { margin: 0 0 8px 0; font-size: 24px; color: #0f172a; }
+          .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
+          .stat-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; }
+          .stat-number { font-size: 24px; font-weight: bold; color: #4f46e5; margin-top: 4px; }
+          .section { margin-bottom: 32px; }
+          h2 { font-size: 16px; border-bottom: 1px solid #cbd5e1; padding-bottom: 8px; margin-bottom: 16px; }
+          table { width: 100%; border-collapse: collapse; font-size: 12px; }
+          th, td { border: 1px solid #e2e8f0; padding: 8px 12px; text-align: left; }
+          th { background-color: #f1f5f9; font-weight: 600; }
+          .winner-badge { background-color: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 11px; }
         </style>
       </head>
       <body>
-        <h1>📊 Rakip Reklam Stratejisi Raporu: ${competitor.name}</h1>
-        <div class="header-info">
-          <p><strong>Meta Sayfa ID:</strong> ${competitor.pageId}</p>
-          <p><strong>Kategori:</strong> ${competitor.category}</p>
+        <div class="header">
+          <h1>⚡ Roasist AI Rakip Reklam & Strateji Raporu</h1>
+          <p><strong>Rakip Marka:</strong> ${competitor.name} | <strong>Sektör:</strong> ${competitor.category || '-'}</p>
           <p><strong>Rapor Oluşturma Tarihi:</strong> ${new Date().toLocaleDateString('tr-TR')}</p>
         </div>
 
@@ -142,9 +206,9 @@ export class ExportService {
                 <tr>
                   <td><strong>${ad.format}</strong></td>
                   <td><span class="winner-badge">${ad.activeDaysCount} Gün Yayında</span></td>
-                  <td>${ad.adHeadline}</td>
-                  <td>${ad.hookType}</td>
-                  <td>${ad.adBodyText.substring(0, 90)}...</td>
+                  <td>${ad.adHeadline || '-'}</td>
+                  <td>${ad.hookType || '-'}</td>
+                  <td>${(ad.adBodyText || '').substring(0, 90)}...</td>
                 </tr>
               `).join('')}
             </tbody>
@@ -169,77 +233,56 @@ export class ExportService {
   }
 
   /**
-   * Helper to sanitize and impute realistic CPC for any keyword (prevents 0 TBM in reports)
+   * Helper to return EXACT CPC metrics as calculated in the system (no artificial inflation)
    */
-  public static sanitizeKeyword(k: KeywordMetric, fallbackCpc: number = 18.5): {
+  public static sanitizeKeyword(k: KeywordMetric): {
     lowCpc: number;
     highCpc: number;
     avgCpc: number;
   } {
-    let low = Number(k.lowCpc) || 0;
-    let high = Number(k.highCpc) || 0;
-
-    // 1. If both are valid bids (> 0.10 TL)
-    if (low > 0.10 && high > 0.10) {
-      if (low > high) {
-        const temp = low;
-        low = high;
-        high = temp;
-      }
-      return {
-        lowCpc: Math.round(low * 100) / 100,
-        highCpc: Math.round(high * 100) / 100,
-        avgCpc: Math.round(((low + high) / 2) * 100) / 100
-      };
+    const low = Number(k.lowCpc) || 0;
+    const high = Number(k.highCpc) || 0;
+    
+    let avg = 0;
+    if (low > 0 && high > 0) {
+      avg = (low + high) / 2;
+    } else if (high > 0) {
+      avg = high;
+    } else if (low > 0) {
+      avg = low;
     }
-
-    // 2. If only one bid is present
-    if (low > 0.10 && high <= 0.10) {
-      high = Math.round(low * 1.8 * 100) / 100;
-      return {
-        lowCpc: Math.round(low * 100) / 100,
-        highCpc: high,
-        avgCpc: Math.round(((low + high) / 2) * 100) / 100
-      };
-    }
-    if (high > 0.10 && low <= 0.10) {
-      low = Math.max(1.0, Math.round(high * 0.55 * 100) / 100);
-      return {
-        lowCpc: low,
-        highCpc: Math.round(high * 100) / 100,
-        avgCpc: Math.round(((low + high) / 2) * 100) / 100
-      };
-    }
-
-    // 3. If both are 0 or missing, apply intent-based realistic imputation
-    const intentMult = k.intent === 'TRANSACTIONAL' ? 1.25 : (k.intent === 'INFORMATIONAL' ? 0.80 : 1.00);
-    const targetMid = (fallbackCpc > 2 ? fallbackCpc : 18.5) * intentMult;
-    const imputedLow = Math.max(1.50, Math.round(targetMid * 0.65 * 100) / 100);
-    const imputedHigh = Math.max(Math.round(imputedLow * 1.6 * 100) / 100, Math.round(targetMid * 1.45 * 100) / 100);
 
     return {
-      lowCpc: imputedLow,
-      highCpc: imputedHigh,
-      avgCpc: Math.round(((imputedLow + imputedHigh) / 2) * 100) / 100
+      lowCpc: Math.round(low * 100) / 100,
+      highCpc: Math.round(high * 100) / 100,
+      avgCpc: Math.round(avg * 100) / 100
     };
   }
 
   /**
-   * Helper to extract/compute KPIs for a SubCampaignItem
+   * Helper to extract/compute KPIs for a SubCampaignItem matching the exact active studio state
    */
   private static extractSubCampaignMetrics(sub: SubCampaignItem) {
     const budget = sub.monthlyBudget || 0;
     const isLeadGen = sub.businessModel !== 'ECOMMERCE';
 
-    const kws = sub.selectedKeywords || sub.discoveredKeywords || [];
-    const validCpcs = kws.map(k => (Number(k.lowCpc) + Number(k.highCpc)) / 2).filter(v => v > 0.5);
-    const fallbackAvgCpc = validCpcs.length > 0 ? (validCpcs.reduce((a, b) => a + b, 0) / validCpcs.length) : 18.5;
+    const kws = sub.selectedKeywords && sub.selectedKeywords.length > 0
+      ? sub.selectedKeywords
+      : (sub.discoveredKeywords || []);
+      
+    const validCpcs = kws.map(k => {
+      const c = this.sanitizeKeyword(k);
+      return c.avgCpc;
+    }).filter(v => v > 0);
+    
+    const fallbackAvgCpc = validCpcs.length > 0 ? (validCpcs.reduce((a, b) => a + b, 0) / validCpcs.length) : 0;
 
-    // Google Search Simulation
+    // Google Search Simulation Result
     if (sub.simulationResult) {
       const s = sub.simulationResult;
       const healthyLeads = isLeadGen ? Math.round(s.estConversions * 0.85) : s.estConversions;
       const cpql = healthyLeads > 0 ? Math.round(s.actualSpend / healthyLeads) : 0;
+      
       const calculatedCpc = (s.avgCpc && s.avgCpc > 0) 
         ? s.avgCpc 
         : (s.estClicks > 0 && s.actualSpend > 0 ? (s.actualSpend / s.estClicks) : fallbackAvgCpc);
@@ -247,9 +290,9 @@ export class ExportService {
       return {
         impressions: s.estImpressions || 0,
         clicks: s.estClicks || 0,
-        ctr: s.avgCtr || (s.estImpressions > 0 ? (s.estClicks / s.estImpressions) * 100 : 7.5),
-        cpc: calculatedCpc,
-        cpm: s.estImpressions > 0 ? (s.actualSpend / s.estImpressions) * 1000 : 0,
+        ctr: s.avgCtr !== undefined ? s.avgCtr : (s.estImpressions > 0 ? (s.estClicks / s.estImpressions) * 100 : 7.5),
+        cpc: Math.round(calculatedCpc * 100) / 100,
+        cpm: s.estImpressions > 0 ? Math.round((s.actualSpend / s.estImpressions) * 1000 * 100) / 100 : 0,
         conversions: s.estConversions || 0,
         healthyLeads,
         cpl: s.cpa || (s.estConversions > 0 ? Math.round(s.actualSpend / s.estConversions) : 0),
@@ -262,14 +305,14 @@ export class ExportService {
       };
     }
 
-    // Meta Ads Simulation
+    // Meta Ads Simulation Result
     if (sub.metaSimulationResult) {
       const m = sub.metaSimulationResult;
       return {
         impressions: m.impressions || 0,
         clicks: m.clicks || 0,
         ctr: m.ctr || 1.6,
-        cpc: m.cpc || 0,
+        cpc: Math.round((m.cpc || 0) * 100) / 100,
         cpm: m.cpm || 75,
         conversions: m.grossLeads || 0,
         healthyLeads: m.healthyLeads || 0,
@@ -283,7 +326,7 @@ export class ExportService {
       };
     }
 
-    // YouTube Simulation
+    // YouTube Simulation Result
     if (sub.youtubeSimulationResult) {
       const y = sub.youtubeSimulationResult;
       const cpa = y.actions > 0 ? Math.round(y.budget / y.actions) : 0;
@@ -305,7 +348,7 @@ export class ExportService {
       };
     }
 
-    // GDN Simulation
+    // GDN Simulation Result
     if (sub.gdnSimulationResult) {
       const g = sub.gdnSimulationResult;
       const cpa = g.assistedConversions > 0 ? Math.round(g.budget / g.assistedConversions) : 0;
@@ -313,7 +356,7 @@ export class ExportService {
         impressions: g.impressions || 0,
         clicks: g.clicks || 0,
         ctr: g.ctr || 0.6,
-        cpc: g.cpc || 0,
+        cpc: Math.round((g.cpc || 0) * 100) / 100,
         cpm: g.cpm || 18,
         conversions: g.assistedConversions || 0,
         healthyLeads: g.assistedConversions || 0,
@@ -330,7 +373,7 @@ export class ExportService {
     // Fallback computed from parameters & keywords
     const p = sub.parameters || {};
     const totalVol = kws.reduce((s, k) => s + (k.monthlyVolume || 0), 0) || 15000;
-    const avgCpc = fallbackAvgCpc;
+    const avgCpc = fallbackAvgCpc || 18.5;
     const isShare = p.targetImpressionShare || 70;
     const estImpressions = Math.round(totalVol * (isShare / 100));
     const ctr = p.expectedCtr || 7.5;
@@ -349,8 +392,8 @@ export class ExportService {
       impressions: estImpressions,
       clicks: estClicks,
       ctr,
-      cpc: avgCpc,
-      cpm: estImpressions > 0 ? (budget / estImpressions) * 1000 : 0,
+      cpc: Math.round(avgCpc * 100) / 100,
+      cpm: estImpressions > 0 ? Math.round((budget / estImpressions) * 1000 * 100) / 100 : 0,
       conversions: estConversions,
       healthyLeads: estHealthyLeads,
       cpl: estConversions > 0 ? Math.round(budget / estConversions) : 0,
@@ -364,17 +407,26 @@ export class ExportService {
   }
 
   /**
-   * Export Sub-Campaign Report as CSV
+   * Export Sub-Campaign Report as CSV with granular metric and column selection
    */
   public static exportSubCampaignToCsv(
     sub: SubCampaignItem, 
     masterPlan?: { name?: string; clientName?: string; period?: string; startDate?: string; endDate?: string },
     userConfig?: Partial<SubCampaignExportConfig>
   ): void {
-    const config: SubCampaignExportConfig = { ...DEFAULT_EXPORT_CONFIG, ...userConfig };
+    const config: SubCampaignExportConfig = { 
+      ...DEFAULT_EXPORT_CONFIG, 
+      ...userConfig,
+      visibleMetrics: { ...DEFAULT_VISIBLE_METRICS, ...(userConfig?.visibleMetrics || {}) },
+      visibleKeywordColumns: { ...DEFAULT_VISIBLE_COLUMNS, ...(userConfig?.visibleKeywordColumns || {}) }
+    };
+    
     const m = this.extractSubCampaignMetrics(sub);
+    const vm = config.visibleMetrics;
+    const vc = config.visibleKeywordColumns;
     const isLeadGen = sub.businessModel !== 'ECOMMERCE';
     const locNames = (sub.targetLocations || []).map(l => l.name).join(' | ') || 'Tüm Türkiye';
+    const subCampaignName = sub.name || 'Alt Kampanya';
 
     let allKws: KeywordMetric[] = sub.selectedKeywords && sub.selectedKeywords.length > 0 
       ? sub.selectedKeywords 
@@ -390,71 +442,86 @@ export class ExportService {
       ? allKws.slice(0, config.maxKeywordCount)
       : allKws;
 
-    const validCpcs = keywords.map(k => (Number(k.lowCpc) + Number(k.highCpc)) / 2).filter(v => v > 0.5);
-    const poolFallbackAvg = validCpcs.length > 0 ? (validCpcs.reduce((a, b) => a + b, 0) / validCpcs.length) : (m.cpc > 0 ? m.cpc : 18.5);
-
     const lines: string[] = [];
 
-    // Header Meta
-    lines.push('ROASIST MARKETING INTELLIGENCE OS - ALT KAMPANYA MEDYA PLANI VE PERFORMANS PROJEKSİYONU');
+    // Header Meta - Alt Kampanya İsmi en başta ve net
+    lines.push(`"ROASIST MARKETING INTELLIGENCE OS - ALT KAMPANYA MEDYA PLANI: ${subCampaignName.toUpperCase().replace(/"/g, '""')}"`);
     lines.push(`"Rapor Tarihi", "${new Date().toLocaleString('tr-TR')}"`);
+    
     if (config.includeGeneralInfo) {
-      if (masterPlan?.name) lines.push(`"Master Kampanya", "${masterPlan.name.replace(/"/g, '""')}"`);
+      lines.push(`"Alt Kampanya Adı", "${subCampaignName.replace(/"/g, '""')}"`);
+      if (masterPlan?.name) lines.push(`"Çatı / Master Kampanya", "${masterPlan.name.replace(/"/g, '""')}"`);
       if (masterPlan?.clientName) lines.push(`"Müşteri / Marka", "${masterPlan.clientName.replace(/"/g, '""')}"`);
       if (masterPlan?.period) lines.push(`"Kampanya Dönemi", "${masterPlan.period.replace(/"/g, '""')}"`);
-      lines.push(`"Alt Kampanya Adı", "${(sub.name || 'Alt Kampanya').replace(/"/g, '""')}"`);
       lines.push(`"Platform / Kanal", "${sub.platform} (${sub.objective})"`);
       lines.push(`"Hedef Dil", "${sub.languageFlag || ''} ${sub.languageName || sub.languageCode || 'Türkçe'}"`);
       lines.push(`"Hedef Lokasyonlar", "${locNames.replace(/"/g, '""')}"`);
       lines.push(`"İş Modeli", "${isLeadGen ? 'B2B & Nitelikli Talep (Lead Gen)' : 'E-Ticaret & Satış'}"`);
-      lines.push(`"Aylık Bütçe", "₺${(sub.monthlyBudget || 0).toLocaleString('tr-TR')}"`);
-      lines.push(`"Günlük Ortalama Bütçe", "₺${Math.round((sub.monthlyBudget || 0) / 30.4).toLocaleString('tr-TR')}"`);
+      if (vm.budget) {
+        lines.push(`"Aylık Bütçe", "₺${(sub.monthlyBudget || 0).toLocaleString('tr-TR')}"`);
+        lines.push(`"Günlük Ortalama Bütçe", "₺${Math.round((sub.monthlyBudget || 0) / 30.4).toLocaleString('tr-TR')}"`);
+      }
       lines.push('');
     }
 
     // Section 1: KPI Summary & Funnel
     if (config.includeKpiSummary || config.includeFunnel) {
-      lines.push('--- BÖLÜM 1: TAHMİNİ PERFORMANS VE DÖNÜŞÜM HUNİSİ (KPI) ---');
+      lines.push(`--- BÖLÜM 1: TAHMİNİ PERFORMANS VE DÖNÜŞÜM HUNİSİ (${subCampaignName}) ---`);
       lines.push('"Metrik", "Tahmini Değer", "Birim", "Açıklama"');
-      if (config.includeKpiSummary) {
-        lines.push(`"Aylık Medya Bütçesi", "${sub.monthlyBudget || 0}", "₺", "Kanal için ayrılan aylık net bütçe"`);
-        lines.push(`"Tahmini Gösterim (Impressions)", "${m.impressions}", "Adet", "Pazar içi hedeflenen toplam gösterim"`);
-        lines.push(`"Tahmini Tıklama / Trafik (Clicks)", "${m.clicks}", "Adet", "Siteye/Landing Page'e çekilecek trafik"`);
-        lines.push(`"Tahmini Tıklama Oranı (CTR)", "%${m.ctr.toFixed(2)}", "%", "Gösterim / Tıklama verimliliği"`);
-        lines.push(`"Tahmini Tıklama Başı Maliyet (CPC)", "₺${m.cpc.toFixed(2)}", "₺", "Ortalama TBM"`);
+      
+      if (vm.budget) lines.push(`"Aylık Medya Bütçesi", "${sub.monthlyBudget || 0}", "₺", "Kanal için ayrılan aylık net bütçe"`);
+      if (vm.impressions) lines.push(`"Tahmini Gösterim (Impressions)", "${m.impressions}", "Adet", "Pazar içi hedeflenen toplam gösterim"`);
+      if (vm.clicks) lines.push(`"Tahmini Tıklama / Trafik (Clicks)", "${m.clicks}", "Adet", "Siteye/Landing Page'e çekilecek trafik"`);
+      if (vm.ctr) lines.push(`"Tahmini Tıklama Oranı (CTR)", "%${m.ctr.toFixed(2)}", "%", "Gösterim / Tıklama verimliliği"`);
+      if (vm.cpc) lines.push(`"Tahmini Tıklama Başı Maliyet (CPC / TBM)", "₺${m.cpc.toFixed(2)}", "₺", "Sistem Ortalama TBM"`);
+      if (vm.cpm && m.cpm > 0) lines.push(`"Bin Gösterim Başı Maliyet (CPM)", "₺${m.cpm.toFixed(2)}", "₺", "Cost Per Mille"`);
+      if (vm.conversions) lines.push(`"Tahmini Brüt Dönüşüm (Leads/Sales)", "${m.conversions}", "Adet", "Form, WhatsApp, Arama veya Satış"`);
+      if (vm.cpl) lines.push(`"Dönüşüm Başı Maliyet (CPL/CPA)", "₺${m.cpl.toLocaleString('tr-TR')}", "₺", "Cost Per Lead/Acquisition"`);
+      
+      if (isLeadGen) {
+        if (vm.healthyLeads) lines.push(`"Tahmini Nitelikli Talep (Healthy/SQL)", "${m.healthyLeads}", "Adet", "Doğrulanmış ve satışa uygun lead sayısı"`);
+        if (vm.cpql) lines.push(`"Nitelikli Lead Başı Maliyet (CPQL)", "₺${m.cpql.toLocaleString('tr-TR')}", "₺", "Cost per Qualified Lead"`);
+        if (vm.deals) lines.push(`"Tahmini Kapanan Müşteri (Deals)", "${m.deals}", "Adet", "Satışa dönüşen nihai müşteri"`);
+        if (vm.cac) lines.push(`"Müşteri Edinme Maliyeti (CAC)", "₺${m.cac.toLocaleString('tr-TR')}", "₺", "Cost per Acquisition"`);
       }
-      if (config.includeFunnel) {
-        lines.push(`"Tahmini Brüt Dönüşüm (Leads/Sales)", "${m.conversions}", "Adet", "Form, WhatsApp, Arama veya Satış"`);
-        if (isLeadGen) {
-          lines.push(`"Tahmini Nitelikli Talep (Healthy/SQL)", "${m.healthyLeads}", "Adet", "Doğrulanmış ve satışa uygun lead sayısı"`);
-          lines.push(`"Nitelikli Lead Başı Maliyet (CPQL)", "₺${m.cpql.toLocaleString('tr-TR')}", "₺", "Cost per Qualified Lead"`);
-          lines.push(`"Tahmini Kapanan Müşteri (Deals)", "${m.deals}", "Adet", "Satışa dönüşen nihai müşteri"`);
-          lines.push(`"Müşteri Edinme Maliyeti (CAC)", "₺${m.cac.toLocaleString('tr-TR')}", "₺", "Cost per Acquisition"`);
-        }
-        lines.push(`"Tahmini Ciro Projeksiyonu", "₺${m.revenue.toLocaleString('tr-TR')}", "₺", "Model bazlı tahmini toplam gelir"`);
-        lines.push(`"Tahmini ROAS (Yatırım Getirisi)", "${m.roas.toFixed(1)}x", "Kat", "Gelir / Harcama Çarpanı"`);
-      }
+      
+      if (vm.revenue) lines.push(`"Tahmini Ciro Projeksiyonu", "₺${m.revenue.toLocaleString('tr-TR')}", "₺", "Model bazlı tahmini toplam gelir"`);
+      if (vm.roas) lines.push(`"Tahmini ROAS (Yatırım Getirisi)", "${m.roas.toFixed(1)}x", "Kat", "Gelir / Harcama Çarpanı"`);
       lines.push('');
     }
 
-    // Section 2: Keywords
+    // Section 2: Keywords Table
     if (config.includeKeywords && keywords.length > 0) {
       lines.push(`--- BÖLÜM 2: SEÇİLEN ANAHTAR KELİMELER VE TBM REKABET ANALİZİ (${keywords.length} Kelime) ---`);
-      lines.push('"Anahtar Kelime", "Arama Niyeti", "Aylık Hacim", "3 Aylık Trend", "Rekabet", "Min TBM (₺)", "Max TBM (₺)", "Ort TBM (₺)", "Fırsat Skoru", "AI Stratejist Önerisi"');
+      
+      // Dynamic Headers based on column visibility
+      const kwHeaders: string[] = [];
+      if (vc.keyword) kwHeaders.push('"Anahtar Kelime"');
+      if (vc.intent) kwHeaders.push('"Arama Niyeti"');
+      if (vc.volume) kwHeaders.push('"Aylık Hacim"');
+      if (vc.trend) kwHeaders.push('"3 Aylık Trend"');
+      if (vc.competition) kwHeaders.push('"Rekabet"');
+      if (vc.lowCpc) kwHeaders.push('"Min TBM (₺)"');
+      if (vc.highCpc) kwHeaders.push('"Max TBM (₺)"');
+      if (vc.avgCpc) kwHeaders.push('"Ort TBM (₺)"');
+      if (vc.opportunity) kwHeaders.push('"Fırsat Skoru"');
+      if (vc.aiPick) kwHeaders.push('"SEM Uzmanı Önerisi"');
+      lines.push(kwHeaders.join(','));
+
       keywords.forEach(k => {
-        const cpc = this.sanitizeKeyword(k, poolFallbackAvg);
-        lines.push([
-          `"${k.keyword.replace(/"/g, '""')}"`,
-          `"${k.intent || 'COMMERCIAL'}"`,
-          k.monthlyVolume || 0,
-          `"${(k.trendChangePercent || 0) >= 0 ? '+' : ''}${k.trendChangePercent || 0}%"`,
-          `"${k.competition || 'MEDIUM'}"`,
-          cpc.lowCpc.toFixed(2),
-          cpc.highCpc.toFixed(2),
-          cpc.avgCpc.toFixed(2),
-          k.opportunityScore || 80,
-          `"${k.isAiStrategistPick ? 'EVET (Yüksek Dönüşümlü)' : 'Standart'}"`
-        ].join(','));
+        const cpc = this.sanitizeKeyword(k);
+        const rowCells: string[] = [];
+        if (vc.keyword) rowCells.push(`"${k.keyword.replace(/"/g, '""')}"`);
+        if (vc.intent) rowCells.push(`"${k.intent || 'COMMERCIAL'}"`);
+        if (vc.volume) rowCells.push(`${k.monthlyVolume || 0}`);
+        if (vc.trend) rowCells.push(`"${(k.trendChangePercent || 0) >= 0 ? '+' : ''}${k.trendChangePercent || 0}%"`);
+        if (vc.competition) rowCells.push(`"${k.competition || 'MEDIUM'}"`);
+        if (vc.lowCpc) rowCells.push(cpc.lowCpc.toFixed(2));
+        if (vc.highCpc) rowCells.push(cpc.highCpc.toFixed(2));
+        if (vc.avgCpc) rowCells.push(cpc.avgCpc.toFixed(2));
+        if (vc.opportunity) rowCells.push(`${k.opportunityScore || 80}`);
+        if (vc.aiPick) rowCells.push(`"${k.isAiStrategistPick ? 'EVET (Yüksek Dönüşümlü)' : 'Standart'}"`);
+        lines.push(rowCells.join(','));
       });
       lines.push('');
     }
@@ -494,7 +561,7 @@ export class ExportService {
     
     const link = document.createElement('a');
     link.href = url;
-    const safeName = (sub.name || 'Alt_Kampanya').replace(/[^a-zA-Z0-9çğıöşüÇĞİÖŞÜ]/gi, '_');
+    const safeName = subCampaignName.replace(/[^a-zA-Z0-9çğıöşüÇĞİÖŞÜ]/gi, '_');
     link.download = `Roasist_Alt_Kampanya_${safeName}_${new Date().toISOString().split('T')[0]}.csv`;
     document.body.appendChild(link);
     link.click();
@@ -509,10 +576,19 @@ export class ExportService {
     masterPlan?: { name?: string; clientName?: string; period?: string; startDate?: string; endDate?: string },
     userConfig?: Partial<SubCampaignExportConfig>
   ): void {
-    const config: SubCampaignExportConfig = { ...DEFAULT_EXPORT_CONFIG, ...userConfig };
+    const config: SubCampaignExportConfig = { 
+      ...DEFAULT_EXPORT_CONFIG, 
+      ...userConfig,
+      visibleMetrics: { ...DEFAULT_VISIBLE_METRICS, ...(userConfig?.visibleMetrics || {}) },
+      visibleKeywordColumns: { ...DEFAULT_VISIBLE_COLUMNS, ...(userConfig?.visibleKeywordColumns || {}) }
+    };
+
     const m = this.extractSubCampaignMetrics(sub);
+    const vm = config.visibleMetrics;
+    const vc = config.visibleKeywordColumns;
     const isLeadGen = sub.businessModel !== 'ECOMMERCE';
     const locNames = (sub.targetLocations || []).map(l => l.name).join(', ') || 'Tüm Türkiye';
+    const subCampaignName = sub.name || 'Alt Kampanya';
 
     let allKws: KeywordMetric[] = sub.selectedKeywords && sub.selectedKeywords.length > 0 
       ? sub.selectedKeywords 
@@ -527,14 +603,10 @@ export class ExportService {
     const maxCount = config.maxKeywordCount > 0 ? config.maxKeywordCount : allKws.length;
     const keywords = allKws.slice(0, maxCount);
 
-    const poolFallbackAvg = keywords.length > 0 
-      ? (keywords.reduce((sum, k) => sum + (k.highCpc || k.lowCpc || 0), 0) / keywords.length || 18.5) 
-      : 18.5;
-
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
-    const safeTitle = `${sub.name || 'Alt Kampanya'} - Roasist Medya Raporu`;
+    const safeTitle = `${subCampaignName} - Roasist Medya Raporu`;
 
     const html = `
       <!DOCTYPE html>
@@ -656,6 +728,15 @@ export class ExportService {
             gap: 8px;
             margin-bottom: 6px;
           }
+          .campaign-title-box .sub-badge {
+            background: #2563eb;
+            color: #ffffff;
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: 700;
+            text-transform: uppercase;
+          }
           .campaign-details-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -681,7 +762,7 @@ export class ExportService {
           /* KPI Stat Grid */
           .stat-grid {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
             gap: 14px;
             margin-bottom: 28px;
           }
@@ -732,7 +813,7 @@ export class ExportService {
           /* Conversion Funnel Box */
           .funnel-box {
             display: grid;
-            grid-template-columns: repeat(5, 1fr);
+            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
             gap: 8px;
             background: #f8fafc;
             border: 1px solid #e2e8f0;
@@ -868,8 +949,8 @@ export class ExportService {
           <div style="display:flex; align-items:center; gap: 10px;">
             <span style="font-size: 18px;">📄</span>
             <div>
-              <div style="font-weight: 700; font-size: 15px;">Roasist Yönetici Medya Planı & Alt Kampanya Raporu</div>
-              <div style="font-size: 12px; opacity: 0.8;">Baskı önizlemesi hazır. PDF olarak kaydetmek için butona tıklayın.</div>
+              <div style="font-weight: 700; font-size: 15px;">Roasist Alt Kampanya Raporu: ${subCampaignName}</div>
+              <div style="font-size: 12px; opacity: 0.8;">Baskı ve PDF önizlemesi hazır. Kaydetmek için butona tıklayın.</div>
             </div>
           </div>
           <div style="display:flex; align-items:center; gap: 10px;">
@@ -893,32 +974,37 @@ export class ExportService {
             </div>
             <div class="header-meta">
               <div><strong>Rapor Tarihi:</strong> ${new Date().toLocaleDateString('tr-TR')}</div>
+              <div><strong>Alt Kampanya:</strong> <span style="color:#2563eb; font-weight:700;">${subCampaignName}</span></div>
               <div><strong>Rapor ID:</strong> #${sub.id.slice(-8)}</div>
-              <div><strong>Durum:</strong> Onaylı & Hazır Medya Planı</div>
             </div>
           </div>
 
           <!-- Campaign Main Banner -->
           <div class="campaign-title-box">
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+              <span class="sub-badge">ALT KAMPANYA MEDYA PLANI</span>
+              ${sub.platform ? `<span style="font-size:12px; color:#475569; font-weight:600;">• ${sub.platform} (${sub.objective})</span>` : ''}
+            </div>
             <h1>
-              <span>${sub.languageFlag || '🌐'}</span>
-              <span>${sub.name || 'Alt Kampanya'}</span>
+              <span>${sub.languageFlag || '🎯'}</span>
+              <span>${subCampaignName}</span>
             </h1>
             <div style="font-size: 13px; color: #475569;">
               ${masterPlan?.name ? `<strong>Çatı Kampanya:</strong> ${masterPlan.name} • ` : ''}
               ${masterPlan?.clientName ? `<strong>Müşteri:</strong> ${masterPlan.clientName} • ` : ''}
-              <strong>Platform:</strong> ${sub.platform} (${sub.objective})
+              <strong>Hedef Dil:</strong> ${sub.languageName || sub.languageCode || 'Türkçe'}
             </div>
 
             ${config.includeGeneralInfo ? `
             <div class="campaign-details-grid">
+              ${vm.budget ? `
               <div class="detail-item">
                 <strong>Aylık Net Bütçe</strong>
                 <span style="color: #2563eb; font-size: 15px; font-weight: 800;">₺${(sub.monthlyBudget || 0).toLocaleString('tr-TR')}</span>
                 <div style="font-size: 10px; color: #64748b;">(₺${Math.round((sub.monthlyBudget || 0) / 30.4).toLocaleString('tr-TR')} / gün)</div>
-              </div>
+              </div>` : ''}
               <div class="detail-item">
-                <strong>Hedef Dil</strong>
+                <strong>Hedef Dil & Bayrak</strong>
                 <span>${sub.languageFlag || ''} ${sub.languageName || sub.languageCode || 'Türkçe'}</span>
               </div>
               <div class="detail-item">
@@ -940,29 +1026,40 @@ export class ExportService {
           <!-- KPI Cards Grid -->
           ${config.includeKpiSummary ? `
           <div class="stat-grid">
+            ${vm.budget ? `
             <div class="stat-card">
-              <div class="stat-label">Aylık Medya Yatırımı</div>
+              <div class="stat-label">Aylık Medya Bütçesi</div>
               <div class="stat-value" style="color: #2563eb;">₺${(sub.monthlyBudget || 0).toLocaleString('tr-TR')}</div>
               <div class="stat-sub">Günlük ₺${Math.round((sub.monthlyBudget || 0) / 30.4).toLocaleString('tr-TR')}</div>
-            </div>
+            </div>` : ''}
 
+            ${(vm.impressions || vm.clicks || vm.ctr) ? `
             <div class="stat-card">
-              <div class="stat-label">Tahmini Gösterim & TO</div>
-              <div class="stat-value">${m.impressions.toLocaleString('tr-TR')}</div>
-              <div class="stat-sub">CTR: %${m.ctr.toFixed(2)} • ${m.clicks.toLocaleString('tr-TR')} Tıklama</div>
-            </div>
+              <div class="stat-label">${vm.impressions ? 'Gösterim' : ''} ${vm.clicks ? '& Trafik' : ''}</div>
+              <div class="stat-value">${vm.impressions ? m.impressions.toLocaleString('tr-TR') : `${m.clicks.toLocaleString('tr-TR')} Tıklama`}</div>
+              <div class="stat-sub">${vm.ctr ? `CTR: %${m.ctr.toFixed(2)}` : ''} ${vm.clicks && vm.impressions ? `• ${m.clicks.toLocaleString('tr-TR')} Tıklama` : ''}</div>
+            </div>` : ''}
 
+            ${vm.cpc ? `
+            <div class="stat-card">
+              <div class="stat-label">Ortalama TBM (CPC)</div>
+              <div class="stat-value" style="color: #2563eb;">₺${m.cpc.toFixed(2)}</div>
+              <div class="stat-sub">${vm.cpm && m.cpm > 0 ? `CPM: ₺${m.cpm.toFixed(2)}` : 'Sistem Ort. TBM'}</div>
+            </div>` : ''}
+
+            ${(vm.conversions || vm.healthyLeads) ? `
             <div class="stat-card ${isLeadGen ? 'emerald' : ''}">
               <div class="stat-label">${isLeadGen ? 'Nitelikli Lead (CPQL)' : 'Tahmini Satış (CPA)'}</div>
-              <div class="stat-value" style="color: #16a34a;">${(isLeadGen ? m.healthyLeads : m.conversions).toLocaleString('tr-TR')} Adet</div>
-              <div class="stat-sub">${isLeadGen ? `CPQL: ₺${m.cpql.toLocaleString('tr-TR')}` : `CPA: ₺${m.cpl.toLocaleString('tr-TR')}`}</div>
-            </div>
+              <div class="stat-value" style="color: #16a34a;">${(isLeadGen && vm.healthyLeads ? m.healthyLeads : m.conversions).toLocaleString('tr-TR')} Adet</div>
+              <div class="stat-sub">${isLeadGen && vm.cpql ? `CPQL: ₺${m.cpql.toLocaleString('tr-TR')}` : (vm.cpl ? `CPA: ₺${m.cpl.toLocaleString('tr-TR')}` : '')}</div>
+            </div>` : ''}
 
+            ${(vm.revenue || vm.roas) ? `
             <div class="stat-card emerald">
-              <div class="stat-label">Tahmini Ciro & ROAS</div>
-              <div class="stat-value" style="color: #16a34a;">₺${m.revenue.toLocaleString('tr-TR')}</div>
-              <div class="stat-sub">Tahmini ROAS: <strong>${m.roas.toFixed(1)}x</strong> ${m.deals > 0 ? `(${m.deals} Müşteri)` : ''}</div>
-            </div>
+              <div class="stat-label">${vm.revenue ? 'Tahmini Ciro' : 'Yatırım Getirisi'}</div>
+              <div class="stat-value" style="color: #16a34a;">${vm.revenue ? `₺${m.revenue.toLocaleString('tr-TR')}` : `${m.roas.toFixed(1)}x`}</div>
+              <div class="stat-sub">${vm.roas ? `Tahmini ROAS: <strong>${m.roas.toFixed(1)}x</strong>` : ''} ${m.deals > 0 && vm.deals ? `(${m.deals} Müşteri)` : ''}</div>
+            </div>` : ''}
           </div>` : ''}
 
           <!-- Conversion Funnel Projections -->
@@ -973,81 +1070,89 @@ export class ExportService {
           </div>
 
           <div class="funnel-box">
+            ${vm.impressions ? `
             <div class="funnel-step">
               <div class="val">${m.impressions.toLocaleString('tr-TR')}</div>
               <div class="lbl">Pazar Gösterimi</div>
               <div class="rate">${m.marketShare > 0 ? `%${m.marketShare} IS` : 'Reach'}</div>
-            </div>
+            </div>` : ''}
 
+            ${vm.clicks ? `
             <div class="funnel-step">
               <div class="val">${m.clicks.toLocaleString('tr-TR')}</div>
               <div class="lbl">Nitelikli Trafik</div>
-              <div class="rate">%${m.ctr.toFixed(1)} TO (CTR)</div>
-            </div>
+              <div class="rate">${vm.cpc ? `₺${m.cpc.toFixed(2)} TBM` : `%${m.ctr.toFixed(1)} TO`}</div>
+            </div>` : ''}
 
+            ${vm.conversions ? `
             <div class="funnel-step">
               <div class="val">${m.conversions.toLocaleString('tr-TR')}</div>
               <div class="lbl">Brüt Talep / Satış</div>
               <div class="rate">₺${m.cpl.toLocaleString('tr-TR')} CPL</div>
-            </div>
+            </div>` : ''}
 
+            ${(isLeadGen ? vm.healthyLeads : vm.conversions) ? `
             <div class="funnel-step" style="border-color: #86efac; background: #f0fdf4;">
               <div class="val" style="color: #16a34a;">${(isLeadGen ? m.healthyLeads : m.conversions).toLocaleString('tr-TR')}</div>
               <div class="lbl">${isLeadGen ? 'Nitelikli SQL Lead' : 'Net Sipariş'}</div>
               <div class="rate" style="background:#dcfce7; color:#166534;">₺${m.cpql.toLocaleString('tr-TR')} CPQL</div>
-            </div>
+            </div>` : ''}
 
+            ${(vm.revenue || vm.roas) ? `
             <div class="funnel-step" style="border-color: #86efac; background: #f0fdf4;">
-              <div class="val" style="color: #16a34a;">₺${m.revenue.toLocaleString('tr-TR')}</div>
-              <div class="lbl">Toplam Ciro</div>
+              <div class="val" style="color: #16a34a;">${vm.revenue ? `₺${m.revenue.toLocaleString('tr-TR')}` : `${m.roas.toFixed(1)}x`}</div>
+              <div class="lbl">Toplam Ciro & ROAS</div>
               <div class="rate" style="background:#dcfce7; color:#166534;">${m.roas.toFixed(1)}x ROAS</div>
-            </div>
+            </div>` : ''}
           </div>` : ''}
 
           <!-- Keywords Table (if Google Search / Keywords exist) -->
           ${config.includeKeywords && keywords.length > 0 ? `
           <div class="section-title">
             <span>🔍</span>
-            <span>Hedeflenen Anahtar Kelimeler & TBM Fırsat Analizi (${keywords.length} Kelime)</span>
+            <span>Hedeflenen Anahtar Kelimeler & TBM Analizi (${keywords.length} Kelime)</span>
           </div>
 
           <table>
             <thead>
               <tr>
-                <th>Anahtar Kelime</th>
-                <th>Niyet</th>
-                <th style="text-align:right;">Aylık Hacim</th>
-                <th style="text-align:right;">Trend</th>
-                <th>Rekabet</th>
-                <th style="text-align:right;">Min TBM</th>
-                <th style="text-align:right;">Max TBM</th>
-                <th style="text-align:right;">Ort TBM</th>
-                <th style="text-align:center;">Fırsat Skoru</th>
+                ${vc.keyword ? '<th>Anahtar Kelime</th>' : ''}
+                ${vc.intent ? '<th>Niyet</th>' : ''}
+                ${vc.volume ? '<th style="text-align:right;">Aylık Hacim</th>' : ''}
+                ${vc.trend ? '<th style="text-align:right;">Trend</th>' : ''}
+                ${vc.competition ? '<th>Rekabet</th>' : ''}
+                ${vc.lowCpc ? '<th style="text-align:right;">Min TBM</th>' : ''}
+                ${vc.highCpc ? '<th style="text-align:right;">Max TBM</th>' : ''}
+                ${vc.avgCpc ? '<th style="text-align:right;">Ort TBM</th>' : ''}
+                ${vc.opportunity ? '<th style="text-align:center;">Fırsat Skoru</th>' : ''}
               </tr>
             </thead>
             <tbody>
               ${keywords.map(k => {
-                const cpc = this.sanitizeKeyword(k, poolFallbackAvg);
+                const cpc = this.sanitizeKeyword(k);
                 const intentClass = k.intent === 'TRANSACTIONAL' ? 'badge-intent-trans' : (k.intent === 'INFORMATIONAL' ? 'badge-intent-info' : 'badge-intent-comm');
                 const intentLabel = k.intent === 'TRANSACTIONAL' ? 'Satın Alma' : (k.intent === 'INFORMATIONAL' ? 'Bilgi' : 'Ticari');
                 return `
                   <tr>
+                    ${vc.keyword ? `
                     <td>
                       <strong>${k.keyword}</strong>
-                      ${k.isAiStrategistPick ? '<span class="badge badge-ai-pick" style="margin-left: 4px;">✨ SEM Önerisi</span>' : ''}
-                    </td>
-                    <td><span class="badge ${intentClass}">${intentLabel}</span></td>
-                    <td style="text-align:right; font-weight:700;">${(k.monthlyVolume || 0).toLocaleString('tr-TR')}</td>
+                      ${vc.aiPick && k.isAiStrategistPick ? '<span class="badge badge-ai-pick" style="margin-left: 4px;">✨ SEM Önerisi</span>' : ''}
+                    </td>` : ''}
+                    ${vc.intent ? `<td><span class="badge ${intentClass}">${intentLabel}</span></td>` : ''}
+                    ${vc.volume ? `<td style="text-align:right; font-weight:700;">${(k.monthlyVolume || 0).toLocaleString('tr-TR')}</td>` : ''}
+                    ${vc.trend ? `
                     <td style="text-align:right; color: ${(k.trendChangePercent || 0) >= 0 ? '#16a34a' : '#dc2626'}; font-weight:600;">
                       ${(k.trendChangePercent || 0) >= 0 ? '+' : ''}${k.trendChangePercent || 0}%
-                    </td>
-                    <td><span style="font-size:11px; color:#64748b;">${k.competition === 'HIGH' ? 'Yüksek' : (k.competition === 'LOW' ? 'Düşük' : 'Orta')}</span></td>
-                    <td style="text-align:right;">₺${cpc.lowCpc.toFixed(2)}</td>
-                    <td style="text-align:right;">₺${cpc.highCpc.toFixed(2)}</td>
-                    <td style="text-align:right; font-weight:700; color:#2563eb;">₺${cpc.avgCpc.toFixed(2)}</td>
+                    </td>` : ''}
+                    ${vc.competition ? `<td><span style="font-size:11px; color:#64748b;">${k.competition === 'HIGH' ? 'Yüksek' : (k.competition === 'LOW' ? 'Düşük' : 'Orta')}</span></td>` : ''}
+                    ${vc.lowCpc ? `<td style="text-align:right; font-family:monospace;">₺${cpc.lowCpc.toFixed(2)}</td>` : ''}
+                    ${vc.highCpc ? `<td style="text-align:right; font-family:monospace;">₺${cpc.highCpc.toFixed(2)}</td>` : ''}
+                    ${vc.avgCpc ? `<td style="text-align:right; font-weight:700; color:#2563eb; font-family:monospace;">₺${cpc.avgCpc.toFixed(2)}</td>` : ''}
+                    ${vc.opportunity ? `
                     <td style="text-align:center;">
                       <span style="font-weight:800; color:${(k.opportunityScore || 80) >= 85 ? '#16a34a' : '#2563eb'};">${k.opportunityScore || 80}</span>/100
-                    </td>
+                    </td>` : ''}
                   </tr>
                 `;
               }).join('')}
@@ -1097,21 +1202,20 @@ export class ExportService {
             <span>Stratejik Uygulama & Kampanya Başlatma Notları</span>
           </div>
           <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 18px; font-size: 12px; color: #334155; line-height: 1.6;">
-            <p style="margin-bottom: 6px;">• <strong>Hedefleme Optimizasyonu:</strong> Bu alt kampanya ${sub.languageName || 'belirlenen dilde'} ve seçilen ${locNames} coğrafi bölgesinde en yüksek satın alma niyetine sahip kitleye odaklanacak şekilde modellenmiştir.</p>
-            <p style="margin-bottom: 6px;">• <strong>Bütçe Dağılımı:</strong> Aylık ₺${(sub.monthlyBudget || 0).toLocaleString('tr-TR')} bütçe ile günlük ₺${Math.round((sub.monthlyBudget || 0) / 30.4).toLocaleString('tr-TR')} harcama tavanı öngörülmüştür.</p>
+            <p style="margin-bottom: 6px;">• <strong>Hedefleme Optimizasyonu:</strong> Bu alt kampanya (${subCampaignName}) ${sub.languageName || 'belirlenen dilde'} ve seçilen ${locNames} coğrafi bölgesinde en yüksek satın alma niyetine sahip kitleye odaklanacak şekilde modellenmiştir.</p>
+            <p style="margin-bottom: 6px;">• <strong>Bütçe & TBM Dağılımı:</strong> Aylık ₺${(sub.monthlyBudget || 0).toLocaleString('tr-TR')} bütçe ile ortalama ₺${m.cpc.toFixed(2)} TBM hedeflenmiş ve günlük ₺${Math.round((sub.monthlyBudget || 0) / 30.4).toLocaleString('tr-TR')} harcama tavanı öngörülmüştür.</p>
             <p>• <strong>Dönüşüm Takibi:</strong> Kampanya canlıya alınmadan önce dönüşüm piksellerinin (Google Ads Enhanced Conversions / Meta CAPI) doğrulanması tavsiye edilir.</p>
           </div>` : ''}
 
           <!-- Footer -->
           <div class="footer">
             <div>© ${new Date().getFullYear()} Roasist Marketing Intelligence OS • Tüm hakları saklıdır.</div>
-            <div>Gizli & Kurumsal Medya Raporu • ${masterPlan?.clientName || 'Roasist Client'}</div>
+            <div>Gizli & Kurumsal Medya Raporu • ${subCampaignName} (${masterPlan?.clientName || 'Roasist Client'})</div>
           </div>
 
         </div>
 
         <script>
-          // Automatically prompt print dialog after font and resources load
           window.onload = function() {
             setTimeout(function() {
               window.print();
