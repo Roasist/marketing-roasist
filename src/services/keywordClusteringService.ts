@@ -92,11 +92,18 @@ export const groupKeywordsSemantically = (
       : 1;
 
     return kws.map(k => {
-      const rawLow = (typeof k.rawLowCpc === 'number') ? k.rawLowCpc : (typeof k.lowCpc === 'number' ? k.lowCpc : 0);
-      const rawHigh = (typeof k.rawHighCpc === 'number') ? k.rawHighCpc : (typeof k.highCpc === 'number' ? k.highCpc : 0);
+      let rawLow = (typeof k.rawLowCpc === 'number') ? k.rawLowCpc : (typeof k.lowCpc === 'number' ? k.lowCpc : 0);
+      let rawHigh = (typeof k.rawHighCpc === 'number') ? k.rawHighCpc : (typeof k.highCpc === 'number' ? k.highCpc : 0);
 
-      // Has real Google Ads auction data?
-      const hasRealGoogleCpc = !k.isCpcEstimated && (rawLow > 0.05 && rawHigh > 0.05);
+      // Check if keyword is a synthetic placeholder from backend imputation
+      const isSyntheticBenchmark = (rawLow === 8.79 && rawHigh === 57.87) || 
+                                  (rawLow === 7.64 && rawHigh === 50.32) ||
+                                  (rawLow === 6.50 && rawHigh === 42.77) ||
+                                  (rawLow === 12.31 && rawHigh === 81.02) ||
+                                  (rawLow === 7.60 && rawHigh === 28.50) ||
+                                  (rawLow <= 0.05 || rawHigh <= 0.05);
+
+      const hasRealGoogleCpc = (rawLow > 0.05 && rawHigh > 0.05) && !isSyntheticBenchmark;
 
       if (hasRealGoogleCpc) {
         // REAL GOOGLE ADS DATA: Preserve exact bids, no estimation, no Tahmin badge!
@@ -116,7 +123,7 @@ export const groupKeywordsSemantically = (
         };
       }
 
-      // ESTIMATED KEYWORD (Google Ads data missing or low volume auction)
+      // ESTIMATED KEYWORD (Google Ads data missing or synthetic benchmark)
       let intentMultiplier = commMult;
       if (k.intent === 'TRANSACTIONAL') {
         intentMultiplier = transMult;
@@ -127,15 +134,15 @@ export const groupKeywordsSemantically = (
       }
 
       const effectiveMult = currMult * intentMultiplier;
-      const baseLow = (rawLow > 0.05) ? rawLow : clusterMedianLow;
-      const baseHigh = (rawHigh > 0.05) ? rawHigh : clusterMedianHigh;
+      const baseLow = (rawLow > 0.05 && !isSyntheticBenchmark) ? rawLow : clusterMedianLow;
+      const baseHigh = (rawHigh > 0.05 && !isSyntheticBenchmark) ? rawHigh : clusterMedianHigh;
       const calculatedLow = Math.round(baseLow * effectiveMult * 100) / 100;
       const calculatedHigh = Math.round(baseHigh * effectiveMult * 100) / 100;
 
       return {
         ...k,
-        rawLowCpc: rawLow > 0.05 ? rawLow : 0,
-        rawHighCpc: rawHigh > 0.05 ? rawHigh : 0,
+        rawLowCpc: rawLow > 0.05 && !isSyntheticBenchmark ? rawLow : 0,
+        rawHighCpc: rawHigh > 0.05 && !isSyntheticBenchmark ? rawHigh : 0,
         lowCpc: autoImpute ? calculatedLow : 0,
         highCpc: autoImpute ? calculatedHigh : 0,
         isCpcEstimated: true,
