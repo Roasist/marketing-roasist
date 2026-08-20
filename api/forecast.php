@@ -1365,8 +1365,8 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
     $benchHigh = count($validHighBids) > 0 ? round(array_sum($validHighBids) / count($validHighBids), 2) : 26.00;
 
     foreach ($parsedKeywords as &$pk) {
-        $origLow = isset($pk['rawLowCpc']) ? $pk['rawLowCpc'] : (float)($pk['lowCpc'] ?? 0);
-        $origHigh = isset($pk['rawHighCpc']) ? $pk['rawHighCpc'] : (float)($pk['highCpc'] ?? 0);
+        $origLow = isset($pk['rawLowCpc']) ? (float)$pk['rawLowCpc'] : (float)($pk['lowCpc'] ?? 0);
+        $origHigh = isset($pk['rawHighCpc']) ? (float)$pk['rawHighCpc'] : (float)($pk['highCpc'] ?? 0);
         $pk['rawLowCpc'] = $origLow;
         $pk['rawHighCpc'] = $origHigh;
 
@@ -1375,6 +1375,8 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
             $pk['lowCpc'] = round($benchLow * $mult, 2);
             $pk['highCpc'] = round($benchHigh * $mult, 2);
             $pk['isCpcEstimated'] = true;
+        } else {
+            $pk['isCpcEstimated'] = false;
         }
     }
     unset($pk);
