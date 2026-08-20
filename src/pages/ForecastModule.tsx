@@ -33,7 +33,6 @@ import {
   SlidersHorizontal,
   FileText
 } from 'lucide-react';
-import { ExportService } from '../services/exportService';
 import { ExportCustomizationModal } from '../components/ExportCustomizationModal';
 import { 
   KeywordMetric, 
@@ -6907,7 +6906,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                                     <button
                                       type="button"
                                       onClick={() => {
-                                        ExportService.printSubCampaignReport(sc, {
+                                        handleOpenExportModal(sc, 'PDF', {
                                           name: planName,
                                           clientName: clientName,
                                           period: planPeriod,
@@ -6917,14 +6916,14 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                                       }}
                                       className="btn-ghost"
                                       style={{ padding: '2px 5px', fontSize: '0.7rem', color: 'var(--brand-primary)' }}
-                                      title="PDF Raporu Al"
+                                      title="Alt Kampanya PDF Raporu Al"
                                     >
                                       <FileText size={12} />
                                     </button>
                                     <button
                                       type="button"
                                       onClick={() => {
-                                        ExportService.exportSubCampaignToCsv(sc, {
+                                        handleOpenExportModal(sc, 'CSV', {
                                           name: planName,
                                           clientName: clientName,
                                           period: planPeriod,
@@ -6934,7 +6933,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                                       }}
                                       className="btn-ghost"
                                       style={{ padding: '2px 5px', fontSize: '0.7rem', color: 'var(--text-secondary)' }}
-                                      title="CSV İndir"
+                                      title="Alt Kampanya CSV İndir"
                                     >
                                       <Download size={12} />
                                     </button>

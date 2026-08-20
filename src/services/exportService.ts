@@ -237,19 +237,19 @@ export class ExportService {
    */
   public static getSubCampaignCpcBenchmarks(allKws: KeywordMetric[] = []): { benchLow: number; benchHigh: number } {
     const validLowKws = allKws.filter(k => {
-      const raw = k.rawLowCpc !== undefined ? k.rawLowCpc : k.lowCpc;
-      return raw !== undefined && raw > 0.50 && !k.isCpcEstimated;
+      const raw = (k.rawLowCpc !== undefined && k.rawLowCpc > 0.50) ? k.rawLowCpc : (k.lowCpc && k.lowCpc > 0.50 && !k.isCpcEstimated ? k.lowCpc : undefined);
+      return raw !== undefined && raw > 0.50;
     });
     const validHighKws = allKws.filter(k => {
-      const raw = k.rawHighCpc !== undefined ? k.rawHighCpc : k.highCpc;
-      return raw !== undefined && raw > 0.50 && !k.isCpcEstimated;
+      const raw = (k.rawHighCpc !== undefined && k.rawHighCpc > 0.50) ? k.rawHighCpc : (k.highCpc && k.highCpc > 0.50 && !k.isCpcEstimated ? k.highCpc : undefined);
+      return raw !== undefined && raw > 0.50;
     });
 
-    const lowSum = validLowKws.reduce((s, k) => s + ((k.rawLowCpc ?? k.lowCpc ?? 0) * Math.max(k.monthlyVolume || 0, 10)), 0);
+    const lowSum = validLowKws.reduce((s, k) => s + (((k.rawLowCpc && k.rawLowCpc > 0.50) ? k.rawLowCpc : (k.lowCpc ?? 0)) * Math.max(k.monthlyVolume || 0, 10)), 0);
     const lowVol = validLowKws.reduce((s, k) => s + Math.max(k.monthlyVolume || 0, 10), 0);
     const avgLow = lowVol > 0 ? (lowSum / lowVol) : 0;
 
-    const highSum = validHighKws.reduce((s, k) => s + ((k.rawHighCpc ?? k.highCpc ?? 0) * Math.max(k.monthlyVolume || 0, 10)), 0);
+    const highSum = validHighKws.reduce((s, k) => s + (((k.rawHighCpc && k.rawHighCpc > 0.50) ? k.rawHighCpc : (k.highCpc ?? 0)) * Math.max(k.monthlyVolume || 0, 10)), 0);
     const highVol = validHighKws.reduce((s, k) => s + Math.max(k.monthlyVolume || 0, 10), 0);
     const avgHigh = highVol > 0 ? (highSum / highVol) : 0;
 
@@ -263,7 +263,7 @@ export class ExportService {
   }
 
   /**
-   * Helper to return EXACT CPC metrics matching the system's live algorithms (with intelligent fallback benchmark imputation)
+   * Helper to return EXACT CPC metrics matching the system's live algorithms (with intelligent fallback benchmark imputation for 0 TL CPCs)
    */
   public static sanitizeKeyword(
     k: KeywordMetric,
@@ -275,8 +275,23 @@ export class ExportService {
     avgCpc: number;
     isEstimated: boolean;
   } {
-    let rawLow = Number(k.rawLowCpc !== undefined ? k.rawLowCpc : k.lowCpc) || 0;
-    let rawHigh = Number(k.rawHighCpc !== undefined ? k.rawHighCpc : k.highCpc) || 0;
+    // 1. If keyword already has positive computed/imputed CPCs in active state, prioritize them directly!
+    const directLow = Number(k.lowCpc) || 0;
+    const directHigh = Number(k.highCpc) || 0;
+    const isEstimatedFlag = Boolean(k.isCpcEstimated || (k.rawLowCpc !== undefined && k.rawLowCpc <= 0.05));
+
+    if (directLow > 0.05 && directHigh > 0.05) {
+      return {
+        lowCpc: Math.round(directLow * 100) / 100,
+        highCpc: Math.round(directHigh * 100) / 100,
+        avgCpc: Math.round(((directLow + directHigh) / 2) * 100) / 100,
+        isEstimated: isEstimatedFlag
+      };
+    }
+
+    // 2. If directLow or directHigh are missing or 0, fallback to raw or geoCpc
+    let rawLow = Number(k.rawLowCpc !== undefined && k.rawLowCpc > 0 ? k.rawLowCpc : directLow) || 0;
+    let rawHigh = Number(k.rawHighCpc !== undefined && k.rawHighCpc > 0 ? k.rawHighCpc : directHigh) || 0;
 
     // Check geoCpc if raw values are 0
     if (rawLow <= 0.05 && rawHigh <= 0.05 && k.geoCpc) {
@@ -333,7 +348,7 @@ export class ExportService {
       finalHigh = Math.round(rawLow * 2.8 * mult * 100) / 100;
       isEstimated = true;
     } else {
-      // Both are missing or <= 0.05 -> perform intelligent benchmark imputation
+      // Both are missing or <= 0.05 -> perform intelligent benchmark imputation matching the system
       finalLow = Math.max(1.50, Math.round(bLow * mult * semanticFactor * 100) / 100);
       finalHigh = Math.max(Math.round(finalLow * 1.6 * 100) / 100, Math.round(bHigh * mult * semanticFactor * 100) / 100);
       isEstimated = true;
