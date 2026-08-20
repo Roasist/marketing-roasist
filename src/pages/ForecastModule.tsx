@@ -1305,8 +1305,10 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   const syncActiveSubCampaign = () => {
     setSubCampaigns(prev => prev.map(c => {
       if (c.id !== activeSubCampaignId) return c;
-      const selectedKws = Array.from(selectedKeywordIds).map(id => keywords.find(k => k.id === id)).filter(Boolean) as KeywordMetric[];
-      const hasKeywords = keywords.length > 0 || selectedKws.length > 0;
+      const availablePool = scopedKeywords.length > 0 ? scopedKeywords : imputedKeywords;
+      const selectedKws = Array.from(selectedKeywordIds).map(id => availablePool.find(k => k.id === id)).filter(Boolean) as KeywordMetric[];
+      const effectiveSelectedKws = selectedKws.length > 0 ? selectedKws : (availablePool.length > 0 ? availablePool : (c.selectedKeywords || []));
+      const effectiveDiscoveredKws = availablePool.length > 0 ? availablePool : (keywords.length > 0 ? keywords : (c.discoveredKeywords || []));
       const subBudget = (monthlyBudget !== undefined && monthlyBudget !== null && monthlyBudget > 0) ? monthlyBudget : 35000;
 
       return {
@@ -1314,8 +1316,8 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         targetUrl: mode === 'URL' ? query : '',
         seedKeywords: mode === 'KEYWORDS' ? query : '',
         monthlyBudget: subBudget,
-        discoveredKeywords: keywords,
-        selectedKeywords: selectedKws,
+        discoveredKeywords: effectiveDiscoveredKws,
+        selectedKeywords: effectiveSelectedKws,
         negativeCategories,
         targetLocations: selectedLocations,
         businessModel,
@@ -1346,7 +1348,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           gdnCtr,
           gdnAssistedCr
         },
-        simulationResult: hasKeywords ? simulation : undefined,
+        simulationResult: effectiveDiscoveredKws.length > 0 ? simulation : simulation,
         metaSimulationResult: metaSimulation,
         youtubeSimulationResult: youtubeSimulation,
         gdnSimulationResult: gdnSimulation
@@ -3095,7 +3097,11 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     try {
       isApplyingSubCampaignRef.current = true;
       // First sync current active sub campaign
-      const selectedKws = Array.from(selectedKeywordIds).map(id => keywords.find(k => k.id === id)).filter(Boolean) as KeywordMetric[];
+      const availablePool = scopedKeywords.length > 0 ? scopedKeywords : imputedKeywords;
+      const selectedKws = Array.from(selectedKeywordIds).map(id => availablePool.find(k => k.id === id)).filter(Boolean) as KeywordMetric[];
+      const effectiveSelectedKws = selectedKws.length > 0 ? selectedKws : (availablePool.length > 0 ? availablePool : []);
+      const effectiveDiscoveredKws = availablePool.length > 0 ? availablePool : (keywords.length > 0 ? keywords : []);
+
       const updatedSubCampaigns = subCampaigns.map(c => {
         if (c.id !== activeSubCampaignId) return c;
         return {
@@ -3103,8 +3109,8 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           targetUrl: mode === 'URL' ? query : '',
           seedKeywords: mode === 'KEYWORDS' ? query : '',
           monthlyBudget,
-          discoveredKeywords: keywords,
-          selectedKeywords: selectedKws,
+          discoveredKeywords: effectiveDiscoveredKws,
+          selectedKeywords: effectiveSelectedKws,
           negativeCategories,
           targetLocations: selectedLocations,
           businessModel,
