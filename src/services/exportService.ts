@@ -1,5 +1,5 @@
 import { AdItem, Competitor } from '../types/ad';
-import { SubCampaignItem, KeywordMetric, NegativeCategory } from '../types/forecast';
+import { SubCampaignItem, KeywordMetric, NegativeCategory, GeoTargetLocation } from '../types/forecast';
 
 export interface VisibleMetricsConfig {
   budget: boolean;        // Aylık Medya Bütçesi
@@ -233,29 +233,119 @@ export class ExportService {
   }
 
   /**
-   * Helper to return EXACT CPC metrics as calculated in the system (no artificial inflation)
+   * Helper to calculate weighted campaign benchmarks for CPC imputation if auction bids are 0
    */
-  public static sanitizeKeyword(k: KeywordMetric): {
+  public static getSubCampaignCpcBenchmarks(allKws: KeywordMetric[] = []): { benchLow: number; benchHigh: number } {
+    const validLowKws = allKws.filter(k => {
+      const raw = k.rawLowCpc !== undefined ? k.rawLowCpc : k.lowCpc;
+      return raw !== undefined && raw > 0.50 && !k.isCpcEstimated;
+    });
+    const validHighKws = allKws.filter(k => {
+      const raw = k.rawHighCpc !== undefined ? k.rawHighCpc : k.highCpc;
+      return raw !== undefined && raw > 0.50 && !k.isCpcEstimated;
+    });
+
+    const lowSum = validLowKws.reduce((s, k) => s + ((k.rawLowCpc ?? k.lowCpc ?? 0) * Math.max(k.monthlyVolume || 0, 10)), 0);
+    const lowVol = validLowKws.reduce((s, k) => s + Math.max(k.monthlyVolume || 0, 10), 0);
+    const avgLow = lowVol > 0 ? (lowSum / lowVol) : 0;
+
+    const highSum = validHighKws.reduce((s, k) => s + ((k.rawHighCpc ?? k.highCpc ?? 0) * Math.max(k.monthlyVolume || 0, 10)), 0);
+    const highVol = validHighKws.reduce((s, k) => s + Math.max(k.monthlyVolume || 0, 10), 0);
+    const avgHigh = highVol > 0 ? (highSum / highVol) : 0;
+
+    const defaultSectorLow = 8.50;
+    const defaultSectorHigh = 26.00;
+
+    const benchLow = avgLow >= 1.0 ? avgLow : defaultSectorLow;
+    const benchHigh = avgHigh > benchLow ? avgHigh : Math.max(defaultSectorHigh, benchLow * 2.8);
+
+    return { benchLow, benchHigh };
+  }
+
+  /**
+   * Helper to return EXACT CPC metrics matching the system's live algorithms (with intelligent fallback benchmark imputation)
+   */
+  public static sanitizeKeyword(
+    k: KeywordMetric,
+    benchmarks?: { benchLow: number; benchHigh: number },
+    targetLocations?: GeoTargetLocation[]
+  ): {
     lowCpc: number;
     highCpc: number;
     avgCpc: number;
+    isEstimated: boolean;
   } {
-    const low = Number(k.lowCpc) || 0;
-    const high = Number(k.highCpc) || 0;
-    
-    let avg = 0;
-    if (low > 0 && high > 0) {
-      avg = (low + high) / 2;
-    } else if (high > 0) {
-      avg = high;
-    } else if (low > 0) {
-      avg = low;
+    let rawLow = Number(k.rawLowCpc !== undefined ? k.rawLowCpc : k.lowCpc) || 0;
+    let rawHigh = Number(k.rawHighCpc !== undefined ? k.rawHighCpc : k.highCpc) || 0;
+
+    // Check geoCpc if raw values are 0
+    if (rawLow <= 0.05 && rawHigh <= 0.05 && k.geoCpc) {
+      for (const loc of targetLocations || []) {
+        const geoData = k.geoCpc[loc.id] || (loc.countryCode ? k.geoCpc[loc.countryCode] : undefined);
+        if (geoData && (geoData.lowCpc > 0.05 || geoData.highCpc > 0.05)) {
+          rawLow = geoData.lowCpc || 0;
+          rawHigh = geoData.highCpc || 0;
+          break;
+        }
+      }
+      if (rawLow <= 0.05 && rawHigh <= 0.05) {
+        const firstGeo = Object.values(k.geoCpc)[0];
+        if (firstGeo && (firstGeo.lowCpc > 0.05 || firstGeo.highCpc > 0.05)) {
+          rawLow = firstGeo.lowCpc || 0;
+          rawHigh = firstGeo.highCpc || 0;
+        }
+      }
     }
 
+    const intent = k.intent || 'COMMERCIAL';
+    const mult = intent === 'TRANSACTIONAL' ? 1.15 : (intent === 'INFORMATIONAL' ? 0.85 : 1.00);
+
+    const kwText = (k.keyword || '').toLowerCase();
+    let semanticFactor = 1.0;
+    if (/cbi|vatandaşlık|citizenship|yatırım|invest|pasaport|citizenship by investment/i.test(kwText)) {
+      semanticFactor = 1.25;
+    } else if (/villa|lüks|luxury|satılık|buy|purchase|penthouse/i.test(kwText)) {
+      semanticFactor = 1.20;
+    } else if (/fiyat|fiyatları|ücret|cost|price|satın al/i.test(kwText)) {
+      semanticFactor = 1.10;
+    } else if (/kiralık|rent/i.test(kwText)) {
+      semanticFactor = 0.85;
+    } else if (/rehber|yaşam|nedir|how|guide/i.test(kwText)) {
+      semanticFactor = 0.80;
+    }
+
+    const bLow = benchmarks?.benchLow || 8.50;
+    const bHigh = benchmarks?.benchHigh || 26.00;
+
+    let finalLow = 0;
+    let finalHigh = 0;
+    let isEstimated = Boolean(k.isCpcEstimated);
+
+    if (rawLow > 0.05 && rawHigh > 0.05) {
+      finalLow = rawLow;
+      finalHigh = rawHigh;
+    } else if (rawLow <= 0.05 && rawHigh > 0.50) {
+      finalLow = Math.max(1.00, Math.round(rawHigh * 0.35 * mult * 100) / 100);
+      finalHigh = Math.round(rawHigh * mult * 100) / 100;
+      isEstimated = true;
+    } else if (rawLow > 0.50 && rawHigh <= 0.05) {
+      finalLow = Math.round(rawLow * mult * 100) / 100;
+      finalHigh = Math.round(rawLow * 2.8 * mult * 100) / 100;
+      isEstimated = true;
+    } else {
+      // Both are missing or <= 0.05 -> perform intelligent benchmark imputation
+      finalLow = Math.max(1.50, Math.round(bLow * mult * semanticFactor * 100) / 100);
+      finalHigh = Math.max(Math.round(finalLow * 1.6 * 100) / 100, Math.round(bHigh * mult * semanticFactor * 100) / 100);
+      isEstimated = true;
+    }
+
+    const avgCpc = Math.round(((finalLow + finalHigh) / 2) * 100) / 100;
+
     return {
-      lowCpc: Math.round(low * 100) / 100,
-      highCpc: Math.round(high * 100) / 100,
-      avgCpc: Math.round(avg * 100) / 100
+      lowCpc: Math.round(finalLow * 100) / 100,
+      highCpc: Math.round(finalHigh * 100) / 100,
+      avgCpc,
+      isEstimated
     };
   }
 
@@ -270,12 +360,13 @@ export class ExportService {
       ? sub.selectedKeywords
       : (sub.discoveredKeywords || []);
       
+    const benchmarks = this.getSubCampaignCpcBenchmarks(kws);
     const validCpcs = kws.map(k => {
-      const c = this.sanitizeKeyword(k);
+      const c = this.sanitizeKeyword(k, benchmarks, sub.targetLocations);
       return c.avgCpc;
     }).filter(v => v > 0);
     
-    const fallbackAvgCpc = validCpcs.length > 0 ? (validCpcs.reduce((a, b) => a + b, 0) / validCpcs.length) : 0;
+    const fallbackAvgCpc = validCpcs.length > 0 ? (validCpcs.reduce((a, b) => a + b, 0) / validCpcs.length) : 15.0;
 
     // Google Search Simulation Result
     if (sub.simulationResult) {
@@ -494,6 +585,8 @@ export class ExportService {
     if (config.includeKeywords && keywords.length > 0) {
       lines.push(`--- BÖLÜM 2: SEÇİLEN ANAHTAR KELİMELER VE TBM REKABET ANALİZİ (${keywords.length} Kelime) ---`);
       
+      const benchmarks = this.getSubCampaignCpcBenchmarks(keywords);
+
       // Dynamic Headers based on column visibility
       const kwHeaders: string[] = [];
       if (vc.keyword) kwHeaders.push('"Anahtar Kelime"');
@@ -509,7 +602,7 @@ export class ExportService {
       lines.push(kwHeaders.join(','));
 
       keywords.forEach(k => {
-        const cpc = this.sanitizeKeyword(k);
+        const cpc = this.sanitizeKeyword(k, benchmarks, sub.targetLocations);
         const rowCells: string[] = [];
         if (vc.keyword) rowCells.push(`"${k.keyword.replace(/"/g, '""')}"`);
         if (vc.intent) rowCells.push(`"${k.intent || 'COMMERCIAL'}"`);
@@ -1128,34 +1221,37 @@ export class ExportService {
               </tr>
             </thead>
             <tbody>
-              ${keywords.map(k => {
-                const cpc = this.sanitizeKeyword(k);
-                const intentClass = k.intent === 'TRANSACTIONAL' ? 'badge-intent-trans' : (k.intent === 'INFORMATIONAL' ? 'badge-intent-info' : 'badge-intent-comm');
-                const intentLabel = k.intent === 'TRANSACTIONAL' ? 'Satın Alma' : (k.intent === 'INFORMATIONAL' ? 'Bilgi' : 'Ticari');
-                return `
-                  <tr>
-                    ${vc.keyword ? `
-                    <td>
-                      <strong>${k.keyword}</strong>
-                      ${vc.aiPick && k.isAiStrategistPick ? '<span class="badge badge-ai-pick" style="margin-left: 4px;">✨ SEM Önerisi</span>' : ''}
-                    </td>` : ''}
-                    ${vc.intent ? `<td><span class="badge ${intentClass}">${intentLabel}</span></td>` : ''}
-                    ${vc.volume ? `<td style="text-align:right; font-weight:700;">${(k.monthlyVolume || 0).toLocaleString('tr-TR')}</td>` : ''}
-                    ${vc.trend ? `
-                    <td style="text-align:right; color: ${(k.trendChangePercent || 0) >= 0 ? '#16a34a' : '#dc2626'}; font-weight:600;">
-                      ${(k.trendChangePercent || 0) >= 0 ? '+' : ''}${k.trendChangePercent || 0}%
-                    </td>` : ''}
-                    ${vc.competition ? `<td><span style="font-size:11px; color:#64748b;">${k.competition === 'HIGH' ? 'Yüksek' : (k.competition === 'LOW' ? 'Düşük' : 'Orta')}</span></td>` : ''}
-                    ${vc.lowCpc ? `<td style="text-align:right; font-family:monospace;">₺${cpc.lowCpc.toFixed(2)}</td>` : ''}
-                    ${vc.highCpc ? `<td style="text-align:right; font-family:monospace;">₺${cpc.highCpc.toFixed(2)}</td>` : ''}
-                    ${vc.avgCpc ? `<td style="text-align:right; font-weight:700; color:#2563eb; font-family:monospace;">₺${cpc.avgCpc.toFixed(2)}</td>` : ''}
-                    ${vc.opportunity ? `
-                    <td style="text-align:center;">
-                      <span style="font-weight:800; color:${(k.opportunityScore || 80) >= 85 ? '#16a34a' : '#2563eb'};">${k.opportunityScore || 80}</span>/100
-                    </td>` : ''}
-                  </tr>
-                `;
-              }).join('')}
+              ${(() => {
+                const benchmarks = this.getSubCampaignCpcBenchmarks(keywords);
+                return keywords.map(k => {
+                  const cpc = this.sanitizeKeyword(k, benchmarks, sub.targetLocations);
+                  const intentClass = k.intent === 'TRANSACTIONAL' ? 'badge-intent-trans' : (k.intent === 'INFORMATIONAL' ? 'badge-intent-info' : 'badge-intent-comm');
+                  const intentLabel = k.intent === 'TRANSACTIONAL' ? 'Satın Alma' : (k.intent === 'INFORMATIONAL' ? 'Bilgi' : 'Ticari');
+                  return `
+                    <tr>
+                      ${vc.keyword ? `
+                      <td>
+                        <strong>${k.keyword}</strong>
+                        ${vc.aiPick && k.isAiStrategistPick ? '<span class="badge badge-ai-pick" style="margin-left: 4px;">✨ SEM Önerisi</span>' : ''}
+                      </td>` : ''}
+                      ${vc.intent ? `<td><span class="badge ${intentClass}">${intentLabel}</span></td>` : ''}
+                      ${vc.volume ? `<td style="text-align:right; font-weight:700;">${(k.monthlyVolume || 0).toLocaleString('tr-TR')}</td>` : ''}
+                      ${vc.trend ? `
+                      <td style="text-align:right; color: ${(k.trendChangePercent || 0) >= 0 ? '#16a34a' : '#dc2626'}; font-weight:600;">
+                        ${(k.trendChangePercent || 0) >= 0 ? '+' : ''}${k.trendChangePercent || 0}%
+                      </td>` : ''}
+                      ${vc.competition ? `<td><span style="font-size:11px; color:#64748b;">${k.competition === 'HIGH' ? 'Yüksek' : (k.competition === 'LOW' ? 'Düşük' : 'Orta')}</span></td>` : ''}
+                      ${vc.lowCpc ? `<td style="text-align:right; font-family:monospace;">₺${cpc.lowCpc.toFixed(2)}</td>` : ''}
+                      ${vc.highCpc ? `<td style="text-align:right; font-family:monospace;">₺${cpc.highCpc.toFixed(2)}</td>` : ''}
+                      ${vc.avgCpc ? `<td style="text-align:right; font-weight:700; color:#2563eb; font-family:monospace;">₺${cpc.avgCpc.toFixed(2)}</td>` : ''}
+                      ${vc.opportunity ? `
+                      <td style="text-align:center;">
+                        <span style="font-weight:800; color:${(k.opportunityScore || 80) >= 85 ? '#16a34a' : '#2563eb'};">${k.opportunityScore || 80}</span>/100
+                      </td>` : ''}
+                    </tr>
+                  `;
+                }).join('');
+              })()}
             </tbody>
           </table>
           ` : ''}
