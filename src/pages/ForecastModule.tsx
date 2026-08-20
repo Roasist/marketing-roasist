@@ -2607,14 +2607,6 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       locGeoCpcData[locKey] = { weightedCpcSum, volSum: volForCpc, simpleCpcSum, count: cpcCount };
     }
 
-    // Calculate the baseline average CPC of the active pool (fully imputed with realistic values)
-    const poolAvgCpc = activePool.length > 0
-      ? (activePool.reduce((sum, k) => sum + (((Number(k.lowCpc) || 0) + (Number(k.highCpc) || 0)) / 2), 0) / activePool.length)
-      : (avgTopPageCpc || 25.0);
-
-    const totalAllKeywordsVol = activePool.reduce((s, k) => s + (k.monthlyVolume || 0), 0);
-    const totalLocationsReach = selectedLocations.reduce((s, l) => s + (l.reach || 10000000), 0);
-
     const items: CountryMetric[] = selectedLocations.map(loc => {
       const locKey = String(loc.id);
       const off = findOfficial(loc);
@@ -2622,26 +2614,12 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
       // 1. Ülkenin Toplam Hacmi: Seçili kelimelerin o ülkedeki geoVolumes toplamı
       let cVol = 0;
-      if (poolHasAnyGeoVolume && locGeoVolumes[locKey] !== undefined && locGeoVolumes[locKey] > 0) {
+      if (poolHasAnyGeoVolume && locGeoVolumes[locKey] !== undefined) {
         cVol = locGeoVolumes[locKey];
-      } else if (off && (off.monthlyVolume || 0) > 0) {
+      } else if (off && off.monthlyVolume !== undefined) {
         cVol = off.monthlyVolume;
       } else {
-        // Find sibling locations in the same country that have volume
-        const locCc = (loc.countryCode || '').toUpperCase();
-        const sameCountryLocations = selectedLocations.filter(sl => (sl.countryCode || '').toUpperCase() === locCc);
-        const siblingWithVol = sameCountryLocations.map(sl => ({ loc: sl, vol: locGeoVolumes[String(sl.id)] || 0 })).filter(s => s.vol > 0);
-
-        if (siblingWithVol.length > 0) {
-          const avgSiblingVol = siblingWithVol.reduce((s, x) => s + x.vol, 0) / siblingWithVol.length;
-          const locReach = loc.reach || 1000000;
-          const refReach = siblingWithVol[0].loc.reach || 1000000;
-          const reachRatio = Math.min(2.5, Math.max(0.4, locReach / refReach));
-          cVol = Math.max(10, Math.round(avgSiblingVol * reachRatio));
-        } else {
-          const reachShare = totalLocationsReach > 0 ? ((loc.reach || 10000000) / totalLocationsReach) : (1 / selectedLocations.length);
-          cVol = Math.max(10, Math.round(totalAllKeywordsVol * reachShare));
-        }
+        cVol = 0;
       }
 
       // 2. Ülkenin Ortalama TBM'si: Seçili kelimelerin hacim ağırlıklı veya doğrudan ortalama TBM'si (yapay ülke katsayısı eklenmez)
@@ -2653,7 +2631,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       } else if (off && (off.avgCpc || 0) > 0) {
         locBaseCpc = off.avgCpc;
       } else {
-        locBaseCpc = poolAvgCpc;
+        locBaseCpc = 0;
       }
 
       const finalCpc = Number((locBaseCpc * scenarioMultiplier.cpcMult).toFixed(2));
@@ -2680,7 +2658,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       item.estConversions = Math.round((simulation.estConversions || 0) * share);
     });
 
-    return items.sort((a, b) => b.monthlyVolume - a.monthlyVolume);
+    return items;
   }, [
     selectedLocations,
     selectedKeywordsPool,
@@ -2761,14 +2739,36 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
     const targetGeoId = String(activeScopeMetric?.id || activeScopeLocation?.id || '');
     const cleanGeoId = targetGeoId.replace(/[^0-9]/g, '');
+    const locCc = (activeScopeLocation?.countryCode || '').toUpperCase();
+    const poolHasGeoData = imputedKeywords.some(k => k.geoVolumes && Object.keys(k.geoVolumes).length > 0);
 
     return imputedKeywords.map(k => {
       // 1. Direct official Google Ads volume for this exact location
-      const directLocVol = k.geoVolumes ? (
-        k.geoVolumes[cleanGeoId] !== undefined ? k.geoVolumes[cleanGeoId] :
-        (k.geoVolumes[targetGeoId] !== undefined ? k.geoVolumes[targetGeoId] :
-        k.geoVolumes['geoTargetConstants/' + cleanGeoId])
-      ) : undefined;
+      let directLocVol: number | undefined = undefined;
+      if (k.geoVolumes && Object.keys(k.geoVolumes).length > 0) {
+        const keysToTry = [
+          cleanGeoId,
+          targetGeoId,
+          `geoTargetConstants/${cleanGeoId}`,
+          locCc,
+          locCc.toLowerCase(),
+          activeScopeLocation?.name?.toLowerCase(),
+          activeScopeLocation?.canonicalName?.toLowerCase()
+        ].filter(Boolean) as string[];
+
+        for (const key of keysToTry) {
+          if (k.geoVolumes[key] !== undefined) {
+            directLocVol = Number(k.geoVolumes[key]) || 0;
+            break;
+          }
+        }
+        if (directLocVol === undefined && poolHasGeoData) {
+          directLocVol = 0;
+        }
+      } else if (poolHasGeoData) {
+        directLocVol = 0;
+      }
+
       const directCpcObj = k.geoCpc ? (
         k.geoCpc[cleanGeoId] || k.geoCpc[targetGeoId] || k.geoCpc['geoTargetConstants/' + cleanGeoId]
       ) : undefined;

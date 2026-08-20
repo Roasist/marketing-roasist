@@ -716,29 +716,6 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
         }
     }
 
-    // Sibling imputation for regions where Google Ads returned 0 results
-    $countryVols = [];
-    foreach ($breakdown as $b) {
-        $cCode = $b['code'] ?? 'XX';
-        if ($b['monthlyVolume'] > 0) {
-            $countryVols[$cCode][] = $b['monthlyVolume'];
-        }
-    }
-
-    foreach ($breakdown as &$b) {
-        if ($b['monthlyVolume'] <= 0) {
-            $cCode = $b['code'] ?? 'XX';
-            if (!empty($countryVols[$cCode])) {
-                $avgSib = round(array_sum($countryVols[$cCode]) / count($countryVols[$cCode]));
-                $b['monthlyVolume'] = max(10, $avgSib);
-            } else {
-                $b['monthlyVolume'] = 50;
-            }
-            $totalBreakdownVol += $b['monthlyVolume'];
-        }
-    }
-    unset($b);
-
     // Calculate benchmark market CPC and max volume
     $maxVol = 0;
     $validCpcSum = 0;
