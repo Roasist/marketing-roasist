@@ -577,7 +577,8 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
         }
 
         if (!empty($topSeeds)) {
-            $seedBatches = array_chunk($topSeeds, 20);
+            $prioritizedSeeds = array_slice($topSeeds, 0, 60);
+            $seedBatches = array_chunk($prioritizedSeeds, 20);
             foreach ($seedBatches as $seedList) {
                 $allRequests[] = [
                     'geoId' => $geoId,
@@ -618,7 +619,7 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
         }
     }
 
-    $requestBatches = array_chunk($allRequests, 6);
+    $requestBatches = array_chunk($allRequests, 14);
 
     foreach ($requestBatches as $batchIdx => $batch) {
         $mh = curl_multi_init();

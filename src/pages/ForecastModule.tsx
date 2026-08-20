@@ -2494,12 +2494,13 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     const fetchBreakdown = async () => {
       setIsLoadingLocationBreakdown(true);
       try {
+        const targetKws = selectedKeywordsPool.length > 0 ? selectedKeywordsPool : keywords.slice(0, 50);
         const res = await ApiService.getLocationBreakdown({
-          query: mode === 'URL' ? query : keywords.map(k => k.keyword).join(', '),
+          query: mode === 'URL' ? query : targetKws.map(k => k.keyword).join(', '),
           mode,
           language: detectedLanguage || 'tr',
           geoTargetConstants: selectedLocations.map(l => l.id),
-          keywords: keywords,
+          keywords: targetKws,
           locations: selectedLocations
         });
         if (isMounted && res) {
@@ -2534,12 +2535,12 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       }
     };
 
-    const timeout = setTimeout(fetchBreakdown, 500);
+    const timeout = setTimeout(fetchBreakdown, 300);
     return () => {
       isMounted = false;
       clearTimeout(timeout);
     };
-  }, [selectedLocations, keywords, detectedLanguage, mode, query]);
+  }, [selectedLocations, detectedLanguage, mode, query, selectedKeywordIds.size]);
 
   // Location / Country Breakdown Metrics with Real Google Ads API data & Keyword GeoVolumes
   const countryBreakdown: CountryMetric[] = useMemo(() => {
