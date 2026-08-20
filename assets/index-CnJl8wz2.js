@@ -697,22 +697,6 @@ Error generating stack: `+s.message+`
           </div>
           `:""}
 
-          <!-- Channel & Funnel Setup Parameters -->
-          ${l.includeChannelParameters&&r.parameters?`
-          <div class="section-title">
-            <span>⚙️</span>
-            <span>Kanal & Simülasyon Hesaplama Parametreleri</span>
-          </div>
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 18px; margin-bottom: 20px;">
-            ${r.parameters.targetImpressionShare?`<div><strong style="display:block; font-size:11px; color:#64748b;">Hedef Gösterim Payı (IS)</strong><span style="font-weight:700; color:#0f172a;">%${r.parameters.targetImpressionShare}</span></div>`:""}
-            ${r.parameters.expectedCtr?`<div><strong style="display:block; font-size:11px; color:#64748b;">Beklenen TO (CTR)</strong><span style="font-weight:700; color:#0f172a;">%${r.parameters.expectedCtr}</span></div>`:""}
-            ${r.parameters.searchLeadCr?`<div><strong style="display:block; font-size:11px; color:#64748b;">Lead Dönüşüm Oranı (CR)</strong><span style="font-weight:700; color:#0f172a;">%${r.parameters.searchLeadCr}</span></div>`:""}
-            ${r.parameters.searchHealthyLeadRate?`<div><strong style="display:block; font-size:11px; color:#64748b;">Nitelikli Lead Oranı</strong><span style="font-weight:700; color:#0f172a;">%${r.parameters.searchHealthyLeadRate}</span></div>`:""}
-            ${r.parameters.searchCloseRate?`<div><strong style="display:block; font-size:11px; color:#64748b;">Satış Kapatma Oranı</strong><span style="font-weight:700; color:#0f172a;">%${r.parameters.searchCloseRate}</span></div>`:""}
-            ${r.parameters.avgDealValue?`<div><strong style="display:block; font-size:11px; color:#64748b;">Ort. Anlaşma Tutarı</strong><span style="font-weight:700; color:#0f172a;">₺${r.parameters.avgDealValue.toLocaleString("tr-TR")}</span></div>`:""}
-          </div>
-          `:""}
-
           <!-- Strategic Notes -->
           ${l.includeStrategicNotes?`
           <div class="section-title">
