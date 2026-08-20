@@ -522,7 +522,6 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
             if (isset($seenSeed[$kLower])) continue;
             $seenSeed[$kLower] = true;
             $topSeeds[] = $kText;
-            if (count($topSeeds) >= 20) break;
         }
     }
 
@@ -532,13 +531,16 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
         'IT' => '🇮🇹', 'ES' => '🇪🇸', 'NL' => '🇳🇱', 'SA' => '🇸🇦',
         'QA' => '🇶🇦', 'AZ' => '🇦🇿', 'UA' => '🇺🇦', 'CH' => '🇨🇭',
         'AT' => '🇦🇹', 'SE' => '🇸🇪', 'NO' => '🇳🇴', 'CA' => '🇨🇦',
-        'KG' => '🇰🇬', 'UZ' => '🇺🇿'
+        'KG' => '🇰🇬', 'UZ' => 'UZ'
     ];
 
-    $geoBatches = array_chunk($geoConstants, 4);
     $breakdown = [];
     $totalBreakdownVol = 0;
     $keywordGeoMap = [];
+    $geoVolSum = [];
+    $geoCpcSum = [];
+    $geoLowCpcSum = [];
+    $geoCpcCount = [];
 
     // Pre-initialize all official keywords for all locations with 0 to prevent undefined geoVolumes
     if (!empty($officialKeywords) && is_array($officialKeywords)) {
@@ -552,44 +554,89 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
                     'lowCpc' => 0.0,
                     'highCpc' => 0.0
                 ];
+                if (!isset($geoVolSum[$geoId])) {
+                    $geoVolSum[$geoId] = 0;
+                    $geoCpcSum[$geoId] = 0.0;
+                    $geoLowCpcSum[$geoId] = 0.0;
+                    $geoCpcCount[$geoId] = 0;
+                }
             }
         }
     }
 
-    foreach ($geoBatches as $batchIdx => $batch) {
+    // Build all requests: chunk seeds into 20s for every single region
+    $allRequests = [];
+    foreach ($geoConstants as $geo) {
+        $geoResource = strpos($geo, 'geoTargetConstants/') === 0 ? $geo : "geoTargetConstants/{$geo}";
+        $geoId = preg_replace('/[^0-9]/', '', $geo);
+        if (!isset($geoVolSum[$geoId])) {
+            $geoVolSum[$geoId] = 0;
+            $geoCpcSum[$geoId] = 0.0;
+            $geoLowCpcSum[$geoId] = 0.0;
+            $geoCpcCount[$geoId] = 0;
+        }
+
+        if (!empty($topSeeds)) {
+            $seedBatches = array_chunk($topSeeds, 20);
+            foreach ($seedBatches as $seedList) {
+                $allRequests[] = [
+                    'geoId' => $geoId,
+                    'geoResource' => $geoResource,
+                    'payload' => [
+                        "keywordPlanNetwork" => "GOOGLE_SEARCH",
+                        "language" => $langConst,
+                        "geoTargetConstants" => [$geoResource],
+                        "keywordSeed" => ["keywords" => $seedList]
+                    ]
+                ];
+            }
+        } elseif ($mode === 'URL' && !empty($query) && preg_match('/^https?:\/\//i', $query)) {
+            $allRequests[] = [
+                'geoId' => $geoId,
+                'geoResource' => $geoResource,
+                'payload' => [
+                    "keywordPlanNetwork" => "GOOGLE_SEARCH",
+                    "language" => $langConst,
+                    "geoTargetConstants" => [$geoResource],
+                    "urlSeed" => ["url" => $query]
+                ]
+            ];
+        } else {
+            $cleanSite = preg_replace('/^https?:\/\//i', '', $query);
+            $cleanSite = preg_replace('/^www\./i', '', $cleanSite);
+            $cleanSite = explode('/', $cleanSite)[0];
+            $allRequests[] = [
+                'geoId' => $geoId,
+                'geoResource' => $geoResource,
+                'payload' => [
+                    "keywordPlanNetwork" => "GOOGLE_SEARCH",
+                    "language" => $langConst,
+                    "geoTargetConstants" => [$geoResource],
+                    "siteSeed" => ["siteUrl" => "https://{$cleanSite}"]
+                ]
+            ];
+        }
+    }
+
+    $requestBatches = array_chunk($allRequests, 6);
+
+    foreach ($requestBatches as $batchIdx => $batch) {
         $mh = curl_multi_init();
         $curlHandles = [];
 
-        foreach ($batch as $geo) {
-            $geoResource = strpos($geo, 'geoTargetConstants/') === 0 ? $geo : "geoTargetConstants/{$geo}";
-            $payload = [
-                "keywordPlanNetwork" => "GOOGLE_SEARCH",
-                "language" => $langConst,
-                "geoTargetConstants" => [$geoResource]
-            ];
-            if (!empty($topSeeds)) {
-                $payload["keywordSeed"] = ["keywords" => array_slice($topSeeds, 0, 20)];
-            } elseif ($mode === 'URL' && !empty($query) && preg_match('/^https?:\/\//i', $query)) {
-                $payload["urlSeed"] = ["url" => $query];
-            } else {
-                $cleanSite = preg_replace('/^https?:\/\//i', '', $query);
-                $cleanSite = preg_replace('/^www\./i', '', $cleanSite);
-                $cleanSite = explode('/', $cleanSite)[0];
-                $payload["siteSeed"] = ["siteUrl" => "https://{$cleanSite}"];
-            }
-
+        foreach ($batch as $reqIdx => $req) {
             $chLoc = curl_init("https://googleads.googleapis.com/v22/customers/{$customerId}:generateKeywordIdeas");
             curl_setopt($chLoc, CURLOPT_POST, true);
-            curl_setopt($chLoc, CURLOPT_POSTFIELDS, json_encode($payload));
+            curl_setopt($chLoc, CURLOPT_POSTFIELDS, json_encode($req['payload']));
             curl_setopt($chLoc, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($chLoc, CURLOPT_TIMEOUT, 12);
+            curl_setopt($chLoc, CURLOPT_TIMEOUT, 14);
             curl_setopt($chLoc, CURLOPT_HTTPHEADER, [
                 "Authorization: Bearer {$accessToken}",
                 "developer-token: {$devToken}",
                 "Content-Type: application/json"
             ]);
             curl_multi_add_handle($mh, $chLoc);
-            $curlHandles[$geo] = $chLoc;
+            $curlHandles[] = ['ch' => $chLoc, 'req' => $req];
         }
 
         $active = null;
@@ -610,68 +657,23 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
             }
         }
 
-        foreach ($curlHandles as $geo => $chLoc) {
-            $geoId = preg_replace('/[^0-9]/', '', $geo);
+        foreach ($curlHandles as $hData) {
+            $chLoc = $hData['ch'];
+            $req = $hData['req'];
+            $geoId = $req['geoId'];
             $resp = curl_multi_getcontent($chLoc);
             $httpCode = curl_getinfo($chLoc, CURLINFO_HTTP_CODE);
             curl_multi_remove_handle($mh, $chLoc);
             curl_close($chLoc);
 
-            $json = json_decode($resp, true);
-            if ($httpCode === 429 || empty($json['results'])) {
-                usleep(300000);
-                $geoResource = strpos($geo, 'geoTargetConstants/') === 0 ? $geo : "geoTargetConstants/{$geo}";
-                $retryPayload = [
-                    "keywordPlanNetwork" => "GOOGLE_SEARCH",
-                    "language" => $langConst,
-                    "geoTargetConstants" => [$geoResource]
-                ];
-                if (!empty($topSeeds)) {
-                    $retryPayload["keywordSeed"] = ["keywords" => array_slice($topSeeds, 0, 20)];
-                } elseif ($mode === 'URL' && !empty($query) && preg_match('/^https?:\/\//i', $query)) {
-                    $retryPayload["urlSeed"] = ["url" => $query];
-                } else {
-                    $cleanSite = preg_replace('/^https?:\/\//i', '', $query);
-                    $cleanSite = preg_replace('/^www\./i', '', $cleanSite);
-                    $cleanSite = explode('/', $cleanSite)[0];
-                    $retryPayload["siteSeed"] = ["siteUrl" => "https://{$cleanSite}"];
-                }
-                $retryCh = curl_init("https://googleads.googleapis.com/v22/customers/{$customerId}:generateKeywordIdeas");
-                curl_setopt($retryCh, CURLOPT_POST, true);
-                curl_setopt($retryCh, CURLOPT_POSTFIELDS, json_encode($retryPayload));
-                curl_setopt($retryCh, CURLOPT_RETURNTRANSFER, true);
-                curl_setopt($retryCh, CURLOPT_TIMEOUT, 12);
-                curl_setopt($retryCh, CURLOPT_HTTPHEADER, [
-                    "Authorization: Bearer {$accessToken}",
-                    "developer-token: {$devToken}",
-                    "Content-Type: application/json"
-                ]);
-                $retryResp = curl_exec($retryCh);
-                $retryCode = curl_getinfo($retryCh, CURLINFO_HTTP_CODE);
-                curl_close($retryCh);
-                if ($retryCode === 200) {
-                    $json = json_decode($retryResp, true);
-                }
-            }
-
+            $json = ($httpCode === 200) ? json_decode($resp, true) : null;
             $results = $json['results'] ?? [];
-
-            $vol = 0;
-            $cpcSum = 0;
-            $cpcCnt = 0;
-            $lowCpcSum = 0;
 
             foreach ($results as $r) {
                 $m = $r['keywordIdeaMetrics'] ?? [];
                 $v = (int)($m['avgMonthlySearches'] ?? 0);
                 $high = (float)(($m['highTopOfPageBidMicros'] ?? 0) / 1000000);
                 $low = (float)(($m['lowTopOfPageBidMicros'] ?? 0) / 1000000);
-                $vol += $v;
-                if ($high > 0) {
-                    $cpcSum += $high;
-                    $lowCpcSum += $low;
-                    $cpcCnt++;
-                }
 
                 $kwText = $r['text'] ?? '';
                 if (!empty($kwText)) {
@@ -682,38 +684,50 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
                         'highCpc' => $high
                     ];
                 }
+
+                $geoVolSum[$geoId] += $v;
+                if ($high > 0) {
+                    $geoCpcSum[$geoId] += $high;
+                    $geoLowCpcSum[$geoId] += $low;
+                    $geoCpcCount[$geoId]++;
+                }
             }
-
-            $avgCpc = $cpcCnt > 0 ? round($cpcSum / $cpcCnt, 2) : 0.0;
-            $lowCpc = $cpcCnt > 0 ? round($lowCpcSum / $cpcCnt, 2) : 0.0;
-            $totalBreakdownVol += $vol;
-
-            $locMeta = $locMetaMap[(string)$geoId] ?? null;
-            if (!$locMeta) {
-                $locMeta = searchGoogleAdsLocations($apiKeys, $geoId, $langCode)[0] ?? null;
-            }
-            $name = $locMeta['name'] ?? "Bölge {$geoId}";
-            $canonical = $locMeta['canonicalName'] ?? $name;
-            $cc = $locMeta['countryCode'] ?? 'TR';
-            $flag = $locMeta['flag'] ?? ($flagMap[$cc] ?? '🌍');
-
-            $breakdown[] = [
-                'id' => (string)$geoId,
-                'code' => $cc,
-                'geoTargetConstant' => "geoTargetConstants/{$geoId}",
-                'name' => $name,
-                'canonicalName' => $canonical,
-                'flag' => $flag,
-                'monthlyVolume' => $vol,
-                'avgCpc' => $avgCpc,
-                'lowCpc' => $lowCpc,
-                'highCpc' => $avgCpc
-            ];
         }
         curl_multi_close($mh);
-        if ($batchIdx < count($geoBatches) - 1) {
-            usleep(60000);
+        if ($batchIdx < count($requestBatches) - 1) {
+            usleep(40000);
         }
+    }
+
+    foreach ($geoConstants as $geo) {
+        $geoId = preg_replace('/[^0-9]/', '', $geo);
+        $vol = $geoVolSum[$geoId] ?? 0;
+        $cnt = $geoCpcCount[$geoId] ?? 0;
+        $avgCpc = $cnt > 0 ? round(($geoCpcSum[$geoId] ?? 0) / $cnt, 2) : 0.0;
+        $lowCpc = $cnt > 0 ? round(($geoLowCpcSum[$geoId] ?? 0) / $cnt, 2) : 0.0;
+        $totalBreakdownVol += $vol;
+
+        $locMeta = $locMetaMap[(string)$geoId] ?? null;
+        if (!$locMeta) {
+            $locMeta = searchGoogleAdsLocations($apiKeys, $geoId, $langCode)[0] ?? null;
+        }
+        $name = $locMeta['name'] ?? "Bölge {$geoId}";
+        $canonical = $locMeta['canonicalName'] ?? $name;
+        $cc = $locMeta['countryCode'] ?? 'TR';
+        $flag = $locMeta['flag'] ?? ($flagMap[$cc] ?? '🌍');
+
+        $breakdown[] = [
+            'id' => (string)$geoId,
+            'code' => $cc,
+            'geoTargetConstant' => "geoTargetConstants/{$geoId}",
+            'name' => $name,
+            'canonicalName' => $canonical,
+            'flag' => $flag,
+            'monthlyVolume' => $vol,
+            'avgCpc' => $avgCpc,
+            'lowCpc' => $lowCpc,
+            'highCpc' => $avgCpc
+        ];
     }
 
     // Calculate benchmark market CPC and max volume
