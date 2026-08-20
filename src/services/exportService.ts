@@ -1200,15 +1200,11 @@ export class ExportService {
             <div style="font-size: 13px; color: #475569;">
               ${masterPlan?.name ? `<strong>Çatı Kampanya:</strong> ${masterPlan.name} • ` : ''}
               ${masterPlan?.clientName ? `<strong>Müşteri:</strong> ${masterPlan.clientName} • ` : ''}
-              <strong>Hedef Dil:</strong> ${lang.name}
+              <strong>Hedef Dil:</strong> ${lang.flag ? `${lang.flag} ` : ''}${lang.name}
             </div>
 
             ${config.includeGeneralInfo ? `
             <div class="campaign-details-grid">
-              <div class="detail-item">
-                <strong>Hedef Dil & Bayrak</strong>
-                <span>${lang.flag || ''} ${lang.name}</span>
-              </div>
               <div class="detail-item">
                 <strong>Hedef Lokasyonlar</strong>
                 <span style="font-size: 12px;">${locNames}</span>

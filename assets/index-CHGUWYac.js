@@ -558,15 +558,11 @@ Error generating stack: `+s.message+`
             <div style="font-size: 13px; color: #475569;">
               ${a!=null&&a.name?`<strong>Çatı Kampanya:</strong> ${a.name} • `:""}
               ${a!=null&&a.clientName?`<strong>Müşteri:</strong> ${a.clientName} • `:""}
-              <strong>Hedef Dil:</strong> ${b.name}
+              <strong>Hedef Dil:</strong> ${b.flag?`${b.flag} `:""}${b.name}
             </div>
 
             ${l.includeGeneralInfo?`
             <div class="campaign-details-grid">
-              <div class="detail-item">
-                <strong>Hedef Dil & Bayrak</strong>
-                <span>${b.flag||""} ${b.name}</span>
-              </div>
               <div class="detail-item">
                 <strong>Hedef Lokasyonlar</strong>
                 <span style="font-size: 12px;">${m}</span>
