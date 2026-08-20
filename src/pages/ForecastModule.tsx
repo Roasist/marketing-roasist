@@ -2683,6 +2683,28 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   // -------------------------------------------------------------
   // LOCATION SCOPE ADAPTIVE KEYWORD & GROUP METRICS
   // -------------------------------------------------------------
+  // Selected locations grouped & sorted primarily by Country and secondarily by City/Region Name
+  const selectedLocationsGrouped = useMemo(() => {
+    return [...selectedLocations].sort((a, b) => {
+      const getCountry = (loc: GeoTargetLocation) => {
+        if (loc.countryName) return loc.countryName;
+        if (loc.canonicalName) {
+          const parts = loc.canonicalName.split(',');
+          if (parts.length > 1) return parts[parts.length - 1].trim();
+        }
+        return loc.countryCode || loc.name;
+      };
+      const countryA = getCountry(a).toLowerCase();
+      const countryB = getCountry(b).toLowerCase();
+      if (countryA !== countryB) {
+        return countryA.localeCompare(countryB, 'tr');
+      }
+      const nameA = (a.canonicalName || a.name || '').toLowerCase();
+      const nameB = (b.canonicalName || b.name || '').toLowerCase();
+      return nameA.localeCompare(nameB, 'tr');
+    });
+  }, [selectedLocations]);
+
   const activeScopeLocation = useMemo(() => {
     if (activeLocationScope === 'ALL') return null;
     return selectedLocations.find(l => String(l.id) === String(activeLocationScope)) || null;
@@ -4841,7 +4863,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     </button>
 
                     {/* Individual Location Buttons */}
-                    {selectedLocations.map(loc => {
+                    {selectedLocationsGrouped.map(loc => {
                       const isScopeActive = activeLocationScope === String(loc.id);
                       return (
                         <div
@@ -5346,7 +5368,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                               }}
                             >
                               <option value="ALL">🌐 Tüm Lokasyonlar ({selectedLocations.length} Toplam)</option>
-                              {selectedLocations.map(loc => (
+                              {selectedLocationsGrouped.map(loc => (
                                 <option key={loc.id} value={String(loc.id)}>
                                   {loc.flag || '📍'} {loc.name} ({getLocationTypeLabel(loc.targetType)})
                                 </option>
@@ -5831,7 +5853,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     <span>•</span>
                     <span>Aylık Bütçe: <strong>₺{monthlyBudget.toLocaleString('tr-TR')}</strong></span>
                     <span>•</span>
-                    <span>Hedef Bölgeler: <strong>{selectedLocations.map(l => (l.flag || '📍') + ' ' + (l.canonicalName || l.name)).join(', ')}</strong></span>
+                    <span>Hedef Bölgeler: <strong>{selectedLocationsGrouped.map(l => (l.flag || '📍') + ' ' + (l.canonicalName || l.name)).join(', ')}</strong></span>
                   </div>
                 </div>
 
@@ -9396,7 +9418,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
               {/* Selected Chips */}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.45rem', minHeight: '38px', padding: '0.5rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-default)' }}>
-                {selectedLocations.map(loc => (
+                {selectedLocationsGrouped.map(loc => (
                   <div
                     key={loc.id}
                     style={{

@@ -50,6 +50,7 @@ export interface GeoTargetLocation {
   name: string; // e.g. "Alanya"
   canonicalName: string; // e.g. "Alanya, Antalya, Turkey"
   countryCode: string; // e.g. "TR"
+  countryName?: string;
   targetType: string; // e.g. "City", "District", "Country", "State", "Province"
   reach?: number; // e.g. 115000
   flag?: string;

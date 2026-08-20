@@ -592,7 +592,14 @@ export class ExportService {
     const vc = config.visibleKeywordColumns;
     const vp = config.visibleParameters;
     const isLeadGen = sub.businessModel !== 'ECOMMERCE';
-    const locNames = (sub.targetLocations || []).map(l => l.name).join(' | ') || 'Tüm Türkiye';
+    const sortedLocs = [...(sub.targetLocations || [])].sort((a, b) => {
+      const getC = (loc: GeoTargetLocation) => (loc.countryName || (loc.canonicalName ? loc.canonicalName.split(',').pop()?.trim() : '') || loc.countryCode || loc.name).toLowerCase();
+      const cA = getC(a);
+      const cB = getC(b);
+      if (cA !== cB) return cA.localeCompare(cB, 'tr');
+      return (a.canonicalName || a.name || '').localeCompare(b.canonicalName || b.name || '', 'tr');
+    });
+    const locNames = sortedLocs.map(l => (l.flag ? l.flag + ' ' : '') + (l.canonicalName || l.name)).join(' • ') || 'Tüm Türkiye';
     const subCampaignName = sub.name || 'Alt Kampanya';
     const lang = this.resolveSubCampaignLanguage(sub);
 
@@ -812,7 +819,14 @@ export class ExportService {
     const vc = config.visibleKeywordColumns;
     const vp = config.visibleParameters;
     const isLeadGen = sub.businessModel !== 'ECOMMERCE';
-    const locNames = (sub.targetLocations || []).map(l => l.name).join(', ') || 'Tüm Türkiye';
+    const sortedLocs = [...(sub.targetLocations || [])].sort((a, b) => {
+      const getC = (loc: GeoTargetLocation) => (loc.countryName || (loc.canonicalName ? loc.canonicalName.split(',').pop()?.trim() : '') || loc.countryCode || loc.name).toLowerCase();
+      const cA = getC(a);
+      const cB = getC(b);
+      if (cA !== cB) return cA.localeCompare(cB, 'tr');
+      return (a.canonicalName || a.name || '').localeCompare(b.canonicalName || b.name || '', 'tr');
+    });
+    const locNames = sortedLocs.map(l => (l.flag ? l.flag + ' ' : '') + (l.canonicalName || l.name)).join(', ') || 'Tüm Türkiye';
     const subCampaignName = sub.name || 'Alt Kampanya';
     const lang = this.resolveSubCampaignLanguage(sub);
 
