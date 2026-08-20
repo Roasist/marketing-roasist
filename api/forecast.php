@@ -1234,9 +1234,41 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
         }
     }
 
-    // Execute ALL individual location requests in fast parallel batches of 14!
-    $parallelResults = $executeParallelGoogleAdsCalls($requests, 14);
+    // Execute ALL individual location requests in fast parallel batches of 28!
+    $parallelResults = $executeParallelGoogleAdsCalls($requests, 28);
     $parseLocationResults($parallelResults);
+
+    // Cross-query all discovered keyword ideas across all target locations so every location has 100% complete metrics
+    if (!empty($parsedKeywords) && count($finalGeoList) > 1) {
+        $allDiscoveredTexts = array_values(array_unique(array_map(function($pk) {
+            return trim($pk['keyword'] ?? '');
+        }, $parsedKeywords)));
+        $allDiscoveredTexts = array_filter($allDiscoveredTexts);
+
+        $crossRequests = [];
+        $discoveredBatches = array_chunk($allDiscoveredTexts, 20);
+        foreach ($discoveredBatches as $dBatch) {
+            foreach ($finalGeoList as $geo) {
+                $geoResource = strpos($geo, 'geoTargetConstants/') === 0 ? $geo : "geoTargetConstants/{$geo}";
+                $geoId = preg_replace('/[^0-9]/', '', $geo);
+
+                $crossRequests[] = [
+                    'geoId' => $geoId,
+                    'isSeed' => false,
+                    'payload' => [
+                        "keywordPlanNetwork" => "GOOGLE_SEARCH",
+                        "language" => $langConst,
+                        "geoTargetConstants" => [$geoResource],
+                        "keywordSeed" => ["keywords" => $dBatch]
+                    ]
+                ];
+            }
+        }
+        if (!empty($crossRequests)) {
+            $crossResults = $executeParallelGoogleAdsCalls($crossRequests, 28);
+            $parseLocationResults($crossResults);
+        }
+    }
 
     // Guaranteed inclusion of all user seed keywords with honest official Google Ads data
     foreach ($uniqueSeeds as $uSeed) {
@@ -2629,7 +2661,7 @@ if ($action === 'discover' && $method === 'POST') {
     $includeSuggestions = isset($input['includeSuggestions']) ? (bool)$input['includeSuggestions'] : true;
     $clientSeeds = !empty($input['seedKeywords']) && is_array($input['seedKeywords']) ? $input['seedKeywords'] : [];
 
-    $cacheKey = md5("forecast_v30_{$mode}_{$query}_" . ($includeSuggestions ? 'sug_1_' : 'sug_0_') . ($requestedLanguage ?: 'auto') . '_' . ($requestedCountryCode ?: 'auto') . '_' . implode('_', (array)$requestedGeoTargetConstants));
+    $cacheKey = md5("forecast_v31_{$mode}_{$query}_" . ($includeSuggestions ? 'sug_1_' : 'sug_0_') . ($requestedLanguage ?: 'auto') . '_' . ($requestedCountryCode ?: 'auto') . '_' . implode('_', (array)$requestedGeoTargetConstants));
 
     // 1. Check Server-Side Cache
     $stmtCache = $pdo->prepare("SELECT data, created_at FROM keyword_cache WHERE cache_key = ?");
