@@ -161,6 +161,7 @@ export interface SubCampaignItem {
   selectedKeywords: KeywordMetric[];
   negativeCategories: NegativeCategory[];
   cpcImputationSettings?: CpcImputationSettings;
+  countryBreakdown?: CountryMetric[];
   
   // Model specific parameters snapshot
   businessModel?: BusinessModel;

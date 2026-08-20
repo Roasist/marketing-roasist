@@ -15,7 +15,8 @@ import {
   BarChart2, 
   Table,
   RotateCcw,
-  Edit2
+  Edit2,
+  Globe
 } from 'lucide-react';
 import { SubCampaignItem, KeywordMetric } from '../types/forecast';
 import { 
@@ -990,7 +991,47 @@ export const ExportCustomizationModal: React.FC<ExportCustomizationModalProps> =
                     )}
                   </div>
 
-                  {/* 3. Keywords */}
+                  {/* 3. Market Breakdown */}
+                  <div 
+                    onClick={() => handleToggle('includeMarketBreakdown')}
+                    style={{
+                      padding: '0.65rem 0.75rem',
+                      borderRadius: 'var(--radius-md, 8px)',
+                      border: `1px solid ${config.includeMarketBreakdown ? 'var(--brand-primary, #4f46e5)' : 'var(--border-default)'}`,
+                      backgroundColor: config.includeMarketBreakdown ? 'rgba(79, 70, 229, 0.05)' : 'var(--bg-surface)',
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '0.65rem',
+                      cursor: 'pointer',
+                      opacity: config.includeMarketBreakdown ? 1 : 0.65
+                    }}
+                  >
+                    <div style={{
+                      marginTop: '2px',
+                      width: '18px',
+                      height: '18px',
+                      borderRadius: '4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backgroundColor: config.includeMarketBreakdown ? 'var(--brand-primary, #4f46e5)' : 'transparent',
+                      border: `1px solid ${config.includeMarketBreakdown ? 'var(--brand-primary, #4f46e5)' : 'var(--border-strong)'}`,
+                      color: '#ffffff'
+                    }}>
+                      {config.includeMarketBreakdown && <Check size={12} strokeWidth={3} />}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                        <Globe size={14} color="#059669" />
+                        <span style={{ fontSize: '0.8rem', fontWeight: 700 }}>3. Hedef Pazar & Coğrafi Kırılım Projeksiyonu</span>
+                      </div>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                        Hedeflenen bölgelerin aranma hacmi, pazar payı ve yerel TBM dağılımı ({subCampaign.targetLocations?.length || 1} bölge).
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 4. Keywords */}
                   <div 
                     onClick={() => handleToggle('includeKeywords')}
                     style={{
@@ -1022,7 +1063,7 @@ export const ExportCustomizationModal: React.FC<ExportCustomizationModalProps> =
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                         <Search size={14} color="#3b82f6" />
-                        <span style={{ fontSize: '0.8rem', fontWeight: 700 }}>3. Anahtar Kelimeler & TBM Analiz Tablosu</span>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 700 }}>4. Anahtar Kelimeler & TBM Analiz Tablosu</span>
                       </div>
                       <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
                         Arama hacmi, niyet, min/max/ort TBM ve fırsat skoru ({totalKws} kelime mevcut).
@@ -1030,7 +1071,7 @@ export const ExportCustomizationModal: React.FC<ExportCustomizationModalProps> =
                     </div>
                   </div>
 
-                  {/* 4. Negatives */}
+                  {/* 5. Negatives */}
                   <div 
                     onClick={() => handleToggle('includeNegativeKeywords')}
                     style={{
@@ -1062,7 +1103,7 @@ export const ExportCustomizationModal: React.FC<ExportCustomizationModalProps> =
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                         <ShieldCheck size={14} color="#ef4444" />
-                        <span style={{ fontSize: '0.8rem', fontWeight: 700 }}>4. Negatif Kelime Koruma Kalkanı</span>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 700 }}>5. Negatif Kelime Koruma Kalkanı</span>
                       </div>
                       <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
                         Bütçe israfını önleyen negatif anahtar kelime kategorileri ve filtreler.
@@ -1070,7 +1111,7 @@ export const ExportCustomizationModal: React.FC<ExportCustomizationModalProps> =
                     </div>
                   </div>
 
-                  {/* 5. Strategic Notes */}
+                  {/* 6. Strategic Notes */}
                   <div 
                     onClick={() => handleToggle('includeStrategicNotes')}
                     style={{
@@ -1102,7 +1143,7 @@ export const ExportCustomizationModal: React.FC<ExportCustomizationModalProps> =
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                         <Sparkles size={14} color="#f59e0b" />
-                        <span style={{ fontSize: '0.8rem', fontWeight: 700 }}>5. Stratejik Uygulama & Kampanya Notları</span>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 700 }}>6. Stratejik Uygulama & Kampanya Notları</span>
                       </div>
                       <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
                         Kanal lansman tavsiyeleri, piksel doğrulama ve optimizasyon ipuçları.

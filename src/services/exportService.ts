@@ -1,5 +1,5 @@
 import { AdItem, Competitor } from '../types/ad';
-import { SubCampaignItem, KeywordMetric, NegativeCategory, GeoTargetLocation, CpcImputationSettings } from '../types/forecast';
+import { SubCampaignItem, KeywordMetric, NegativeCategory, GeoTargetLocation, CpcImputationSettings, CountryMetric } from '../types/forecast';
 import { enrichKeywordsWithClusterCpc } from './keywordClusteringService';
 
 export interface VisibleMetricsConfig {
@@ -49,6 +49,7 @@ export interface SubCampaignExportConfig {
   includeGeneralInfo: boolean;       // Kampanya & Çatı Plan Bilgileri
   includeKpiSummary: boolean;         // Temel Performans & KPI Özeti
   includeFunnel: boolean;             // 4 Aşamalı Dönüşüm Hunisi
+  includeMarketBreakdown: boolean;    // Hedef Pazar & Coğrafi Kırılım Tablosu
   includeKeywords: boolean;           // Anahtar Kelime & TBM Fırsat Tablosu
   includeNegativeKeywords: boolean;   // Negatif Anahtar Kelime Koruma Listesi
   includeChannelParameters: boolean;  // Kanal & Bütçe Dağılım Parametreleri
@@ -107,6 +108,7 @@ export const DEFAULT_EXPORT_CONFIG: SubCampaignExportConfig = {
   includeGeneralInfo: true,
   includeKpiSummary: true,
   includeFunnel: true,
+  includeMarketBreakdown: true,
   includeKeywords: true,
   includeNegativeKeywords: true,
   includeChannelParameters: true,
@@ -698,9 +700,37 @@ export class ExportService {
       lines.push('');
     }
 
+    // Market / Regional Breakdown Section
+    if (config.includeMarketBreakdown) {
+      const breakdown: CountryMetric[] = sub.countryBreakdown && sub.countryBreakdown.length > 0
+        ? sub.countryBreakdown
+        : (sub.targetLocations && sub.targetLocations.length > 0
+            ? sub.targetLocations.map(l => ({
+                code: l.countryCode || 'TR',
+                name: l.name,
+                flag: l.flag || '🌐',
+                sharePercent: l.sharePercent || (sub.targetLocations ? Math.round(100 / sub.targetLocations.length) : 100),
+                monthlyVolume: l.monthlyVolume || (l.reach || 0),
+                avgCpc: l.avgCpc || 0,
+                estClicks: Math.round(((m.clicks || 0) * (l.sharePercent || 50)) / 100),
+                estConversions: Math.round(((m.conversions || 0) * (l.sharePercent || 50)) / 100)
+              }))
+            : []);
+
+      if (breakdown.length > 0) {
+        lines.push(`--- HEDEF PAZAR VE COĞRAFİ KIRILIM PROJEKSİYONU (${breakdown.length} Bölge) ---`);
+        lines.push('"Hedef Bölge / Pazar", "Bayrak", "Aylık Arama Hacmi", "Pazar Payı (%)", "Ortalama TBM (₺)", "Tahmini Bütçe Payı (₺)"');
+        breakdown.forEach(cm => {
+          const estBudget = Math.round(((sub.monthlyBudget || 0) * (cm.sharePercent || 0)) / 100);
+          lines.push(`"${(cm.name || '').replace(/"/g, '""')}", "${cm.flag || '🌐'}", "${cm.monthlyVolume || 0}", "%${cm.sharePercent || 0}", "₺${(cm.avgCpc || 0).toFixed(2)}", "₺${estBudget.toLocaleString('tr-TR')}"`);
+        });
+        lines.push('');
+      }
+    }
+
     // Section 4: Keywords Table
     if (config.includeKeywords && keywords.length > 0) {
-      lines.push(`--- BÖLÜM 4: SEÇİLEN ANAHTAR KELİMELER VE TBM REKABET ANALİZİ (${keywords.length} Kelime) ---`);
+      lines.push(`--- SEÇİLEN ANAHTAR KELİMELER VE TBM REKABET ANALİZİ (${keywords.length} Kelime) ---`);
       
       const benchmarks = this.getSubCampaignCpcBenchmarks(keywords);
 
@@ -1406,6 +1436,74 @@ export class ExportService {
             </div>
           </div>
           ` : ''}
+
+          <!-- Market / Regional Breakdown Section -->
+          ${(() => {
+            if (!config.includeMarketBreakdown) return '';
+            const breakdown: CountryMetric[] = sub.countryBreakdown && sub.countryBreakdown.length > 0 
+              ? sub.countryBreakdown 
+              : (sub.targetLocations && sub.targetLocations.length > 0 
+                  ? sub.targetLocations.map(l => ({
+                      code: l.countryCode || 'TR',
+                      name: l.name,
+                      flag: l.flag || '🌐',
+                      sharePercent: l.sharePercent || (sub.targetLocations ? Math.round(100 / sub.targetLocations.length) : 100),
+                      monthlyVolume: l.monthlyVolume || (l.reach || 0),
+                      avgCpc: l.avgCpc || 0,
+                      estClicks: Math.round(((m.clicks || 0) * (l.sharePercent || 50)) / 100),
+                      estConversions: Math.round(((m.conversions || 0) * (l.sharePercent || 50)) / 100)
+                    })) 
+                  : []);
+
+            if (breakdown.length === 0) return '';
+
+            return `
+            <div class="section-title">
+              <span>🌍</span>
+              <span>Hedef Pazar & Coğrafi Kırılım Projeksiyonu (${breakdown.length} Bölge)</span>
+            </div>
+            <table style="margin-bottom: 24px;">
+              <thead>
+                <tr>
+                  <th style="width: 32%;">Hedef Bölge / Pazar</th>
+                  <th style="text-align: right; width: 20%;">Aylık Arama Hacmi</th>
+                  <th style="text-align: center; width: 14%;">Pazar Payı</th>
+                  <th style="text-align: right; width: 17%;">Ortalama TBM</th>
+                  <th style="text-align: right; width: 17%;">Tahmini Bütçe Payı</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${breakdown.map(cm => {
+                  const estBudget = Math.round(((sub.monthlyBudget || 0) * (cm.sharePercent || 0)) / 100);
+                  return `
+                  <tr>
+                    <td>
+                      <div style="display:flex; align-items:center; gap:6px;">
+                        <span style="font-size:14px;">${cm.flag || '🌐'}</span>
+                        <strong style="font-size:12px; color:#0f172a;">${cm.name}</strong>
+                      </div>
+                    </td>
+                    <td style="text-align: right; font-weight: 700; color: #1e293b;">
+                      ${(cm.monthlyVolume || 0).toLocaleString('tr-TR')}
+                    </td>
+                    <td style="text-align: center;">
+                      <span class="badge" style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; font-weight:700;">
+                        %${cm.sharePercent || 0}
+                      </span>
+                    </td>
+                    <td style="text-align: right; font-weight: 700; font-family: monospace; color: ${cm.avgCpc > 0 ? '#2563eb' : '#64748b'};">
+                      ${cm.avgCpc > 0 ? `₺${cm.avgCpc.toFixed(2)}` : 'TBM Yok'}
+                    </td>
+                    <td style="text-align: right; font-weight: 700; color: #0f172a;">
+                      ₺${estBudget.toLocaleString('tr-TR')}
+                    </td>
+                  </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+            `;
+          })()}
 
           <!-- Keywords Table (if Google Search / Keywords exist) -->
           ${config.includeKeywords && keywords.length > 0 ? `
