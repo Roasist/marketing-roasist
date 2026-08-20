@@ -575,16 +575,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
   // Semantic Clusters (Base Raw Clusters with Hierarchical CPC Imputation)
   const baseKeywordClusters = useMemo(() => {
-    console.log('[CPC_TRACE] baseKeywordClusters recalculating with settings:', JSON.stringify(cpcImputationSettings));
     const rawClusters = groupKeywordsSemantically(normalizedKeywords, cpcImputationSettings);
-    // Debug: check first estimated keyword in first cluster
-    for (const c of rawClusters) {
-      const estKw = c.keywords.find(k => k.isCpcEstimated);
-      if (estKw) {
-        console.log('[CPC_TRACE] First estimated kw in cluster', c.name, ':', { kw: estKw.keyword.substring(0, 30), lowCpc: estKw.lowCpc, highCpc: estKw.highCpc, mult: estKw.cpcEstimationMultiplier, isCpcEstimated: estKw.isCpcEstimated, rawLow: estKw.rawLowCpc, rawHigh: estKw.rawHighCpc });
-        break;
-      }
-    }
     return rawClusters.map(cluster => {
       const selectedInCluster = cluster.keywords.filter(k => selectedKeywordIds.has(k.id)).length;
       return {
@@ -2843,24 +2834,18 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   // Scoped clusters (Ad Group Themes)
   const keywordClusters = useMemo(() => {
     const kwMap = new Map(scopedKeywords.map(k => [k.id, k]));
-    let debugDone = false;
     return baseKeywordClusters.map(cluster => {
       const cKws = cluster.keywords.map(k => {
         const scopedK = kwMap.get(k.id);
         if (scopedK) {
-          // Debug: trace first estimated keyword merge
-          if (!debugDone && (k.isCpcEstimated || scopedK.isCpcEstimated)) {
-            console.log('[CPC_MERGE] k (base):', { kw: k.keyword?.substring(0, 25), lowCpc: k.lowCpc, mult: k.cpcEstimationMultiplier, isCpcEst: k.isCpcEstimated });
-            console.log('[CPC_MERGE] scopedK:', { lowCpc: scopedK.lowCpc, mult: scopedK.cpcEstimationMultiplier, isCpcEst: scopedK.isCpcEstimated });
-            debugDone = true;
-          }
+          // Only preserve estimation metadata if the keyword is actually estimated
+          const isEstimated = Boolean(k.isCpcEstimated || scopedK.isCpcEstimated);
           return {
             ...k,
             ...scopedK,
-            // Ensure imputation metadata is never lost
-            isCpcEstimated: k.isCpcEstimated || scopedK.isCpcEstimated,
-            cpcEstimationCluster: k.cpcEstimationCluster || scopedK.cpcEstimationCluster || cluster.name,
-            cpcEstimationMultiplier: k.cpcEstimationMultiplier || scopedK.cpcEstimationMultiplier
+            isCpcEstimated: isEstimated,
+            cpcEstimationCluster: isEstimated ? (k.cpcEstimationCluster || scopedK.cpcEstimationCluster || cluster.name) : undefined,
+            cpcEstimationMultiplier: isEstimated ? (k.cpcEstimationMultiplier || scopedK.cpcEstimationMultiplier) : undefined
           };
         }
         return k;
@@ -5741,7 +5726,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
                                   {/* Top of page CPC */}
                                   <td style={{ padding: '0.5rem 0.75rem', whiteSpace: 'nowrap' }}>
-                                    {Boolean(kw.isCpcEstimated || (typeof kw.rawLowCpc === 'number' && kw.rawLowCpc <= 0.05) || kw.cpcEstimationCluster) ? (
+                                    {kw.isCpcEstimated ? (
                                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}>
                                         <span style={{ fontSize: '0.75rem', color: 'var(--text-primary)', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
                                           ≈ ₺{kw.lowCpc.toFixed(2)} - ₺{kw.highCpc.toFixed(2)}
