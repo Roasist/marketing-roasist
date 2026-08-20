@@ -935,6 +935,15 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       const effectiveDiscoveredKws = availablePool.length > 0 ? availablePool : (keywords.length > 0 ? keywords : (c.discoveredKeywords || []));
       const subBudget = (monthlyBudget !== undefined && monthlyBudget !== null && monthlyBudget > 0) ? monthlyBudget : 35000;
 
+      const rawTargetLang = targetLanguage || detectedLanguage || 'tr';
+      const isAutoLang = rawTargetLang === 'auto' || !rawTargetLang;
+      const finalLangCode = isAutoLang ? (detectedLanguage && detectedLanguage !== 'auto' ? detectedLanguage : 'tr') : rawTargetLang;
+      const finalLangObj = GOOGLE_ADS_LANGUAGES.find(l => l.code === finalLangCode);
+      const finalLangName = isAutoLang 
+        ? (detectedLanguageName && detectedLanguageName !== 'Otomatik' && detectedLanguageName !== 'Otomatik (Sayfa Dili)' ? detectedLanguageName : (finalLangObj?.name || 'Türkçe'))
+        : (GOOGLE_ADS_LANGUAGES.find(l => l.code === rawTargetLang)?.name || 'Türkçe');
+      const finalLangFlag = finalLangObj?.flag || (finalLangCode === 'tr' ? '🇹🇷' : (finalLangCode === 'en' ? '🇬🇧' : '🌐'));
+
       return {
         ...c,
         targetUrl: mode === 'URL' ? query : '',
@@ -945,7 +954,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         negativeCategories,
         targetLocations: selectedLocations,
         businessModel,
-        languageCode: targetLanguage,
+        languageCode: finalLangCode,
+        languageName: finalLangName,
+        languageFlag: finalLangFlag,
         parameters: {
           growthScenario,
           budgetMode,
@@ -2728,6 +2739,15 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
       const updatedSubCampaigns = subCampaigns.map(c => {
         if (c.id !== activeSubCampaignId) return c;
+        const rawTargetLang = targetLanguage || detectedLanguage || 'tr';
+        const isAutoLang = rawTargetLang === 'auto' || !rawTargetLang;
+        const finalLangCode = isAutoLang ? (detectedLanguage && detectedLanguage !== 'auto' ? detectedLanguage : 'tr') : rawTargetLang;
+        const finalLangObj = GOOGLE_ADS_LANGUAGES.find(l => l.code === finalLangCode);
+        const finalLangName = isAutoLang 
+          ? (detectedLanguageName && detectedLanguageName !== 'Otomatik' && detectedLanguageName !== 'Otomatik (Sayfa Dili)' ? detectedLanguageName : (finalLangObj?.name || 'Türkçe'))
+          : (GOOGLE_ADS_LANGUAGES.find(l => l.code === rawTargetLang)?.name || 'Türkçe');
+        const finalLangFlag = finalLangObj?.flag || (finalLangCode === 'tr' ? '🇹🇷' : (finalLangCode === 'en' ? '🇬🇧' : '🌐'));
+
         return {
           ...c,
           targetUrl: mode === 'URL' ? query : '',
@@ -2738,7 +2758,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           negativeCategories,
           targetLocations: selectedLocations,
           businessModel,
-          languageCode: targetLanguage,
+          languageCode: finalLangCode,
+          languageName: finalLangName,
+          languageFlag: finalLangFlag,
           parameters: {
             growthScenario,
             budgetMode,

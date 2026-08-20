@@ -471,6 +471,76 @@ export class ExportService {
   }
 
   /**
+   * Resolves the actual detected or selected language and appropriate flag
+   */
+  public static resolveSubCampaignLanguage(sub: SubCampaignItem): { code: string; name: string; flag: string } {
+    const rawCode = (sub.languageCode || '').trim();
+    const rawName = (sub.languageName || '').trim();
+    const rawFlag = (sub.languageFlag || '').trim();
+
+    const knownLanguages: { code: string; name: string; flag: string }[] = [
+      { code: 'tr', name: 'Türkçe', flag: '🇹🇷' },
+      { code: 'en', name: 'İngilizce', flag: '🇬🇧' },
+      { code: 'de', name: 'Almanca', flag: '🇩🇪' },
+      { code: 'ru', name: 'Rusça', flag: '🇷🇺' },
+      { code: 'ar', name: 'Arapça', flag: '🇸🇦' },
+      { code: 'fr', name: 'Fransızca', flag: '🇫🇷' },
+      { code: 'es', name: 'İspanyolca', flag: '🇪🇸' },
+      { code: 'it', name: 'İtalyanca', flag: '🇮🇹' },
+      { code: 'nl', name: 'Felemenkçe', flag: '🇳🇱' },
+      { code: 'fa', name: 'Farsça', flag: '🇮🇷' },
+      { code: 'az', name: 'Azerbaycanca', flag: '🇦🇿' },
+      { code: 'zh_cn', name: 'Çince', flag: '🇨🇳' },
+    ];
+
+    // If a concrete non-auto name is given
+    if (rawName && !rawName.toLowerCase().includes('otomatik') && rawName !== 'auto') {
+      const match = knownLanguages.find(l => l.name.toLowerCase() === rawName.toLowerCase() || rawName.toLowerCase().includes(l.name.toLowerCase()));
+      return {
+        code: rawCode && rawCode !== 'auto' ? rawCode : (match?.code || 'tr'),
+        name: rawName,
+        flag: rawFlag || match?.flag || '🌐'
+      };
+    }
+
+    // If a concrete code is given
+    if (rawCode && rawCode !== 'auto') {
+      const match = knownLanguages.find(l => l.code === rawCode);
+      if (match) {
+        return {
+          code: match.code,
+          name: match.name,
+          flag: rawFlag || match.flag
+        };
+      }
+    }
+
+    // Inspect keywords of the sub-campaign to detect actual language
+    const kws = (sub.selectedKeywords && sub.selectedKeywords.length > 0)
+      ? sub.selectedKeywords
+      : (sub.discoveredKeywords || []);
+    const kwText = kws.map(k => k.keyword).join(' ').toLowerCase();
+
+    if (/[а-яё]/i.test(kwText)) {
+      return { code: 'ru', name: 'Rusça', flag: '🇷🇺' };
+    }
+    if (/[\u0600-\u06FF]/.test(kwText)) {
+      return { code: 'ar', name: 'Arapça', flag: '🇸🇦' };
+    }
+    if (/[äöüß]/i.test(kwText) || /\b(und|der|die|das|für|kaufen|preis|kosten|in|mit|angebot)\b/i.test(kwText)) {
+      return { code: 'de', name: 'Almanca', flag: '🇩🇪' };
+    }
+    if (/\b(the|and|for|buy|price|cost|in|with|best|near|agency|software|clinic|hospital)\b/i.test(kwText)) {
+      return { code: 'en', name: 'İngilizce', flag: '🇬🇧' };
+    }
+    if (/[çğıöşü]/i.test(kwText) || /\b(ve|ile|fiyatı|fiyatları|satın|al|nedir|nasıl|nerede|en|iyi)\b/i.test(kwText)) {
+      return { code: 'tr', name: 'Türkçe', flag: '🇹🇷' };
+    }
+
+    return { code: 'tr', name: 'Türkçe', flag: '🇹🇷' };
+  }
+
+  /**
    * Export Sub-Campaign Report as CSV with granular metric and column selection
    */
   public static exportSubCampaignToCsv(
@@ -491,6 +561,7 @@ export class ExportService {
     const isLeadGen = sub.businessModel !== 'ECOMMERCE';
     const locNames = (sub.targetLocations || []).map(l => l.name).join(' | ') || 'Tüm Türkiye';
     const subCampaignName = sub.name || 'Alt Kampanya';
+    const lang = this.resolveSubCampaignLanguage(sub);
 
     const rawKws: KeywordMetric[] = sub.selectedKeywords && sub.selectedKeywords.length > 0 
       ? sub.selectedKeywords 
@@ -520,7 +591,7 @@ export class ExportService {
       if (masterPlan?.clientName) lines.push(`"Müşteri / Marka", "${masterPlan.clientName.replace(/"/g, '""')}"`);
       if (masterPlan?.period) lines.push(`"Kampanya Dönemi", "${masterPlan.period.replace(/"/g, '""')}"`);
       lines.push(`"Platform / Kanal", "${sub.platform} (${sub.objective})"`);
-      lines.push(`"Hedef Dil", "${sub.languageFlag || ''} ${sub.languageName || sub.languageCode || 'Türkçe'}"`);
+      lines.push(`"Hedef Dil", "${lang.flag} ${lang.name}"`);
       lines.push(`"Hedef Lokasyonlar", "${locNames.replace(/"/g, '""')}"`);
       lines.push(`"İş Modeli", "${isLeadGen ? 'B2B & Nitelikli Talep (Lead Gen)' : 'E-Ticaret & Satış'}"`);
       if (vm.budget) {
@@ -667,6 +738,7 @@ export class ExportService {
     const isLeadGen = sub.businessModel !== 'ECOMMERCE';
     const locNames = (sub.targetLocations || []).map(l => l.name).join(', ') || 'Tüm Türkiye';
     const subCampaignName = sub.name || 'Alt Kampanya';
+    const lang = this.resolveSubCampaignLanguage(sub);
 
     const rawKws: KeywordMetric[] = sub.selectedKeywords && sub.selectedKeywords.length > 0 
       ? sub.selectedKeywords 
@@ -1122,20 +1194,20 @@ export class ExportService {
               ${sub.platform ? `<span style="font-size:12px; color:#475569; font-weight:600;">• ${sub.platform} (${sub.objective})</span>` : ''}
             </div>
             <h1>
-              <span>${sub.languageFlag || '🎯'}</span>
+              <span>${lang.flag || '🎯'}</span>
               <span>${subCampaignName}</span>
             </h1>
             <div style="font-size: 13px; color: #475569;">
               ${masterPlan?.name ? `<strong>Çatı Kampanya:</strong> ${masterPlan.name} • ` : ''}
               ${masterPlan?.clientName ? `<strong>Müşteri:</strong> ${masterPlan.clientName} • ` : ''}
-              <strong>Hedef Dil:</strong> ${sub.languageName || sub.languageCode || 'Türkçe'}
+              <strong>Hedef Dil:</strong> ${lang.name}
             </div>
 
             ${config.includeGeneralInfo ? `
             <div class="campaign-details-grid">
               <div class="detail-item">
                 <strong>Hedef Dil & Bayrak</strong>
-                <span>${sub.languageFlag || ''} ${sub.languageName || sub.languageCode || 'Türkçe'}</span>
+                <span>${lang.flag || ''} ${lang.name}</span>
               </div>
               <div class="detail-item">
                 <strong>Hedef Lokasyonlar</strong>
@@ -1409,7 +1481,7 @@ export class ExportService {
             <span>Stratejik Uygulama & Kampanya Başlatma Notları</span>
           </div>
           <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 18px; font-size: 12px; color: #334155; line-height: 1.6;">
-            <p style="margin-bottom: 6px;">• <strong>Hedefleme Optimizasyonu:</strong> Bu alt kampanya (${subCampaignName}) ${sub.languageName || 'belirlenen dilde'} ve seçilen ${locNames} coğrafi bölgesinde en yüksek satın alma niyetine sahip kitleye odaklanacak şekilde modellenmiştir.</p>
+            <p style="margin-bottom: 6px;">• <strong>Hedefleme Optimizasyonu:</strong> Bu alt kampanya (${subCampaignName}) ${lang.name} dilinde ve seçilen ${locNames} coğrafi bölgesinde en yüksek satın alma niyetine sahip kitleye odaklanacak şekilde modellenmiştir.</p>
             <p style="margin-bottom: 6px;">• <strong>Bütçe & TBM Dağılımı:</strong> Aylık ₺${(sub.monthlyBudget || 0).toLocaleString('tr-TR')} bütçe ile ortalama ₺${m.cpc.toFixed(2)} TBM hedeflenmiş ve günlük ₺${Math.round((sub.monthlyBudget || 0) / 30.4).toLocaleString('tr-TR')} harcama tavanı öngörülmüştür.</p>
             <p>• <strong>Dönüşüm Takibi:</strong> Kampanya canlıya alınmadan önce dönüşüm piksellerinin (Google Ads Enhanced Conversions / Meta CAPI) doğrulanması tavsiye edilir.</p>
           </div>` : ''}
