@@ -401,8 +401,8 @@ interface ForecastModuleProps {
 }
 
 export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) => {
-  // Stepper State: 1 = STAG Kelime Keşfi & Gruplar, 2 = 360° Medya Karması & Büyüme Simülatörü
-  const [currentStep, setCurrentStep] = useState<1 | 2>(1);
+  // Stepper State: 1 = STAG Kelime Keşfi & Gruplar, 2 = Seçilen Kelimeleri İncele & Yapılandır, 3 = 360° Medya Karması & Büyüme Simülatörü
+  const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
 
   // Search & Discovery State
   const [query, setQuery] = useState('');
@@ -1238,13 +1238,13 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
     if (target.platform === 'META') {
       setActiveChannelTab('META_ADS');
-      setCurrentStep(2);
+      setCurrentStep(3);
     } else if (target.platform === 'YOUTUBE') {
       setActiveChannelTab('YOUTUBE');
-      setCurrentStep(2);
+      setCurrentStep(3);
     } else if (target.platform === 'GOOGLE' && target.objective === 'GOOGLE_GDN') {
       setActiveChannelTab('GDN');
-      setCurrentStep(2);
+      setCurrentStep(3);
     } else if (target.platform === 'GOOGLE' && target.objective === 'GOOGLE_SEARCH') {
       setActiveChannelTab('GOOGLE_SEARCH');
     }
@@ -1335,13 +1335,13 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     // Switch channel sub tab to match objective
     if (newCampPlatform === 'META') {
       setActiveChannelTab('META_ADS');
-      setCurrentStep(2);
+      setCurrentStep(3);
     } else if (newCampPlatform === 'YOUTUBE') {
       setActiveChannelTab('YOUTUBE');
-      setCurrentStep(2);
+      setCurrentStep(3);
     } else if (newCampPlatform === 'GOOGLE' && newCampObjective === 'GOOGLE_GDN') {
       setActiveChannelTab('GDN');
-      setCurrentStep(2);
+      setCurrentStep(3);
     } else if (newCampPlatform === 'GOOGLE' && newCampObjective === 'GOOGLE_SEARCH') {
       setActiveChannelTab('GOOGLE_SEARCH');
       setCurrentStep(1);
@@ -2948,7 +2948,13 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
   // Filtered & Sorted Keywords for the active right-side data grid
   const activeKeywordsGrid = useMemo(() => {
-    const baseList = activeCluster ? activeCluster.keywords : scopedKeywords;
+    let baseList = activeCluster ? activeCluster.keywords : scopedKeywords;
+
+    // In Step 2 (Review Step): ONLY show selected keywords!
+    if (currentStep === 2) {
+      baseList = baseList.filter(k => selectedKeywordIds.has(k.id));
+    }
+
     const searchLower = step1SearchFilter.toLowerCase().trim();
 
     return baseList
@@ -2972,7 +2978,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         if (step1SortBy === 'ALPHABETICAL') return a.keyword.localeCompare(b.keyword);
         return 0;
       });
-  }, [activeCluster, scopedKeywords, step1SearchFilter, step1SourceFilter, step1IntentFilter, step1SortBy, mode]);
+  }, [activeCluster, scopedKeywords, currentStep, selectedKeywordIds, step1SearchFilter, step1SourceFilter, step1IntentFilter, step1SortBy, mode]);
 
   const maxVolumeInGrid = useMemo(() => {
     return Math.max(...activeKeywordsGrid.map(k => k.monthlyVolume), 1);
@@ -3988,7 +3994,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           type="button"
           onClick={() => {
             syncActiveSubCampaign();
-            setCurrentStep(2);
+            setCurrentStep(3);
             setActiveChannelTab('OMNICHANNEL');
           }}
           className="btn-secondary"
@@ -3996,8 +4002,8 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
             padding: '0.4rem 0.8rem',
             fontSize: '0.78rem',
             fontWeight: 700,
-            color: activeChannelTab === 'OMNICHANNEL' && currentStep === 2 ? '#ffffff' : 'var(--brand-primary)',
-            backgroundColor: activeChannelTab === 'OMNICHANNEL' && currentStep === 2 ? 'var(--brand-primary)' : 'transparent',
+            color: activeChannelTab === 'OMNICHANNEL' && currentStep === 3 ? '#ffffff' : 'var(--brand-primary)',
+            backgroundColor: activeChannelTab === 'OMNICHANNEL' && currentStep === 3 ? 'var(--brand-primary)' : 'transparent',
             display: 'inline-flex',
             alignItems: 'center',
             gap: '0.35rem',
@@ -4741,9 +4747,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         </div>
       )}
 
-      {/* 2-Step Wizard Navigation Bar (Only visible after analysis results arrive) */}
+      {/* 3-Step Wizard Navigation Bar (Only visible after analysis results arrive) */}
       {keywords.length > 0 && (
-        <div className="card" style={{ padding: '0.6rem 0.85rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '0.65rem', backgroundColor: 'var(--bg-surface)' }}>
+        <div className="card" style={{ padding: '0.6rem 0.85rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0.65rem', backgroundColor: 'var(--bg-surface)' }}>
           
           {/* Step 1 */}
           <button
@@ -4754,80 +4760,126 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
               alignItems: 'center',
               justifyContent: 'center',
               gap: '0.75rem',
-              padding: '0.85rem 1.25rem',
+              padding: '0.85rem 1.15rem',
               borderRadius: 'var(--radius-sm)',
               border: currentStep === 1 ? '2px solid var(--brand-primary)' : (isStep1Completed ? '1.5px solid #10b981' : '1px solid var(--border-default)'),
               backgroundColor: currentStep === 1 ? 'rgba(37, 99, 235, 0.12)' : (isStep1Completed ? 'rgba(16, 185, 129, 0.08)' : 'var(--bg-surface-elevated)'),
               color: currentStep === 1 ? 'var(--brand-primary)' : (isStep1Completed ? '#10b981' : 'var(--text-secondary)'),
               cursor: 'pointer',
               fontWeight: currentStep === 1 ? 700 : 500,
-              fontSize: '0.9rem',
+              fontSize: '0.85rem',
               transition: 'all 0.15s ease',
               boxShadow: currentStep === 1 ? '0 0 0 1px var(--brand-primary)' : 'none'
             }}
           >
             <div style={{
-              width: '26px',
-              height: '26px',
+              width: '24px',
+              height: '24px',
               borderRadius: '50%',
               backgroundColor: isStep1Completed ? '#10b981' : (currentStep === 1 ? 'var(--brand-primary)' : 'var(--border-default)'),
               color: '#ffffff',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '0.8rem',
+              fontSize: '0.75rem',
               fontWeight: 700
             }}>
-              {isStep1Completed ? <Check size={15} /> : '1'}
+              {isStep1Completed ? <Check size={14} /> : '1'}
             </div>
-            <span>1. Adım: STAG Kelime Keşfi & Gruplar</span>
+            <span>1. Adım: STAG Kelime Keşfi ({keywords.length.toLocaleString('tr-TR')})</span>
           </button>
 
           {/* Step 2 */}
           <button
             type="button"
-            onClick={() => setCurrentStep(2)}
+            onClick={() => {
+              if (selectedKeywordIds.size > 0) setCurrentStep(2);
+            }}
+            disabled={selectedKeywordIds.size === 0}
             style={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               gap: '0.75rem',
-              padding: '0.85rem 1.25rem',
+              padding: '0.85rem 1.15rem',
               borderRadius: 'var(--radius-sm)',
               border: currentStep === 2 ? '2px solid var(--brand-primary)' : (isStep2Completed ? '1.5px solid #10b981' : '1px solid var(--border-default)'),
               backgroundColor: currentStep === 2 ? 'rgba(37, 99, 235, 0.12)' : (isStep2Completed ? 'rgba(16, 185, 129, 0.08)' : 'var(--bg-surface-elevated)'),
               color: currentStep === 2 ? 'var(--brand-primary)' : (isStep2Completed ? '#10b981' : 'var(--text-secondary)'),
-              cursor: 'pointer',
+              cursor: selectedKeywordIds.size === 0 ? 'not-allowed' : 'pointer',
+              opacity: selectedKeywordIds.size === 0 ? 0.6 : 1,
               fontWeight: currentStep === 2 ? 700 : 500,
-              fontSize: '0.9rem',
+              fontSize: '0.85rem',
               transition: 'all 0.15s ease',
               boxShadow: currentStep === 2 ? '0 0 0 1px var(--brand-primary)' : 'none'
             }}
           >
             <div style={{
-              width: '26px',
-              height: '26px',
+              width: '24px',
+              height: '24px',
               borderRadius: '50%',
               backgroundColor: isStep2Completed ? '#10b981' : (currentStep === 2 ? 'var(--brand-primary)' : 'var(--border-default)'),
               color: '#ffffff',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '0.8rem',
+              fontSize: '0.75rem',
               fontWeight: 700
             }}>
-              {isStep2Completed ? <Check size={15} /> : '2'}
+              {isStep2Completed ? <Check size={14} /> : '2'}
             </div>
-            <span>2. Adım: 360° Medya Karması & Büyüme Simülatörü</span>
+            <span>2. Adım: Seçili Kelimeleri İncele ({selectedKeywordIds.size})</span>
+          </button>
+
+          {/* Step 3 */}
+          <button
+            type="button"
+            onClick={() => {
+              if (selectedKeywordIds.size > 0) setCurrentStep(3);
+            }}
+            disabled={selectedKeywordIds.size === 0}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.75rem',
+              padding: '0.85rem 1.15rem',
+              borderRadius: 'var(--radius-sm)',
+              border: currentStep === 3 ? '2px solid var(--brand-primary)' : '1px solid var(--border-default)',
+              backgroundColor: currentStep === 3 ? 'rgba(37, 99, 235, 0.12)' : 'var(--bg-surface-elevated)',
+              color: currentStep === 3 ? 'var(--brand-primary)' : 'var(--text-secondary)',
+              cursor: selectedKeywordIds.size === 0 ? 'not-allowed' : 'pointer',
+              opacity: selectedKeywordIds.size === 0 ? 0.6 : 1,
+              fontWeight: currentStep === 3 ? 700 : 500,
+              fontSize: '0.85rem',
+              transition: 'all 0.15s ease',
+              boxShadow: currentStep === 3 ? '0 0 0 1px var(--brand-primary)' : 'none'
+            }}
+          >
+            <div style={{
+              width: '24px',
+              height: '24px',
+              borderRadius: '50%',
+              backgroundColor: currentStep === 3 ? 'var(--brand-primary)' : 'var(--border-default)',
+              color: '#ffffff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '0.75rem',
+              fontWeight: 700
+            }}>
+              3
+            </div>
+            <span>3. Adım: 360° Medya Karması & Büyüme Simülatörü</span>
           </button>
 
         </div>
       )}
 
           {/* ========================================================================= */}
-          {/* STEP 1 VIEW: Landing Page Context & Keyword Review / Selection           */}
+          {/* STEP 1 & STEP 2 VIEW: Keyword Discovery (Step 1) & Review Selected (Step 2) */}
           {/* ========================================================================= */}
-          {currentStep === 1 && (
+          {(currentStep === 1 || currentStep === 2) && (
             keywords.length === 0 ? (
               <div className="card" style={{ padding: '3rem 1.5rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1rem' }}>
                 <div style={{ width: '56px', height: '56px', borderRadius: '50%', backgroundColor: 'rgba(37, 99, 235, 0.1)', color: 'var(--brand-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -5134,28 +5186,28 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
                           <span style={{ fontSize: '1rem' }}>✨</span>
                           <span style={{ fontSize: '0.82rem', fontWeight: activeClusterId === 'ALL' ? 700 : 600, color: 'var(--text-primary)' }}>
-                            Tüm Kelimeler Havuzu
+                            {currentStep === 2 ? 'Tüm Seçilen Kelimeler' : 'Tüm Kelimeler Havuzu'}
                           </span>
                         </div>
                         <span className="badge badge-neutral" style={{ fontSize: '0.68rem', padding: '1px 6px' }}>
-                          {keywords.length}
+                          {currentStep === 2 ? selectedKeywordIds.size : keywords.length}
                         </span>
                       </div>
 
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
                         <span>📈 {selectedTotalVolume.toLocaleString('tr-TR')} arama (Seçili)</span>
-                        <span>Seçili: <strong style={{ color: 'var(--brand-primary)' }}>{selectedKeywordIds.size}</strong>/{keywords.length}</span>
+                        <span>Seçili: <strong style={{ color: 'var(--brand-primary)' }}>{selectedKeywordIds.size}</strong>/{currentStep === 2 ? selectedKeywordIds.size : keywords.length}</span>
                       </div>
 
                       {/* Mini Selection Bar */}
                       <div style={{ height: '3px', width: '100%', backgroundColor: 'rgba(0,0,0,0.06)', borderRadius: '2px', overflow: 'hidden' }}>
-                        <div style={{ height: '100%', width: `${(selectedKeywordIds.size / (keywords.length || 1)) * 100}%`, backgroundColor: 'var(--brand-primary)', transition: 'width 0.2s ease' }} />
+                        <div style={{ height: '100%', width: `${currentStep === 2 ? 100 : ((selectedKeywordIds.size / (keywords.length || 1)) * 100)}%`, backgroundColor: 'var(--brand-primary)', transition: 'width 0.2s ease' }} />
                       </div>
                     </div>
 
                     {/* Cluster Items List */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', maxHeight: '560px', overflowY: 'auto', paddingRight: '0.2rem' }}>
-                      {keywordClusters.map(cluster => {
+                      {keywordClusters.filter(cluster => currentStep !== 2 || cluster.keywords.some(k => selectedKeywordIds.has(k.id))).map(cluster => {
                         const isActive = activeClusterId === cluster.id;
                         const clusterSelectedKws = cluster.keywords.filter(k => selectedKeywordIds.has(k.id));
                         const clusterSelectedCount = clusterSelectedKws.length;
@@ -5202,7 +5254,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                               </div>
                               
                               <span className="badge badge-neutral" style={{ fontSize: '0.67rem', padding: '1px 5px', flexShrink: 0 }}>
-                                {cluster.keywords.length}
+                                {currentStep === 2 ? clusterSelectedCount : cluster.keywords.length}
                               </span>
                             </div>
 
@@ -5233,16 +5285,25 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem', borderBottom: '1px solid var(--border-default)', paddingBottom: '0.85rem' }}>
                       <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: '1.3rem' }}>{activeCluster.icon || '🎯'}</span>
+                          <span style={{ fontSize: '1.3rem' }}>{currentStep === 2 ? '🎯' : (activeCluster.icon || '✨')}</span>
                           <span style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                            {activeCluster.name.replace(/^[\p{Emoji}\u200d\s]+/u, '').trim() || activeCluster.name}
+                            {currentStep === 2 
+                              ? (activeClusterId === 'ALL' ? 'Seçilen Anahtar Kelimeler' : activeCluster.name.replace(/^[\p{Emoji}\u200d\s]+/u, '').trim())
+                              : (activeCluster.name.replace(/^[\p{Emoji}\u200d\s]+/u, '').trim() || activeCluster.name)}
                           </span>
                           <span className="badge badge-active" style={{ fontSize: '0.72rem' }}>
-                            {activeCluster.keywords.length} Kelime
+                            {activeKeywordsGrid.length} Kelime
                           </span>
+                          {currentStep === 2 && (
+                            <span className="badge" style={{ backgroundColor: 'rgba(16, 185, 129, 0.12)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.25)', fontSize: '0.72rem', fontWeight: 700 }}>
+                              <CheckCircle2 size={12} /> 2. Adım: Sadece Seçilenler
+                            </span>
+                          )}
                         </div>
                         <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
-                          Bu reklam grubundaki tohum anahtar kelimeleri inceleyin, arama niyeti ve hacimlerine göre listenizi düzenleyin.
+                          {currentStep === 2 
+                            ? `Bu adımda yalnızca simülasyona dahil ettiğiniz ${selectedKeywordIds.size} adet seçili kelime yer almaktadır. Listenizi son kez gözden geçirebilir, gerekirse kelimeleri çıkarabilir veya 1. adıma dönerek havuzdan yeni kelimeler ekleyebilirsiniz.`
+                            : 'Bu reklam grubundaki tohum anahtar kelimeleri inceleyin, arama niyeti ve hacimlerine göre listenizi düzenleyin.'}
                         </div>
                       </div>
 
@@ -5845,48 +5906,86 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
                 </div>
 
-                {/* Step 1 Next Action Bar */}
+                {/* Step 1 & Step 2 Bottom Action Bar */}
                 <div className="card" style={{ padding: '0.85rem 1.25rem', backgroundColor: 'var(--bg-surface-elevated)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                    <div style={{ padding: '6px 10px', borderRadius: 'var(--radius-xs)', backgroundColor: 'rgba(37, 99, 235, 0.1)', color: 'var(--brand-primary)', fontWeight: 700, fontSize: '0.85rem' }}>
-                      {selectedKeywordIds.size} Kelime Seçildi
-                    </div>
+                  
+                  {/* Left Side Info / Back Button */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                    {currentStep === 2 ? (
+                      <button
+                        type="button"
+                        onClick={() => setCurrentStep(1)}
+                        className="btn-secondary"
+                        style={{ fontSize: '0.82rem', padding: '0.5rem 0.95rem', display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}
+                      >
+                        <ArrowLeft size={14} />
+                        <span>1. Adıma Dön (Daha Fazla Kelime Ekle)</span>
+                      </button>
+                    ) : (
+                      <div style={{ padding: '6px 10px', borderRadius: 'var(--radius-xs)', backgroundColor: 'rgba(37, 99, 235, 0.1)', color: 'var(--brand-primary)', fontWeight: 700, fontSize: '0.85rem' }}>
+                        {selectedKeywordIds.size} Kelime Seçildi
+                      </div>
+                    )}
+
                     <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                      Aylık Toplam Hacim Projeksiyonu: <strong>{totalSearchVolume.toLocaleString('tr-TR')} arama</strong>
+                      Aylık Toplam Hacim: <strong>{totalSearchVolume.toLocaleString('tr-TR')} arama</strong> • Ort. TBM: <strong style={{ color: 'var(--brand-primary)' }}>₺{selectedAvgCpc.toFixed(2)}</strong>
                     </div>
                   </div>
 
-                  <button
-                    onClick={() => {
-                      let b = monthlyBudget;
-                      if (b <= 0) {
-                        const selVol = totalSearchVolume;
-                        const avgCpc = avgTopPageCpc > 0 ? avgTopPageCpc : 12.0;
-                        b = Math.max(25000, Math.round((selVol > 0 ? selVol : 1000) * 0.15 * avgCpc * 2));
-                        setMonthlyBudget(b);
-                      }
-                      setIsStep1Completed(true);
-                      setCurrentStep(2);
-                      // sync after state update or pass explicit update
-                      setTimeout(() => {
-                        syncActiveSubCampaign();
-                      }, 50);
-                    }}
-                    disabled={selectedKeywordIds.size === 0}
-                    className="btn-primary"
-                    style={{ 
-                      fontSize: '0.85rem', 
-                      padding: '0.55rem 1.35rem', 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      gap: '0.45rem',
-                      fontWeight: 600,
-                      backgroundColor: isStep1Completed ? '#10b981' : undefined
-                    }}
-                  >
-                    <span>Kaydet ve Simülatöre Geç</span>
-                    <ArrowRight size={15} />
-                  </button>
+                  {/* Right Side Forward Button */}
+                  {currentStep === 1 ? (
+                    <button
+                      onClick={() => {
+                        setIsStep1Completed(true);
+                        setCurrentStep(2);
+                      }}
+                      disabled={selectedKeywordIds.size === 0}
+                      className="btn-primary"
+                      style={{ 
+                        fontSize: '0.85rem', 
+                        padding: '0.55rem 1.35rem', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '0.45rem',
+                        fontWeight: 600
+                      }}
+                    >
+                      <span>Seçilenleri İncele & Yapılandır ({selectedKeywordIds.size})</span>
+                      <ArrowRight size={15} />
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        let b = monthlyBudget;
+                        if (b <= 0) {
+                          const selVol = totalSearchVolume;
+                          const avgCpc = avgTopPageCpc > 0 ? avgTopPageCpc : 12.0;
+                          b = Math.max(25000, Math.round((selVol > 0 ? selVol : 1000) * 0.15 * avgCpc * 2));
+                          setMonthlyBudget(b);
+                        }
+                        setIsStep2Completed(true);
+                        setCurrentStep(3);
+                        // sync after state update or pass explicit update
+                        setTimeout(() => {
+                          syncActiveSubCampaign();
+                        }, 50);
+                      }}
+                      disabled={selectedKeywordIds.size === 0}
+                      className="btn-primary"
+                      style={{ 
+                        fontSize: '0.85rem', 
+                        padding: '0.55rem 1.35rem', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '0.45rem',
+                        fontWeight: 600,
+                        backgroundColor: '#10b981'
+                      }}
+                    >
+                      <span>Kaydet ve Simülatöre Geç ({selectedKeywordIds.size})</span>
+                      <ArrowRight size={15} />
+                    </button>
+                  )}
                 </div>
 
               </div>
@@ -5898,9 +5997,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       )}
 
           {/* ========================================================================= */}
-          {/* STEP 2 VIEW: Omnichannel & Platform Dedicated Studios                     */}
+          {/* STEP 3 VIEW: Omnichannel & Platform Dedicated Studios                     */}
           {/* ========================================================================= */}
-          {subCampaigns.length > 0 && (currentStep === 2 || !isGoogleSearchActive) && (
+          {subCampaigns.length > 0 && (currentStep === 3 || !isGoogleSearchActive) && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
               
               {/* Step 2 Quick Context & Strategic Growth Scenario Selector Bar */}
@@ -8717,12 +8816,12 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', flexWrap: 'wrap' }}>
                   <button
                     type="button"
-                    onClick={() => setCurrentStep(1)}
+                    onClick={() => setCurrentStep(2)}
                     className="btn-secondary"
                     style={{ fontSize: '0.82rem', padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
                   >
                     <ArrowLeft size={15} />
-                    <span>1. Adıma Geri Dön</span>
+                    <span>2. Adıma (Seçili Kelimeler) Geri Dön</span>
                   </button>
                   <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
                     Alt Kampanya: <strong style={{ color: 'var(--text-primary)' }}>{activeSubCampaign?.name || 'Ana Kampanya'}</strong> • Bütçe: <strong style={{ color: 'var(--brand-primary)' }}>₺{monthlyBudget.toLocaleString('tr-TR')}</strong>
