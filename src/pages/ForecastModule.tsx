@@ -489,6 +489,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   const handleSaveCpcSettings = (newSettings?: CpcImputationSettings) => {
     const settings = newSettings || cpcImputationSettings;
     setCpcImputationSettings(settings);
+    setShowCpcSettingsModal(false);
     try {
       localStorage.setItem('roasist_cpc_imputation_settings', JSON.stringify(settings));
       localStorage.setItem('roasist_user_cpc_imputation_settings', JSON.stringify(settings));

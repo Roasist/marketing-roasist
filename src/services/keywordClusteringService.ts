@@ -47,19 +47,27 @@ export const groupKeywordsSemantically = (
   }
 
   const clusters: KeywordCluster[] = [];
-  const mult = imputationSettings?.defaultCurrencyMultiplier && imputationSettings.defaultCurrencyMultiplier > 1 
-    ? imputationSettings.defaultCurrencyMultiplier 
-    : 1;
-
   // Impute / scale CPCs within clusters
   const processClusterKeywords = (kws: KeywordMetric[], clusterName: string): KeywordMetric[] => {
-    const validCpcKeywords = kws.filter(k => (k.lowCpc > 0.05 || k.highCpc > 0.05));
+    // 1. Calculate cluster medians from keywords with REAL Google Ads data (not estimated)
+    const validCpcKeywords = kws.filter(k => 
+      (!k.isCpcEstimated && (k.lowCpc > 0.05 || k.highCpc > 0.05)) || 
+      (typeof k.rawLowCpc === 'number' && k.rawLowCpc > 0.05) || 
+      (typeof k.rawHighCpc === 'number' && k.rawHighCpc > 0.05)
+    );
+    
     let clusterMedianLow = 0;
     let clusterMedianHigh = 0;
 
     if (validCpcKeywords.length > 0) {
-      const sortedLows = validCpcKeywords.map(k => k.lowCpc).filter(v => v > 0.05).sort((a, b) => a - b);
-      const sortedHighs = validCpcKeywords.map(k => k.highCpc).filter(v => v > 0.05).sort((a, b) => a - b);
+      const sortedLows = validCpcKeywords
+        .map(k => (typeof k.rawLowCpc === 'number' && k.rawLowCpc > 0.05) ? k.rawLowCpc : k.lowCpc)
+        .filter(v => v > 0.05)
+        .sort((a, b) => a - b);
+      const sortedHighs = validCpcKeywords
+        .map(k => (typeof k.rawHighCpc === 'number' && k.rawHighCpc > 0.05) ? k.rawHighCpc : k.highCpc)
+        .filter(v => v > 0.05)
+        .sort((a, b) => a - b);
       
       clusterMedianLow = sortedLows.length > 0 ? sortedLows[Math.floor(sortedLows.length / 2)] : 0;
       clusterMedianHigh = sortedHighs.length > 0 ? sortedHighs[Math.floor(sortedHighs.length / 2)] : 0;
@@ -68,15 +76,52 @@ export const groupKeywordsSemantically = (
     if (clusterMedianLow <= 0.05) clusterMedianLow = 1.85;
     if (clusterMedianHigh <= 0.05) clusterMedianHigh = 6.20;
 
+    const autoImpute = imputationSettings?.autoImputeMissingCpc !== false;
+    const transMult = typeof imputationSettings?.transactionalMultiplier === 'number' && !isNaN(imputationSettings.transactionalMultiplier) 
+      ? imputationSettings.transactionalMultiplier 
+      : 1.15;
+    const commMult = typeof imputationSettings?.commercialMultiplier === 'number' && !isNaN(imputationSettings.commercialMultiplier) 
+      ? imputationSettings.commercialMultiplier 
+      : 1.00;
+    const infoMult = typeof imputationSettings?.informationalMultiplier === 'number' && !isNaN(imputationSettings.informationalMultiplier) 
+      ? imputationSettings.informationalMultiplier 
+      : 0.85;
+    const currMult = (typeof imputationSettings?.defaultCurrencyMultiplier === 'number' && imputationSettings.defaultCurrencyMultiplier > 1) 
+      ? imputationSettings.defaultCurrencyMultiplier 
+      : 1;
+
     return kws.map(k => {
-      const rawLow = typeof k.lowCpc === 'number' ? k.lowCpc : 0;
-      const rawHigh = typeof k.highCpc === 'number' ? k.highCpc : 0;
+      const rawLow = typeof k.rawLowCpc === 'number' ? k.rawLowCpc : (typeof k.lowCpc === 'number' ? k.lowCpc : 0);
+      const rawHigh = typeof k.rawHighCpc === 'number' ? k.rawHighCpc : (typeof k.highCpc === 'number' ? k.highCpc : 0);
       const sanitizedIsAiStrategist = Boolean(k.isAiStrategistPick);
 
+      // Determine keyword intent multiplier
+      let intentMultiplier = commMult;
+      if (k.intent === 'TRANSACTIONAL') {
+        intentMultiplier = transMult;
+      } else if (k.intent === 'INFORMATIONAL') {
+        intentMultiplier = infoMult;
+      } else if (k.intent === 'COMMERCIAL') {
+        intentMultiplier = commMult;
+      } else {
+        // Semantic intent detection from keyword text
+        const norm = normalizeForSemanticClustering(k.keyword);
+        if (/(?:купить|покупк|satılık|satın|almak|fiyat|fiyatı|цен|цены|стоимост|стоимость|внж|гражданств|vatandaşlık|pasaport|cbi|investment|инвестиц|tapu|тапу|residency|citizenship)/ui.test(norm)) {
+          intentMultiplier = transMult;
+        } else if (/(?:как|что|где|nedir|nasıl|rehber|şartlar|документ|услови|отзыв|форум|yorum|guide|how to)/ui.test(norm)) {
+          intentMultiplier = infoMult;
+        } else {
+          intentMultiplier = commMult;
+        }
+      }
+
+      const effectiveMult = currMult * intentMultiplier;
+
+      // Case A: Missing BOTH low and high CPC
       if (rawLow <= 0.05 && rawHigh <= 0.05) {
-        if (clusterMedianLow > 0.05 && clusterMedianHigh > 0.05) {
-          const estimatedLow = Math.round(clusterMedianLow * mult * 100) / 100;
-          const estimatedHigh = Math.round(clusterMedianHigh * mult * 100) / 100;
+        if (autoImpute && clusterMedianLow > 0.05 && clusterMedianHigh > 0.05) {
+          const estimatedLow = Math.round(clusterMedianLow * effectiveMult * 100) / 100;
+          const estimatedHigh = Math.round(clusterMedianHigh * effectiveMult * 100) / 100;
           return {
             ...k,
             rawLowCpc: rawLow,
@@ -86,7 +131,7 @@ export const groupKeywordsSemantically = (
             isCpcEstimated: true,
             isAiStrategistPick: sanitizedIsAiStrategist,
             cpcEstimationCluster: clusterName,
-            cpcEstimationMultiplier: mult
+            cpcEstimationMultiplier: Math.round(effectiveMult * 100) / 100
           };
         } else {
           return {
@@ -99,38 +144,67 @@ export const groupKeywordsSemantically = (
             isAiStrategistPick: sanitizedIsAiStrategist
           };
         }
-      } else if (rawLow <= 0.05 && rawHigh > 0.50) {
-        const estimatedLow = Math.max(1.00, Math.round(rawHigh * 0.35 * mult * 100) / 100);
-        const scaledHigh = Math.round(rawHigh * mult * 100) / 100;
-        return {
-          ...k,
-          rawLowCpc: rawLow,
-          rawHighCpc: rawHigh,
-          lowCpc: estimatedLow,
-          highCpc: scaledHigh,
-          isCpcEstimated: true,
-          isAiStrategistPick: sanitizedIsAiStrategist,
-          cpcEstimationCluster: clusterName,
-          cpcEstimationMultiplier: mult
-        };
-      } else if (rawLow > 0.50 && rawHigh <= 0.05) {
-        const scaledLow = Math.round(rawLow * mult * 100) / 100;
-        const estimatedHigh = Math.round(rawLow * 2.8 * mult * 100) / 100;
-        return {
-          ...k,
-          rawLowCpc: rawLow,
-          rawHighCpc: rawHigh,
-          lowCpc: scaledLow,
-          highCpc: estimatedHigh,
-          isCpcEstimated: true,
-          isAiStrategistPick: sanitizedIsAiStrategist,
-          cpcEstimationCluster: clusterName,
-          cpcEstimationMultiplier: mult
-        };
+      } 
+      // Case B: Has High CPC but missing Low CPC
+      else if (rawLow <= 0.05 && rawHigh > 0.50) {
+        if (autoImpute) {
+          const estimatedLow = Math.max(0.50, Math.round(rawHigh * 0.35 * effectiveMult * 100) / 100);
+          const scaledHigh = Math.round(rawHigh * currMult * 100) / 100;
+          return {
+            ...k,
+            rawLowCpc: rawLow,
+            rawHighCpc: rawHigh,
+            lowCpc: estimatedLow,
+            highCpc: scaledHigh,
+            isCpcEstimated: true,
+            isAiStrategistPick: sanitizedIsAiStrategist,
+            cpcEstimationCluster: clusterName,
+            cpcEstimationMultiplier: Math.round(effectiveMult * 100) / 100
+          };
+        } else {
+          return {
+            ...k,
+            rawLowCpc: rawLow,
+            rawHighCpc: rawHigh,
+            lowCpc: 0,
+            highCpc: Math.round(rawHigh * currMult * 100) / 100,
+            isCpcEstimated: false,
+            isAiStrategistPick: sanitizedIsAiStrategist
+          };
+        }
+      } 
+      // Case C: Has Low CPC but missing High CPC
+      else if (rawLow > 0.50 && rawHigh <= 0.05) {
+        if (autoImpute) {
+          const scaledLow = Math.round(rawLow * currMult * 100) / 100;
+          const estimatedHigh = Math.round(rawLow * 2.8 * effectiveMult * 100) / 100;
+          return {
+            ...k,
+            rawLowCpc: rawLow,
+            rawHighCpc: rawHigh,
+            lowCpc: scaledLow,
+            highCpc: estimatedHigh,
+            isCpcEstimated: true,
+            isAiStrategistPick: sanitizedIsAiStrategist,
+            cpcEstimationCluster: clusterName,
+            cpcEstimationMultiplier: Math.round(effectiveMult * 100) / 100
+          };
+        } else {
+          return {
+            ...k,
+            rawLowCpc: rawLow,
+            rawHighCpc: rawHigh,
+            lowCpc: Math.round(rawLow * currMult * 100) / 100,
+            highCpc: 0,
+            isCpcEstimated: false,
+            isAiStrategistPick: sanitizedIsAiStrategist
+          };
+        }
       }
 
-      const scaledLow = Math.round(rawLow * mult * 100) / 100;
-      const scaledHigh = Math.round(rawHigh * mult * 100) / 100;
+      // Case D: Real Google Ads CPC available for both
+      const scaledLow = Math.round(rawLow * currMult * 100) / 100;
+      const scaledHigh = Math.round(rawHigh * currMult * 100) / 100;
 
       return {
         ...k,
@@ -138,7 +212,8 @@ export const groupKeywordsSemantically = (
         rawHighCpc: rawHigh,
         lowCpc: scaledLow,
         highCpc: scaledHigh,
-        cpcEstimationMultiplier: mult,
+        isCpcEstimated: false,
+        cpcEstimationMultiplier: 1.0,
         isAiStrategistPick: sanitizedIsAiStrategist
       };
     });
