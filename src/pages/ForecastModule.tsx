@@ -2802,7 +2802,12 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       const directLocLowCpc = directCpcObj?.lowCpc;
       const directLocHighCpc = directCpcObj?.highCpc;
 
-      const intentMultiplier = k.cpcEstimationMultiplier || 1.0;
+      const intentMultiplier = k.cpcEstimationMultiplier || (
+        k.intent === 'TRANSACTIONAL' ? cpcImputationSettings.transactionalMultiplier :
+        k.intent === 'INFORMATIONAL' ? cpcImputationSettings.informationalMultiplier :
+        cpcImputationSettings.commercialMultiplier
+      ) || 1.0;
+
       const baseLow = (directLocLowCpc !== undefined && directLocLowCpc > 0) 
         ? directLocLowCpc * intentMultiplier
         : (k.lowCpc > 0 ? k.lowCpc : 0);
@@ -2810,7 +2815,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         ? directLocHighCpc * intentMultiplier
         : (k.highCpc > 0 ? k.highCpc : 0);
       const hasDirectLocCpc = directLocLowCpc !== undefined && directLocLowCpc > 0.05;
-      const isEstimated = !hasDirectLocCpc && Boolean(k.isCpcEstimated);
+      const isEstimated = !hasDirectLocCpc && Boolean(k.isCpcEstimated || k.cpcEstimationMultiplier || k.cpcEstimationCluster);
 
       if (directLocVol !== undefined) {
         return {
@@ -2819,6 +2824,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           lowCpc: Math.round(baseLow * 100) / 100,
           highCpc: Math.round(baseHigh * 100) / 100,
           isCpcEstimated: isEstimated,
+          cpcEstimationMultiplier: isEstimated ? intentMultiplier : undefined
         };
       }
 
@@ -2827,9 +2833,10 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         lowCpc: Math.round(baseLow * 100) / 100,
         highCpc: Math.round(baseHigh * 100) / 100,
         isCpcEstimated: isEstimated,
+        cpcEstimationMultiplier: isEstimated ? intentMultiplier : undefined
       };
     });
-  }, [imputedKeywords, activeLocationScope, activeScopeMetric, activeScopeLocation, selectedLocations]);
+  }, [imputedKeywords, activeLocationScope, activeScopeMetric, activeScopeLocation, selectedLocations, cpcImputationSettings]);
 
   // Scoped clusters (Ad Group Themes)
   const keywordClusters = useMemo(() => {
@@ -5726,17 +5733,17 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
                                   {/* Top of page CPC */}
                                   <td style={{ padding: '0.5rem 0.75rem', whiteSpace: 'nowrap' }}>
-                                    {kw.isCpcEstimated ? (
+                                    {Boolean(kw.isCpcEstimated || kw.cpcEstimationMultiplier || kw.cpcEstimationCluster) ? (
                                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}>
                                         <span style={{ fontSize: '0.75rem', color: 'var(--text-primary)', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
                                           ≈ ₺{kw.lowCpc.toFixed(2)} - ₺{kw.highCpc.toFixed(2)}
                                         </span>
                                         <span 
-                                          title={`Google açık artırma verisi az olduğundan, '${kw.cpcEstimationCluster || activeCluster.name}' kümesi ortalaması ve ${kw.cpcEstimationMultiplier || 1.0}x niyet çarpanı ile hesaplanmıştır.\n\nOrijinal TBM: ₺${(kw.rawLowCpc ?? 0).toFixed(2)} - ₺${(kw.rawHighCpc ?? 0).toFixed(2)}\nUygulanan Çarpan: ${kw.cpcEstimationMultiplier || 1.0}x\nNiyet: ${kw.intent}`} 
+                                          title={`Google açık artırma verisi az olduğundan, '${kw.cpcEstimationCluster || activeCluster.name}' kümesi ortalaması ve ${kw.cpcEstimationMultiplier || (kw.intent === 'TRANSACTIONAL' ? cpcImputationSettings.transactionalMultiplier : kw.intent === 'INFORMATIONAL' ? cpcImputationSettings.informationalMultiplier : cpcImputationSettings.commercialMultiplier) || 1.0}x niyet çarpanı ile hesaplanmıştır.\n\nOrijinal TBM: ₺${(kw.rawLowCpc ?? 0).toFixed(2)} - ₺${(kw.rawHighCpc ?? 0).toFixed(2)}\nUygulanan Çarpan: ${kw.cpcEstimationMultiplier || (kw.intent === 'TRANSACTIONAL' ? cpcImputationSettings.transactionalMultiplier : kw.intent === 'INFORMATIONAL' ? cpcImputationSettings.informationalMultiplier : cpcImputationSettings.commercialMultiplier) || 1.0}x\nNiyet: ${kw.intent}`} 
                                           style={{ 
-                                            fontSize: '0.60rem', 
+                                            fontSize: '0.62rem', 
                                             fontWeight: 600, 
-                                            padding: '1px 4px', 
+                                            padding: '1px 5px', 
                                             borderRadius: '3px', 
                                             backgroundColor: 'rgba(139, 92, 246, 0.12)', 
                                             color: '#8b5cf6',
@@ -5744,11 +5751,15 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                                             cursor: 'help',
                                             display: 'inline-flex',
                                             alignItems: 'center',
+                                            gap: '2px',
                                             lineHeight: '1.1',
                                             whiteSpace: 'nowrap'
                                           }}
                                         >
-                                          Tahmin {kw.cpcEstimationMultiplier ? `(${kw.cpcEstimationMultiplier}x)` : ''}
+                                          <span>Tahmin</span>
+                                          <span style={{ fontWeight: 700 }}>
+                                            ({Number(kw.cpcEstimationMultiplier || (kw.intent === 'TRANSACTIONAL' ? cpcImputationSettings.transactionalMultiplier : kw.intent === 'INFORMATIONAL' ? cpcImputationSettings.informationalMultiplier : cpcImputationSettings.commercialMultiplier) || 1.0).toFixed(2)}x)
+                                          </span>
                                         </span>
                                       </div>
                                     ) : kw.lowCpc > 0 ? (

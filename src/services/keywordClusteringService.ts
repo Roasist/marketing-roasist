@@ -50,11 +50,12 @@ export const groupKeywordsSemantically = (
   // Impute / scale CPCs within clusters
   const processClusterKeywords = (kws: KeywordMetric[], clusterName: string): KeywordMetric[] => {
     // 1. Calculate cluster medians from keywords with REAL Google Ads data (not estimated)
-    const validCpcKeywords = kws.filter(k => 
-      (!k.isCpcEstimated && (k.lowCpc > 0.05 || k.highCpc > 0.05)) || 
-      (typeof k.rawLowCpc === 'number' && k.rawLowCpc > 0.05) || 
-      (typeof k.rawHighCpc === 'number' && k.rawHighCpc > 0.05)
-    );
+    const validCpcKeywords = kws.filter(k => {
+      if (k.isCpcEstimated || k.cpcEstimationCluster) return false;
+      if (typeof k.rawLowCpc === 'number' && k.rawLowCpc > 0.05) return true;
+      if (typeof k.rawHighCpc === 'number' && k.rawHighCpc > 0.05) return true;
+      return !k.isCpcEstimated && (k.lowCpc > 0.05 || k.highCpc > 0.05);
+    });
     
     let clusterMedianLow = 0;
     let clusterMedianHigh = 0;
@@ -73,8 +74,9 @@ export const groupKeywordsSemantically = (
       clusterMedianHigh = sortedHighs.length > 0 ? sortedHighs[Math.floor(sortedHighs.length / 2)] : 0;
     }
 
-    if (clusterMedianLow <= 0.05) clusterMedianLow = 1.85;
-    if (clusterMedianHigh <= 0.05) clusterMedianHigh = 6.20;
+    // Default sector fallbacks if no real keyword bid data exists in this cluster
+    if (clusterMedianLow <= 0.05) clusterMedianLow = 7.60;
+    if (clusterMedianHigh <= 0.05) clusterMedianHigh = 28.50;
 
     const autoImpute = imputationSettings?.autoImputeMissingCpc !== false;
     const transMult = typeof imputationSettings?.transactionalMultiplier === 'number' && !isNaN(imputationSettings.transactionalMultiplier) 
@@ -91,10 +93,15 @@ export const groupKeywordsSemantically = (
       : 1;
 
     return kws.map(k => {
+      const hasExplicitRawData = (typeof k.rawLowCpc === 'number' && k.rawLowCpc > 0.05) || 
+                                (typeof k.rawHighCpc === 'number' && k.rawHighCpc > 0.05);
+
       const isAlreadyEstimated = Boolean(
         k.isCpcEstimated || 
         (typeof k.rawLowCpc === 'number' && k.rawLowCpc <= 0.05) ||
-        (typeof k.rawHighCpc === 'number' && k.rawHighCpc <= 0.05)
+        (typeof k.rawHighCpc === 'number' && k.rawHighCpc <= 0.05) ||
+        Boolean(k.cpcEstimationCluster) ||
+        (!hasExplicitRawData && (k.lowCpc <= 0.05 || k.highCpc <= 0.05))
       );
 
       const rawLow = (typeof k.rawLowCpc === 'number') 
