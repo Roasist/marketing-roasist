@@ -5809,7 +5809,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       {selectedKeywordIds.size} Kelime Seçildi
                     </div>
                     <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                      Aylık Toplam Hacim Projeksiyonu: <strong>{keywords.filter(k => selectedKeywordIds.has(k.id)).reduce((s, k) => s + k.monthlyVolume, 0).toLocaleString('tr-TR')} arama</strong>
+                      Aylık Toplam Hacim Projeksiyonu: <strong>{totalSearchVolume.toLocaleString('tr-TR')} arama</strong>
                     </div>
                   </div>
 
@@ -5817,7 +5817,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     onClick={() => {
                       let b = monthlyBudget;
                       if (b <= 0) {
-                        const selVol = keywords.filter(k => selectedKeywordIds.has(k.id)).reduce((s, k) => s + k.monthlyVolume, 0);
+                        const selVol = totalSearchVolume;
                         const avgCpc = avgTopPageCpc > 0 ? avgTopPageCpc : 12.0;
                         b = Math.max(25000, Math.round((selVol > 0 ? selVol : 1000) * 0.15 * avgCpc * 2));
                         setMonthlyBudget(b);
