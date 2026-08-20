@@ -568,7 +568,7 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
                 "geoTargetConstants" => [$geoResource]
             ];
             if (!empty($topSeeds)) {
-                $payload["keywordSeed"] = ["keywords" => array_slice($topSeeds, 0, 5)];
+                $payload["keywordSeed"] = ["keywords" => array_slice($topSeeds, 0, 20)];
             } elseif ($mode === 'URL' && !empty($query) && preg_match('/^https?:\/\//i', $query)) {
                 $payload["urlSeed"] = ["url" => $query];
             } else {
@@ -627,7 +627,7 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
                     "geoTargetConstants" => [$geoResource]
                 ];
                 if (!empty($topSeeds)) {
-                    $retryPayload["keywordSeed"] = ["keywords" => array_slice($topSeeds, 0, 5)];
+                    $retryPayload["keywordSeed"] = ["keywords" => array_slice($topSeeds, 0, 20)];
                 } elseif ($mode === 'URL' && !empty($query) && preg_match('/^https?:\/\//i', $query)) {
                     $retryPayload["urlSeed"] = ["url" => $query];
                 } else {
