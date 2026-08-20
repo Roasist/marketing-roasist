@@ -7309,13 +7309,23 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                       <div>
                         <label style={{ fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                          {isGoogleSearchActive ? 'Google Search Aylık Bütçesi' : `Google Search Ayrılan Bütçe (%${allocGoogleSearch})`}
+                          <span>{isGoogleSearchActive ? 'Google Search Aylık Bütçesi' : `Google Search Ayrılan Bütçe (%${allocGoogleSearch})`}</span>
                         </label>
                         <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
                           {isGoogleSearchActive ? (
-                            <>Günlük ortalama: <strong>₺{Math.round((monthlyBudget || 0) / 30.4).toLocaleString('tr-TR')}/gün</strong> • Tahmini Gösterim Payı: <strong>%{simulation.targetImpressionShare}</strong></>
+                            <span>
+                              <span>Günlük ortalama: </span>
+                              <strong>₺{Math.round((monthlyBudget || 0) / 30.4).toLocaleString('tr-TR')}/gün</strong>
+                              <span> • Tahmini Gösterim Payı: </span>
+                              <strong>%{simulation.targetImpressionShare}</strong>
+                            </span>
                           ) : (
-                            <>Toplam ₺{(monthlyBudget || 0).toLocaleString('tr-TR')} medya bütçesinin %{allocGoogleSearch}'i • <strong>Günlük: ₺{Math.round(Math.round(((monthlyBudget || 0) * allocGoogleSearch) / 100) / 30.4).toLocaleString('tr-TR')}/gün</strong> • <strong>Tahmini Gösterim Payı: %{simulation.targetImpressionShare}</strong></>
+                            <span>
+                              <span>Toplam ₺{(monthlyBudget || 0).toLocaleString('tr-TR')} medya bütçesinin %{allocGoogleSearch}'i • </span>
+                              <strong>Günlük: ₺{Math.round(Math.round(((monthlyBudget || 0) * allocGoogleSearch) / 100) / 30.4).toLocaleString('tr-TR')}/gün</strong>
+                              <span> • </span>
+                              <strong>Tahmini Gösterim Payı: %{simulation.targetImpressionShare}</strong>
+                            </span>
                           )}
                         </div>
                       </div>
@@ -7329,8 +7339,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                           value={isGoogleSearchActive ? ((monthlyBudget || 0) === 0 ? '' : monthlyBudget) : (Math.round(((monthlyBudget || 0) * allocGoogleSearch) / 100) === 0 ? '' : Math.round(((monthlyBudget || 0) * allocGoogleSearch) / 100))}
                           placeholder="0"
                           onChange={(e) => {
-                            const val = e.target.value;
-                            handleGoogleBudgetChange(val === '' ? 0 : Number(val));
+                            const raw = e.target.value;
+                            const num = raw === '' ? 0 : Number(raw);
+                            handleGoogleBudgetChange(isNaN(num) ? 0 : num);
                           }}
                           style={{
                             width: '110px',
@@ -7358,7 +7369,10 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                             max={maxSliderVal}
                             step={250}
                             value={curGoogleSpend}
-                            onChange={(e) => handleGoogleBudgetChange(Number(e.target.value))}
+                            onChange={(e) => {
+                              const num = Number(e.target.value);
+                              handleGoogleBudgetChange(isNaN(num) ? 0 : num);
+                            }}
                             style={{
                               width: '100%',
                               accentColor: '#2563eb',
@@ -7406,10 +7420,14 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div>
                         <label style={{ fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                          Hedef Pazar Gösterim Payı (IS %)
+                          <span>Hedef Pazar Gösterim Payı (IS %)</span>
                         </label>
                         <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                          Ayrılan Bütçe: <strong>₺{simulation.actualSpend.toLocaleString('tr-TR')}</strong>/ay {isGoogleSearchActive ? '' : `(%${allocGoogleSearch})`}
+                          <span>
+                            <span>Ayrılan Bütçe: </span>
+                            <strong>₺{(simulation.actualSpend || 0).toLocaleString('tr-TR')}</strong>
+                            <span>/ay {isGoogleSearchActive ? '' : `(%${allocGoogleSearch})`}</span>
+                          </span>
                         </div>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
@@ -7420,7 +7438,11 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                           max={95}
                           step={1}
                           value={targetImpressionShare}
-                          onChange={(e) => handleImpressionShareChange(Math.max(5, Math.min(95, Number(e.target.value))))}
+                          onChange={(e) => {
+                            const raw = e.target.value;
+                            const num = raw === '' ? 50 : Number(raw);
+                            handleImpressionShareChange(isNaN(num) ? 50 : Math.max(5, Math.min(95, num)));
+                          }}
                           style={{
                             width: '64px',
                             padding: '2px 6px',
@@ -7441,12 +7463,15 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       max={95}
                       step={1}
                       value={targetImpressionShare}
-                      onChange={(e) => handleImpressionShareChange(Number(e.target.value))}
+                      onChange={(e) => {
+                        const num = Number(e.target.value);
+                        handleImpressionShareChange(isNaN(num) ? 50 : num);
+                      }}
                       style={{
                         width: '100%',
                         accentColor: '#2563eb',
                         cursor: 'pointer',
-                        background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.min(100, Math.max(0, Math.round(((targetImpressionShare - 5) / 90) * 100)))}%, var(--border-default) ${Math.min(100, Math.max(0, Math.round(((targetImpressionShare - 5) / 90) * 100)))}%, var(--border-default) 100%)`,
+                        background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.min(100, Math.max(0, Math.round((( (Number(targetImpressionShare) || 50) - 5) / 90) * 100)))}%, var(--border-default) ${Math.min(100, Math.max(0, Math.round((( (Number(targetImpressionShare) || 50) - 5) / 90) * 100)))}%, var(--border-default) 100%)`,
                         height: '6px',
                         borderRadius: 'var(--radius-full)'
                       }}
@@ -7491,9 +7516,13 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       alignItems: 'center',
                       gap: '0.5rem'
                     }}>
-                      <span>Bu pay için gereken bütçe: <strong>₺{simulation.actualSpend.toLocaleString('tr-TR')}</strong>/ay</span>
+                      <span>
+                        <span>Bu pay için gereken bütçe: </span>
+                        <strong>₺{(simulation.actualSpend || 0).toLocaleString('tr-TR')}</strong>
+                        <span>/ay</span>
+                      </span>
                       <span style={{ fontSize: '0.7rem', color: '#10b981', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '3px' }}>
-                        ✓ Otomatik Senkronize {isGoogleSearchActive ? '' : `(%${allocGoogleSearch})`}
+                        <span>✓ Otomatik Senkronize {isGoogleSearchActive ? '' : `(%${allocGoogleSearch})`}</span>
                       </span>
                     </div>
                   </div>
@@ -7503,7 +7532,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <label style={{ fontSize: '0.825rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
-                      Tahmini Arama Ağı Tıklama Oranı (CTR / TO %)
+                      <span>Tahmini Arama Ağı Tıklama Oranı (CTR / TO %)</span>
                     </label>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
                       <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>%</span>
@@ -7513,7 +7542,11 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                         max={80.0}
                         step={0.1}
                         value={expectedCtr}
-                        onChange={(e) => handleExpectedCtrChange(Math.max(0.1, Number(e.target.value)))}
+                        onChange={(e) => {
+                          const raw = e.target.value;
+                          const num = raw === '' ? 7.5 : Number(raw);
+                          handleExpectedCtrChange(isNaN(num) ? 7.5 : Math.max(0.1, Math.min(80, num)));
+                        }}
                         style={{
                           width: '64px',
                           padding: '2px 6px',
@@ -7534,12 +7567,15 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     max={40.0}
                     step={0.1}
                     value={expectedCtr}
-                    onChange={(e) => handleExpectedCtrChange(Number(e.target.value))}
+                    onChange={(e) => {
+                      const num = Number(e.target.value);
+                      handleExpectedCtrChange(isNaN(num) ? 7.5 : num);
+                    }}
                     style={{
                       width: '100%',
                       accentColor: '#2563eb',
                       cursor: 'pointer',
-                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.min(100, Math.max(0, Math.round(((expectedCtr - 1.0) / 39.0) * 100)))}%, var(--border-default) ${Math.min(100, Math.max(0, Math.round(((expectedCtr - 1.0) / 39.0) * 100)))}%, var(--border-default) 100%)`,
+                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.min(100, Math.max(0, Math.round((( (Number(expectedCtr) || 7.5) - 1.0) / 39.0) * 100)))}%, var(--border-default) ${Math.min(100, Math.max(0, Math.round((( (Number(expectedCtr) || 7.5) - 1.0) / 39.0) * 100)))}%, var(--border-default) 100%)`,
                       height: '6px',
                       borderRadius: 'var(--radius-full)'
                     }}
@@ -7550,7 +7586,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <label style={{ fontSize: '0.825rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
-                      Form & Talep Dönüşüm Oranı (Lead CR %)
+                      <span>Form & Talep Dönüşüm Oranı (Lead CR %)</span>
                     </label>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
                       <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>%</span>
@@ -7560,7 +7596,11 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                         max={80.0}
                         step={0.1}
                         value={leadConversionRate}
-                        onChange={(e) => setLeadConversionRate(Math.max(0.1, Number(e.target.value)))}
+                        onChange={(e) => {
+                          const raw = e.target.value;
+                          const num = raw === '' ? 2.0 : Number(raw);
+                          setLeadConversionRate(isNaN(num) ? 2.0 : Math.max(0.1, Math.min(80, num)));
+                        }}
                         style={{
                           width: '64px',
                           padding: '2px 6px',
@@ -7581,12 +7621,15 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     max={35.0}
                     step={0.1}
                     value={leadConversionRate}
-                    onChange={(e) => setLeadConversionRate(Number(e.target.value))}
+                    onChange={(e) => {
+                      const num = Number(e.target.value);
+                      setLeadConversionRate(isNaN(num) ? 2.0 : num);
+                    }}
                     style={{
                       width: '100%',
                       accentColor: '#2563eb',
                       cursor: 'pointer',
-                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.min(100, Math.max(0, Math.round(((leadConversionRate - 0.5) / 34.5) * 100)))}%, var(--border-default) ${Math.min(100, Math.max(0, Math.round(((leadConversionRate - 0.5) / 34.5) * 100)))}%, var(--border-default) 100%)`,
+                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.min(100, Math.max(0, Math.round((( (Number(leadConversionRate) || 2.0) - 0.5) / 34.5) * 100)))}%, var(--border-default) ${Math.min(100, Math.max(0, Math.round((( (Number(leadConversionRate) || 2.0) - 0.5) / 34.5) * 100)))}%, var(--border-default) 100%)`,
                       height: '6px',
                       borderRadius: 'var(--radius-full)'
                     }}
@@ -7599,7 +7642,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <label style={{ fontSize: '0.825rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
-                          Sağlıklı Lead Oranı (% Healthy Lead)
+                          <span>Sağlıklı Lead Oranı (% Healthy Lead)</span>
                         </label>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
                           <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>%</span>
@@ -7609,7 +7652,11 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                             max={100}
                             step={1}
                             value={leadCloseRate}
-                            onChange={(e) => setLeadCloseRate(Math.max(1, Math.min(100, Number(e.target.value))))}
+                            onChange={(e) => {
+                              const raw = e.target.value;
+                              const num = raw === '' ? 50 : Number(raw);
+                              setLeadCloseRate(isNaN(num) ? 50 : Math.max(1, Math.min(100, num)));
+                            }}
                             style={{
                               width: '64px',
                               padding: '2px 6px',
@@ -7630,12 +7677,15 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                         max={100}
                         step={1}
                         value={leadCloseRate}
-                        onChange={(e) => setLeadCloseRate(Number(e.target.value))}
+                        onChange={(e) => {
+                          const num = Number(e.target.value);
+                          setLeadCloseRate(isNaN(num) ? 50 : num);
+                        }}
                         style={{
                           width: '100%',
                           accentColor: '#2563eb',
                           cursor: 'pointer',
-                          background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.min(100, Math.max(0, Math.round(((leadCloseRate - 1) / 99) * 100)))}%, var(--border-default) ${Math.min(100, Math.max(0, Math.round(((leadCloseRate - 1) / 99) * 100)))}%, var(--border-default) 100%)`,
+                          background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.min(100, Math.max(0, Math.round((( (Number(leadCloseRate) || 50) - 1) / 99) * 100)))}%, var(--border-default) ${Math.min(100, Math.max(0, Math.round((( (Number(leadCloseRate) || 50) - 1) / 99) * 100)))}%, var(--border-default) 100%)`,
                           height: '6px',
                           borderRadius: 'var(--radius-full)'
                         }}
@@ -7877,13 +7927,13 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                         </span>
                       )}
                     </div>
-                    {countryBreakdown.map((cm) => {
+                    {countryBreakdown.map((cm, idx) => {
                       return (
-                        <div key={cm.name + cm.code} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.76rem', padding: '0.25rem 0' }}>
+                        <div key={`${cm.code || ''}_${cm.name || ''}_${idx}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.76rem', padding: '0.25rem 0' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            <span style={{ fontSize: '0.95rem' }}>{cm.flag}</span>
+                            <span style={{ fontSize: '0.95rem' }}>{cm.flag || '🌐'}</span>
                             <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{cm.name}</span>
-                            {cm.sharePercent > 0 && (
+                            {(cm.sharePercent || 0) > 0 && (
                               <span className="badge badge-neutral" style={{ fontSize: '0.65rem', padding: '1px 4px' }}>
                                 %{cm.sharePercent}
                               </span>
@@ -7891,14 +7941,15 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', whiteSpace: 'nowrap' }}>
                             <span style={{ color: 'var(--text-secondary)' }}>
-                              <strong style={{ color: 'var(--text-primary)' }}>{cm.monthlyVolume.toLocaleString('tr-TR')}</strong> arama
+                              <strong style={{ color: 'var(--text-primary)' }}>{(cm.monthlyVolume || 0).toLocaleString('tr-TR')}</strong>
+                              <span> arama</span>
                             </span>
                             <span style={{ color: 'var(--border-default)' }}>•</span>
                             <span 
-                              title={`Seçili Kelimelerin Bu Pazara Ait Ortalama TBM'si: ₺${cm.avgCpc.toFixed(2)}`}
-                              style={{ color: cm.avgCpc > 0 ? 'var(--brand-primary)' : 'var(--text-muted)', fontWeight: 700 }}
+                              title={`Seçili Kelimelerin Bu Pazara Ait Ortalama TBM'si: ₺${(cm.avgCpc || 0).toFixed(2)}`}
+                              style={{ color: (cm.avgCpc || 0) > 0 ? 'var(--brand-primary)' : 'var(--text-muted)', fontWeight: 700 }}
                             >
-                              {cm.avgCpc > 0 ? `₺${cm.avgCpc.toFixed(2)} TBM` : 'TBM Yok'}
+                              {(cm.avgCpc || 0) > 0 ? `₺${(cm.avgCpc || 0).toFixed(2)} TBM` : 'TBM Yok'}
                             </span>
                           </div>
                         </div>

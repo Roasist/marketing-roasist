@@ -18,6 +18,7 @@ import { ForecastModule } from './pages/ForecastModule';
 import { AiCopywriterModule } from './pages/AiCopywriterModule';
 import { RoasOptimizerModule } from './pages/RoasOptimizerModule';
 import { AdminPanel } from './pages/AdminPanel';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { Loader2 } from 'lucide-react';
 
 function AppContent() {
@@ -317,11 +318,13 @@ function AppContent() {
 
 export function App() {
   return (
-    <ThemeProvider>
-      <AuthProvider>
-        <AppContent />
-      </AuthProvider>
-    </ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider>
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }
 
