@@ -549,18 +549,19 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
   // Keywords normalized with exact multi-location summed volume if geoVolumes exists
   const normalizedKeywords = useMemo(() => {
-    const activeGeoIds = new Set(selectedLocations.map(l => String(l.id)));
+    const activeGeoCleanIds = new Set(selectedLocations.map(l => String(l.id).replace(/\D/g, '')).filter(Boolean));
     return keywords.map(k => {
       if (k.geoVolumes && Object.keys(k.geoVolumes).length > 0) {
         let sumGeo = 0;
         let hasMatchingGeo = false;
         for (const [gId, vol] of Object.entries(k.geoVolumes)) {
-          if (activeGeoIds.size === 0 || activeGeoIds.has(String(gId))) {
+          const cleanGId = String(gId).replace(/\D/g, '');
+          if (activeGeoCleanIds.size === 0 || activeGeoCleanIds.has(cleanGId) || activeGeoCleanIds.has(String(gId))) {
             sumGeo += (Number(vol) || 0);
             hasMatchingGeo = true;
           }
         }
-        if (hasMatchingGeo && sumGeo > 0) {
+        if (hasMatchingGeo) {
           return {
             ...k,
             monthlyVolume: sumGeo
@@ -2736,7 +2737,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
   // Scoped keywords adapted to chosen location (or aggregated if ALL), retaining full CPC imputation
   const scopedKeywords = useMemo(() => {
-    const activeGeoIds = new Set(selectedLocations.map(l => String(l.id)));
+    const activeGeoCleanIds = new Set(selectedLocations.map(l => String(l.id).replace(/\D/g, '')).filter(Boolean));
 
     if (activeLocationScope === 'ALL' || !activeScopeLocation) {
       return imputedKeywords.map(k => {
@@ -2744,12 +2745,13 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           let sumGeo = 0;
           let hasMatchingGeo = false;
           for (const [gId, vol] of Object.entries(k.geoVolumes)) {
-            if (activeGeoIds.size === 0 || activeGeoIds.has(String(gId))) {
+            const cleanGId = String(gId).replace(/\D/g, '');
+            if (activeGeoCleanIds.size === 0 || activeGeoCleanIds.has(cleanGId) || activeGeoCleanIds.has(String(gId))) {
               sumGeo += (Number(vol) || 0);
               hasMatchingGeo = true;
             }
           }
-          if (hasMatchingGeo && sumGeo > 0) {
+          if (hasMatchingGeo) {
             return {
               ...k,
               monthlyVolume: sumGeo
