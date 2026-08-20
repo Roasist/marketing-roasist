@@ -7,14 +7,13 @@ import {
   Sliders, 
   Sparkles, 
   ShieldCheck, 
-  Target, 
   TrendingUp, 
   Search, 
-  SlidersHorizontal,
-  Settings,
-  Layers,
-  BarChart2,
-  Table
+  SlidersHorizontal, 
+  Settings, 
+  Layers, 
+  BarChart2, 
+  Table 
 } from 'lucide-react';
 import { SubCampaignItem, KeywordMetric } from '../types/forecast';
 import { 
@@ -674,204 +673,146 @@ export const ExportCustomizationModal: React.FC<ExportCustomizationModalProps> =
                     </div>
                   </div>
 
-                  {/* 2. UNIFIED PARAMETERS & GROWTH BLOCK */}
+                  {/* 2. KANAL & SİMÜLASYON HESAPLAMA PARAMETRELERİ */}
                   <div style={{
                     padding: '0.75rem 0.85rem',
                     borderRadius: 'var(--radius-md, 8px)',
-                    border: '1px solid var(--border-default)',
-                    backgroundColor: 'rgba(248, 250, 252, 0.6)',
+                    border: `1px solid ${config.includeChannelParameters ? 'var(--brand-primary, #4f46e5)' : 'var(--border-default)'}`,
+                    backgroundColor: config.includeChannelParameters ? 'rgba(79, 70, 229, 0.04)' : 'var(--bg-surface)',
                     display: 'flex',
                     flexDirection: 'column',
                     gap: '0.65rem'
                   }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', borderBottom: '1px solid var(--border-subtle, #e2e8f0)', paddingBottom: '0.4rem' }}>
-                      <Settings size={15} color="#4f46e5" />
-                      <span style={{ fontSize: '0.82rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                        2. Kanal & Simülasyon Hesaplama Parametreleri
-                      </span>
-                    </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', paddingLeft: '0.25rem' }}>
-                      {/* 2.1 Parameters */}
-                      <div 
-                        onClick={() => handleToggle('includeChannelParameters')}
-                        style={{
-                          padding: '0.5rem 0.65rem',
-                          borderRadius: '6px',
-                          border: `1px solid ${config.includeChannelParameters ? 'var(--brand-primary, #4f46e5)' : 'var(--border-default)'}`,
-                          backgroundColor: config.includeChannelParameters ? 'rgba(79, 70, 229, 0.05)' : '#ffffff',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.6rem',
-                          cursor: 'pointer',
-                          opacity: config.includeChannelParameters ? 1 : 0.65
-                        }}
-                      >
-                        <div style={{
-                          width: '16px',
-                          height: '16px',
-                          borderRadius: '3px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          backgroundColor: config.includeChannelParameters ? 'var(--brand-primary, #4f46e5)' : 'transparent',
-                          border: `1px solid ${config.includeChannelParameters ? 'var(--brand-primary, #4f46e5)' : 'var(--border-strong)'}`,
-                          color: '#ffffff'
-                        }}>
-                          {config.includeChannelParameters && <Check size={11} strokeWidth={3} />}
-                        </div>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: '0.78rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                            <Settings size={12} color="#64748b" />
-                            <span>Simülasyon Hesaplama Parametreleri</span>
-                          </div>
-                          <div style={{ fontSize: '0.68rem', color: 'var(--text-secondary)' }}>
-                            Hedef Gösterim Payı (IS), TO, CR, SQL oranı ve simülasyon katsayıları.
-                          </div>
-                        </div>
+                    <div 
+                      onClick={() => handleToggle('includeChannelParameters')}
+                      style={{ display: 'flex', alignItems: 'flex-start', gap: '0.65rem', cursor: 'pointer' }}
+                    >
+                      <div style={{
+                        marginTop: '2px',
+                        width: '18px',
+                        height: '18px',
+                        borderRadius: '4px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        backgroundColor: config.includeChannelParameters ? 'var(--brand-primary, #4f46e5)' : 'transparent',
+                        border: `1px solid ${config.includeChannelParameters ? 'var(--brand-primary, #4f46e5)' : 'var(--border-strong)'}`,
+                        color: '#ffffff'
+                      }}>
+                        {config.includeChannelParameters && <Check size={12} strokeWidth={3} />}
                       </div>
-
-                      {/* Granular Parameter Chips */}
-                      {config.includeChannelParameters && (
-                        <div style={{
-                          margin: '0.1rem 0 0.3rem 1.6rem',
-                          padding: '0.5rem 0.65rem',
-                          backgroundColor: '#ffffff',
-                          borderRadius: '6px',
-                          border: '1px dashed var(--border-default)',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '0.35rem'
-                        }}>
-                          <div style={{ fontSize: '0.66rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-                            Gösterilecek Parametre Kartları:
-                          </div>
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
-                            {parameterLabels
-                              .filter(p => {
-                                const platformUpper = (subCampaign?.platform || 'GOOGLE_SEARCH').toUpperCase();
-                                const isMeta = platformUpper.includes('META') || platformUpper.includes('FACEBOOK') || platformUpper.includes('INSTAGRAM');
-                                const isYouTube = platformUpper.includes('YOUTUBE') || platformUpper.includes('VIDEO');
-                                const isGDN = platformUpper.includes('GDN') || platformUpper.includes('DISPLAY');
-                                const isLeadGen = subCampaign?.businessModel !== 'ECOMMERCE';
-
-                                if (p.key.startsWith('meta') && !isMeta) return false;
-                                if (p.key === 'youtubeCpv' && !isYouTube) return false;
-                                if (p.key === 'gdnCpm' && !isGDN) return false;
-                                if ((p.key === 'searchCloseRate' || p.key === 'avgDealValue') && isLeadGen) return false;
-                                return true;
-                              })
-                              .map(p => {
-                                const isChecked = config.visibleParameters[p.key];
-                                return (
-                                  <button
-                                    type="button"
-                                    key={p.key}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleToggleParameter(p.key);
-                                    }}
-                                    style={{
-                                      padding: '3px 8px',
-                                      borderRadius: '4px',
-                                      fontSize: '0.69rem',
-                                      fontWeight: 600,
-                                      cursor: 'pointer',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      gap: '4px',
-                                      backgroundColor: isChecked ? '#eff6ff' : 'var(--bg-surface-elevated)',
-                                      border: `1px solid ${isChecked ? '#3b82f6' : 'var(--border-default)'}`,
-                                      color: isChecked ? '#1d4ed8' : 'var(--text-secondary)'
-                                    }}
-                                  >
-                                    <span style={{ fontSize: '0.75rem' }}>{isChecked ? '✓' : '+'}</span>
-                                    <span>{p.label}</span>
-                                  </button>
-                                );
-                              })}
-                          </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                          <Settings size={14} color="#6366f1" />
+                          <span style={{ fontSize: '0.8rem', fontWeight: 700 }}>2. Kanal & Simülasyon Hesaplama Parametreleri</span>
                         </div>
-                      )}
-
-                      {/* 2.2 Funnel */}
-                      <div 
-                        onClick={() => handleToggle('includeFunnel')}
-                        style={{
-                          padding: '0.5rem 0.65rem',
-                          borderRadius: '6px',
-                          border: `1px solid ${config.includeFunnel ? 'var(--brand-primary, #4f46e5)' : 'var(--border-default)'}`,
-                          backgroundColor: config.includeFunnel ? 'rgba(79, 70, 229, 0.05)' : '#ffffff',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.6rem',
-                          cursor: 'pointer',
-                          opacity: config.includeFunnel ? 1 : 0.65
-                        }}
-                      >
-                        <div style={{
-                          width: '16px',
-                          height: '16px',
-                          borderRadius: '3px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          backgroundColor: config.includeFunnel ? 'var(--brand-primary, #4f46e5)' : 'transparent',
-                          border: `1px solid ${config.includeFunnel ? 'var(--brand-primary, #4f46e5)' : 'var(--border-strong)'}`,
-                          color: '#ffffff'
-                        }}>
-                          {config.includeFunnel && <Check size={11} strokeWidth={3} />}
-                        </div>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: '0.78rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                            <Target size={12} color="#8b5cf6" />
-                            <span>Uçtan Uca Dönüşüm Hunisi Projeksiyonu</span>
-                          </div>
-                          <div style={{ fontSize: '0.68rem', color: 'var(--text-secondary)' }}>
-                            Pazar Gösterimi → Nitelikli Trafik → Brüt & Nitelikli Talep Akışı.
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* 2.3 KPI Summary */}
-                      <div 
-                        onClick={() => handleToggle('includeKpiSummary')}
-                        style={{
-                          padding: '0.5rem 0.65rem',
-                          borderRadius: '6px',
-                          border: `1px solid ${config.includeKpiSummary ? 'var(--brand-primary, #4f46e5)' : 'var(--border-default)'}`,
-                          backgroundColor: config.includeKpiSummary ? 'rgba(79, 70, 229, 0.05)' : '#ffffff',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.6rem',
-                          cursor: 'pointer',
-                          opacity: config.includeKpiSummary ? 1 : 0.65
-                        }}
-                      >
-                        <div style={{
-                          width: '16px',
-                          height: '16px',
-                          borderRadius: '3px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          backgroundColor: config.includeKpiSummary ? 'var(--brand-primary, #4f46e5)' : 'transparent',
-                          border: `1px solid ${config.includeKpiSummary ? 'var(--brand-primary, #4f46e5)' : 'var(--border-strong)'}`,
-                          color: '#ffffff'
-                        }}>
-                          {config.includeKpiSummary && <Check size={11} strokeWidth={3} />}
-                        </div>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: '0.78rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                            <TrendingUp size={12} color="#10b981" />
-                            <span>Temel Performans & Finansal KPI Kartları</span>
-                          </div>
-                          <div style={{ fontSize: '0.68rem', color: 'var(--text-secondary)' }}>
-                            Aylık Tahmini Bütçe, Ortalama TBM/CPM, Brüt & Nitelikli Talep.
-                          </div>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                          Bütçe, TBM, gösterim payı, dönüşüm hunisi ve tüm simülasyon metrik kartları.
                         </div>
                       </div>
                     </div>
+
+                    {/* Granular Metric & Parameter Chips */}
+                    {config.includeChannelParameters && (
+                      <div style={{
+                        marginTop: '0.15rem',
+                        padding: '0.6rem 0.75rem',
+                        backgroundColor: '#ffffff',
+                        borderRadius: '6px',
+                        border: '1px dashed var(--border-default)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.45rem'
+                      }}>
+                        <div style={{ fontSize: '0.66rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                          Gösterilecek Metrik & Parametre Kartları:
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+                          {/* Parameter Cards */}
+                          {parameterLabels
+                            .filter(p => {
+                              const platformUpper = (subCampaign?.platform || 'GOOGLE_SEARCH').toUpperCase();
+                              const isMeta = platformUpper.includes('META') || platformUpper.includes('FACEBOOK') || platformUpper.includes('INSTAGRAM');
+                              const isYouTube = platformUpper.includes('YOUTUBE') || platformUpper.includes('VIDEO');
+                              const isGDN = platformUpper.includes('GDN') || platformUpper.includes('DISPLAY');
+                              const isLeadGen = subCampaign?.businessModel !== 'ECOMMERCE';
+
+                              if (p.key.startsWith('meta') && !isMeta) return false;
+                              if (p.key === 'youtubeCpv' && !isYouTube) return false;
+                              if (p.key === 'gdnCpm' && !isGDN) return false;
+                              if ((p.key === 'searchCloseRate' || p.key === 'avgDealValue') && isLeadGen) return false;
+                              return true;
+                            })
+                            .map(p => {
+                              const isChecked = config.visibleParameters[p.key];
+                              return (
+                                <button
+                                  type="button"
+                                  key={p.key}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleToggleParameter(p.key);
+                                  }}
+                                  style={{
+                                    padding: '3px 8px',
+                                    borderRadius: '4px',
+                                    fontSize: '0.69rem',
+                                    fontWeight: 600,
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    backgroundColor: isChecked ? '#eff6ff' : 'var(--bg-surface-elevated)',
+                                    border: `1px solid ${isChecked ? '#3b82f6' : 'var(--border-default)'}`,
+                                    color: isChecked ? '#1d4ed8' : 'var(--text-secondary)'
+                                  }}
+                                >
+                                  <span style={{ fontSize: '0.75rem' }}>{isChecked ? '✓' : '+'}</span>
+                                  <span>{p.label}</span>
+                                </button>
+                              );
+                            })}
+
+                          {/* KPI / Funnel Cards */}
+                          {metricLabels
+                            .filter(m => {
+                              const isLeadGen = subCampaign?.businessModel !== 'ECOMMERCE';
+                              if (isLeadGen && (m.key === 'deals' || m.key === 'revenue' || m.key === 'roas')) return false;
+                              if (!isLeadGen && (m.key === 'healthyLeads' || m.key === 'cpql')) return false;
+                              return true;
+                            })
+                            .map(m => {
+                              const isChecked = config.visibleMetrics[m.key];
+                              return (
+                                <button
+                                  type="button"
+                                  key={m.key}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleMetricToggle(m.key);
+                                  }}
+                                  style={{
+                                    padding: '3px 8px',
+                                    borderRadius: '4px',
+                                    fontSize: '0.69rem',
+                                    fontWeight: 600,
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    backgroundColor: isChecked ? '#ecfdf5' : 'var(--bg-surface-elevated)',
+                                    border: `1px solid ${isChecked ? '#10b981' : 'var(--border-default)'}`,
+                                    color: isChecked ? '#047857' : 'var(--text-secondary)'
+                                  }}
+                                >
+                                  <span style={{ fontSize: '0.75rem' }}>{isChecked ? '✓' : '+'}</span>
+                                  <span>{m.label}</span>
+                                </button>
+                              );
+                            })}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* 3. Keywords */}
