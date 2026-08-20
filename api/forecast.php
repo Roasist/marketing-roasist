@@ -577,8 +577,7 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
         }
 
         if (!empty($topSeeds)) {
-            $prioritizedSeeds = array_slice($topSeeds, 0, 60);
-            $seedBatches = array_chunk($prioritizedSeeds, 20);
+            $seedBatches = array_chunk($topSeeds, 20);
             foreach ($seedBatches as $seedList) {
                 $allRequests[] = [
                     'geoId' => $geoId,
@@ -1203,7 +1202,7 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
                 $dt = trim($dr['text'] ?? '');
                 if (!empty($dt) && !in_array($dt, $uniqueSeeds)) {
                     $uniqueSeeds[] = $dt;
-                    if (count($uniqueSeeds) >= 20) break;
+                    if (count($uniqueSeeds) >= 100) break;
                 }
             }
         }
@@ -1232,8 +1231,8 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
         }
     }
 
-    // Execute ALL individual location requests in fast parallel batches of 4!
-    $parallelResults = $executeParallelGoogleAdsCalls($requests, 4);
+    // Execute ALL individual location requests in fast parallel batches of 14!
+    $parallelResults = $executeParallelGoogleAdsCalls($requests, 14);
     $parseLocationResults($parallelResults);
 
     // Guaranteed inclusion of all user seed keywords with honest official Google Ads data
@@ -2627,7 +2626,7 @@ if ($action === 'discover' && $method === 'POST') {
     $includeSuggestions = isset($input['includeSuggestions']) ? (bool)$input['includeSuggestions'] : true;
     $clientSeeds = !empty($input['seedKeywords']) && is_array($input['seedKeywords']) ? $input['seedKeywords'] : [];
 
-    $cacheKey = md5("forecast_v28_{$mode}_{$query}_" . ($includeSuggestions ? 'sug_1_' : 'sug_0_') . ($requestedLanguage ?: 'auto') . '_' . ($requestedCountryCode ?: 'auto') . '_' . implode('_', (array)$requestedGeoTargetConstants));
+    $cacheKey = md5("forecast_v30_{$mode}_{$query}_" . ($includeSuggestions ? 'sug_1_' : 'sug_0_') . ($requestedLanguage ?: 'auto') . '_' . ($requestedCountryCode ?: 'auto') . '_' . implode('_', (array)$requestedGeoTargetConstants));
 
     // 1. Check Server-Side Cache
     $stmtCache = $pdo->prepare("SELECT data, created_at FROM keyword_cache WHERE cache_key = ?");
