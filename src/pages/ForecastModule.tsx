@@ -671,6 +671,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   const [showScenarioTooltip, setShowScenarioTooltip] = useState<boolean>(false);
   const [isStep1Completed, setIsStep1Completed] = useState<boolean>(false);
   const [isStep2Completed, setIsStep2Completed] = useState<boolean>(false);
+  const [isStep3Completed, setIsStep3Completed] = useState<boolean>(false);
 
   // Simulation & Business Model Parameters
   const [businessModel, setBusinessModel] = useState<BusinessModel>('LEAD_GEN');
@@ -1252,6 +1253,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     const hasKeywords = (target.discoveredKeywords && target.discoveredKeywords.length > 0) || (target.selectedKeywords && target.selectedKeywords.length > 0);
     setIsStep1Completed(hasKeywords);
     setIsStep2Completed(hasKeywords || target.platform !== 'GOOGLE');
+    setIsStep3Completed(Boolean(target.simulationResult || (target.monthlyBudget && target.monthlyBudget > 0)));
     if (!hasKeywords && target.platform === 'GOOGLE' && (target.objective === 'GOOGLE_SEARCH' || !target.objective)) {
       setCurrentStep(1);
     }
@@ -3104,6 +3106,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       setSubCampaigns(updatedSubCampaigns);
       setIsStep1Completed(true);
       setIsStep2Completed(true);
+      setIsStep3Completed(true);
       setPlanSaveSuccess(true);
       setTimeout(() => setPlanSaveSuccess(false), 2500);
       setTimeout(() => {
@@ -4845,9 +4848,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
               gap: '0.75rem',
               padding: '0.85rem 1.15rem',
               borderRadius: 'var(--radius-sm)',
-              border: currentStep === 3 ? '2px solid var(--brand-primary)' : '1px solid var(--border-default)',
-              backgroundColor: currentStep === 3 ? 'rgba(37, 99, 235, 0.12)' : 'var(--bg-surface-elevated)',
-              color: currentStep === 3 ? 'var(--brand-primary)' : 'var(--text-secondary)',
+              border: currentStep === 3 ? '2px solid var(--brand-primary)' : (isStep3Completed ? '1.5px solid #10b981' : '1px solid var(--border-default)'),
+              backgroundColor: currentStep === 3 ? 'rgba(37, 99, 235, 0.12)' : (isStep3Completed ? 'rgba(16, 185, 129, 0.08)' : 'var(--bg-surface-elevated)'),
+              color: currentStep === 3 ? 'var(--brand-primary)' : (isStep3Completed ? '#10b981' : 'var(--text-secondary)'),
               cursor: selectedKeywordIds.size === 0 ? 'not-allowed' : 'pointer',
               opacity: selectedKeywordIds.size === 0 ? 0.6 : 1,
               fontWeight: currentStep === 3 ? 700 : 500,
@@ -4860,7 +4863,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
               width: '24px',
               height: '24px',
               borderRadius: '50%',
-              backgroundColor: currentStep === 3 ? 'var(--brand-primary)' : 'var(--border-default)',
+              backgroundColor: isStep3Completed ? '#10b981' : (currentStep === 3 ? 'var(--brand-primary)' : 'var(--border-default)'),
               color: '#ffffff',
               display: 'flex',
               alignItems: 'center',
@@ -4868,7 +4871,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
               fontSize: '0.75rem',
               fontWeight: 700
             }}>
-              3
+              {isStep3Completed ? <Check size={14} /> : '3'}
             </div>
             <span>3. Adım: 360° Medya Karması & Büyüme Simülatörü</span>
           </button>
@@ -6218,11 +6221,11 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                         alignItems: 'center', 
                         gap: '0.35rem', 
                         fontWeight: 600,
-                        backgroundColor: (planSaveSuccess || isStep2Completed) ? '#10b981' : undefined
+                        backgroundColor: (planSaveSuccess || isStep3Completed) ? '#10b981' : undefined
                       }}
                     >
-                      {planSaveSuccess || isStep2Completed ? <Check size={13} /> : <Save size={13} />}
-                      <span>{planSaveSuccess ? 'Alt Kampanya Kaydedildi!' : (isStep2Completed ? 'Alt Kampanya Kayıtlı' : 'Alt Kampanyayı Kaydet')}</span>
+                      {planSaveSuccess || isStep3Completed ? <Check size={13} /> : <Save size={13} />}
+                      <span>{planSaveSuccess ? 'Alt Kampanya Kaydedildi!' : (isStep3Completed ? 'Alt Kampanya Kayıtlı' : 'Alt Kampanyayı Kaydet')}</span>
                     </button>
                   </div>
                 </div>
@@ -8840,12 +8843,12 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       alignItems: 'center', 
                       gap: '0.45rem', 
                       fontWeight: 600,
-                      backgroundColor: (planSaveSuccess || isStep2Completed) ? '#10b981' : undefined
+                      backgroundColor: (planSaveSuccess || isStep3Completed) ? '#10b981' : undefined
                     }}
                   >
-                    {planSaveSuccess || isStep2Completed ? <Check size={16} /> : <Save size={16} />}
-                    <span>{planSaveSuccess ? 'Alt Kampanya Çatı Plana Kaydedildi!' : (isStep2Completed ? 'Alt Kampanya Çatı Plana Kayıtlı' : 'Alt Kampanyayı Çatı Plana Kaydet')}</span>
-                    {!planSaveSuccess && !isStep2Completed && <ArrowRight size={15} />}
+                    {planSaveSuccess || isStep3Completed ? <Check size={16} /> : <Save size={16} />}
+                    <span>{planSaveSuccess ? 'Alt Kampanya Çatı Plana Kaydedildi!' : (isStep3Completed ? 'Alt Kampanya Çatı Plana Kayıtlı' : 'Alt Kampanyayı Çatı Plana Kaydet')}</span>
+                    {!planSaveSuccess && !isStep3Completed && <ArrowRight size={15} />}
                   </button>
                 </div>
               </div>
