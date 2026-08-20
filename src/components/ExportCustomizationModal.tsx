@@ -10,7 +10,7 @@ import {
   Target, 
   TrendingUp, 
   Search, 
-  Info,
+  SlidersHorizontal,
   Settings,
   Layers,
   BarChart2,
@@ -676,28 +676,28 @@ export const ExportCustomizationModal: React.FC<ExportCustomizationModalProps> =
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                        <Info size={14} color="#6366f1" />
+                        <SlidersHorizontal size={14} color="#6366f1" />
                         <span style={{ fontSize: '0.8rem', fontWeight: 700 }}>1. Alt Kampanya & Künye Bilgileri</span>
                       </div>
                       <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                        Alt kampanya adı ({subCampaign.name}), çatı plan, dil ({subCampaign.languageName || 'Türkçe'}), hedef lokasyonlar ve bütçe.
+                        Alt kampanya adı ({subCampaign.name}), çatı plan, dil ({subCampaign.languageName || 'Türkçe'}), hedef lokasyonlar ve iş modeli.
                       </div>
                     </div>
                   </div>
 
-                  {/* 2. KPI Summary */}
+                  {/* 2. Parameters */}
                   <div 
-                    onClick={() => handleToggle('includeKpiSummary')}
+                    onClick={() => handleToggle('includeChannelParameters')}
                     style={{
                       padding: '0.65rem 0.75rem',
                       borderRadius: 'var(--radius-md, 8px)',
-                      border: `1px solid ${config.includeKpiSummary ? 'var(--brand-primary, #4f46e5)' : 'var(--border-default)'}`,
-                      backgroundColor: config.includeKpiSummary ? 'rgba(79, 70, 229, 0.05)' : 'var(--bg-surface)',
+                      border: `1px solid ${config.includeChannelParameters ? 'var(--brand-primary, #4f46e5)' : 'var(--border-default)'}`,
+                      backgroundColor: config.includeChannelParameters ? 'rgba(79, 70, 229, 0.05)' : 'var(--bg-surface)',
                       display: 'flex',
                       alignItems: 'flex-start',
                       gap: '0.65rem',
                       cursor: 'pointer',
-                      opacity: config.includeKpiSummary ? 1 : 0.65
+                      opacity: config.includeChannelParameters ? 1 : 0.65
                     }}
                   >
                     <div style={{
@@ -708,19 +708,19 @@ export const ExportCustomizationModal: React.FC<ExportCustomizationModalProps> =
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      backgroundColor: config.includeKpiSummary ? 'var(--brand-primary, #4f46e5)' : 'transparent',
-                      border: `1px solid ${config.includeKpiSummary ? 'var(--brand-primary, #4f46e5)' : 'var(--border-strong)'}`,
+                      backgroundColor: config.includeChannelParameters ? 'var(--brand-primary, #4f46e5)' : 'transparent',
+                      border: `1px solid ${config.includeChannelParameters ? 'var(--brand-primary, #4f46e5)' : 'var(--border-strong)'}`,
                       color: '#ffffff'
                     }}>
-                      {config.includeKpiSummary && <Check size={12} strokeWidth={3} />}
+                      {config.includeChannelParameters && <Check size={12} strokeWidth={3} />}
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                        <TrendingUp size={14} color="#10b981" />
-                        <span style={{ fontSize: '0.8rem', fontWeight: 700 }}>2. Temel Performans & KPI Kartları</span>
+                        <Settings size={14} color="#64748b" />
+                        <span style={{ fontSize: '0.8rem', fontWeight: 700 }}>2. Kanal & Simülasyon Hesaplama Parametreleri</span>
                       </div>
                       <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                        Aylık Harcama, Gösterim, Tıklama, CTR, Sistem Ort. TBM, Brüt Lead/Satış, Ciro ve ROAS.
+                        Hedef Pazar Gösterim Payı (IS), TO, CR, SQL oranı ve satış kapatma oranları.
                       </div>
                     </div>
                   </div>
@@ -757,15 +757,55 @@ export const ExportCustomizationModal: React.FC<ExportCustomizationModalProps> =
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                         <Target size={14} color="#8b5cf6" />
-                        <span style={{ fontSize: '0.8rem', fontWeight: 700 }}>3. 4 Aşamalı Dönüşüm Hunisi Projeksiyonu</span>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 700 }}>3. Uçtan Uca Büyüme & Dönüşüm Hunisi Projeksiyonu</span>
                       </div>
                       <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                        Pazar Gösterimi → Nitelikli Trafik → SQL Lead / Sipariş → Müşteri & CAC & ROAS.
+                        Pazar Gösterimi → Nitelikli Trafik → SQL Lead / Sipariş → Müşteri & Satış Projeksiyonu.
                       </div>
                     </div>
                   </div>
 
-                  {/* 4. Keywords */}
+                  {/* 4. KPI Summary */}
+                  <div 
+                    onClick={() => handleToggle('includeKpiSummary')}
+                    style={{
+                      padding: '0.65rem 0.75rem',
+                      borderRadius: 'var(--radius-md, 8px)',
+                      border: `1px solid ${config.includeKpiSummary ? 'var(--brand-primary, #4f46e5)' : 'var(--border-default)'}`,
+                      backgroundColor: config.includeKpiSummary ? 'rgba(79, 70, 229, 0.05)' : 'var(--bg-surface)',
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '0.65rem',
+                      cursor: 'pointer',
+                      opacity: config.includeKpiSummary ? 1 : 0.65
+                    }}
+                  >
+                    <div style={{
+                      marginTop: '2px',
+                      width: '18px',
+                      height: '18px',
+                      borderRadius: '4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backgroundColor: config.includeKpiSummary ? 'var(--brand-primary, #4f46e5)' : 'transparent',
+                      border: `1px solid ${config.includeKpiSummary ? 'var(--brand-primary, #4f46e5)' : 'var(--border-strong)'}`,
+                      color: '#ffffff'
+                    }}>
+                      {config.includeKpiSummary && <Check size={12} strokeWidth={3} />}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                        <TrendingUp size={14} color="#10b981" />
+                        <span style={{ fontSize: '0.8rem', fontWeight: 700 }}>4. Temel Performans & KPI Kartları</span>
+                      </div>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                        Aylık Harcama, Ortalama TBM & CPM, CAC (Müşteri Başı Maliyet), Toplam Ciro ve ROAS.
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 5. Keywords */}
                   <div 
                     onClick={() => handleToggle('includeKeywords')}
                     style={{
@@ -797,7 +837,7 @@ export const ExportCustomizationModal: React.FC<ExportCustomizationModalProps> =
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                         <Search size={14} color="#3b82f6" />
-                        <span style={{ fontSize: '0.8rem', fontWeight: 700 }}>4. Anahtar Kelimeler & TBM Analiz Tablosu</span>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 700 }}>5. Anahtar Kelimeler & TBM Analiz Tablosu</span>
                       </div>
                       <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
                         Arama hacmi, niyet, min/max/ort TBM ve fırsat skoru ({totalKws} kelime mevcut).
@@ -805,7 +845,7 @@ export const ExportCustomizationModal: React.FC<ExportCustomizationModalProps> =
                     </div>
                   </div>
 
-                  {/* 5. Negatives */}
+                  {/* 6. Negatives */}
                   <div 
                     onClick={() => handleToggle('includeNegativeKeywords')}
                     style={{
@@ -837,50 +877,10 @@ export const ExportCustomizationModal: React.FC<ExportCustomizationModalProps> =
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                         <ShieldCheck size={14} color="#ef4444" />
-                        <span style={{ fontSize: '0.8rem', fontWeight: 700 }}>5. Negatif Kelime Koruma Kalkanı</span>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 700 }}>6. Negatif Kelime Koruma Kalkanı</span>
                       </div>
                       <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
                         Bütçe israfını önleyen negatif anahtar kelime kategorileri ve filtreler.
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 6. Parameters */}
-                  <div 
-                    onClick={() => handleToggle('includeChannelParameters')}
-                    style={{
-                      padding: '0.65rem 0.75rem',
-                      borderRadius: 'var(--radius-md, 8px)',
-                      border: `1px solid ${config.includeChannelParameters ? 'var(--brand-primary, #4f46e5)' : 'var(--border-default)'}`,
-                      backgroundColor: config.includeChannelParameters ? 'rgba(79, 70, 229, 0.05)' : 'var(--bg-surface)',
-                      display: 'flex',
-                      alignItems: 'flex-start',
-                      gap: '0.65rem',
-                      cursor: 'pointer',
-                      opacity: config.includeChannelParameters ? 1 : 0.65
-                    }}
-                  >
-                    <div style={{
-                      marginTop: '2px',
-                      width: '18px',
-                      height: '18px',
-                      borderRadius: '4px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      backgroundColor: config.includeChannelParameters ? 'var(--brand-primary, #4f46e5)' : 'transparent',
-                      border: `1px solid ${config.includeChannelParameters ? 'var(--brand-primary, #4f46e5)' : 'var(--border-strong)'}`,
-                      color: '#ffffff'
-                    }}>
-                      {config.includeChannelParameters && <Check size={12} strokeWidth={3} />}
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                        <Settings size={14} color="#64748b" />
-                        <span style={{ fontSize: '0.8rem', fontWeight: 700 }}>6. Kanal & Simülasyon Hesaplama Parametreleri</span>
-                      </div>
-                      <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                        Hedef Pazar Gösterim Payı (IS), TO, CR, SQL oranı ve satış kapatma oranları.
                       </div>
                     </div>
                   </div>
