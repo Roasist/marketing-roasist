@@ -14,6 +14,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
+set_time_limit(120);
+ini_set('memory_limit', '512M');
+
 require_once __DIR__ . '/db.php';
 
 // Strict Authentication Protection - Prevents public quota drainage
@@ -618,7 +621,7 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
         }
     }
 
-    $requestBatches = array_chunk($allRequests, 14);
+    $requestBatches = array_chunk($allRequests, 28);
 
     foreach ($requestBatches as $batchIdx => $batch) {
         $mh = curl_multi_init();
