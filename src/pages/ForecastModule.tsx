@@ -836,6 +836,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     isOpen: boolean;
     subCampaign: SubCampaignItem | null;
     format: 'PDF' | 'CSV';
+    masterPlan?: { name?: string; clientName?: string; period?: string; startDate?: string; endDate?: string };
   }>({
     isOpen: false,
     subCampaign: null,
@@ -3250,7 +3251,11 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   };
 
   // Open Export Customization Modal
-  const handleOpenExportModal = (subCamp?: SubCampaignItem, format: 'PDF' | 'CSV' = 'PDF') => {
+  const handleOpenExportModal = (
+    subCamp?: SubCampaignItem, 
+    format: 'PDF' | 'CSV' = 'PDF',
+    customMasterPlan?: { name?: string; clientName?: string; period?: string; startDate?: string; endDate?: string }
+  ) => {
     const target = getSubCampaignToExport(subCamp);
     if (!target) {
       alert('Dışa aktarılacak alt kampanya bulunamadı.');
@@ -3259,17 +3264,24 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     setExportModalState({
       isOpen: true,
       subCampaign: target,
-      format
+      format,
+      masterPlan: customMasterPlan || {
+        name: planName,
+        clientName: clientName,
+        period: planPeriod,
+        startDate: planStartDate,
+        endDate: planEndDate
+      }
     });
   };
 
   // Direct handlers for CSV and PDF buttons
-  const handleExportSubCampaignCsv = (subCamp?: SubCampaignItem) => {
-    handleOpenExportModal(subCamp, 'CSV');
+  const handleExportSubCampaignCsv = (subCamp?: SubCampaignItem, customMasterPlan?: any) => {
+    handleOpenExportModal(subCamp, 'CSV', customMasterPlan);
   };
 
-  const handleExportSubCampaignPdf = (subCamp?: SubCampaignItem) => {
-    handleOpenExportModal(subCamp, 'PDF');
+  const handleExportSubCampaignPdf = (subCamp?: SubCampaignItem, customMasterPlan?: any) => {
+    handleOpenExportModal(subCamp, 'PDF', customMasterPlan);
   };
 
   return (
@@ -3555,7 +3567,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                                   type="button"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    ExportService.printSubCampaignReport(sc, { 
+                                    handleOpenExportModal(sc, 'PDF', { 
                                       name: plan.name, 
                                       clientName: plan.clientName, 
                                       period: plan.period, 
@@ -3565,7 +3577,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                                   }}
                                   className="btn-ghost"
                                   style={{ padding: '3px 6px', fontSize: '0.7rem', color: 'var(--brand-primary)' }}
-                                  title="Alt Kampanya PDF / Baskı Raporu Al"
+                                  title="Alt Kampanya Raporunu Özelleştir & PDF Al"
                                 >
                                   <FileText size={13} />
                                 </button>
@@ -3573,7 +3585,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                                   type="button"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    ExportService.exportSubCampaignToCsv(sc, { 
+                                    handleOpenExportModal(sc, 'CSV', { 
                                       name: plan.name, 
                                       clientName: plan.clientName, 
                                       period: plan.period, 
@@ -3583,7 +3595,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                                   }}
                                   className="btn-ghost"
                                   style={{ padding: '3px 6px', fontSize: '0.7rem', color: 'var(--text-secondary)' }}
-                                  title="Alt Kampanya CSV Raporu İndir"
+                                  title="Alt Kampanya CSV Raporunu Özelleştir & İndir"
                                 >
                                   <Download size={13} />
                                 </button>
@@ -4020,7 +4032,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
             <button
               type="button"
-              onClick={() => handleExportSubCampaignPdf()}
+              onClick={() => handleOpenExportModal(activeSubCampaign, 'PDF')}
               className="btn-secondary"
               style={{
                 padding: '0.4rem 0.75rem',
@@ -4034,29 +4046,50 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                 backgroundColor: 'rgba(37, 99, 235, 0.08)',
                 borderColor: 'rgba(37, 99, 235, 0.25)'
               }}
-              title="Aktif Alt Kampanyayı PDF / Baskı Raporu Olarak Al"
+              title="Rapor Özelleştirme ve PDF / Baskı Raporunu Aç"
+            >
+              <SlidersHorizontal size={13} />
+              <span>Rapor Özelleştir</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleExportSubCampaignPdf()}
+              className="btn-ghost"
+              style={{
+                padding: '0.4rem 0.6rem',
+                fontSize: '0.78rem',
+                fontWeight: 600,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.3rem',
+                whiteSpace: 'nowrap',
+                color: 'var(--brand-primary)'
+              }}
+              title="PDF Raporu Özelleştir & Aç"
             >
               <FileText size={13} />
-              <span>PDF Raporu</span>
+              <span>PDF</span>
             </button>
 
             <button
               type="button"
               onClick={() => handleExportSubCampaignCsv()}
-              className="btn-secondary"
+              className="btn-ghost"
               style={{
-                padding: '0.4rem 0.75rem',
+                padding: '0.4rem 0.6rem',
                 fontSize: '0.78rem',
                 fontWeight: 600,
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '0.35rem',
-                whiteSpace: 'nowrap'
+                gap: '0.3rem',
+                whiteSpace: 'nowrap',
+                color: 'var(--text-secondary)'
               }}
-              title="Aktif Alt Kampanyayı CSV Olarak İndir"
+              title="CSV Raporu Özelleştir & İndir"
             >
               <Download size={13} />
-              <span>CSV İndir</span>
+              <span>CSV</span>
             </button>
           </div>
         )}
@@ -6033,7 +6066,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
                     <button
                       type="button"
-                      onClick={() => handleExportSubCampaignPdf()}
+                      onClick={() => handleOpenExportModal(activeSubCampaign, 'PDF')}
                       className="btn-secondary"
                       style={{ 
                         fontSize: '0.75rem', 
@@ -6046,28 +6079,48 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                         borderColor: 'rgba(37, 99, 235, 0.25)',
                         color: 'var(--brand-primary)'
                       }}
-                      title="Alt Kampanya Yönetici Raporunu PDF / Baskı formatında aç"
+                      title="Raporu Özelleştir ve PDF / CSV formatında dışa aktar"
+                    >
+                      <SlidersHorizontal size={13} />
+                      <span>Rapor Özelleştir</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleExportSubCampaignPdf()}
+                      className="btn-ghost"
+                      style={{ 
+                        fontSize: '0.75rem', 
+                        padding: '0.35rem 0.55rem', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '0.3rem', 
+                        fontWeight: 600,
+                        color: 'var(--brand-primary)'
+                      }}
+                      title="PDF Raporu Özelleştir & Aç"
                     >
                       <FileText size={13} />
-                      <span>PDF Raporu</span>
+                      <span>PDF</span>
                     </button>
 
                     <button
                       type="button"
                       onClick={() => handleExportSubCampaignCsv()}
-                      className="btn-secondary"
+                      className="btn-ghost"
                       style={{ 
                         fontSize: '0.75rem', 
-                        padding: '0.35rem 0.75rem', 
+                        padding: '0.35rem 0.55rem', 
                         display: 'flex', 
                         alignItems: 'center', 
-                        gap: '0.35rem', 
-                        fontWeight: 600 
+                        gap: '0.3rem', 
+                        fontWeight: 600,
+                        color: 'var(--text-secondary)'
                       }}
-                      title="Alt Kampanya Performans & Kelime Verilerini CSV olarak indir"
+                      title="CSV Raporu Özelleştir & İndir"
                     >
                       <Download size={13} />
-                      <span>CSV İndir</span>
+                      <span>CSV</span>
                     </button>
 
                     <button
@@ -9837,7 +9890,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           onClose={() => setExportModalState(prev => ({ ...prev, isOpen: false }))}
           subCampaign={exportModalState.subCampaign}
           initialFormat={exportModalState.format}
-          masterPlan={{
+          masterPlan={exportModalState.masterPlan || {
             name: planName,
             clientName: clientName,
             period: planPeriod,

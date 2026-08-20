@@ -34,12 +34,17 @@ export const ExportCustomizationModal: React.FC<ExportCustomizationModalProps> =
   const [format, setFormat] = useState<'PDF' | 'CSV'>(initialFormat);
   const [config, setConfig] = useState<SubCampaignExportConfig>(DEFAULT_EXPORT_CONFIG);
 
-  // Sync format with initialFormat when opened
+  // Sync format with initialFormat when opened & handle Escape key
   React.useEffect(() => {
     if (isOpen) {
       setFormat(initialFormat);
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') onClose();
+      };
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
     }
-  }, [isOpen, initialFormat]);
+  }, [isOpen, initialFormat, onClose]);
 
   if (!isOpen || !subCampaign) return null;
 
@@ -120,7 +125,10 @@ export const ExportCustomizationModal: React.FC<ExportCustomizationModalProps> =
   ].filter(Boolean).length;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in"
+      onClick={onClose}
+    >
       <div 
         className="bg-slate-900 border border-slate-700/80 rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden text-slate-100 animate-scale-in"
         onClick={e => e.stopPropagation()}
