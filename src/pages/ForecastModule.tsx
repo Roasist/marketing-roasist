@@ -5731,7 +5731,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                                           ≈ ₺{kw.lowCpc.toFixed(2)} - ₺{kw.highCpc.toFixed(2)}
                                         </span>
                                         <span 
-                                          title={`Google açık artırma verisi az olduğundan, '${kw.cpcEstimationCluster || activeCluster.name}' kümesi ortalaması ve ${kw.cpcEstimationMultiplier || 1.0}x niyet çarpanı ile hesaplanmıştır.`} 
+                                          title={`Google açık artırma verisi az olduğundan, '${kw.cpcEstimationCluster || activeCluster.name}' kümesi ortalaması ve ${kw.cpcEstimationMultiplier || 1.0}x niyet çarpanı ile hesaplanmıştır.\n\nOrijinal TBM: ₺${(kw.rawLowCpc ?? 0).toFixed(2)} - ₺${(kw.rawHighCpc ?? 0).toFixed(2)}\nUygulanan Çarpan: ${kw.cpcEstimationMultiplier || 1.0}x\nNiyet: ${kw.intent}`} 
                                           style={{ 
                                             fontSize: '0.60rem', 
                                             fontWeight: 600, 
@@ -5747,7 +5747,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                                             whiteSpace: 'nowrap'
                                           }}
                                         >
-                                          Tahmin
+                                          Tahmin {kw.cpcEstimationMultiplier ? `(${kw.cpcEstimationMultiplier}x)` : ''}
                                         </span>
                                       </div>
                                     ) : kw.lowCpc > 0 ? (
