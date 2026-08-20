@@ -957,6 +957,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         languageCode: finalLangCode,
         languageName: finalLangName,
         languageFlag: finalLangFlag,
+        cpcImputationSettings,
         parameters: {
           growthScenario,
           budgetMode,
@@ -2761,6 +2762,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           languageCode: finalLangCode,
           languageName: finalLangName,
           languageFlag: finalLangFlag,
+          cpcImputationSettings,
           parameters: {
             growthScenario,
             budgetMode,

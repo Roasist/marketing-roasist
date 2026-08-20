@@ -1,5 +1,5 @@
 import { AdItem, Competitor } from '../types/ad';
-import { SubCampaignItem, KeywordMetric, NegativeCategory, GeoTargetLocation } from '../types/forecast';
+import { SubCampaignItem, KeywordMetric, NegativeCategory, GeoTargetLocation, CpcImputationSettings } from '../types/forecast';
 import { enrichKeywordsWithClusterCpc } from './keywordClusteringService';
 
 export interface VisibleMetricsConfig {
@@ -594,14 +594,27 @@ export class ExportService {
     const subCampaignName = sub.name || 'Alt Kampanya';
     const lang = this.resolveSubCampaignLanguage(sub);
 
+    const imputation: CpcImputationSettings = sub.cpcImputationSettings || (sub.parameters as any)?.cpcImputationSettings || (() => {
+      try {
+        const raw = localStorage.getItem('roasist_cpc_imputation_settings');
+        if (raw) return JSON.parse(raw);
+      } catch (e) {}
+      return {
+        transactionalMultiplier: 1.15,
+        commercialMultiplier: 1.00,
+        informationalMultiplier: 0.85,
+        autoImputeMissingCpc: true
+      };
+    })();
+
     const rawKws: KeywordMetric[] = sub.selectedKeywords && sub.selectedKeywords.length > 0 
       ? sub.selectedKeywords 
       : (sub.discoveredKeywords || []);
 
-    let allKws = enrichKeywordsWithClusterCpc(rawKws);
+    let allKws = enrichKeywordsWithClusterCpc(rawKws, imputation);
 
     if (config.keywordFilter === 'SELECTED_ONLY') {
-      allKws = sub.selectedKeywords && sub.selectedKeywords.length > 0 ? enrichKeywordsWithClusterCpc(sub.selectedKeywords) : allKws.filter(k => k.isSelected);
+      allKws = sub.selectedKeywords && sub.selectedKeywords.length > 0 ? enrichKeywordsWithClusterCpc(sub.selectedKeywords, imputation) : allKws.filter(k => k.isSelected);
     } else if (config.keywordFilter === 'AI_PICKS_ONLY') {
       allKws = allKws.filter(k => k.isAiStrategistPick);
     }
@@ -773,14 +786,27 @@ export class ExportService {
     const subCampaignName = sub.name || 'Alt Kampanya';
     const lang = this.resolveSubCampaignLanguage(sub);
 
+    const imputation: CpcImputationSettings = sub.cpcImputationSettings || (sub.parameters as any)?.cpcImputationSettings || (() => {
+      try {
+        const raw = localStorage.getItem('roasist_cpc_imputation_settings');
+        if (raw) return JSON.parse(raw);
+      } catch (e) {}
+      return {
+        transactionalMultiplier: 1.15,
+        commercialMultiplier: 1.00,
+        informationalMultiplier: 0.85,
+        autoImputeMissingCpc: true
+      };
+    })();
+
     const rawKws: KeywordMetric[] = sub.selectedKeywords && sub.selectedKeywords.length > 0 
       ? sub.selectedKeywords 
       : (sub.discoveredKeywords || []);
 
-    let allKws = enrichKeywordsWithClusterCpc(rawKws);
+    let allKws = enrichKeywordsWithClusterCpc(rawKws, imputation);
 
     if (config.keywordFilter === 'SELECTED_ONLY') {
-      allKws = sub.selectedKeywords && sub.selectedKeywords.length > 0 ? enrichKeywordsWithClusterCpc(sub.selectedKeywords) : allKws.filter(k => k.isSelected);
+      allKws = sub.selectedKeywords && sub.selectedKeywords.length > 0 ? enrichKeywordsWithClusterCpc(sub.selectedKeywords, imputation) : allKws.filter(k => k.isSelected);
     } else if (config.keywordFilter === 'AI_PICKS_ONLY') {
       allKws = allKws.filter(k => k.isAiStrategistPick);
     }
@@ -1473,10 +1499,10 @@ export class ExportService {
                 Sıfır TL verilerin kampanya bütçe ve dönüşüm projeksiyonlarını yanıltmasını engellemek için, Roasist Marketing OS tescilli <strong>STAG (Single Theme Ad Group) Semantik Kümeleme ve Ağırlıklı TBM Tahmin Algoritması</strong> kullanılmıştır.
               </p>
               <div style="background: #ffffff; border: 1px solid #dcfce7; border-radius: 6px; padding: 10px 14px; margin-top: 6px; font-family: monospace; font-size: 11px; color: #0f172a;">
-                <strong>📐 Uygulanan Tahminleme Formülü & Çarpanlar:</strong><br/>
+                <strong>📐 Uygulanan Tahminleme Formülü & Güncel Çarpanlar:</strong><br/>
                 1. <strong>Küme İçi Ağırlıklı TBM Benchmarkı:</strong> [Küme Ort. TBM = Σ (Aylık Hacim × TBM) / Σ Aylık Hacim] <em>(Kümede hiç teklif yoksa sektör tabanı: ₺8.50 - ₺26.00)</em><br/>
-                2. <strong>Arama Niyeti (Intent) Çarpanı:</strong> Satın Alma (Transactional) = <code>1.15x</code> | Ticari (Commercial) = <code>1.00x</code> | Bilgi Arama (Informational) = <code>0.85x</code><br/>
-                3. <strong>Semantik Küme Katsayısı:</strong> Yüksek ticari değere sahip aramalarda (örn: Yatırım, Lüks, Fiyat) = <code>1.10x - 1.25x</code> çarpan uygulanarak nihai <strong>Min TBM (lowCpc)</strong> ve <strong>Max TBM (highCpc)</strong> değerleri açık artırma gerçekliğinde simüle edilmiştir.
+                2. <strong>Arama Niyeti (Intent) Çarpanı:</strong> Satın Alma (Transactional) = <code>${imputation.transactionalMultiplier.toFixed(2)}x</code> | Ticari (Commercial) = <code>${imputation.commercialMultiplier.toFixed(2)}x</code> | Bilgi Arama (Informational) = <code>${imputation.informationalMultiplier.toFixed(2)}x</code><br/>
+                3. <strong>Semantik Küme Katsayısı:</strong> Yüksek ticari değere sahip aramalarda (örn: Yatırım, Lüks, Fiyat) = <code>${(imputation.transactionalMultiplier * 0.95).toFixed(2)}x - ${(imputation.transactionalMultiplier * 1.10).toFixed(2)}x</code> çarpan uygulanarak nihai <strong>Min TBM (lowCpc)</strong> ve <strong>Max TBM (highCpc)</strong> değerleri açık artırma gerçekliğinde simüle edilmiştir.
               </div>
             </div>
             `;
