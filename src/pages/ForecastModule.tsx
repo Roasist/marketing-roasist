@@ -2638,7 +2638,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       const off = findOfficial(loc);
       const cpcData = locGeoCpcData[locKey];
 
-      // 1. Ülkenin Toplam Hacmi: Seçili kelimelerin o ülkedeki geoVolumes toplamı
+      // 1. Ülkenin Ham Hacmi: Seçili kelimelerin o ülkedeki geoVolumes toplamı
       let cVol = 0;
       if (poolHasAnyGeoVolume && locGeoVolumes[locKey] !== undefined) {
         cVol = locGeoVolumes[locKey];
@@ -2648,7 +2648,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         cVol = 0;
       }
 
-      // 2. Ülkenin Ortalama TBM'si: Seçili kelimelerin hacim ağırlıklı veya doğrudan ortalama TBM'si (yapay ülke katsayısı eklenmez)
+      // 2. Ülkenin Ortalama TBM'si: Seçili kelimelerin hacim ağırlıklı veya doğrudan ortalama TBM'si
       let locBaseCpc = 0;
       if (cpcData && cpcData.volSum > 0 && cpcData.weightedCpcSum > 0) {
         locBaseCpc = cpcData.weightedCpcSum / cpcData.volSum;
@@ -2657,7 +2657,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       } else if (off && (off.avgCpc || 0) > 0) {
         locBaseCpc = off.avgCpc;
       } else {
-        locBaseCpc = 0;
+        locBaseCpc = avgTopPageCpc || 25.0;
       }
 
       const finalCpc = Number((locBaseCpc * scenarioMultiplier.cpcMult).toFixed(2));
@@ -2676,9 +2676,37 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       };
     });
 
-    const sumVol = items.reduce((s, item) => s + item.monthlyVolume, 0);
+    const totalPoolVol = activePool.reduce((s, k) => s + (Number(k.monthlyVolume) || 0), 0);
+    const sumRawBreakdownVol = items.reduce((s, item) => s + item.monthlyVolume, 0);
+
+    if (totalPoolVol > 0) {
+      if (sumRawBreakdownVol > 0) {
+        // Distribute the exact selected pool volume (e.g. 1,620) across locations based on Google Ads regional demand share
+        let distributedSum = 0;
+        items.forEach((item, idx) => {
+          if (idx === items.length - 1) {
+            item.monthlyVolume = Math.max(0, totalPoolVol - distributedSum);
+          } else {
+            const share = item.monthlyVolume / sumRawBreakdownVol;
+            const scaled = Math.round(totalPoolVol * share);
+            item.monthlyVolume = scaled;
+            distributedSum += scaled;
+          }
+        });
+      } else {
+        // Fallback: Equal distribution if Google Ads returned zero regional geo volumes
+        const perLoc = Math.floor(totalPoolVol / items.length);
+        let rem = totalPoolVol % items.length;
+        items.forEach(item => {
+          item.monthlyVolume = perLoc + (rem > 0 ? 1 : 0);
+          if (rem > 0) rem--;
+        });
+      }
+    }
+
+    const finalSumVol = items.reduce((s, item) => s + item.monthlyVolume, 0);
     items.forEach(item => {
-      const share = sumVol > 0 ? (item.monthlyVolume / sumVol) : (1 / items.length);
+      const share = finalSumVol > 0 ? (item.monthlyVolume / finalSumVol) : (1 / items.length);
       item.sharePercent = Math.round(share * 100);
       item.estClicks = Math.round((simulation.estClicks || 0) * share);
       item.estConversions = Math.round((simulation.estConversions || 0) * share);
