@@ -491,23 +491,53 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     setCpcImputationSettings(settings);
     try {
       localStorage.setItem('roasist_cpc_imputation_settings', JSON.stringify(settings));
+      localStorage.setItem('roasist_user_cpc_imputation_settings', JSON.stringify(settings));
     } catch (e) {}
 
     // Update active sub-campaign snapshot with new settings
     if (activeSubCampaignId) {
-      setSubCampaigns(prev => prev.map(sc => {
-        if (sc.id === activeSubCampaignId) {
-          return {
-            ...sc,
-            cpcImputationSettings: settings,
-            parameters: {
-              ...(sc.parameters || {}),
-              cpcImputationSettings: settings
-            }
-          };
+      setSubCampaigns(prev => {
+        const next = prev.map(sc => {
+          if (sc.id === activeSubCampaignId) {
+            return {
+              ...sc,
+              cpcImputationSettings: settings,
+              parameters: {
+                ...(sc.parameters || {}),
+                cpcImputationSettings: settings
+              }
+            };
+          }
+          return sc;
+        });
+
+        // Trigger immediate plan sync if an active plan ID is present
+        if (currentPlanId) {
+          ApiService.saveForecastPlan({
+            id: currentPlanId,
+            workspaceId,
+            name: planName.trim() || `${clientName} - Medya Planı`,
+            clientName: clientName.trim(),
+            startDate: planStartDate,
+            endDate: planEndDate,
+            period: formatCampaignDates(planStartDate, planEndDate, planPeriod),
+            tags: planTags,
+            targetUrl: mode === 'URL' ? query : '',
+            seedKeywords: mode === 'KEYWORDS' ? query : '',
+            detectedLanguage,
+            detectedLanguageName,
+            monthlyBudget: totalMasterMonthlyBudget || monthlyBudget,
+            selectedKeywords: selectedKeywordsPool,
+            simulationResult: simulation,
+            negativeKeywords: negativeCategories,
+            targetCountries: activeCountries.map(c => c.name),
+            countryBreakdown,
+            subCampaigns: next
+          }).catch(() => {});
         }
-        return sc;
-      }));
+
+        return next;
+      });
     }
     setShowCpcSettingsModal(false);
   };
@@ -1195,6 +1225,13 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     const targetCpcSettings = target.cpcImputationSettings || (target.parameters as any)?.cpcImputationSettings;
     if (targetCpcSettings) {
       setCpcImputationSettings(targetCpcSettings);
+    } else {
+      try {
+        const userSaved = localStorage.getItem('roasist_user_cpc_imputation_settings') || localStorage.getItem('roasist_cpc_imputation_settings');
+        if (userSaved) {
+          setCpcImputationSettings(JSON.parse(userSaved));
+        }
+      } catch (e) {}
     }
 
     if (target.platform === 'META') {
