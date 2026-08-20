@@ -2495,18 +2495,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     const fetchBreakdown = async () => {
       setIsLoadingLocationBreakdown(true);
       try {
-        const clusterKeywords = activeCluster ? activeCluster.keywords : [];
-        const combined = [
-          ...selectedKeywordsPool,
-          ...clusterKeywords,
-          ...keywords.slice(0, 100)
-        ];
-        const seen = new Set<string>();
-        const targetKws = combined.filter(k => {
-          if (seen.has(k.id)) return false;
-          seen.add(k.id);
-          return true;
-        }).slice(0, 200);
+        const targetKws = keywords;
 
         const res = await ApiService.getLocationBreakdown({
           query: mode === 'URL' ? query : targetKws.map(k => k.keyword).join(', '),
