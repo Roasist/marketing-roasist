@@ -620,7 +620,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   const [targetImpressionShare, setTargetImpressionShare] = useState<number>(70); // %70 IS
   const [expectedCtr, setExpectedCtr] = useState<number>(7.5); // %7.5 CTR
   const [leadConversionRate, setLeadConversionRate] = useState<number>(3.5); // %3.5 Lead CR
-  const [leadCloseRate, setLeadCloseRate] = useState<number>(10.0); // %10 Close rate
+  const [leadCloseRate, setLeadCloseRate] = useState<number>(75.0); // %75 Nitelikli/Sağlıklı Lead Oranı
   const [ecommerceConversionRate, setEcommerceConversionRate] = useState<number>(2.2); // %2.2 E-com CR
   const [avgOrderValue, setAvgOrderValue] = useState<number>(3500); // 3500 ₺
   const [avgDealValue, setAvgDealValue] = useState<number>(0); // Opsiyonel anlaşma değeri
@@ -2241,8 +2241,8 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     const googleImpressions = Math.round(simulation.estImpressions * googleWeight);
     const googleClicks = Math.round(simulation.estClicks * googleWeight);
     const googleLeads = Math.round(simulation.estConversions * googleWeight);
-    const googleHealthyLeads = Math.round(googleLeads * 0.85); // High intent search leads
-    const googleDeals = Math.round(googleHealthyLeads * (leadCloseRate / 100));
+    const googleHealthyLeads = Math.round(googleLeads * (leadCloseRate / 100)); // Qualified Search Leads
+    const googleDeals = Math.round(googleHealthyLeads * 0.15); // Deals
     const googleRevenue = googleDeals * (avgDealValue > 0 ? avgDealValue : (businessModel === 'ECOMMERCE' ? avgOrderValue : 0));
 
     const totalImpressions = googleImpressions + metaSimulation.impressions + youtubeSimulation.impressions + gdnSimulation.impressions;

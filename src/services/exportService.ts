@@ -327,7 +327,24 @@ export class ExportService {
     // Google Search Simulation Result
     if (sub.simulationResult) {
       const s = sub.simulationResult;
-      const healthyLeads = isLeadGen ? Math.round(s.estConversions * 0.85) : s.estConversions;
+      const grossLeads = s.estConversions || 0;
+      const healthyRate = sub.parameters?.searchHealthyLeadRate !== undefined ? sub.parameters.searchHealthyLeadRate : 75;
+      
+      let healthyLeads = grossLeads;
+      if (isLeadGen) {
+        if (grossLeads <= 0) {
+          healthyLeads = 0;
+        } else if (grossLeads === 1) {
+          healthyLeads = healthyRate >= 60 ? 1 : 0;
+        } else {
+          const computed = Math.round(grossLeads * (healthyRate / 100));
+          if (healthyRate < 100 && computed >= grossLeads) {
+            healthyLeads = Math.max(1, grossLeads - 1);
+          } else {
+            healthyLeads = computed;
+          }
+        }
+      }
       const cpql = healthyLeads > 0 ? Math.round(s.actualSpend / healthyLeads) : 0;
       
       const calculatedCpc = (s.avgCpc && s.avgCpc > 0) 
