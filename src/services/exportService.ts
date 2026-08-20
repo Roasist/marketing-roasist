@@ -32,6 +32,19 @@ export interface VisibleKeywordColumnsConfig {
   aiPick: boolean;        // SEM Uzmanı / AI Önerisi
 }
 
+export interface VisibleParametersConfig {
+  targetImpressionShare: boolean; // Hedef Gösterim Payı (IS)
+  expectedCtr: boolean;           // Beklenen TO (CTR)
+  searchLeadCr: boolean;          // Lead Dönüşüm Oranı (CR)
+  searchHealthyLeadRate: boolean; // Nitelikli Lead Oranı
+  searchCloseRate: boolean;       // Satış Kapatma Oranı
+  avgDealValue: boolean;          // Ortalama Sepet / Anlaşma Tutarı
+  metaCpm: boolean;               // Meta Hedef CPM
+  metaCtr: boolean;               // Meta Hedef CTR
+  youtubeCpv: boolean;            // YouTube Hedef CPV
+  gdnCpm: boolean;                // GDN Hedef CPM
+}
+
 export interface SubCampaignExportConfig {
   includeGeneralInfo: boolean;       // Kampanya & Çatı Plan Bilgileri
   includeKpiSummary: boolean;         // Temel Performans & KPI Özeti
@@ -44,7 +57,21 @@ export interface SubCampaignExportConfig {
   maxKeywordCount: number;            // Kelime Adedi Limiti (0 = Tümü)
   visibleMetrics: VisibleMetricsConfig;
   visibleKeywordColumns: VisibleKeywordColumnsConfig;
+  visibleParameters: VisibleParametersConfig;
 }
+
+export const DEFAULT_VISIBLE_PARAMETERS: VisibleParametersConfig = {
+  targetImpressionShare: true,
+  expectedCtr: true,
+  searchLeadCr: true,
+  searchHealthyLeadRate: true,
+  searchCloseRate: true,
+  avgDealValue: true,
+  metaCpm: true,
+  metaCtr: true,
+  youtubeCpv: true,
+  gdnCpm: true
+};
 
 export const DEFAULT_VISIBLE_METRICS: VisibleMetricsConfig = {
   budget: true,
@@ -87,7 +114,8 @@ export const DEFAULT_EXPORT_CONFIG: SubCampaignExportConfig = {
   keywordFilter: 'ALL',
   maxKeywordCount: 50,
   visibleMetrics: DEFAULT_VISIBLE_METRICS,
-  visibleKeywordColumns: DEFAULT_VISIBLE_COLUMNS
+  visibleKeywordColumns: DEFAULT_VISIBLE_COLUMNS,
+  visibleParameters: DEFAULT_VISIBLE_PARAMETERS
 };
 
 export class ExportService {
@@ -552,12 +580,14 @@ export class ExportService {
       ...DEFAULT_EXPORT_CONFIG, 
       ...userConfig,
       visibleMetrics: { ...DEFAULT_VISIBLE_METRICS, ...(userConfig?.visibleMetrics || {}) },
-      visibleKeywordColumns: { ...DEFAULT_VISIBLE_COLUMNS, ...(userConfig?.visibleKeywordColumns || {}) }
+      visibleKeywordColumns: { ...DEFAULT_VISIBLE_COLUMNS, ...(userConfig?.visibleKeywordColumns || {}) },
+      visibleParameters: { ...DEFAULT_VISIBLE_PARAMETERS, ...(userConfig?.visibleParameters || {}) }
     };
     
     const m = this.extractSubCampaignMetrics(sub);
     const vm = config.visibleMetrics;
     const vc = config.visibleKeywordColumns;
+    const vp = config.visibleParameters;
     const isLeadGen = sub.businessModel !== 'ECOMMERCE';
     const locNames = (sub.targetLocations || []).map(l => l.name).join(' | ') || 'Tüm Türkiye';
     const subCampaignName = sub.name || 'Alt Kampanya';
@@ -611,16 +641,16 @@ export class ExportService {
       const isYouTube = platformUpper.includes('YOUTUBE') || platformUpper.includes('VIDEO');
       const isGDN = platformUpper.includes('GDN') || platformUpper.includes('DISPLAY');
 
-      if (p.targetImpressionShare) lines.push(`"Hedef Pazar Gösterim Payı (IS)", "%${p.targetImpressionShare}"`);
-      if (p.expectedCtr) lines.push(`"Beklenen Tıklama Oranı (CTR)", "%${p.expectedCtr}"`);
-      if (p.searchLeadCr) lines.push(`"Arama Ağı Lead Dönüşüm Oranı (CR)", "%${p.searchLeadCr}"`);
-      if (p.searchHealthyLeadRate) lines.push(`"Nitelikli Lead Oranı", "%${p.searchHealthyLeadRate}"`);
-      if (!isLeadGen && p.searchCloseRate) lines.push(`"Satış Kapatma Oranı", "%${p.searchCloseRate}"`);
-      if (!isLeadGen && p.avgDealValue) lines.push(`"Ortalama Anlaşma Tutarı", "₺${p.avgDealValue.toLocaleString('tr-TR')}"`);
-      if (isMeta && p.metaCpm) lines.push(`"Meta Hedef CPM", "₺${p.metaCpm}"`);
-      if (isMeta && p.metaCtr) lines.push(`"Meta Hedef CTR", "%${p.metaCtr}"`);
-      if (isYouTube && p.youtubeCpv) lines.push(`"YouTube Hedef CPV", "₺${p.youtubeCpv}"`);
-      if (isGDN && p.gdnCpm) lines.push(`"GDN Hedef CPM", "₺${p.gdnCpm}"`);
+      if (vp.targetImpressionShare && p.targetImpressionShare) lines.push(`"Hedef Pazar Gösterim Payı (IS)", "%${p.targetImpressionShare}"`);
+      if (vp.expectedCtr && p.expectedCtr) lines.push(`"Beklenen Tıklama Oranı (CTR)", "%${p.expectedCtr}"`);
+      if (vp.searchLeadCr && p.searchLeadCr) lines.push(`"Arama Ağı Lead Dönüşüm Oranı (CR)", "%${p.searchLeadCr}"`);
+      if (vp.searchHealthyLeadRate && p.searchHealthyLeadRate) lines.push(`"Nitelikli Lead Oranı", "%${p.searchHealthyLeadRate}"`);
+      if (!isLeadGen && vp.searchCloseRate && p.searchCloseRate) lines.push(`"Satış Kapatma Oranı", "%${p.searchCloseRate}"`);
+      if (!isLeadGen && vp.avgDealValue && p.avgDealValue) lines.push(`"Ortalama Anlaşma Tutarı", "₺${p.avgDealValue.toLocaleString('tr-TR')}"`);
+      if (isMeta && vp.metaCpm && p.metaCpm) lines.push(`"Meta Hedef CPM", "₺${p.metaCpm}"`);
+      if (isMeta && vp.metaCtr && p.metaCtr) lines.push(`"Meta Hedef CTR", "%${p.metaCtr}"`);
+      if (isYouTube && vp.youtubeCpv && p.youtubeCpv) lines.push(`"YouTube Hedef CPV", "₺${p.youtubeCpv}"`);
+      if (isGDN && vp.gdnCpm && p.gdnCpm) lines.push(`"GDN Hedef CPM", "₺${p.gdnCpm}"`);
       lines.push('');
     }
 
@@ -729,12 +759,14 @@ export class ExportService {
       ...DEFAULT_EXPORT_CONFIG, 
       ...userConfig,
       visibleMetrics: { ...DEFAULT_VISIBLE_METRICS, ...(userConfig?.visibleMetrics || {}) },
-      visibleKeywordColumns: { ...DEFAULT_VISIBLE_COLUMNS, ...(userConfig?.visibleKeywordColumns || {}) }
+      visibleKeywordColumns: { ...DEFAULT_VISIBLE_COLUMNS, ...(userConfig?.visibleKeywordColumns || {}) },
+      visibleParameters: { ...DEFAULT_VISIBLE_PARAMETERS, ...(userConfig?.visibleParameters || {}) }
     };
 
     const m = this.extractSubCampaignMetrics(sub);
     const vm = config.visibleMetrics;
     const vc = config.visibleKeywordColumns;
+    const vp = config.visibleParameters;
     const isLeadGen = sub.businessModel !== 'ECOMMERCE';
     const locNames = (sub.targetLocations || []).map(l => l.name).join(', ') || 'Tüm Türkiye';
     const subCampaignName = sub.name || 'Alt Kampanya';
@@ -1225,8 +1257,8 @@ export class ExportService {
           ${(config.includeChannelParameters || config.includeFunnel || config.includeKpiSummary) ? `
           <div class="unified-growth-block">
             <div class="unified-growth-header">
-              <span>📈</span>
-              <span>Kampanya Büyüme Modeli, Simülasyon & Dönüşüm Hunisi</span>
+              <span>⚙️</span>
+              <span>Kanal & Simülasyon Hesaplama Parametreleri</span>
             </div>
 
             <!-- Sub-Section 1: Simülasyon Hesaplama Parametreleri -->
@@ -1238,22 +1270,44 @@ export class ExportService {
               const isYouTube = platformUpper.includes('YOUTUBE') || platformUpper.includes('VIDEO');
               const isGDN = platformUpper.includes('GDN') || platformUpper.includes('DISPLAY');
 
+              const tiles: string[] = [];
+              if (vp.targetImpressionShare && p.targetImpressionShare) {
+                tiles.push('<div class="metric-tile"><div class="tile-lbl">Hedef Gösterim Payı (IS)</div><div class="tile-val" style="color:#2563eb;">%' + p.targetImpressionShare + '</div><div class="tile-sub">Hedeflenen Pazar Payı</div></div>');
+              }
+              if (vp.expectedCtr && p.expectedCtr) {
+                tiles.push('<div class="metric-tile"><div class="tile-lbl">Beklenen TO (CTR)</div><div class="tile-val" style="color:#2563eb;">%' + p.expectedCtr + '</div><div class="tile-sub">Tıklama Oranı Tahmini</div></div>');
+              }
+              if (vp.searchLeadCr && p.searchLeadCr) {
+                tiles.push('<div class="metric-tile"><div class="tile-lbl">Lead Dönüşüm Oranı (CR)</div><div class="tile-val" style="color:#2563eb;">%' + p.searchLeadCr + '</div><div class="tile-sub">Ziyaretçi / Talep Oranı</div></div>');
+              }
+              if (vp.searchHealthyLeadRate && p.searchHealthyLeadRate) {
+                tiles.push('<div class="metric-tile"><div class="tile-lbl">Nitelikli Lead Oranı</div><div class="tile-val" style="color:#2563eb;">%' + p.searchHealthyLeadRate + '</div><div class="tile-sub">Satışa Uygunluk Oranı</div></div>');
+              }
+              if (!isLeadGen && vp.searchCloseRate && p.searchCloseRate) {
+                tiles.push('<div class="metric-tile"><div class="tile-lbl">Satış Kapatma Oranı</div><div class="tile-val" style="color:#2563eb;">%' + p.searchCloseRate + '</div><div class="tile-sub">Lead / Satış Oranı</div></div>');
+              }
+              if (!isLeadGen && vp.avgDealValue && p.avgDealValue) {
+                tiles.push('<div class="metric-tile"><div class="tile-lbl">Ortalama Sepet / Sipariş</div><div class="tile-val" style="color:#2563eb;">₺' + p.avgDealValue.toLocaleString('tr-TR') + '</div><div class="tile-sub">Birim Sipariş Değeri</div></div>');
+              }
+              if (isMeta && vp.metaCpm && p.metaCpm) {
+                tiles.push('<div class="metric-tile"><div class="tile-lbl">Meta Hedef CPM</div><div class="tile-val" style="color:#2563eb;">₺' + p.metaCpm + '</div><div class="tile-sub">Bin Gösterim Maliyeti</div></div>');
+              }
+              if (isMeta && vp.metaCtr && p.metaCtr) {
+                tiles.push('<div class="metric-tile"><div class="tile-lbl">Meta Hedef CTR</div><div class="tile-val" style="color:#2563eb;">%' + p.metaCtr + '</div><div class="tile-sub">Tıklama Oranı</div></div>');
+              }
+              if (isYouTube && vp.youtubeCpv && p.youtubeCpv) {
+                tiles.push('<div class="metric-tile"><div class="tile-lbl">YouTube Hedef CPV</div><div class="tile-val" style="color:#2563eb;">₺' + p.youtubeCpv + '</div><div class="tile-sub">İzleme Başı Maliyet</div></div>');
+              }
+              if (isGDN && vp.gdnCpm && p.gdnCpm) {
+                tiles.push('<div class="metric-tile"><div class="tile-lbl">GDN Hedef CPM</div><div class="tile-val" style="color:#2563eb;">₺' + p.gdnCpm + '</div><div class="tile-sub">Görüntülü Reklam CPM</div></div>');
+              }
+
+              if (tiles.length === 0) return '';
+
               return `
               <div class="growth-sub-section">
-                <div class="growth-sub-title">
-                  <span>⚙️</span>
-                  <span>Kanal & Simülasyon Hesaplama Parametreleri</span>
-                </div>
                 <div class="metric-tile-grid">
-                  ${p.targetImpressionShare ? `<div class="metric-tile"><div class="tile-lbl">Hedef Gösterim Payı (IS)</div><div class="tile-val" style="color:#2563eb;">%${p.targetImpressionShare}</div><div class="tile-sub">Hedeflenen Pazar Payı</div></div>` : ''}
-                  ${p.expectedCtr ? `<div class="metric-tile"><div class="tile-lbl">Beklenen TO (CTR)</div><div class="tile-val" style="color:#2563eb;">%${p.expectedCtr}</div><div class="tile-sub">Tıklama Oranı Tahmini</div></div>` : ''}
-                  ${p.searchLeadCr ? `<div class="metric-tile"><div class="tile-lbl">Lead Dönüşüm Oranı (CR)</div><div class="tile-val" style="color:#2563eb;">%${p.searchLeadCr}</div><div class="tile-sub">Ziyaretçi / Talep Oranı</div></div>` : ''}
-                  ${p.searchHealthyLeadRate ? `<div class="metric-tile"><div class="tile-lbl">Nitelikli Lead Oranı</div><div class="tile-val" style="color:#2563eb;">%${p.searchHealthyLeadRate}</div><div class="tile-sub">Satışa Uygunluk Oranı</div></div>` : ''}
-                  ${!isLeadGen && p.searchCloseRate ? `<div class="metric-tile"><div class="tile-lbl">Satış Kapatma Oranı</div><div class="tile-val" style="color:#2563eb;">%${p.searchCloseRate}</div><div class="tile-sub">Lead / Satış Oranı</div></div>` : ''}
-                  ${!isLeadGen && p.avgDealValue ? `<div class="metric-tile"><div class="tile-lbl">Ortalama Sepet / Sipariş</div><div class="tile-val" style="color:#2563eb;">₺${p.avgDealValue.toLocaleString('tr-TR')}</div><div class="tile-sub">Birim Sipariş Değeri</div></div>` : ''}
-                  ${isMeta && p.metaCpm ? `<div class="metric-tile"><div class="tile-lbl">Meta Hedef CPM</div><div class="tile-val" style="color:#2563eb;">₺${p.metaCpm}</div><div class="tile-sub">Bin Gösterim Maliyeti</div></div>` : ''}
-                  ${isYouTube && p.youtubeCpv ? `<div class="metric-tile"><div class="tile-lbl">YouTube Hedef CPV</div><div class="tile-val" style="color:#2563eb;">₺${p.youtubeCpv}</div><div class="tile-sub">İzleme Başı Maliyet</div></div>` : ''}
-                  ${isGDN && p.gdnCpm ? `<div class="metric-tile"><div class="tile-lbl">GDN Hedef CPM</div><div class="tile-val" style="color:#2563eb;">₺${p.gdnCpm}</div><div class="tile-sub">Görüntülü Reklam CPM</div></div>` : ''}
+                  ${tiles.join('')}
                 </div>
               </div>
               `;

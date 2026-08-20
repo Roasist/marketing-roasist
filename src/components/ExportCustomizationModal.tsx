@@ -23,8 +23,7 @@ import {
   DEFAULT_EXPORT_CONFIG,
   VisibleMetricsConfig,
   VisibleKeywordColumnsConfig,
-  DEFAULT_VISIBLE_METRICS,
-  DEFAULT_VISIBLE_COLUMNS
+  VisibleParametersConfig
 } from '../services/exportService';
 
 interface ExportCustomizationModalProps {
@@ -50,6 +49,7 @@ export const ExportCustomizationModal: React.FC<ExportCustomizationModalProps> =
   useEffect(() => {
     if (isOpen) {
       setFormat(initialFormat);
+      setConfig(DEFAULT_EXPORT_CONFIG);
       const handleKeyDown = (e: KeyboardEvent) => {
         if (e.key === 'Escape') onClose();
       };
@@ -85,6 +85,16 @@ export const ExportCustomizationModal: React.FC<ExportCustomizationModalProps> =
     }));
   };
 
+  const handleToggleParameter = (key: keyof VisibleParametersConfig) => {
+    setConfig(prev => ({
+      ...prev,
+      visibleParameters: {
+        ...prev.visibleParameters,
+        [key]: !prev.visibleParameters[key]
+      }
+    }));
+  };
+
   const handleColumnToggle = (key: keyof VisibleKeywordColumnsConfig) => {
     setConfig(prev => ({
       ...prev,
@@ -95,87 +105,53 @@ export const ExportCustomizationModal: React.FC<ExportCustomizationModalProps> =
     }));
   };
 
-  const toggleAllMetrics = (select: boolean) => {
-    const newMetrics: VisibleMetricsConfig = {
-      budget: select,
-      impressions: select,
-      clicks: select,
-      ctr: select,
-      cpc: select,
-      cpm: select,
-      conversions: select,
-      cpl: select,
-      healthyLeads: select,
-      cpql: select,
-      deals: select,
-      cac: select,
-      revenue: select,
-      roas: select
-    };
-    setConfig(prev => ({ ...prev, visibleMetrics: newMetrics }));
-  };
-
-  const toggleAllColumns = (select: boolean) => {
-    const newColumns: VisibleKeywordColumnsConfig = {
-      keyword: select,
-      intent: select,
-      volume: select,
-      trend: select,
-      competition: select,
-      lowCpc: select,
-      highCpc: select,
-      avgCpc: select,
-      opportunity: select,
-      aiPick: select
-    };
-    setConfig(prev => ({ ...prev, visibleKeywordColumns: newColumns }));
-  };
-
   // Presets
   const applyPreset = (preset: 'ALL' | 'EXECUTIVE' | 'KEYWORDS_ONLY') => {
     if (preset === 'ALL') {
-      setConfig({
-        includeGeneralInfo: true,
-        includeKpiSummary: true,
-        includeFunnel: true,
-        includeKeywords: true,
-        includeNegativeKeywords: true,
-        includeChannelParameters: true,
-        includeStrategicNotes: true,
-        keywordFilter: 'ALL',
-        maxKeywordCount: 0,
-        visibleMetrics: DEFAULT_VISIBLE_METRICS,
-        visibleKeywordColumns: DEFAULT_VISIBLE_COLUMNS
-      });
+      setConfig(DEFAULT_EXPORT_CONFIG);
     } else if (preset === 'EXECUTIVE') {
       setConfig({
+        ...DEFAULT_EXPORT_CONFIG,
         includeGeneralInfo: true,
-        includeKpiSummary: true,
+        includeChannelParameters: true,
         includeFunnel: true,
+        includeKpiSummary: true,
         includeKeywords: false,
         includeNegativeKeywords: true,
-        includeChannelParameters: false,
-        includeStrategicNotes: true,
-        keywordFilter: 'ALL',
-        maxKeywordCount: 50,
-        visibleMetrics: DEFAULT_VISIBLE_METRICS,
-        visibleKeywordColumns: DEFAULT_VISIBLE_COLUMNS
+        includeStrategicNotes: true
       });
     } else if (preset === 'KEYWORDS_ONLY') {
       setConfig({
+        ...DEFAULT_EXPORT_CONFIG,
         includeGeneralInfo: true,
-        includeKpiSummary: false,
+        includeChannelParameters: false,
         includeFunnel: false,
+        includeKpiSummary: false,
         includeKeywords: true,
         includeNegativeKeywords: true,
-        includeChannelParameters: false,
-        includeStrategicNotes: false,
-        keywordFilter: 'ALL',
-        maxKeywordCount: 0,
-        visibleMetrics: DEFAULT_VISIBLE_METRICS,
-        visibleKeywordColumns: DEFAULT_VISIBLE_COLUMNS
+        includeStrategicNotes: false
       });
     }
+  };
+
+  const toggleAllMetrics = (val: boolean) => {
+    const updated: VisibleMetricsConfig = { ...config.visibleMetrics };
+    (Object.keys(updated) as (keyof VisibleMetricsConfig)[]).forEach(k => {
+      updated[k] = val;
+    });
+    const updatedParams: VisibleParametersConfig = { ...config.visibleParameters };
+    (Object.keys(updatedParams) as (keyof VisibleParametersConfig)[]).forEach(k => {
+      updatedParams[k] = val;
+    });
+    setConfig(prev => ({ ...prev, visibleMetrics: updated, visibleParameters: updatedParams }));
+  };
+
+  const toggleAllColumns = (val: boolean) => {
+    const updated: VisibleKeywordColumnsConfig = { ...config.visibleKeywordColumns };
+    (Object.keys(updated) as (keyof VisibleKeywordColumnsConfig)[]).forEach(k => {
+      updated[k] = val;
+    });
+    setConfig(prev => ({ ...prev, visibleKeywordColumns: updated }));
   };
 
   const handleExport = () => {
@@ -200,8 +176,21 @@ export const ExportCustomizationModal: React.FC<ExportCustomizationModalProps> =
   const activeMetricsCount = Object.values(config.visibleMetrics).filter(Boolean).length;
   const activeColumnsCount = Object.values(config.visibleKeywordColumns).filter(Boolean).length;
 
+  const parameterLabels: { key: keyof VisibleParametersConfig; label: string; desc: string; icon: string }[] = [
+    { key: 'targetImpressionShare', label: 'Hedef Gösterim Payı (IS)', desc: 'Pazar payı ve gösterim görünürlüğü', icon: '🎯' },
+    { key: 'expectedCtr', label: 'Beklenen TO (CTR)', desc: 'Tıklama oranı verimliliği', icon: '🖱️' },
+    { key: 'searchLeadCr', label: 'Lead Dönüşüm Oranı (CR)', desc: 'Ziyaretçiden talebe dönüşüm', icon: '📝' },
+    { key: 'searchHealthyLeadRate', label: 'Nitelikli Lead Oranı', desc: 'Satışa uygunluk yüzdesi', icon: '⭐' },
+    { key: 'searchCloseRate', label: 'Satış Kapatma Oranı', desc: 'Siparişe/Satışa dönüşme oranı', icon: '🤝' },
+    { key: 'avgDealValue', label: 'Ortalama Sepet / Sipariş', desc: 'Birim satış/anlaşma tutarı', icon: '🏷️' },
+    { key: 'metaCpm', label: 'Meta Hedef CPM', desc: 'Meta reklamları bin gösterim maliyeti', icon: '📱' },
+    { key: 'metaCtr', label: 'Meta Hedef CTR', desc: 'Meta reklamları tıklama oranı', icon: '📈' },
+    { key: 'youtubeCpv', label: 'YouTube Hedef CPV', desc: 'Video izleme başı maliyet', icon: '▶️' },
+    { key: 'gdnCpm', label: 'GDN Hedef CPM', desc: 'Görüntülü reklam bin gösterim maliyeti', icon: '🖼️' },
+  ];
+
   const metricLabels: { key: keyof VisibleMetricsConfig; label: string; desc: string; icon: string }[] = [
-    { key: 'budget', label: 'Aylık Medya Bütçesi', desc: 'Net harcama tavanı ve günlük bütçe', icon: '💰' },
+    { key: 'budget', label: 'Aylık Tahmini Bütçe', desc: 'Net harcama tavanı ve günlük bütçe', icon: '💰' },
     { key: 'impressions', label: 'Gösterim (Impressions)', desc: 'Pazar içi toplam görüntülenme', icon: '👁️' },
     { key: 'clicks', label: 'Tıklama (Clicks)', desc: 'Web sitesi/Landing page trafiği', icon: '🖱️' },
     { key: 'ctr', label: 'Tıklama Oranı (CTR / TO)', desc: 'Gösterim / Tıklama verimliliği', icon: '📈' },
@@ -685,7 +674,7 @@ export const ExportCustomizationModal: React.FC<ExportCustomizationModalProps> =
                     </div>
                   </div>
 
-                  {/* 2. UNIFIED GROWTH BLOCK WITH SUB-TOGGLES */}
+                  {/* 2. UNIFIED PARAMETERS & GROWTH BLOCK */}
                   <div style={{
                     padding: '0.75rem 0.85rem',
                     borderRadius: 'var(--radius-md, 8px)',
@@ -696,9 +685,9 @@ export const ExportCustomizationModal: React.FC<ExportCustomizationModalProps> =
                     gap: '0.65rem'
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', borderBottom: '1px solid var(--border-subtle, #e2e8f0)', paddingBottom: '0.4rem' }}>
-                      <TrendingUp size={15} color="#4f46e5" />
+                      <Settings size={15} color="#4f46e5" />
                       <span style={{ fontSize: '0.82rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                        2. Kampanya Büyüme Modeli, Simülasyon & Dönüşüm Hunisi
+                        2. Kanal & Simülasyon Hesaplama Parametreleri
                       </span>
                     </div>
 
@@ -737,10 +726,73 @@ export const ExportCustomizationModal: React.FC<ExportCustomizationModalProps> =
                             <span>Simülasyon Hesaplama Parametreleri</span>
                           </div>
                           <div style={{ fontSize: '0.68rem', color: 'var(--text-secondary)' }}>
-                            Hedef Gösterim Payı (IS), TO, CR, SQL oranı ve satış kapatma oranları.
+                            Hedef Gösterim Payı (IS), TO, CR, SQL oranı ve simülasyon katsayıları.
                           </div>
                         </div>
                       </div>
+
+                      {/* Granular Parameter Chips */}
+                      {config.includeChannelParameters && (
+                        <div style={{
+                          margin: '0.1rem 0 0.3rem 1.6rem',
+                          padding: '0.5rem 0.65rem',
+                          backgroundColor: '#ffffff',
+                          borderRadius: '6px',
+                          border: '1px dashed var(--border-default)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '0.35rem'
+                        }}>
+                          <div style={{ fontSize: '0.66rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                            Gösterilecek Parametre Kartları:
+                          </div>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+                            {parameterLabels
+                              .filter(p => {
+                                const platformUpper = (subCampaign?.platform || 'GOOGLE_SEARCH').toUpperCase();
+                                const isMeta = platformUpper.includes('META') || platformUpper.includes('FACEBOOK') || platformUpper.includes('INSTAGRAM');
+                                const isYouTube = platformUpper.includes('YOUTUBE') || platformUpper.includes('VIDEO');
+                                const isGDN = platformUpper.includes('GDN') || platformUpper.includes('DISPLAY');
+                                const isLeadGen = subCampaign?.businessModel !== 'ECOMMERCE';
+
+                                if (p.key.startsWith('meta') && !isMeta) return false;
+                                if (p.key === 'youtubeCpv' && !isYouTube) return false;
+                                if (p.key === 'gdnCpm' && !isGDN) return false;
+                                if ((p.key === 'searchCloseRate' || p.key === 'avgDealValue') && isLeadGen) return false;
+                                return true;
+                              })
+                              .map(p => {
+                                const isChecked = config.visibleParameters[p.key];
+                                return (
+                                  <button
+                                    type="button"
+                                    key={p.key}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleToggleParameter(p.key);
+                                    }}
+                                    style={{
+                                      padding: '3px 8px',
+                                      borderRadius: '4px',
+                                      fontSize: '0.69rem',
+                                      fontWeight: 600,
+                                      cursor: 'pointer',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: '4px',
+                                      backgroundColor: isChecked ? '#eff6ff' : 'var(--bg-surface-elevated)',
+                                      border: `1px solid ${isChecked ? '#3b82f6' : 'var(--border-default)'}`,
+                                      color: isChecked ? '#1d4ed8' : 'var(--text-secondary)'
+                                    }}
+                                  >
+                                    <span style={{ fontSize: '0.75rem' }}>{isChecked ? '✓' : '+'}</span>
+                                    <span>{p.label}</span>
+                                  </button>
+                                );
+                              })}
+                          </div>
+                        </div>
+                      )}
 
                       {/* 2.2 Funnel */}
                       <div 
@@ -993,54 +1045,132 @@ export const ExportCustomizationModal: React.FC<ExportCustomizationModalProps> =
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-                {metricLabels.map(m => {
-                  const isChecked = config.visibleMetrics[m.key];
-                  return (
-                    <div
-                      key={m.key}
-                      onClick={() => handleMetricToggle(m.key)}
-                      style={{
-                        padding: '0.6rem 0.75rem',
-                        borderRadius: 'var(--radius-md, 8px)',
-                        border: `1px solid ${isChecked ? 'var(--brand-primary, #2563eb)' : 'var(--border-default)'}`,
-                        backgroundColor: isChecked ? 'rgba(37, 99, 235, 0.05)' : 'var(--bg-surface)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.6rem',
-                        cursor: 'pointer',
-                        opacity: isChecked ? 1 : 0.6,
-                        transition: 'all 0.15s ease'
-                      }}
-                    >
-                      <div style={{
-                        width: '16px',
-                        height: '16px',
-                        borderRadius: '4px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        backgroundColor: isChecked ? 'var(--brand-primary, #2563eb)' : 'transparent',
-                        border: `1px solid ${isChecked ? 'var(--brand-primary, #2563eb)' : 'var(--border-strong)'}`,
-                        color: '#ffffff',
-                        flexShrink: 0
-                      }}>
-                        {isChecked && <Check size={11} strokeWidth={3} />}
-                      </div>
-                      <div style={{ minWidth: 0, flex: 1 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <span style={{ fontSize: '0.85rem' }}>{m.icon}</span>
-                          <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {m.label}
-                          </span>
+              {/* 1. Simulation Parameters */}
+              <div>
+                <div style={{ fontSize: '0.74rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.45rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <Settings size={13} color="#6366f1" />
+                  <span>1. Simülasyon Hesaplama Parametreleri</span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                  {parameterLabels
+                    .filter(p => {
+                      const platformUpper = (subCampaign?.platform || 'GOOGLE_SEARCH').toUpperCase();
+                      const isMeta = platformUpper.includes('META') || platformUpper.includes('FACEBOOK') || platformUpper.includes('INSTAGRAM');
+                      const isYouTube = platformUpper.includes('YOUTUBE') || platformUpper.includes('VIDEO');
+                      const isGDN = platformUpper.includes('GDN') || platformUpper.includes('DISPLAY');
+                      const isLeadGen = subCampaign?.businessModel !== 'ECOMMERCE';
+
+                      if (p.key.startsWith('meta') && !isMeta) return false;
+                      if (p.key === 'youtubeCpv' && !isYouTube) return false;
+                      if (p.key === 'gdnCpm' && !isGDN) return false;
+                      if ((p.key === 'searchCloseRate' || p.key === 'avgDealValue') && isLeadGen) return false;
+                      return true;
+                    })
+                    .map(p => {
+                      const isChecked = config.visibleParameters[p.key];
+                      return (
+                        <div
+                          key={p.key}
+                          onClick={() => handleToggleParameter(p.key)}
+                          style={{
+                            padding: '0.6rem 0.75rem',
+                            borderRadius: 'var(--radius-md, 8px)',
+                            border: `1px solid ${isChecked ? 'var(--brand-primary, #2563eb)' : 'var(--border-default)'}`,
+                            backgroundColor: isChecked ? 'rgba(37, 99, 235, 0.05)' : 'var(--bg-surface)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.6rem',
+                            cursor: 'pointer',
+                            opacity: isChecked ? 1 : 0.6,
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          <div style={{
+                            width: '16px',
+                            height: '16px',
+                            borderRadius: '4px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            backgroundColor: isChecked ? 'var(--brand-primary, #2563eb)' : 'transparent',
+                            border: `1px solid ${isChecked ? 'var(--brand-primary, #2563eb)' : 'var(--border-strong)'}`,
+                            color: '#ffffff',
+                            flexShrink: 0
+                          }}>
+                            {isChecked && <Check size={11} strokeWidth={3} />}
+                          </div>
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <span style={{ fontSize: '0.85rem' }}>{p.icon}</span>
+                              <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {p.label}
+                              </span>
+                            </div>
+                            <div style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {p.desc}
+                            </div>
+                          </div>
                         </div>
-                        <div style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {m.desc}
+                      );
+                    })}
+                </div>
+              </div>
+
+              {/* 2. KPI Metrics */}
+              <div>
+                <div style={{ fontSize: '0.74rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.45rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <TrendingUp size={13} color="#10b981" />
+                  <span>2. Performans & Finansal KPI Metrikleri</span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                  {metricLabels.map(m => {
+                    const isChecked = config.visibleMetrics[m.key];
+                    return (
+                      <div
+                        key={m.key}
+                        onClick={() => handleMetricToggle(m.key)}
+                        style={{
+                          padding: '0.6rem 0.75rem',
+                          borderRadius: 'var(--radius-md, 8px)',
+                          border: `1px solid ${isChecked ? 'var(--brand-primary, #2563eb)' : 'var(--border-default)'}`,
+                          backgroundColor: isChecked ? 'rgba(37, 99, 235, 0.05)' : 'var(--bg-surface)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.6rem',
+                          cursor: 'pointer',
+                          opacity: isChecked ? 1 : 0.6,
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        <div style={{
+                          width: '16px',
+                          height: '16px',
+                          borderRadius: '4px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          backgroundColor: isChecked ? 'var(--brand-primary, #2563eb)' : 'transparent',
+                          border: `1px solid ${isChecked ? 'var(--brand-primary, #2563eb)' : 'var(--border-strong)'}`,
+                          color: '#ffffff',
+                          flexShrink: 0
+                        }}>
+                          {isChecked && <Check size={11} strokeWidth={3} />}
+                        </div>
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <span style={{ fontSize: '0.85rem' }}>{m.icon}</span>
+                            <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {m.label}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {m.desc}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
             </div>
           )}
