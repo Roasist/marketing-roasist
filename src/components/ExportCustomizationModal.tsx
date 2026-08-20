@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   X, 
   FileSpreadsheet, 
@@ -13,7 +13,7 @@ import {
   Info,
   Settings
 } from 'lucide-react';
-import { SubCampaignItem } from '../types/forecast';
+import { SubCampaignItem, KeywordMetric } from '../types/forecast';
 import { ExportService, SubCampaignExportConfig, DEFAULT_EXPORT_CONFIG } from '../services/exportService';
 
 interface ExportCustomizationModalProps {
@@ -35,7 +35,7 @@ export const ExportCustomizationModal: React.FC<ExportCustomizationModalProps> =
   const [config, setConfig] = useState<SubCampaignExportConfig>(DEFAULT_EXPORT_CONFIG);
 
   // Sync format with initialFormat when opened & handle Escape key
-  React.useEffect(() => {
+  useEffect(() => {
     if (isOpen) {
       setFormat(initialFormat);
       const handleKeyDown = (e: KeyboardEvent) => {
@@ -54,7 +54,7 @@ export const ExportCustomizationModal: React.FC<ExportCustomizationModalProps> =
 
   const aiPicksCount = (subCampaign.selectedKeywords && subCampaign.selectedKeywords.length > 0
     ? subCampaign.selectedKeywords
-    : (subCampaign.discoveredKeywords || [])).filter(k => k.isAiStrategistPick).length;
+    : (subCampaign.discoveredKeywords || [])).filter((k: KeywordMetric) => k.isAiStrategistPick).length;
 
   const handleToggle = (key: keyof SubCampaignExportConfig) => {
     setConfig(prev => ({
@@ -126,92 +126,210 @@ export const ExportCustomizationModal: React.FC<ExportCustomizationModalProps> =
 
   return (
     <div 
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in"
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.72)',
+        backdropFilter: 'blur(6px)',
+        WebkitBackdropFilter: 'blur(6px)',
+        zIndex: 99999,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '1rem'
+      }}
       onClick={onClose}
     >
       <div 
-        className="bg-slate-900 border border-slate-700/80 rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden text-slate-100 animate-scale-in"
+        style={{
+          width: '100%',
+          maxWidth: '620px',
+          maxHeight: '90vh',
+          backgroundColor: 'var(--bg-surface)',
+          border: '1px solid var(--border-default)',
+          borderRadius: 'var(--radius-lg, 12px)',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.45)',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+          color: 'var(--text-primary)'
+        }}
         onClick={e => e.stopPropagation()}
       >
         {/* Modal Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-900/90 sticky top-0 z-10">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
-              <Sliders className="w-5 h-5" />
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '1rem 1.25rem',
+          borderBottom: '1px solid var(--border-default)',
+          backgroundColor: 'var(--bg-surface-elevated, var(--bg-surface))',
+          flexShrink: 0
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div style={{
+              width: '36px',
+              height: '36px',
+              borderRadius: 'var(--radius-md, 8px)',
+              background: 'linear-gradient(135deg, var(--brand-primary, #4f46e5) 0%, #2563eb 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#ffffff',
+              boxShadow: '0 4px 10px rgba(79, 70, 229, 0.25)'
+            }}>
+              <Sliders size={18} />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-base font-bold text-white">Rapor Özelleştirme & Dışa Aktarma</h3>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
+                  Rapor Özelleştirme & Dışa Aktarma
+                </h3>
+                <span style={{
+                  padding: '2px 8px',
+                  borderRadius: '999px',
+                  fontSize: '0.68rem',
+                  fontWeight: 700,
+                  backgroundColor: format === 'CSV' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(79, 70, 229, 0.15)',
+                  color: format === 'CSV' ? '#10b981' : 'var(--brand-primary, #4f46e5)',
+                  border: `1px solid ${format === 'CSV' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(79, 70, 229, 0.3)'}`
+                }}>
                   {format}
                 </span>
               </div>
-              <p className="text-xs text-slate-400">Raporda yer alacak bölümleri ve detay filtrelerini yapılandırın.</p>
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '2px 0 0 0' }}>
+                Raporda yer alacak bölümleri ve filtreleri yapılandırın.
+              </p>
             </div>
           </div>
           <button 
             onClick={onClose}
-            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            style={{
+              background: 'transparent',
+              border: 'none',
+              padding: '6px',
+              borderRadius: 'var(--radius-sm, 6px)',
+              color: 'var(--text-muted)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'background-color 0.15s ease'
+            }}
+            onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)')}
+            onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
           >
-            <X className="w-5 h-5" />
+            <X size={18} />
           </button>
         </div>
 
         {/* Sub-Campaign Info Ribbon */}
-        <div className="px-6 py-3 bg-slate-800/60 border-b border-slate-800/80 flex items-center justify-between text-xs">
-          <div className="flex items-center gap-2 truncate">
-            <span className="text-base">{subCampaign.languageFlag || '🌐'}</span>
-            <span className="font-semibold text-slate-200 truncate">{subCampaign.name || 'Alt Kampanya'}</span>
-            <span className="text-slate-400">• {subCampaign.platform}</span>
+        <div style={{
+          padding: '0.65rem 1.25rem',
+          backgroundColor: 'var(--bg-surface-elevated, #f1f5f9)',
+          borderBottom: '1px solid var(--border-default)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          fontSize: '0.75rem',
+          flexShrink: 0
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <span style={{ fontSize: '1rem' }}>{subCampaign.languageFlag || '🌐'}</span>
+            <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{subCampaign.name || 'Alt Kampanya'}</span>
+            <span style={{ color: 'var(--text-muted)' }}>• {subCampaign.platform} ({subCampaign.objective})</span>
           </div>
-          <div className="flex items-center gap-3 text-slate-300 shrink-0 font-medium">
-            <span className="text-indigo-300 font-bold">₺{(subCampaign.monthlyBudget || 0).toLocaleString('tr-TR')} / ay</span>
-            {masterPlan?.name && <span className="text-slate-400 hidden sm:inline">({masterPlan.name})</span>}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600, flexShrink: 0 }}>
+            <span style={{ color: 'var(--brand-primary, #4f46e5)' }}>
+              ₺{(subCampaign.monthlyBudget || 0).toLocaleString('tr-TR')} / ay
+            </span>
           </div>
         </div>
 
         {/* Modal Scrollable Body */}
-        <div className="p-6 overflow-y-auto space-y-5 custom-scrollbar">
+        <div style={{
+          padding: '1.25rem',
+          overflowY: 'auto',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '1.25rem',
+          flex: 1
+        }}>
           
           {/* Format Selector */}
           <div>
-            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+            <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '0.5rem' }}>
               Çıktı Formatı
             </label>
-            <div className="grid grid-cols-2 gap-3">
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
               <button
                 type="button"
                 onClick={() => setFormat('PDF')}
-                className={`flex items-center gap-3 p-3 rounded-xl border transition-all text-left ${
-                  format === 'PDF'
-                    ? 'bg-indigo-600/20 border-indigo-500/80 text-white shadow-lg shadow-indigo-500/10'
-                    : 'bg-slate-800/40 border-slate-700/60 text-slate-400 hover:bg-slate-800 hover:text-slate-200'
-                }`}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  padding: '0.75rem',
+                  borderRadius: 'var(--radius-md, 8px)',
+                  border: format === 'PDF' ? '2px solid var(--brand-primary, #4f46e5)' : '1px solid var(--border-default)',
+                  backgroundColor: format === 'PDF' ? 'rgba(79, 70, 229, 0.08)' : 'var(--bg-surface)',
+                  color: 'var(--text-primary)',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  transition: 'all 0.15s ease'
+                }}
               >
-                <div className={`p-2 rounded-lg ${format === 'PDF' ? 'bg-indigo-600 text-white' : 'bg-slate-700/60 text-slate-400'}`}>
-                  <Printer className="w-4 h-4" />
+                <div style={{
+                  padding: '0.5rem',
+                  borderRadius: 'var(--radius-sm, 6px)',
+                  backgroundColor: format === 'PDF' ? 'var(--brand-primary, #4f46e5)' : 'var(--bg-surface-elevated)',
+                  color: format === 'PDF' ? '#ffffff' : 'var(--text-secondary)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <Printer size={16} />
                 </div>
                 <div>
-                  <div className="text-xs font-bold text-slate-200">PDF & Baskı Raporu</div>
-                  <div className="text-[11px] text-slate-400">Yönetici sunum ve görsel rapor</div>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 700 }}>PDF & Baskı Raporu</div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Yönetici sunum ve görsel rapor</div>
                 </div>
               </button>
 
               <button
                 type="button"
                 onClick={() => setFormat('CSV')}
-                className={`flex items-center gap-3 p-3 rounded-xl border transition-all text-left ${
-                  format === 'CSV'
-                    ? 'bg-emerald-600/20 border-emerald-500/80 text-white shadow-lg shadow-emerald-500/10'
-                    : 'bg-slate-800/40 border-slate-700/60 text-slate-400 hover:bg-slate-800 hover:text-slate-200'
-                }`}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  padding: '0.75rem',
+                  borderRadius: 'var(--radius-md, 8px)',
+                  border: format === 'CSV' ? '2px solid #10b981' : '1px solid var(--border-default)',
+                  backgroundColor: format === 'CSV' ? 'rgba(16, 185, 129, 0.08)' : 'var(--bg-surface)',
+                  color: 'var(--text-primary)',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  transition: 'all 0.15s ease'
+                }}
               >
-                <div className={`p-2 rounded-lg ${format === 'CSV' ? 'bg-emerald-600 text-white' : 'bg-slate-700/60 text-slate-400'}`}>
-                  <FileSpreadsheet className="w-4 h-4" />
+                <div style={{
+                  padding: '0.5rem',
+                  borderRadius: 'var(--radius-sm, 6px)',
+                  backgroundColor: format === 'CSV' ? '#10b981' : 'var(--bg-surface-elevated)',
+                  color: format === 'CSV' ? '#ffffff' : 'var(--text-secondary)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <FileSpreadsheet size={16} />
                 </div>
                 <div>
-                  <div className="text-xs font-bold text-slate-200">Excel / CSV Tablosu</div>
-                  <div className="text-[11px] text-slate-400">Ham veri ve Excel analiz seti</div>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 700 }}>Excel / CSV Tablosu</div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Ham veri ve Excel analiz seti</div>
                 </div>
               </button>
             </div>
@@ -219,35 +337,73 @@ export const ExportCustomizationModal: React.FC<ExportCustomizationModalProps> =
 
           {/* Quick Presets */}
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+              <label style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                 Hızlı Şablonlar
               </label>
-              <span className="text-[11px] text-slate-400">{activeSectionsCount} / 7 Bölüm Seçili</span>
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                {activeSectionsCount} / 7 Bölüm Seçili
+              </span>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
               <button
                 type="button"
                 onClick={() => applyPreset('ALL')}
-                className="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 hover:border-slate-600 text-slate-300 hover:text-white text-xs font-medium transition-colors flex items-center gap-1.5"
+                style={{
+                  padding: '0.35rem 0.65rem',
+                  borderRadius: 'var(--radius-sm, 6px)',
+                  backgroundColor: 'var(--bg-surface-elevated)',
+                  border: '1px solid var(--border-default)',
+                  color: 'var(--text-primary)',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.35rem'
+                }}
               >
-                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                <Sparkles size={13} color="#f59e0b" />
                 Tam Rapor (Tümü)
               </button>
               <button
                 type="button"
                 onClick={() => applyPreset('EXECUTIVE')}
-                className="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 hover:border-slate-600 text-slate-300 hover:text-white text-xs font-medium transition-colors flex items-center gap-1.5"
+                style={{
+                  padding: '0.35rem 0.65rem',
+                  borderRadius: 'var(--radius-sm, 6px)',
+                  backgroundColor: 'var(--bg-surface-elevated)',
+                  border: '1px solid var(--border-default)',
+                  color: 'var(--text-primary)',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.35rem'
+                }}
               >
-                <TrendingUp className="w-3.5 h-3.5 text-indigo-400" />
+                <TrendingUp size={13} color="#6366f1" />
                 Yönetici KPI & Huni
               </button>
               <button
                 type="button"
                 onClick={() => applyPreset('KEYWORDS_ONLY')}
-                className="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 hover:border-slate-600 text-slate-300 hover:text-white text-xs font-medium transition-colors flex items-center gap-1.5"
+                style={{
+                  padding: '0.35rem 0.65rem',
+                  borderRadius: 'var(--radius-sm, 6px)',
+                  backgroundColor: 'var(--bg-surface-elevated)',
+                  border: '1px solid var(--border-default)',
+                  color: 'var(--text-primary)',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.35rem'
+                }}
               >
-                <Search className="w-3.5 h-3.5 text-emerald-400" />
+                <Search size={13} color="#10b981" />
                 Kelime & Fırsat Analizi
               </button>
             </div>
@@ -255,32 +411,50 @@ export const ExportCustomizationModal: React.FC<ExportCustomizationModalProps> =
 
           {/* Sections Customization */}
           <div>
-            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+            <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '0.5rem' }}>
               Rapora Dahil Edilecek Bölümler
             </label>
-            <div className="space-y-2.5">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               
               {/* 1. General Info */}
               <div 
                 onClick={() => handleToggle('includeGeneralInfo')}
-                className={`p-3 rounded-xl border flex items-start gap-3 cursor-pointer transition-all ${
-                  config.includeGeneralInfo 
-                    ? 'bg-slate-800/80 border-indigo-500/50' 
-                    : 'bg-slate-800/30 border-slate-800 opacity-60 hover:opacity-100'
-                }`}
+                style={{
+                  padding: '0.65rem 0.75rem',
+                  borderRadius: 'var(--radius-md, 8px)',
+                  border: `1px solid ${config.includeGeneralInfo ? 'var(--brand-primary, #4f46e5)' : 'var(--border-default)'}`,
+                  backgroundColor: config.includeGeneralInfo ? 'rgba(79, 70, 229, 0.05)' : 'var(--bg-surface)',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '0.65rem',
+                  cursor: 'pointer',
+                  opacity: config.includeGeneralInfo ? 1 : 0.65,
+                  transition: 'all 0.15s ease'
+                }}
               >
-                <div className={`mt-0.5 w-5 h-5 rounded-md flex items-center justify-center text-xs font-bold transition-colors ${
-                  config.includeGeneralInfo ? 'bg-indigo-600 text-white' : 'border border-slate-600 text-transparent'
-                }`}>
-                  <Check className="w-3.5 h-3.5" />
+                <div style={{
+                  marginTop: '2px',
+                  width: '18px',
+                  height: '18px',
+                  borderRadius: '4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: config.includeGeneralInfo ? 'var(--brand-primary, #4f46e5)' : 'transparent',
+                  border: `1px solid ${config.includeGeneralInfo ? 'var(--brand-primary, #4f46e5)' : 'var(--border-strong)'}`,
+                  color: '#ffffff'
+                }}>
+                  {config.includeGeneralInfo && <Check size={12} strokeWidth={3} />}
                 </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <Info className="w-4 h-4 text-blue-400" />
-                    <span className="text-xs font-bold text-slate-200">Genel Bilgiler & Çatı Kampanya Eşleşmesi</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <Info size={14} color="#3b82f6" />
+                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                      Genel Bilgiler & Çatı Kampanya Eşleşmesi
+                    </span>
                   </div>
-                  <p className="text-[11px] text-slate-400 mt-0.5">
-                    Kampanya adı, platform hedefi, hedef dil ({subCampaign.languageName || 'Türkçe'}), hedef lokasyonlar ve bütçe.
+                  <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', margin: '2px 0 0 0' }}>
+                    Kampanya adı, platform, hedef dil ({subCampaign.languageName || 'Türkçe'}), hedef lokasyonlar ve bütçe.
                   </p>
                 </div>
               </div>
@@ -288,23 +462,41 @@ export const ExportCustomizationModal: React.FC<ExportCustomizationModalProps> =
               {/* 2. KPI Summary */}
               <div 
                 onClick={() => handleToggle('includeKpiSummary')}
-                className={`p-3 rounded-xl border flex items-start gap-3 cursor-pointer transition-all ${
-                  config.includeKpiSummary 
-                    ? 'bg-slate-800/80 border-indigo-500/50' 
-                    : 'bg-slate-800/30 border-slate-800 opacity-60 hover:opacity-100'
-                }`}
+                style={{
+                  padding: '0.65rem 0.75rem',
+                  borderRadius: 'var(--radius-md, 8px)',
+                  border: `1px solid ${config.includeKpiSummary ? 'var(--brand-primary, #4f46e5)' : 'var(--border-default)'}`,
+                  backgroundColor: config.includeKpiSummary ? 'rgba(79, 70, 229, 0.05)' : 'var(--bg-surface)',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '0.65rem',
+                  cursor: 'pointer',
+                  opacity: config.includeKpiSummary ? 1 : 0.65,
+                  transition: 'all 0.15s ease'
+                }}
               >
-                <div className={`mt-0.5 w-5 h-5 rounded-md flex items-center justify-center text-xs font-bold transition-colors ${
-                  config.includeKpiSummary ? 'bg-indigo-600 text-white' : 'border border-slate-600 text-transparent'
-                }`}>
-                  <Check className="w-3.5 h-3.5" />
+                <div style={{
+                  marginTop: '2px',
+                  width: '18px',
+                  height: '18px',
+                  borderRadius: '4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: config.includeKpiSummary ? 'var(--brand-primary, #4f46e5)' : 'transparent',
+                  border: `1px solid ${config.includeKpiSummary ? 'var(--brand-primary, #4f46e5)' : 'var(--border-strong)'}`,
+                  color: '#ffffff'
+                }}>
+                  {config.includeKpiSummary && <Check size={12} strokeWidth={3} />}
                 </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <TrendingUp className="w-4 h-4 text-emerald-400" />
-                    <span className="text-xs font-bold text-slate-200">Temel Metrikler & KPI Performans Özeti</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <TrendingUp size={14} color="#10b981" />
+                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                      Temel Metrikler & KPI Performans Özeti
+                    </span>
                   </div>
-                  <p className="text-[11px] text-slate-400 mt-0.5">
+                  <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', margin: '2px 0 0 0' }}>
                     Aylık medya yatırımı, tahmini gösterim, trafik (tıklama), ortalama TBM ve TO (CTR).
                   </p>
                 </div>
@@ -313,23 +505,41 @@ export const ExportCustomizationModal: React.FC<ExportCustomizationModalProps> =
               {/* 3. Funnel */}
               <div 
                 onClick={() => handleToggle('includeFunnel')}
-                className={`p-3 rounded-xl border flex items-start gap-3 cursor-pointer transition-all ${
-                  config.includeFunnel 
-                    ? 'bg-slate-800/80 border-indigo-500/50' 
-                    : 'bg-slate-800/30 border-slate-800 opacity-60 hover:opacity-100'
-                }`}
+                style={{
+                  padding: '0.65rem 0.75rem',
+                  borderRadius: 'var(--radius-md, 8px)',
+                  border: `1px solid ${config.includeFunnel ? 'var(--brand-primary, #4f46e5)' : 'var(--border-default)'}`,
+                  backgroundColor: config.includeFunnel ? 'rgba(79, 70, 229, 0.05)' : 'var(--bg-surface)',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '0.65rem',
+                  cursor: 'pointer',
+                  opacity: config.includeFunnel ? 1 : 0.65,
+                  transition: 'all 0.15s ease'
+                }}
               >
-                <div className={`mt-0.5 w-5 h-5 rounded-md flex items-center justify-center text-xs font-bold transition-colors ${
-                  config.includeFunnel ? 'bg-indigo-600 text-white' : 'border border-slate-600 text-transparent'
-                }`}>
-                  <Check className="w-3.5 h-3.5" />
+                <div style={{
+                  marginTop: '2px',
+                  width: '18px',
+                  height: '18px',
+                  borderRadius: '4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: config.includeFunnel ? 'var(--brand-primary, #4f46e5)' : 'transparent',
+                  border: `1px solid ${config.includeFunnel ? 'var(--brand-primary, #4f46e5)' : 'var(--border-strong)'}`,
+                  color: '#ffffff'
+                }}>
+                  {config.includeFunnel && <Check size={12} strokeWidth={3} />}
                 </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <Target className="w-4 h-4 text-indigo-400" />
-                    <span className="text-xs font-bold text-slate-200">4 Aşamalı Büyüme Hunisi & ROAS / Ciro Projeksiyonu</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <Target size={14} color="#6366f1" />
+                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                      4 Aşamalı Büyüme Hunisi & ROAS / Ciro Projeksiyonu
+                    </span>
                   </div>
-                  <p className="text-[11px] text-slate-400 mt-0.5">
+                  <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', margin: '2px 0 0 0' }}>
                     Gösterim ➔ Trafik ➔ Talep (Lead/Satış) ➔ Nitelikli Lead (CPQL) ➔ Ciro ve ROAS çarpanı.
                   </p>
                 </div>
@@ -337,71 +547,114 @@ export const ExportCustomizationModal: React.FC<ExportCustomizationModalProps> =
 
               {/* 4. Keywords Table & Nested Filters */}
               <div 
-                className={`p-3.5 rounded-xl border transition-all ${
-                  config.includeKeywords 
-                    ? 'bg-slate-800/80 border-indigo-500/50' 
-                    : 'bg-slate-800/30 border-slate-800 opacity-60 hover:opacity-100'
-                }`}
+                style={{
+                  padding: '0.75rem',
+                  borderRadius: 'var(--radius-md, 8px)',
+                  border: `1px solid ${config.includeKeywords ? 'var(--brand-primary, #4f46e5)' : 'var(--border-default)'}`,
+                  backgroundColor: config.includeKeywords ? 'rgba(79, 70, 229, 0.05)' : 'var(--bg-surface)',
+                  opacity: config.includeKeywords ? 1 : 0.65,
+                  transition: 'all 0.15s ease'
+                }}
               >
                 <div 
                   onClick={() => handleToggle('includeKeywords')}
-                  className="flex items-start gap-3 cursor-pointer"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '0.65rem',
+                    cursor: 'pointer'
+                  }}
                 >
-                  <div className={`mt-0.5 w-5 h-5 rounded-md flex items-center justify-center text-xs font-bold transition-colors ${
-                    config.includeKeywords ? 'bg-indigo-600 text-white' : 'border border-slate-600 text-transparent'
-                  }`}>
-                    <Check className="w-3.5 h-3.5" />
+                  <div style={{
+                    marginTop: '2px',
+                    width: '18px',
+                    height: '18px',
+                    borderRadius: '4px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: config.includeKeywords ? 'var(--brand-primary, #4f46e5)' : 'transparent',
+                    border: `1px solid ${config.includeKeywords ? 'var(--brand-primary, #4f46e5)' : 'var(--border-strong)'}`,
+                    color: '#ffffff'
+                  }}>
+                    {config.includeKeywords && <Check size={12} strokeWidth={3} />}
                   </div>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Search className="w-4 h-4 text-amber-400" />
-                        <span className="text-xs font-bold text-slate-200">Anahtar Kelime & TBM Rekabet Tablosu</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                        <Search size={14} color="#f59e0b" />
+                        <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                          Anahtar Kelime & TBM Rekabet Tablosu
+                        </span>
                       </div>
-                      <span className="text-[11px] font-semibold text-indigo-300">
+                      <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--brand-primary, #4f46e5)' }}>
                         {totalKws} Kelime Mevcut
                       </span>
                     </div>
-                    <p className="text-[11px] text-slate-400 mt-0.5">
-                      Kelime listesi, arama niyetleri, aylık aranma hacimleri, 3 aylık trendler, rekabet ve TBM aralıkları.
+                    <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', margin: '2px 0 0 0' }}>
+                      Kelime listesi, arama niyetleri, aylık hacimler, 3 aylık trendler ve TBM aralıkları.
                     </p>
                   </div>
                 </div>
 
-                {/* Sub-options for keywords (only shown when keywords enabled) */}
+                {/* Sub-options for keywords */}
                 {config.includeKeywords && (
-                  <div className="mt-3 pt-3 border-t border-slate-700/60 pl-8 space-y-2.5">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      <div>
-                        <label className="block text-[11px] font-semibold text-slate-400 mb-1">
-                          Kelime Kapsamı
-                        </label>
-                        <select
-                          value={config.keywordFilter}
-                          onChange={e => setConfig(prev => ({ ...prev, keywordFilter: e.target.value as any }))}
-                          className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
-                        >
-                          <option value="ALL">Tüm Kelimeler ({totalKws})</option>
-                          <option value="SELECTED_ONLY">Sadece Seçilen Kelimeler</option>
-                          <option value="AI_PICKS_ONLY">Sadece SEM Stratejist Önerileri ({aiPicksCount})</option>
-                        </select>
-                      </div>
+                  <div style={{
+                    marginTop: '0.65rem',
+                    paddingTop: '0.65rem',
+                    borderTop: '1px solid var(--border-default)',
+                    paddingLeft: '1.75rem',
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr',
+                    gap: '0.65rem'
+                  }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.68rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
+                        Kelime Kapsamı:
+                      </label>
+                      <select
+                        value={config.keywordFilter}
+                        onChange={e => setConfig(prev => ({ ...prev, keywordFilter: e.target.value as any }))}
+                        style={{
+                          width: '100%',
+                          backgroundColor: 'var(--bg-input, var(--bg-surface))',
+                          border: '1px solid var(--border-strong)',
+                          borderRadius: 'var(--radius-sm, 6px)',
+                          padding: '0.35rem 0.5rem',
+                          fontSize: '0.75rem',
+                          color: 'var(--text-primary)',
+                          outline: 'none'
+                        }}
+                      >
+                        <option value="ALL">Tüm Kelimeler ({totalKws})</option>
+                        <option value="SELECTED_ONLY">Sadece Seçilen Kelimeler</option>
+                        <option value="AI_PICKS_ONLY">Sadece SEM Önerileri ({aiPicksCount})</option>
+                      </select>
+                    </div>
 
-                      <div>
-                        <label className="block text-[11px] font-semibold text-slate-400 mb-1">
-                          Tablo Satır Limiti
-                        </label>
-                        <select
-                          value={config.maxKeywordCount}
-                          onChange={e => setConfig(prev => ({ ...prev, maxKeywordCount: Number(e.target.value) }))}
-                          className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
-                        >
-                          <option value="25">İlk 25 Kelime</option>
-                          <option value="50">İlk 50 Kelime (Standart)</option>
-                          <option value="100">İlk 100 Kelime</option>
-                          <option value="0">Tüm Kelimeleri Dahil Et (Sınırsız)</option>
-                        </select>
-                      </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.68rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
+                        Satır Limiti:
+                      </label>
+                      <select
+                        value={config.maxKeywordCount}
+                        onChange={e => setConfig(prev => ({ ...prev, maxKeywordCount: Number(e.target.value) }))}
+                        style={{
+                          width: '100%',
+                          backgroundColor: 'var(--bg-input, var(--bg-surface))',
+                          border: '1px solid var(--border-strong)',
+                          borderRadius: 'var(--radius-sm, 6px)',
+                          padding: '0.35rem 0.5rem',
+                          fontSize: '0.75rem',
+                          color: 'var(--text-primary)',
+                          outline: 'none'
+                        }}
+                      >
+                        <option value="25">İlk 25 Kelime</option>
+                        <option value="50">İlk 50 Kelime (Standart)</option>
+                        <option value="100">İlk 100 Kelime</option>
+                        <option value="0">Tüm Kelimeleri Dahil Et (Sınırsız)</option>
+                      </select>
                     </div>
                   </div>
                 )}
@@ -410,24 +663,42 @@ export const ExportCustomizationModal: React.FC<ExportCustomizationModalProps> =
               {/* 5. Negative Safeguards */}
               <div 
                 onClick={() => handleToggle('includeNegativeKeywords')}
-                className={`p-3 rounded-xl border flex items-start gap-3 cursor-pointer transition-all ${
-                  config.includeNegativeKeywords 
-                    ? 'bg-slate-800/80 border-indigo-500/50' 
-                    : 'bg-slate-800/30 border-slate-800 opacity-60 hover:opacity-100'
-                }`}
+                style={{
+                  padding: '0.65rem 0.75rem',
+                  borderRadius: 'var(--radius-md, 8px)',
+                  border: `1px solid ${config.includeNegativeKeywords ? 'var(--brand-primary, #4f46e5)' : 'var(--border-default)'}`,
+                  backgroundColor: config.includeNegativeKeywords ? 'rgba(79, 70, 229, 0.05)' : 'var(--bg-surface)',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '0.65rem',
+                  cursor: 'pointer',
+                  opacity: config.includeNegativeKeywords ? 1 : 0.65,
+                  transition: 'all 0.15s ease'
+                }}
               >
-                <div className={`mt-0.5 w-5 h-5 rounded-md flex items-center justify-center text-xs font-bold transition-colors ${
-                  config.includeNegativeKeywords ? 'bg-indigo-600 text-white' : 'border border-slate-600 text-transparent'
-                }`}>
-                  <Check className="w-3.5 h-3.5" />
+                <div style={{
+                  marginTop: '2px',
+                  width: '18px',
+                  height: '18px',
+                  borderRadius: '4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: config.includeNegativeKeywords ? 'var(--brand-primary, #4f46e5)' : 'transparent',
+                  border: `1px solid ${config.includeNegativeKeywords ? 'var(--brand-primary, #4f46e5)' : 'var(--border-strong)'}`,
+                  color: '#ffffff'
+                }}>
+                  {config.includeNegativeKeywords && <Check size={12} strokeWidth={3} />}
                 </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <ShieldCheck className="w-4 h-4 text-rose-400" />
-                    <span className="text-xs font-bold text-slate-200">Negatif Kelime Kalkanı & Koruma Listeleri</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <ShieldCheck size={14} color="#ef4444" />
+                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                      Negatif Kelime Kalkanı & Koruma Listeleri
+                    </span>
                   </div>
-                  <p className="text-[11px] text-slate-400 mt-0.5">
-                    Hariç tutulan negatif kategoriler ({subCampaign.negativeCategories?.length || 0} kategori) ve örnek negatif terimler.
+                  <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', margin: '2px 0 0 0' }}>
+                    Hariç tutulan negatif kategoriler ({subCampaign.negativeCategories?.length || 0} kategori) ve örnek terimler.
                   </p>
                 </div>
               </div>
@@ -435,24 +706,42 @@ export const ExportCustomizationModal: React.FC<ExportCustomizationModalProps> =
               {/* 6. Channel Parameters */}
               <div 
                 onClick={() => handleToggle('includeChannelParameters')}
-                className={`p-3 rounded-xl border flex items-start gap-3 cursor-pointer transition-all ${
-                  config.includeChannelParameters 
-                    ? 'bg-slate-800/80 border-indigo-500/50' 
-                    : 'bg-slate-800/30 border-slate-800 opacity-60 hover:opacity-100'
-                }`}
+                style={{
+                  padding: '0.65rem 0.75rem',
+                  borderRadius: 'var(--radius-md, 8px)',
+                  border: `1px solid ${config.includeChannelParameters ? 'var(--brand-primary, #4f46e5)' : 'var(--border-default)'}`,
+                  backgroundColor: config.includeChannelParameters ? 'rgba(79, 70, 229, 0.05)' : 'var(--bg-surface)',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '0.65rem',
+                  cursor: 'pointer',
+                  opacity: config.includeChannelParameters ? 1 : 0.65,
+                  transition: 'all 0.15s ease'
+                }}
               >
-                <div className={`mt-0.5 w-5 h-5 rounded-md flex items-center justify-center text-xs font-bold transition-colors ${
-                  config.includeChannelParameters ? 'bg-indigo-600 text-white' : 'border border-slate-600 text-transparent'
-                }`}>
-                  <Check className="w-3.5 h-3.5" />
+                <div style={{
+                  marginTop: '2px',
+                  width: '18px',
+                  height: '18px',
+                  borderRadius: '4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: config.includeChannelParameters ? 'var(--brand-primary, #4f46e5)' : 'transparent',
+                  border: `1px solid ${config.includeChannelParameters ? 'var(--brand-primary, #4f46e5)' : 'var(--border-strong)'}`,
+                  color: '#ffffff'
+                }}>
+                  {config.includeChannelParameters && <Check size={12} strokeWidth={3} />}
                 </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <Settings className="w-4 h-4 text-cyan-400" />
-                    <span className="text-xs font-bold text-slate-200">Kanal & Simülasyon Hesaplama Parametreleri</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <Settings size={14} color="#06b6d4" />
+                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                      Kanal & Simülasyon Hesaplama Parametreleri
+                    </span>
                   </div>
-                  <p className="text-[11px] text-slate-400 mt-0.5">
-                    Hedef gösterim payı, beklenen TO, lead dönüşüm oranı (CR), sağlıklı lead ve kapanış yüzdeleri.
+                  <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', margin: '2px 0 0 0' }}>
+                    Hedef gösterim payı, beklenen TO, lead dönüşüm oranı (CR), sağlıklı lead oranları.
                   </p>
                 </div>
               </div>
@@ -460,23 +749,41 @@ export const ExportCustomizationModal: React.FC<ExportCustomizationModalProps> =
               {/* 7. Strategic Notes */}
               <div 
                 onClick={() => handleToggle('includeStrategicNotes')}
-                className={`p-3 rounded-xl border flex items-start gap-3 cursor-pointer transition-all ${
-                  config.includeStrategicNotes 
-                    ? 'bg-slate-800/80 border-indigo-500/50' 
-                    : 'bg-slate-800/30 border-slate-800 opacity-60 hover:opacity-100'
-                }`}
+                style={{
+                  padding: '0.65rem 0.75rem',
+                  borderRadius: 'var(--radius-md, 8px)',
+                  border: `1px solid ${config.includeStrategicNotes ? 'var(--brand-primary, #4f46e5)' : 'var(--border-default)'}`,
+                  backgroundColor: config.includeStrategicNotes ? 'rgba(79, 70, 229, 0.05)' : 'var(--bg-surface)',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '0.65rem',
+                  cursor: 'pointer',
+                  opacity: config.includeStrategicNotes ? 1 : 0.65,
+                  transition: 'all 0.15s ease'
+                }}
               >
-                <div className={`mt-0.5 w-5 h-5 rounded-md flex items-center justify-center text-xs font-bold transition-colors ${
-                  config.includeStrategicNotes ? 'bg-indigo-600 text-white' : 'border border-slate-600 text-transparent'
-                }`}>
-                  <Check className="w-3.5 h-3.5" />
+                <div style={{
+                  marginTop: '2px',
+                  width: '18px',
+                  height: '18px',
+                  borderRadius: '4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: config.includeStrategicNotes ? 'var(--brand-primary, #4f46e5)' : 'transparent',
+                  border: `1px solid ${config.includeStrategicNotes ? 'var(--brand-primary, #4f46e5)' : 'var(--border-strong)'}`,
+                  color: '#ffffff'
+                }}>
+                  {config.includeStrategicNotes && <Check size={12} strokeWidth={3} />}
                 </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-purple-400" />
-                    <span className="text-xs font-bold text-slate-200">Stratejik Uygulama & Kampanya Başlatma Notları</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <Sparkles size={14} color="#a855f7" />
+                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                      Stratejik Uygulama & Kampanya Başlatma Notları
+                    </span>
                   </div>
-                  <p className="text-[11px] text-slate-400 mt-0.5">
+                  <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', margin: '2px 0 0 0' }}>
                     Optimizasyon hedefleri, günlük harcama tavanı ve piksel/CAPI doğrulama yönergeleri.
                   </p>
                 </div>
@@ -488,15 +795,29 @@ export const ExportCustomizationModal: React.FC<ExportCustomizationModalProps> =
         </div>
 
         {/* Modal Footer */}
-        <div className="flex items-center justify-between px-6 py-4 border-t border-slate-800 bg-slate-900 sticky bottom-0 z-10">
-          <div className="text-xs text-slate-400">
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '1rem 1.25rem',
+          borderTop: '1px solid var(--border-default)',
+          backgroundColor: 'var(--bg-surface-elevated, var(--bg-surface))',
+          flexShrink: 0
+        }}>
+          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
             {format === 'CSV' ? 'Excel UTF-8 BOM destekli .csv dosyası' : 'A4 ve ekran uyumlu yüksek çözünürlüklü PDF'}
           </div>
-          <div className="flex items-center gap-3">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold transition-colors"
+              className="btn-ghost"
+              style={{
+                padding: '0.45rem 0.9rem',
+                borderRadius: 'var(--radius-md, 8px)',
+                fontSize: '0.78rem',
+                fontWeight: 600
+              }}
             >
               İptal
             </button>
@@ -504,22 +825,31 @@ export const ExportCustomizationModal: React.FC<ExportCustomizationModalProps> =
               type="button"
               onClick={handleExport}
               disabled={activeSectionsCount === 0}
-              className={`px-5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 shadow-lg transition-all ${
-                activeSectionsCount === 0
-                  ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                  : format === 'CSV'
-                  ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-emerald-500/20'
-                  : 'bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white shadow-indigo-500/20'
-              }`}
+              style={{
+                padding: '0.45rem 1.1rem',
+                borderRadius: 'var(--radius-md, 8px)',
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                cursor: activeSectionsCount === 0 ? 'not-allowed' : 'pointer',
+                opacity: activeSectionsCount === 0 ? 0.5 : 1,
+                border: 'none',
+                color: '#ffffff',
+                backgroundColor: format === 'CSV' ? '#10b981' : 'var(--brand-primary, #4f46e5)',
+                boxShadow: format === 'CSV' ? '0 4px 12px rgba(16, 185, 129, 0.3)' : '0 4px 12px rgba(79, 70, 229, 0.3)',
+                transition: 'all 0.15s ease'
+              }}
             >
               {format === 'CSV' ? (
                 <>
-                  <FileSpreadsheet className="w-4 h-4" />
+                  <FileSpreadsheet size={15} />
                   <span>CSV Olarak İndir</span>
                 </>
               ) : (
                 <>
-                  <Printer className="w-4 h-4" />
+                  <Printer size={15} />
                   <span>PDF Raporunu Aç</span>
                 </>
               )}
