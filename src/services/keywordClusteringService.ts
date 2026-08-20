@@ -1,0 +1,428 @@
+import { KeywordMetric, CpcImputationSettings } from '../types/forecast';
+
+export interface KeywordCluster {
+  id: string;
+  name: string;
+  icon: string;
+  keywords: KeywordMetric[];
+  totalVolume: number;
+  avgCpc: number;
+  selectedCount: number;
+}
+
+/**
+ * Universal Multilingual Semantic Text Normalizer
+ */
+export const normalizeForSemanticClustering = (str: string): string => {
+  return str
+    .toLowerCase()
+    .replace(/[\u200B-\u200D\uFEFF]/g, ' ') // Replace Half-space / ZWNJ with space
+    .replace(/[\u064B-\u065F\u0670]/g, '') // Remove Arabic/Persian diacritics (tashkeel, tanwin)
+    .replace(/[\u0640]/g, '') // Remove Tatweel / Kashida
+    .replace(/[يىئ]/g, 'ی') // Unify Arabic/Persian Yeh
+    .replace(/[ك]/g, 'ک') // Unify Arabic/Persian Kaf
+    .replace(/[أإآ]/g, 'ا') // Unify Alef
+    .replace(/[ة]/g, 'ه') // Unify Teh Marbuta
+    .replace(/\s+/g, ' ')
+    .trim();
+};
+
+/**
+ * High-Converting Semantic Clustering & Hierarchical Multi-Tier CPC Imputation
+ * This is the SINGLE SOURCE OF TRUTH for keyword grouping and 0 TL TBM imputation across the entire application.
+ */
+export const groupKeywordsSemantically = (
+  kwList: KeywordMetric[],
+  imputationSettings?: CpcImputationSettings
+): KeywordCluster[] => {
+  if (!kwList || kwList.length === 0) return [];
+
+  // 1. Deduplicate incoming list by normalized keyword string
+  const uniqueKwList: KeywordMetric[] = [];
+  const seenKws = new Set<string>();
+  for (const kw of kwList) {
+    const norm = normalizeForSemanticClustering(kw.keyword);
+    if (!seenKws.has(norm)) {
+      seenKws.add(norm);
+      uniqueKwList.push(kw);
+    }
+  }
+
+  const clusters: KeywordCluster[] = [];
+
+  // Robust Multi-Tier Benchmark Calculation
+  // 1. Find all keywords that have valid Google Ads auction bids (> 0.50 TL and NOT estimated)
+  const campaignValidLowKws = uniqueKwList.filter(k => !k.isCpcEstimated && (k.rawLowCpc !== undefined ? k.rawLowCpc > 0.50 : k.lowCpc > 0.50));
+  const campaignValidHighKws = uniqueKwList.filter(k => !k.isCpcEstimated && (k.rawHighCpc !== undefined ? k.rawHighCpc > 0.50 : k.highCpc > 0.50));
+
+  const campaignLowSum = campaignValidLowKws.reduce((s, k) => s + ((k.rawLowCpc ?? k.lowCpc) * Math.max(k.monthlyVolume, 10)), 0);
+  const campaignLowVol = campaignValidLowKws.reduce((s, k) => s + Math.max(k.monthlyVolume, 10), 0);
+  const campaignAvgLow = campaignLowVol > 0 ? campaignLowSum / campaignLowVol : 0;
+
+  const campaignHighSum = campaignValidHighKws.reduce((s, k) => s + ((k.rawHighCpc ?? k.highCpc) * Math.max(k.monthlyVolume, 10)), 0);
+  const campaignHighVol = campaignValidHighKws.reduce((s, k) => s + Math.max(k.monthlyVolume, 10), 0);
+  const campaignAvgHigh = campaignHighVol > 0 ? campaignHighSum / campaignHighVol : 0;
+
+  // Sector Default Fallback: For Real Estate & Immigration searches, realistic baseline is ₺8.50 - ₺26.00
+  const defaultSectorLow = 8.50;
+  const defaultSectorHigh = 26.00;
+
+  const globalBenchmarkLow = campaignAvgLow >= 1.0 ? campaignAvgLow : defaultSectorLow;
+  const globalBenchmarkHigh = campaignAvgHigh > globalBenchmarkLow ? campaignAvgHigh : Math.max(defaultSectorHigh, globalBenchmarkLow * 2.8);
+
+  const processClusterKeywords = (list: KeywordMetric[], clusterName: string): KeywordMetric[] => {
+    const clusterValidLow = list.filter(k => !k.isCpcEstimated && (k.rawLowCpc !== undefined ? k.rawLowCpc > 0.50 : k.lowCpc > 0.50));
+    const clusterValidHigh = list.filter(k => !k.isCpcEstimated && (k.rawHighCpc !== undefined ? k.rawHighCpc > 0.50 : k.highCpc > 0.50));
+
+    const clusterLowSum = clusterValidLow.reduce((s, k) => s + ((k.rawLowCpc ?? k.lowCpc) * Math.max(k.monthlyVolume, 10)), 0);
+    const clusterLowVol = clusterValidLow.reduce((s, k) => s + Math.max(k.monthlyVolume, 10), 0);
+    const clusterBenchLow = (clusterLowVol > 0 && (clusterLowSum / clusterLowVol) >= 1.0) 
+      ? (clusterLowSum / clusterLowVol) 
+      : globalBenchmarkLow;
+
+    const clusterHighSum = clusterValidHigh.reduce((s, k) => s + ((k.rawHighCpc ?? k.highCpc) * Math.max(k.monthlyVolume, 10)), 0);
+    const clusterHighVol = clusterValidHigh.reduce((s, k) => s + Math.max(k.monthlyVolume, 10), 0);
+    const clusterBenchHigh = (clusterHighVol > 0 && (clusterHighSum / clusterHighVol) > clusterBenchLow) 
+      ? (clusterHighSum / clusterHighVol) 
+      : globalBenchmarkHigh;
+
+    return list.map(k => {
+      const rawLow = k.rawLowCpc !== undefined ? k.rawLowCpc : (k.isCpcEstimated ? 0 : k.lowCpc);
+      const rawHigh = k.rawHighCpc !== undefined ? k.rawHighCpc : (k.isCpcEstimated ? 0 : k.highCpc);
+      const isOriginallyMissing = k.isCpcEstimated || (rawLow <= 0.05 && rawHigh <= 0.05);
+
+      // Check if keyword is rental/negative to sanitize SEM Uzmanı
+      const isRentalOrNegative = /kiralık|kirala|kiralamak|kiralama|kira|konakla|konaklama|konaklamak|tatil|pansiyon|otel|hotel|apart|airbnb|booking|rent|rental|accommodation|stay|holiday|аренда|проживание|посуточно|гостиница|отель|اجاره|کرایه|فندق|سكن|bedava|ücretsiz|ucuz|free|бесплатно/i.test(k.keyword);
+      const sanitizedIsAiStrategist = isRentalOrNegative ? false : k.isAiStrategistPick;
+
+      const mult = k.intent === 'TRANSACTIONAL' 
+        ? (imputationSettings?.transactionalMultiplier ?? 1.15)
+        : (k.intent === 'INFORMATIONAL' 
+            ? (imputationSettings?.informationalMultiplier ?? 0.85)
+            : (imputationSettings?.commercialMultiplier ?? 1.00));
+
+      if (isOriginallyMissing) {
+        if (imputationSettings?.autoImputeMissingCpc ?? true) {
+          let clusterSpecificFactor = 1.0;
+          if (/cbi|vatandaşlık|citizenship|yatırım|invest/i.test(clusterName)) {
+            clusterSpecificFactor = 1.25;
+          } else if (/villa|lüks|luxury/i.test(clusterName)) {
+            clusterSpecificFactor = 1.20;
+          } else if (/fiyat|pricing|satın al|almak|buy/i.test(clusterName)) {
+            clusterSpecificFactor = 1.10;
+          } else if (/kiralık|rent/i.test(clusterName)) {
+            clusterSpecificFactor = 0.85;
+          } else if (/rehber|yaşam|nedir|how/i.test(clusterName)) {
+            clusterSpecificFactor = 0.80;
+          }
+
+          const imputedLow = Math.max(1.50, Math.round(clusterBenchLow * mult * clusterSpecificFactor * 100) / 100);
+          const imputedHigh = Math.max(Math.round(imputedLow * 1.6 * 100) / 100, Math.round(clusterBenchHigh * mult * clusterSpecificFactor * 100) / 100);
+
+          return {
+            ...k,
+            rawLowCpc: rawLow,
+            rawHighCpc: rawHigh,
+            lowCpc: imputedLow,
+            highCpc: imputedHigh,
+            isCpcEstimated: true,
+            isAiStrategistPick: sanitizedIsAiStrategist,
+            cpcEstimationCluster: clusterName,
+            cpcEstimationMultiplier: Math.round(mult * clusterSpecificFactor * 100) / 100
+          };
+        } else {
+          return {
+            ...k,
+            rawLowCpc: rawLow,
+            rawHighCpc: rawHigh,
+            lowCpc: 0,
+            highCpc: 0,
+            isCpcEstimated: false,
+            isAiStrategistPick: sanitizedIsAiStrategist
+          };
+        }
+      } else if (rawLow <= 0.05 && rawHigh > 0.50) {
+        const estimatedLow = Math.max(1.00, Math.round(rawHigh * 0.35 * mult * 100) / 100);
+        const scaledHigh = Math.round(rawHigh * mult * 100) / 100;
+        return {
+          ...k,
+          rawLowCpc: rawLow,
+          rawHighCpc: rawHigh,
+          lowCpc: estimatedLow,
+          highCpc: scaledHigh,
+          isCpcEstimated: true,
+          isAiStrategistPick: sanitizedIsAiStrategist,
+          cpcEstimationCluster: clusterName,
+          cpcEstimationMultiplier: mult
+        };
+      } else if (rawLow > 0.50 && rawHigh <= 0.05) {
+        const scaledLow = Math.round(rawLow * mult * 100) / 100;
+        const estimatedHigh = Math.round(rawLow * 2.8 * mult * 100) / 100;
+        return {
+          ...k,
+          rawLowCpc: rawLow,
+          rawHighCpc: rawHigh,
+          lowCpc: scaledLow,
+          highCpc: estimatedHigh,
+          isCpcEstimated: true,
+          isAiStrategistPick: sanitizedIsAiStrategist,
+          cpcEstimationCluster: clusterName,
+          cpcEstimationMultiplier: mult
+        };
+      }
+
+      const scaledLow = Math.round(rawLow * mult * 100) / 100;
+      const scaledHigh = Math.round(rawHigh * mult * 100) / 100;
+
+      return {
+        ...k,
+        rawLowCpc: rawLow,
+        rawHighCpc: rawHigh,
+        lowCpc: scaledLow,
+        highCpc: scaledHigh,
+        cpcEstimationMultiplier: mult,
+        isAiStrategistPick: sanitizedIsAiStrategist
+      };
+    });
+  };
+
+  // 2. High-converting Granular STAG Theme Rules (Strict Priority Hierarchy)
+  const stagRules = [
+    // 1. Yatırım Yoluyla Vatandaşlık & CBI (Citizenship by Investment) - HIGHEST SPECIFICITY
+    {
+      id: 'stag_cbi_investment',
+      name: '💎 Yatırım Yoluyla Vatandaşlık (CBI)',
+      icon: '💎',
+      regex: /(?:^|[^\p{L}\p{N}])(инвестици|инвестор|инвестировать|yatırım|yatırımla|yatırımcı|gayrimenkul yatırımı|fon yatırımı|citizenship by investment|golden visa|cbi|investor|investment|invest in|investition|استثمار|استثماري|مستثمر|فيزا ذهبية|الفيزا الذهبية|سرمایه\s*گذار|سرمایه\s*گزار|سرمایه\s*گذاری|ویزای\s*طلایی)(?:[^\p{L}\p{N}]|$)/ui
+    },
+    // 2. Türk Vatandaşlığı & Pasaport (Citizenship & Passport)
+    {
+      id: 'stag_citizenship_passport',
+      name: '🏛️ Türk Vatandaşlığı & Pasaport',
+      icon: '🏛️',
+      regex: /(?:^|[^\p{L}\p{N}])(гражданств|паспорт|vatandaşlık|vatandaslik|türk vatandaşlığı|türkiye vatandaşlığı|tc vatandaslik|pasaport|citizenship|passport|turkish citizenship|turkish passport|staatsbürgerschaft|pass|جنسية|الجنسية|جواز|جواز سفر|جواز تركي|شهروندی|تابعیت|پاسپورت|گذرنامه)(?:[^\p{L}\p{N}]|$)/ui
+    },
+    // 3. İkamet İzni & Oturum (Residency & ВНЖ / İkamet) - MUST CATCH ALL RESIDENCY REGARDLESS OF BUYING WORDS
+    {
+      id: 'stag_residency_ikamet',
+      name: '🪪 İkamet İzni & Oturum (ВНЖ)',
+      icon: '🪪',
+      regex: /(?:^|[^\p{L}\p{N}])(внж|пмж|икамет|вид на жительство|оформление внж|получить внж|продление внж|отказ в внж|кимлик|ikamet|ikametgah|oturum|oturma|oturum izni|oturma izni|ikamet izni|tapu ile ikamet|residence permit|residency permit|residence|residency|turkey ikamet|turkish residence|aufenthaltserlaubnis|ikamet permit|إقامة|اقامة|اقام|تصريح إقامة|بطاقة إقامة|إقامة عقارية|إقامة سياحية|تجديد الإقامة|اقامت|اقامتی|اقامتگاه|کارت اقامت|اخذ اقامت|اجازه اقامت|تمدید اقامت|کیمیک|کیملیک)(?:[^\p{L}\p{N}]|$)/ui
+    },
+    // 4. Kiralık Konut & Daire Kiralama (Rentals & Kiralık) - DEDICATED SEPARATE GROUP
+    {
+      id: 'stag_rental',
+      name: '🔑 Kiralık Konut & Daire Kiralama',
+      icon: '🔑',
+      regex: /(?:^|[^\p{L}\p{N}])(аренд|снять|арендовать|посуточн|kiralık|kiralik|kirala|kiralama|kira|yıllık kira|aylık kira|günlük kiralık|rent|rental|for rent|renting|flat for rent|apartment for rent|wohnung mieten|mietwohnung|haus mieten|إيجار|ايجار|للايجار|للإيجار|استئجار|مستأجر|اجار|اجاره|کرایه|رهن|رهن و اجاره)(?:[^\p{L}\p{N}]|$)/ui
+    },
+    // 5. Fiyatlar, Harçlar, Masraflar & Maliyetler (Pricing, Costs & Budget)
+    {
+      id: 'stag_costs_pricing',
+      name: '💰 Fiyat, Harç & Maliyetler',
+      icon: '💰',
+      regex: /(?:^|[^\p{L}\p{N}])(цен|стоимост|сколько стоит|дешев|недорог|расход|налог|пошлин|рассрочк|fiyat|fiyatı|fiyatlar|fiyatları|ücret|ücreti|masraf|masrafları|maliyet|maliyeti|harç|harçlar|kaça|ne kadar|en ucuz|uygun fiyat|taksit|taksitli|kelepir|cost of living|prices|price|property prices|cheap|cheapest|fees|fee|taxes|tax|affordable|installment|budget|how much|preise|kosten|günstig|سعر|اسعار|أسعار|تكلفة|تكاليف|رسوم|ضرائب|مصاريف|رخيص|أرخص|تقسيط|بالتقسيط|قیمت|قیمتها|قیمت ها|هزینه|هزینها|هزینه ها|مخارج|ارزان|ارزانترین|ارزان ترین|نرخ|اقساط|اقساطی|چقدر|چند است|بودجه|وام)(?:[^\p{L}\p{N}]|$)/ui
+    },
+    // 6. Hukuk, Avukat & Resmi Danışmanlık (Legal, Lawyers & Consultation)
+    {
+      id: 'stag_legal_consulting',
+      name: '⚖️ Hukuk, Avukat & Danışmanlık',
+      icon: '⚖️',
+      regex: /(?:^|[^\p{L}\p{N}])(адвокат|юрист|юридическ|нотариус|апостиль|доверенност|avukat|hukuk|danışmanlık|danışmanı|danismanlik|hukuki|noter|vekaletname|apostil|lawyer|attorney|legal services|law firm|legal assistance|notary|power of attorney|anwalt|rechtsanwalt|محامي|محاماة|استشارة قانونية|توكيل|نوتر|قانوني|وکیل|وکلا|وکالت|مشاوره حقوقی|حقوقی|نوتر|دفتر اسناد رسمی|دفترخانه)(?:[^\p{L}\p{N}]|$)/ui
+    },
+    // 7. Başvuru, Şartlar, Evraklar & Statü (Applications, Documents & Requirements)
+    {
+      id: 'stag_process_documents',
+      name: '📜 Başvuru, Evrak & Koşullar',
+      icon: '📜',
+      regex: /(?:^|[^\p{L}\p{N}])(как получить|документ|услови|требован|подача документов|проверить статус|оформлен|процедур|şart|şartlar|şartları|koşul|koşulları|nasıl alınır|başvuru|başvurusu|evrak|evraklar|belge|belgeler|süreç|statü|requirements|how to apply|how to get|documents|documents needed|application process|application|eligibility|antrag|unterlagen|voraussetzungen|شروط|الأوراق المطلوبة|الاوراق المطلوبة|طريقة التقديم|كيفية الحصول|طريقة|كيفية|اجراءات|إجراءات|تقديم|خطوات|مدارک|مدارک لازم|شرایط|شرایط لازم|شرایط اخذ|نحوه دریافت|نحوه|چگونه|مراحل|ثبت نام|درخواست|قوانین|فرآیند|روش)(?:[^\p{L}\p{N}]|$)/ui
+    },
+    // 8. Lüks Projeler, Villalar & Rezidans (Luxury, Villas & New Developments)
+    {
+      id: 'stag_luxury_villas',
+      name: '🏰 Lüks Konut, Villa & Projeler',
+      icon: '🏰',
+      regex: /(?:^|[^\p{L}\p{N}])(вилл|элитн|люкс|новостройк|жилой комплекс|жк|пентхаус|villa|villalar|lüks konut|lüks|rezidans|markalı projeler|yeni projeler|müstakil ev|müstakil villa|penthouse|site içi|luxury real estate|luxury villas|luxury|new developments|penthouses|compound|luxusimmobilien|neubau|فلل|فيلا|عقارات فاخرة|فاخر|فاخرة|مشاريع جديدة|مجمعات سكنية|بنتهاوس|برج|مجمع سكني|ویلا|ویلای لوکس|خرید ویلا|پروژه‌های جدید|پروژه|برج‌های مسکونی|برج|لوکس|لاکچری|پنت هاوس|پنت‌هاوس|مجتمع مسکونی|شهرک)(?:[^\p{L}\p{N}]|$)/ui
+    },
+    // 9. Lokasyon: İstanbul & Bölge Odaklı (Istanbul Focused)
+    {
+      id: 'stag_geo_istanbul',
+      name: '📍 Lokasyon: İstanbul & Çevresi',
+      icon: '📍',
+      regex: /(?:^|[^\p{L}\p{N}])(стамбул|стамбуле|istanbul|istanbulda|istanbul'da|beylikdüzü|başakşehir|esenyurt|kadıköy|beşiktaş|şişli|sarıyer|üsküdar|kartal|pendik|bakırköy|zeytinburnu|fatih|avcılar|küçükçekmece|büyükçekmece|şile|arnavutköy|esenyurt|إسطنبول|اسطنبول|بيليك دوزو|باشاك شهير|شيشلي|استانبول|در استانبول|بیلیکدوزو|بشیکتاش|کادیکوی|باشاک شهیر|اسنیورت|شیشلی|سارییر)(?:[^\p{L}\p{N}]|$)/ui
+    },
+    // 10. Lokasyon: Antalya, Alanya & Akdeniz Sahili (Antalya & Coast Focused)
+    {
+      id: 'stag_geo_mediterranean',
+      name: '🏖️ Lokasyon: Antalya, Alanya & Sahil',
+      icon: '🏖️',
+      regex: /(?:^|[^\p{L}\p{N}])(анталья|анталье|аланья|аланье|мерсин|мерсине|бодрум|бодруме|измир|измире|бурса|бурсе|анкара|анкаре|махмутлар|кемер|сиде|фетхие|кипр|antalya|antalyada|alanya|alanyada|bodrum|mersin|fethiye|izmir|bursa|ankara|mahmutlar|kemer|side|çeşme|kuşadası|didim|kıbrıs|أنطاليا|الانيا|ألانيا|مرسين|بودروم|إزمير|ازمير|بورصة|أنقرة|انقرة|قبرص|آنتالیا|انتالیا|آلانیا|الانیا|مرسین|بدروم|ازمیر|بورسا|آنکارا|انکارا|محمودلار|کمر|سیده|قبرس)(?:[^\p{L}\p{N}]|$)/ui
+    },
+    // 11. Göç, Yaşam & Türkiye Rehberi (Living, Relocation & Life in Turkey)
+    {
+      id: 'stag_relocation_life',
+      name: '🌍 Göç, Yaşam & Relokasyon',
+      icon: '🌍',
+      regex: /(?:^|[^\p{L}\p{N}])(жизнь в турции|жизнь|уровень жизни|переезд в турцию|переезд|переехать|эмиграц|иммиграц|релокац|россияне в|русские в|yaşam|yaşam şartları|türkiye'de yaşam|türkiye rehberi|göç|yerleşim|taşınma|living in turkey|living in|relocation to turkey|relocation|relocate|immigrate|moving to turkey|leben in|auswandern|العيش في تركيا|الحياة في تركيا|الهجرة إلى تركيا|هجرة|زندگی در ترکیه|زندگی|مهاجرت به ترکیه|مهاجرت|کوچ|ایرانیان در ترکیه)(?:[^\p{L}\p{N}]|$)/ui
+    },
+    // 12. En İyi, Yorumlar & Tecrübeler (Reviews, Experiences & Best)
+    {
+      id: 'stag_reviews_experience',
+      name: '⭐ Yorumlar, Deneyim & Tavsiyeler',
+      icon: '⭐',
+      regex: /(?:^|[^\p{L}\p{N}])(отзыв|опыт|совет|форум|стоит ли|плюсы и минусы|лучшие районы|лучш|топ|yorum|yorumlar|tavsiye|tavsiyeler|deneyim|deneyimler|şikayet|forum|en iyi|en uygun|avantaj|dezavantaj|reviews|review|best areas|experiences|pros and cons|recommendations|erfahrungen|bewertungen|تجارب|تجربة|آراء|رأي|أفضل المناطق|نصائح|مميزات وعيوب|تجرب|تجربه|تجربیات|نظرات|نظر|دیدگاه|بهترین مناطق|معایب|مزایا|توصیه)(?:[^\p{L}\p{N}]|$)/ui
+    },
+    // 13. Gayrimenkul & Konut Satın Alma (Pure Property Buying & Real Estate - BROADEST INTENT)
+    {
+      id: 'stag_property_buying',
+      name: '🏢 Gayrimenkul & Konut Satın Alma',
+      icon: '🏢',
+      regex: /(?:^|[^\p{L}\p{N}])(купить|покупк|недвижимост|квартир|жилье|жилья|апартамент|дом|дома|продаж|застройщик|вторичк|тапу|satılık|satın al|satın alma|almak|alımı|daire al|ev al|mülk al|konut al|emlak|gayrimenkul|mülk|konut|daire|ev|arsa|tapu|inşaat firmaları|sahibinden|buy property|buy apartment|buy house|buy flat|purchase|property for sale|apartment for sale|real estate|properties|property|apartments|apartment|flats|condo|housing|title deed|wohnung kaufen|immobilien|haus kaufen|شراء|تملك|عقارات|عقار|شقق|شقة|بيوت|بيت|منازل|منزل|للبيع|طابو|سند ملكية|خرید|خریدن|خرید ملک|خرید خانه|خرید آپارتمان|خرید ویلا|خرید واحد|فروش|فروشی|املاک|ملک|آپارتمان|خانه|مسکن|واحد|سند|تاپو|دلار|ریال|لیر)(?:[^\p{L}\p{N}]|$)/ui
+    }
+  ];
+
+  const assigned = new Map<string, KeywordMetric[]>();
+  stagRules.forEach(r => assigned.set(r.id, []));
+  const unassigned: KeywordMetric[] = [];
+
+  // SINGLE-PASS MUTUALLY EXCLUSIVE CLASSIFIER WITH NORMALIZED UNICODE MATCHING
+  for (const kw of uniqueKwList) {
+    const normalizedKeywordText = normalizeForSemanticClustering(kw.keyword);
+    let matched = false;
+    for (const rule of stagRules) {
+      if (rule.regex.test(normalizedKeywordText)) {
+        assigned.get(rule.id)!.push(kw);
+        matched = true;
+        break; // Match exactly one primary group!
+      }
+    }
+    if (!matched) {
+      unassigned.push(kw);
+    }
+  }
+
+  // Add populated STAG groups with processed/imputed keywords
+  for (const rule of stagRules) {
+    const list = assigned.get(rule.id) || [];
+    if (list.length > 0) {
+      const processed = processClusterKeywords(list, rule.name);
+      const vol = processed.reduce((s, k) => s + k.monthlyVolume, 0);
+      const cpcSum = processed.reduce((s, k) => s + ((k.lowCpc + k.highCpc) / 2), 0);
+      clusters.push({
+        id: rule.id,
+        name: rule.name,
+        icon: rule.icon,
+        keywords: processed,
+        totalVolume: vol,
+        avgCpc: processed.length > 0 ? cpcSum / processed.length : 0,
+        selectedCount: 0
+      });
+    }
+  }
+
+  // Dynamic Semantic N-Gram Sub-Clustering for Unassigned Keywords
+  if (unassigned.length >= 4) {
+    const stopWords = new Set([
+      'في', 'من', 'على', 'إلى', 'عن', 'مع', 'هذا', 'هذه', 'التي', 'الذي', 'و', 'یا', 'در', 'به', 'از', 'با', 'برای', 'که', 'این', 'آن', 'the', 'in', 'for', 'to', 'at', 'and', 'of', 'a', 'an', 've', 'ile', 'için', 'bir', 'de', 'da', 'bu', 'şu', 'и', 'в', 'на', 'с', 'по', 'для', 'как', 'und', 'der', 'die', 'das', 'mit', 'für', 'von',
+      'ترکیه', 'ترکی', 'کشور', 'ایران', 'ایرانیان', 'تركيا', 'تركي', 'دولة', 'بلد', 'türkiye', 'turkiye', 'türkiyede', 'türkiye\'de', 'turkey', 'turkish', 'türkei', 'türkisch', 'турция', 'турции', 'турцию', 'турцией', 'в турции', 'турецкий'
+    ]);
+    const tokenFreq = new Map<string, number>();
+    
+    for (const k of unassigned) {
+      const normalizedKText = normalizeForSemanticClustering(k.keyword);
+      const words = normalizedKText.split(/\s+/).filter(w => w.length >= 3 && !stopWords.has(w));
+      for (const w of words) {
+        tokenFreq.set(w, (tokenFreq.get(w) || 0) + 1);
+      }
+    }
+
+    const sortedTokens = Array.from(tokenFreq.entries())
+      .filter(([_, count]) => count >= 4)
+      .sort((a, b) => b[1] - a[1]);
+
+    const claimedIds = new Set<string>();
+
+    for (const [token] of sortedTokens) {
+      const matched = unassigned.filter(k => !claimedIds.has(k.id) && normalizeForSemanticClustering(k.keyword).includes(token));
+      if (matched.length >= 4) {
+        matched.forEach(k => claimedIds.add(k.id));
+        const capName = token.charAt(0).toUpperCase() + token.slice(1);
+        const processed = processClusterKeywords(matched, '✨ ' + capName + ' Teması');
+        const vol = processed.reduce((s, k) => s + k.monthlyVolume, 0);
+        const cpcSum = processed.reduce((s, k) => s + ((k.lowCpc + k.highCpc) / 2), 0);
+        clusters.push({
+          id: 'stag_dyn_' + token.replace(/[^a-z0-9]/gi, '_'),
+          name: '✨ ' + capName + ' Teması',
+          icon: '✨',
+          keywords: processed,
+          totalVolume: vol,
+          avgCpc: processed.length > 0 ? cpcSum / processed.length : 0,
+          selectedCount: 0
+        });
+      }
+    }
+
+    // Retain only truly unclustered lone keywords into a clean general group
+    const remainingUnassigned = unassigned.filter(k => !claimedIds.has(k.id));
+    if (remainingUnassigned.length > 0) {
+      const processed = processClusterKeywords(remainingUnassigned, '🎯 Genel & Diğer Fırsatlar');
+      const vol = processed.reduce((s, k) => s + k.monthlyVolume, 0);
+      const cpcSum = processed.reduce((s, k) => s + ((k.lowCpc + k.highCpc) / 2), 0);
+      clusters.push({
+        id: 'stag_core_variations',
+        name: '🎯 Genel & Diğer Fırsatlar',
+        icon: '🎯',
+        keywords: processed,
+        totalVolume: vol,
+        avgCpc: processed.length > 0 ? cpcSum / processed.length : 0,
+        selectedCount: 0
+      });
+    }
+  } else if (unassigned.length > 0) {
+    const processed = processClusterKeywords(unassigned, '🎯 Genel & Diğer Fırsatlar');
+    const vol = processed.reduce((s, k) => s + k.monthlyVolume, 0);
+    const cpcSum = processed.reduce((s, k) => s + ((k.lowCpc + k.highCpc) / 2), 0);
+    clusters.push({
+      id: 'stag_core_variations',
+      name: '🎯 Genel & Diğer Fırsatlar',
+      icon: '🎯',
+      keywords: processed,
+      totalVolume: vol,
+      avgCpc: processed.length > 0 ? cpcSum / processed.length : 0,
+      selectedCount: 0
+    });
+  }
+
+  return clusters.sort((a, b) => b.totalVolume - a.totalVolume);
+};
+
+/**
+ * Returns a flat list of fully enriched and imputed keywords from semantic clusters
+ */
+export const enrichKeywordsWithClusterCpc = (
+  kwList: KeywordMetric[],
+  imputationSettings?: CpcImputationSettings
+): KeywordMetric[] => {
+  if (!kwList || kwList.length === 0) return [];
+  
+  // If all keywords already have valid lowCpc > 0.05 and highCpc > 0.05, return them directly
+  const allValid = kwList.every(k => (Number(k.lowCpc) || 0) > 0.05 && (Number(k.highCpc) || 0) > 0.05);
+  if (allValid) {
+    return kwList;
+  }
+
+  const clusters = groupKeywordsSemantically(kwList, imputationSettings);
+  const result: KeywordMetric[] = [];
+  const seen = new Set<string>();
+
+  clusters.forEach(c => {
+    c.keywords.forEach(k => {
+      if (!seen.has(k.id)) {
+        seen.add(k.id);
+        result.push(k);
+      }
+    });
+  });
+
+  return result.length > 0 ? result : kwList;
+};

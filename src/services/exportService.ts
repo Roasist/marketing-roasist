@@ -1,5 +1,6 @@
 import { AdItem, Competitor } from '../types/ad';
 import { SubCampaignItem, KeywordMetric, NegativeCategory, GeoTargetLocation } from '../types/forecast';
+import { enrichKeywordsWithClusterCpc } from './keywordClusteringService';
 
 export interface VisibleMetricsConfig {
   budget: boolean;        // Aylık Medya Bütçesi
@@ -268,7 +269,7 @@ export class ExportService {
   public static sanitizeKeyword(
     k: KeywordMetric,
     benchmarks?: { benchLow: number; benchHigh: number },
-    targetLocations?: GeoTargetLocation[]
+    _targetLocations?: GeoTargetLocation[]
   ): {
     lowCpc: number;
     highCpc: number;
@@ -289,78 +290,17 @@ export class ExportService {
       };
     }
 
-    // 2. If directLow or directHigh are missing or 0, fallback to raw or geoCpc
-    let rawLow = Number(k.rawLowCpc !== undefined && k.rawLowCpc > 0 ? k.rawLowCpc : directLow) || 0;
-    let rawHigh = Number(k.rawHighCpc !== undefined && k.rawHighCpc > 0 ? k.rawHighCpc : directHigh) || 0;
-
-    // Check geoCpc if raw values are 0
-    if (rawLow <= 0.05 && rawHigh <= 0.05 && k.geoCpc) {
-      for (const loc of targetLocations || []) {
-        const geoData = k.geoCpc[loc.id] || (loc.countryCode ? k.geoCpc[loc.countryCode] : undefined);
-        if (geoData && (geoData.lowCpc > 0.05 || geoData.highCpc > 0.05)) {
-          rawLow = geoData.lowCpc || 0;
-          rawHigh = geoData.highCpc || 0;
-          break;
-        }
-      }
-      if (rawLow <= 0.05 && rawHigh <= 0.05) {
-        const firstGeo = Object.values(k.geoCpc)[0];
-        if (firstGeo && (firstGeo.lowCpc > 0.05 || firstGeo.highCpc > 0.05)) {
-          rawLow = firstGeo.lowCpc || 0;
-          rawHigh = firstGeo.highCpc || 0;
-        }
-      }
-    }
-
-    const intent = k.intent || 'COMMERCIAL';
-    const mult = intent === 'TRANSACTIONAL' ? 1.15 : (intent === 'INFORMATIONAL' ? 0.85 : 1.00);
-
-    const kwText = (k.keyword || '').toLowerCase();
-    let semanticFactor = 1.0;
-    if (/cbi|vatandaşlık|citizenship|yatırım|invest|pasaport|citizenship by investment/i.test(kwText)) {
-      semanticFactor = 1.25;
-    } else if (/villa|lüks|luxury|satılık|buy|purchase|penthouse/i.test(kwText)) {
-      semanticFactor = 1.20;
-    } else if (/fiyat|fiyatları|ücret|cost|price|satın al/i.test(kwText)) {
-      semanticFactor = 1.10;
-    } else if (/kiralık|rent/i.test(kwText)) {
-      semanticFactor = 0.85;
-    } else if (/rehber|yaşam|nedir|how|guide/i.test(kwText)) {
-      semanticFactor = 0.80;
-    }
-
-    const bLow = benchmarks?.benchLow || 8.50;
-    const bHigh = benchmarks?.benchHigh || 26.00;
-
-    let finalLow = 0;
-    let finalHigh = 0;
-    let isEstimated = Boolean(k.isCpcEstimated);
-
-    if (rawLow > 0.05 && rawHigh > 0.05) {
-      finalLow = rawLow;
-      finalHigh = rawHigh;
-    } else if (rawLow <= 0.05 && rawHigh > 0.50) {
-      finalLow = Math.max(1.00, Math.round(rawHigh * 0.35 * mult * 100) / 100);
-      finalHigh = Math.round(rawHigh * mult * 100) / 100;
-      isEstimated = true;
-    } else if (rawLow > 0.50 && rawHigh <= 0.05) {
-      finalLow = Math.round(rawLow * mult * 100) / 100;
-      finalHigh = Math.round(rawLow * 2.8 * mult * 100) / 100;
-      isEstimated = true;
-    } else {
-      // Both are missing or <= 0.05 -> perform intelligent benchmark imputation matching the system
-      finalLow = Math.max(1.50, Math.round(bLow * mult * semanticFactor * 100) / 100);
-      finalHigh = Math.max(Math.round(finalLow * 1.6 * 100) / 100, Math.round(bHigh * mult * semanticFactor * 100) / 100);
-      isEstimated = true;
-    }
-
+    // 2. If directLow or directHigh are missing or 0, fallback to cluster semantic imputation
+    const enriched = enrichKeywordsWithClusterCpc([k])[0] || k;
+    const finalLow = Number(enriched.lowCpc) || (benchmarks?.benchLow || 8.50);
+    const finalHigh = Number(enriched.highCpc) || (benchmarks?.benchHigh || 26.00);
     const avgCpc = Math.round(((finalLow + finalHigh) / 2) * 100) / 100;
 
     return {
       lowCpc: Math.round(finalLow * 100) / 100,
       highCpc: Math.round(finalHigh * 100) / 100,
       avgCpc,
-      isEstimated
+      isEstimated: true
     };
   }
 
@@ -371,10 +311,11 @@ export class ExportService {
     const budget = sub.monthlyBudget || 0;
     const isLeadGen = sub.businessModel !== 'ECOMMERCE';
 
-    const kws = sub.selectedKeywords && sub.selectedKeywords.length > 0
+    const rawKws = sub.selectedKeywords && sub.selectedKeywords.length > 0
       ? sub.selectedKeywords
       : (sub.discoveredKeywords || []);
       
+    const kws = enrichKeywordsWithClusterCpc(rawKws);
     const benchmarks = this.getSubCampaignCpcBenchmarks(kws);
     const validCpcs = kws.map(k => {
       const c = this.sanitizeKeyword(k, benchmarks, sub.targetLocations);
@@ -534,12 +475,14 @@ export class ExportService {
     const locNames = (sub.targetLocations || []).map(l => l.name).join(' | ') || 'Tüm Türkiye';
     const subCampaignName = sub.name || 'Alt Kampanya';
 
-    let allKws: KeywordMetric[] = sub.selectedKeywords && sub.selectedKeywords.length > 0 
+    const rawKws: KeywordMetric[] = sub.selectedKeywords && sub.selectedKeywords.length > 0 
       ? sub.selectedKeywords 
       : (sub.discoveredKeywords || []);
 
+    let allKws = enrichKeywordsWithClusterCpc(rawKws);
+
     if (config.keywordFilter === 'SELECTED_ONLY') {
-      allKws = sub.selectedKeywords && sub.selectedKeywords.length > 0 ? sub.selectedKeywords : allKws.filter(k => k.isSelected);
+      allKws = sub.selectedKeywords && sub.selectedKeywords.length > 0 ? enrichKeywordsWithClusterCpc(sub.selectedKeywords) : allKws.filter(k => k.isSelected);
     } else if (config.keywordFilter === 'AI_PICKS_ONLY') {
       allKws = allKws.filter(k => k.isAiStrategistPick);
     }
@@ -698,12 +641,14 @@ export class ExportService {
     const locNames = (sub.targetLocations || []).map(l => l.name).join(', ') || 'Tüm Türkiye';
     const subCampaignName = sub.name || 'Alt Kampanya';
 
-    let allKws: KeywordMetric[] = sub.selectedKeywords && sub.selectedKeywords.length > 0 
+    const rawKws: KeywordMetric[] = sub.selectedKeywords && sub.selectedKeywords.length > 0 
       ? sub.selectedKeywords 
       : (sub.discoveredKeywords || []);
 
+    let allKws = enrichKeywordsWithClusterCpc(rawKws);
+
     if (config.keywordFilter === 'SELECTED_ONLY') {
-      allKws = sub.selectedKeywords && sub.selectedKeywords.length > 0 ? sub.selectedKeywords : allKws.filter(k => k.isSelected);
+      allKws = sub.selectedKeywords && sub.selectedKeywords.length > 0 ? enrichKeywordsWithClusterCpc(sub.selectedKeywords) : allKws.filter(k => k.isSelected);
     } else if (config.keywordFilter === 'AI_PICKS_ONLY') {
       allKws = allKws.filter(k => k.isAiStrategistPick);
     }
