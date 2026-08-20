@@ -900,18 +900,100 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     setTempSubCampaignName(currentName);
   };
 
-  const handleSaveRename = (campId: string) => {
+  const handleSaveRename = async (campId: string) => {
     const trimmed = tempSubCampaignName.trim();
     if (trimmed && trimmed.length > 0) {
-      setSubCampaigns(prev => prev.map(c => c.id === campId ? { ...c, name: trimmed } : c));
+      const updated = subCampaigns.map(c => c.id === campId ? { ...c, name: trimmed } : c);
+      setSubCampaigns(updated);
+
+      setExportModalState(prev => {
+        if (prev.isOpen && prev.subCampaign && prev.subCampaign.id === campId) {
+          return {
+            ...prev,
+            subCampaign: { ...prev.subCampaign, name: trimmed }
+          };
+        }
+        return prev;
+      });
+
+      if (currentPlanId) {
+        try {
+          const formattedPeriod = formatCampaignDates(planStartDate, planEndDate, planPeriod);
+          await ApiService.saveForecastPlan({
+            id: currentPlanId,
+            workspaceId,
+            name: planName.trim() || `${clientName} - ${formattedPeriod} Medya Planı`,
+            clientName: clientName.trim(),
+            startDate: planStartDate,
+            endDate: planEndDate,
+            period: formattedPeriod,
+            tags: planTags,
+            targetUrl: mode === 'URL' ? query : '',
+            seedKeywords: mode === 'KEYWORDS' ? query : '',
+            detectedLanguage,
+            detectedLanguageName,
+            monthlyBudget: totalMasterMonthlyBudget || monthlyBudget,
+            selectedKeywords: selectedKeywordsPool,
+            simulationResult: simulation,
+            negativeKeywords: negativeCategories,
+            targetCountries: activeCountries.map(c => c.name),
+            countryBreakdown,
+            subCampaigns: updated
+          });
+          loadSavedPlans();
+        } catch (err) {
+          console.error('Error persisting subcampaign rename:', err);
+        }
+      }
     }
     setEditingSubCampaignId(null);
   };
 
-  const handleRenameSubCampaign = (campId: string, newName: string) => {
+  const handleRenameSubCampaign = async (campId: string, newName: string) => {
     const trimmed = newName.trim();
     if (trimmed && trimmed.length > 0) {
-      setSubCampaigns(prev => prev.map(c => c.id === campId ? { ...c, name: trimmed } : c));
+      const updated = subCampaigns.map(c => c.id === campId ? { ...c, name: trimmed } : c);
+      setSubCampaigns(updated);
+
+      setExportModalState(prev => {
+        if (prev.isOpen && prev.subCampaign && prev.subCampaign.id === campId) {
+          return {
+            ...prev,
+            subCampaign: { ...prev.subCampaign, name: trimmed }
+          };
+        }
+        return prev;
+      });
+
+      if (currentPlanId) {
+        try {
+          const formattedPeriod = formatCampaignDates(planStartDate, planEndDate, planPeriod);
+          await ApiService.saveForecastPlan({
+            id: currentPlanId,
+            workspaceId,
+            name: planName.trim() || `${clientName} - ${formattedPeriod} Medya Planı`,
+            clientName: clientName.trim(),
+            startDate: planStartDate,
+            endDate: planEndDate,
+            period: formattedPeriod,
+            tags: planTags,
+            targetUrl: mode === 'URL' ? query : '',
+            seedKeywords: mode === 'KEYWORDS' ? query : '',
+            detectedLanguage,
+            detectedLanguageName,
+            monthlyBudget: totalMasterMonthlyBudget || monthlyBudget,
+            selectedKeywords: selectedKeywordsPool,
+            simulationResult: simulation,
+            negativeKeywords: negativeCategories,
+            targetCountries: activeCountries.map(c => c.name),
+            countryBreakdown,
+            subCampaigns: updated
+          });
+          loadSavedPlans();
+        } catch (err) {
+          console.error('Error persisting subcampaign rename:', err);
+        }
+      }
     }
   };
 
