@@ -34,6 +34,7 @@ import {
   FileText
 } from 'lucide-react';
 import { ExportService } from '../services/exportService';
+import { ExportCustomizationModal } from '../components/ExportCustomizationModal';
 import { 
   KeywordMetric, 
   ForecastSimulation, 
@@ -829,6 +830,17 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   const [locationSearchQuery, setLocationSearchQuery] = useState<string>('');
   const [locationSearchResults, setLocationSearchResults] = useState<GeoTargetLocation[]>([]);
   const [isSearchingLocations, setIsSearchingLocations] = useState<boolean>(false);
+
+  // Export Customization Modal State
+  const [exportModalState, setExportModalState] = useState<{
+    isOpen: boolean;
+    subCampaign: SubCampaignItem | null;
+    format: 'PDF' | 'CSV';
+  }>({
+    isOpen: false,
+    subCampaign: null,
+    format: 'PDF'
+  });
 
   // Step 1: Master-Detail Clustering & Data Grid State
   const [activeClusterId, setActiveClusterId] = useState<string>('ALL');
@@ -3217,66 +3229,47 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     document.body.removeChild(link);
   };
 
-  // Export Sub-Campaign to CSV
-  const handleExportSubCampaignCsv = (subCamp?: SubCampaignItem) => {
+  // Helper to compile sub-campaign with latest in-memory studio state if active
+  const getSubCampaignToExport = (subCamp?: SubCampaignItem): SubCampaignItem | null => {
     const target = subCamp || activeSubCampaign;
+    if (!target) return null;
+    const currentKws = keywords.filter(k => selectedKeywordIds.has(k.id));
+    return target.id === activeSubCampaignId ? {
+      ...target,
+      monthlyBudget: monthlyBudget || target.monthlyBudget || 35000,
+      selectedKeywords: currentKws.length > 0 ? currentKws : target.selectedKeywords,
+      discoveredKeywords: keywords,
+      negativeCategories,
+      targetLocations: selectedLocations,
+      businessModel,
+      simulationResult: simulation,
+      metaSimulationResult: metaSimulation,
+      youtubeSimulationResult: youtubeSimulation,
+      gdnSimulationResult: gdnSimulation
+    } : target;
+  };
+
+  // Open Export Customization Modal
+  const handleOpenExportModal = (subCamp?: SubCampaignItem, format: 'PDF' | 'CSV' = 'PDF') => {
+    const target = getSubCampaignToExport(subCamp);
     if (!target) {
       alert('Dışa aktarılacak alt kampanya bulunamadı.');
       return;
     }
-    const currentKws = keywords.filter(k => selectedKeywordIds.has(k.id));
-    const toExport: SubCampaignItem = target.id === activeSubCampaignId ? {
-      ...target,
-      monthlyBudget: monthlyBudget || target.monthlyBudget || 35000,
-      selectedKeywords: currentKws.length > 0 ? currentKws : target.selectedKeywords,
-      discoveredKeywords: keywords,
-      negativeCategories,
-      targetLocations: selectedLocations,
-      businessModel,
-      simulationResult: simulation,
-      metaSimulationResult: metaSimulation,
-      youtubeSimulationResult: youtubeSimulation,
-      gdnSimulationResult: gdnSimulation
-    } : target;
-
-    ExportService.exportSubCampaignToCsv(toExport, {
-      name: planName,
-      clientName: clientName,
-      period: planPeriod,
-      startDate: planStartDate,
-      endDate: planEndDate
+    setExportModalState({
+      isOpen: true,
+      subCampaign: target,
+      format
     });
   };
 
-  // Print / Export Sub-Campaign to PDF
-  const handleExportSubCampaignPdf = (subCamp?: SubCampaignItem) => {
-    const target = subCamp || activeSubCampaign;
-    if (!target) {
-      alert('Yazdırılacak alt kampanya bulunamadı.');
-      return;
-    }
-    const currentKws = keywords.filter(k => selectedKeywordIds.has(k.id));
-    const toExport: SubCampaignItem = target.id === activeSubCampaignId ? {
-      ...target,
-      monthlyBudget: monthlyBudget || target.monthlyBudget || 35000,
-      selectedKeywords: currentKws.length > 0 ? currentKws : target.selectedKeywords,
-      discoveredKeywords: keywords,
-      negativeCategories,
-      targetLocations: selectedLocations,
-      businessModel,
-      simulationResult: simulation,
-      metaSimulationResult: metaSimulation,
-      youtubeSimulationResult: youtubeSimulation,
-      gdnSimulationResult: gdnSimulation
-    } : target;
+  // Direct handlers for CSV and PDF buttons
+  const handleExportSubCampaignCsv = (subCamp?: SubCampaignItem) => {
+    handleOpenExportModal(subCamp, 'CSV');
+  };
 
-    ExportService.printSubCampaignReport(toExport, {
-      name: planName,
-      clientName: clientName,
-      period: planPeriod,
-      startDate: planStartDate,
-      endDate: planEndDate
-    });
+  const handleExportSubCampaignPdf = (subCamp?: SubCampaignItem) => {
+    handleOpenExportModal(subCamp, 'PDF');
   };
 
   return (
@@ -9837,6 +9830,24 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         </div>
       )}
 
+      {/* Sub-Campaign Report Export Customization Modal */}
+      {exportModalState.isOpen && exportModalState.subCampaign && (
+        <ExportCustomizationModal
+          isOpen={exportModalState.isOpen}
+          onClose={() => setExportModalState(prev => ({ ...prev, isOpen: false }))}
+          subCampaign={exportModalState.subCampaign}
+          initialFormat={exportModalState.format}
+          masterPlan={{
+            name: planName,
+            clientName: clientName,
+            period: planPeriod,
+            startDate: planStartDate,
+            endDate: planEndDate
+          }}
+        />
+      )}
+
     </div>
   );
 };
+

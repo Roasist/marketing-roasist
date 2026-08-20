@@ -1,6 +1,30 @@
 import { AdItem, Competitor } from '../types/ad';
 import { SubCampaignItem, KeywordMetric, NegativeCategory } from '../types/forecast';
 
+export interface SubCampaignExportConfig {
+  includeGeneralInfo: boolean;       // Kampanya & Çatı Plan Bilgileri
+  includeKpiSummary: boolean;         // Temel Performans & KPI Özeti
+  includeFunnel: boolean;             // 4 Aşamalı Dönüşüm Hunisi
+  includeKeywords: boolean;           // Anahtar Kelime & TBM Fırsat Tablosu
+  includeNegativeKeywords: boolean;   // Negatif Anahtar Kelime Koruma Listesi
+  includeChannelParameters: boolean;  // Kanal & Bütçe Dağılım Parametreleri
+  includeStrategicNotes: boolean;     // Stratejik Uygulama Notları
+  keywordFilter: 'ALL' | 'SELECTED_ONLY' | 'AI_PICKS_ONLY'; // Kelime Filtresi
+  maxKeywordCount: number;            // Kelime Adedi Limiti (0 = Tümü)
+}
+
+export const DEFAULT_EXPORT_CONFIG: SubCampaignExportConfig = {
+  includeGeneralInfo: true,
+  includeKpiSummary: true,
+  includeFunnel: true,
+  includeKeywords: true,
+  includeNegativeKeywords: true,
+  includeChannelParameters: true,
+  includeStrategicNotes: true,
+  keywordFilter: 'ALL',
+  maxKeywordCount: 50
+};
+
 export class ExportService {
   /**
    * Export Competitor Ads as CSV
@@ -344,14 +368,27 @@ export class ExportService {
    */
   public static exportSubCampaignToCsv(
     sub: SubCampaignItem, 
-    masterPlan?: { name?: string; clientName?: string; period?: string; startDate?: string; endDate?: string }
+    masterPlan?: { name?: string; clientName?: string; period?: string; startDate?: string; endDate?: string },
+    userConfig?: Partial<SubCampaignExportConfig>
   ): void {
+    const config: SubCampaignExportConfig = { ...DEFAULT_EXPORT_CONFIG, ...userConfig };
     const m = this.extractSubCampaignMetrics(sub);
     const isLeadGen = sub.businessModel !== 'ECOMMERCE';
     const locNames = (sub.targetLocations || []).map(l => l.name).join(' | ') || 'Tüm Türkiye';
-    const keywords: KeywordMetric[] = sub.selectedKeywords && sub.selectedKeywords.length > 0 
+
+    let allKws: KeywordMetric[] = sub.selectedKeywords && sub.selectedKeywords.length > 0 
       ? sub.selectedKeywords 
       : (sub.discoveredKeywords || []);
+
+    if (config.keywordFilter === 'SELECTED_ONLY') {
+      allKws = sub.selectedKeywords && sub.selectedKeywords.length > 0 ? sub.selectedKeywords : allKws.filter(k => k.isSelected);
+    } else if (config.keywordFilter === 'AI_PICKS_ONLY') {
+      allKws = allKws.filter(k => k.isAiStrategistPick);
+    }
+
+    const keywords = (config.maxKeywordCount && config.maxKeywordCount > 0)
+      ? allKws.slice(0, config.maxKeywordCount)
+      : allKws;
 
     const validCpcs = keywords.map(k => (Number(k.lowCpc) + Number(k.highCpc)) / 2).filter(v => v > 0.5);
     const poolFallbackAvg = validCpcs.length > 0 ? (validCpcs.reduce((a, b) => a + b, 0) / validCpcs.length) : (m.cpc > 0 ? m.cpc : 18.5);
@@ -361,39 +398,47 @@ export class ExportService {
     // Header Meta
     lines.push('ROASIST MARKETING INTELLIGENCE OS - ALT KAMPANYA MEDYA PLANI VE PERFORMANS PROJEKSİYONU');
     lines.push(`"Rapor Tarihi", "${new Date().toLocaleString('tr-TR')}"`);
-    if (masterPlan?.name) lines.push(`"Master Kampanya", "${masterPlan.name.replace(/"/g, '""')}"`);
-    if (masterPlan?.clientName) lines.push(`"Müşteri / Marka", "${masterPlan.clientName.replace(/"/g, '""')}"`);
-    if (masterPlan?.period) lines.push(`"Kampanya Dönemi", "${masterPlan.period.replace(/"/g, '""')}"`);
-    lines.push(`"Alt Kampanya Adı", "${(sub.name || 'Alt Kampanya').replace(/"/g, '""')}"`);
-    lines.push(`"Platform / Kanal", "${sub.platform} (${sub.objective})"`);
-    lines.push(`"Hedef Dil", "${sub.languageFlag || ''} ${sub.languageName || sub.languageCode || 'Türkçe'}"`);
-    lines.push(`"Hedef Lokasyonlar", "${locNames.replace(/"/g, '""')}"`);
-    lines.push(`"İş Modeli", "${isLeadGen ? 'B2B & Nitelikli Talep (Lead Gen)' : 'E-Ticaret & Satış'}"`);
-    lines.push(`"Aylık Bütçe", "₺${(sub.monthlyBudget || 0).toLocaleString('tr-TR')}"`);
-    lines.push(`"Günlük Ortalama Bütçe", "₺${Math.round((sub.monthlyBudget || 0) / 30.4).toLocaleString('tr-TR')}"`);
-    lines.push('');
-
-    // Section 1: KPI Summary
-    lines.push('--- BÖLÜM 1: TAHMİNİ PERFORMANS VE DÖNÜŞÜM HUNİSİ (KPI) ---');
-    lines.push('"Metrik", "Tahmini Değer", "Birim", "Açıklama"');
-    lines.push(`"Aylık Medya Bütçesi", "${sub.monthlyBudget || 0}", "₺", "Kanal için ayrılan aylık net bütçe"`);
-    lines.push(`"Tahmini Gösterim (Impressions)", "${m.impressions}", "Adet", "Pazar içi hedeflenen toplam gösterim"`);
-    lines.push(`"Tahmini Tıklama / Trafik (Clicks)", "${m.clicks}", "Adet", "Siteye/Landing Page'e çekilecek trafik"`);
-    lines.push(`"Tahmini Tıklama Oranı (CTR)", "%${m.ctr.toFixed(2)}", "%", "Gösterim / Tıklama verimliliği"`);
-    lines.push(`"Tahmini Tıklama Başı Maliyet (CPC)", "₺${m.cpc.toFixed(2)}", "₺", "Ortalama TBM"`);
-    lines.push(`"Tahmini Brüt Dönüşüm (Leads/Sales)", "${m.conversions}", "Adet", "Form, WhatsApp, Arama veya Satış"`);
-    if (isLeadGen) {
-      lines.push(`"Tahmini Nitelikli Talep (Healthy/SQL)", "${m.healthyLeads}", "Adet", "Doğrulanmış ve satışa uygun lead sayısı"`);
-      lines.push(`"Nitelikli Lead Başı Maliyet (CPQL)", "₺${m.cpql.toLocaleString('tr-TR')}", "₺", "Cost per Qualified Lead"`);
-      lines.push(`"Tahmini Kapanan Müşteri (Deals)", "${m.deals}", "Adet", "Satışa dönüşen nihai müşteri"`);
-      lines.push(`"Müşteri Edinme Maliyeti (CAC)", "₺${m.cac.toLocaleString('tr-TR')}", "₺", "Cost per Acquisition"`);
+    if (config.includeGeneralInfo) {
+      if (masterPlan?.name) lines.push(`"Master Kampanya", "${masterPlan.name.replace(/"/g, '""')}"`);
+      if (masterPlan?.clientName) lines.push(`"Müşteri / Marka", "${masterPlan.clientName.replace(/"/g, '""')}"`);
+      if (masterPlan?.period) lines.push(`"Kampanya Dönemi", "${masterPlan.period.replace(/"/g, '""')}"`);
+      lines.push(`"Alt Kampanya Adı", "${(sub.name || 'Alt Kampanya').replace(/"/g, '""')}"`);
+      lines.push(`"Platform / Kanal", "${sub.platform} (${sub.objective})"`);
+      lines.push(`"Hedef Dil", "${sub.languageFlag || ''} ${sub.languageName || sub.languageCode || 'Türkçe'}"`);
+      lines.push(`"Hedef Lokasyonlar", "${locNames.replace(/"/g, '""')}"`);
+      lines.push(`"İş Modeli", "${isLeadGen ? 'B2B & Nitelikli Talep (Lead Gen)' : 'E-Ticaret & Satış'}"`);
+      lines.push(`"Aylık Bütçe", "₺${(sub.monthlyBudget || 0).toLocaleString('tr-TR')}"`);
+      lines.push(`"Günlük Ortalama Bütçe", "₺${Math.round((sub.monthlyBudget || 0) / 30.4).toLocaleString('tr-TR')}"`);
+      lines.push('');
     }
-    lines.push(`"Tahmini Ciro Projeksiyonu", "₺${m.revenue.toLocaleString('tr-TR')}", "₺", "Model bazlı tahmini toplam gelir"`);
-    lines.push(`"Tahmini ROAS (Yatırım Getirisi)", "${m.roas.toFixed(1)}x", "Kat", "Gelir / Harcama Çarpanı"`);
-    lines.push('');
 
-    // Section 2: Keywords (if any)
-    if (keywords.length > 0) {
+    // Section 1: KPI Summary & Funnel
+    if (config.includeKpiSummary || config.includeFunnel) {
+      lines.push('--- BÖLÜM 1: TAHMİNİ PERFORMANS VE DÖNÜŞÜM HUNİSİ (KPI) ---');
+      lines.push('"Metrik", "Tahmini Değer", "Birim", "Açıklama"');
+      if (config.includeKpiSummary) {
+        lines.push(`"Aylık Medya Bütçesi", "${sub.monthlyBudget || 0}", "₺", "Kanal için ayrılan aylık net bütçe"`);
+        lines.push(`"Tahmini Gösterim (Impressions)", "${m.impressions}", "Adet", "Pazar içi hedeflenen toplam gösterim"`);
+        lines.push(`"Tahmini Tıklama / Trafik (Clicks)", "${m.clicks}", "Adet", "Siteye/Landing Page'e çekilecek trafik"`);
+        lines.push(`"Tahmini Tıklama Oranı (CTR)", "%${m.ctr.toFixed(2)}", "%", "Gösterim / Tıklama verimliliği"`);
+        lines.push(`"Tahmini Tıklama Başı Maliyet (CPC)", "₺${m.cpc.toFixed(2)}", "₺", "Ortalama TBM"`);
+      }
+      if (config.includeFunnel) {
+        lines.push(`"Tahmini Brüt Dönüşüm (Leads/Sales)", "${m.conversions}", "Adet", "Form, WhatsApp, Arama veya Satış"`);
+        if (isLeadGen) {
+          lines.push(`"Tahmini Nitelikli Talep (Healthy/SQL)", "${m.healthyLeads}", "Adet", "Doğrulanmış ve satışa uygun lead sayısı"`);
+          lines.push(`"Nitelikli Lead Başı Maliyet (CPQL)", "₺${m.cpql.toLocaleString('tr-TR')}", "₺", "Cost per Qualified Lead"`);
+          lines.push(`"Tahmini Kapanan Müşteri (Deals)", "${m.deals}", "Adet", "Satışa dönüşen nihai müşteri"`);
+          lines.push(`"Müşteri Edinme Maliyeti (CAC)", "₺${m.cac.toLocaleString('tr-TR')}", "₺", "Cost per Acquisition"`);
+        }
+        lines.push(`"Tahmini Ciro Projeksiyonu", "₺${m.revenue.toLocaleString('tr-TR')}", "₺", "Model bazlı tahmini toplam gelir"`);
+        lines.push(`"Tahmini ROAS (Yatırım Getirisi)", "${m.roas.toFixed(1)}x", "Kat", "Gelir / Harcama Çarpanı"`);
+      }
+      lines.push('');
+    }
+
+    // Section 2: Keywords
+    if (config.includeKeywords && keywords.length > 0) {
       lines.push(`--- BÖLÜM 2: SEÇİLEN ANAHTAR KELİMELER VE TBM REKABET ANALİZİ (${keywords.length} Kelime) ---`);
       lines.push('"Anahtar Kelime", "Arama Niyeti", "Aylık Hacim", "3 Aylık Trend", "Rekabet", "Min TBM (₺)", "Max TBM (₺)", "Ort TBM (₺)", "Fırsat Skoru", "AI Stratejist Önerisi"');
       keywords.forEach(k => {
@@ -414,8 +459,8 @@ export class ExportService {
       lines.push('');
     }
 
-    // Section 3: Negatives (if any)
-    if (sub.negativeCategories && sub.negativeCategories.length > 0) {
+    // Section 3: Negatives
+    if (config.includeNegativeKeywords && sub.negativeCategories && sub.negativeCategories.length > 0) {
       lines.push('--- BÖLÜM 3: NEGATİF KELİME KATEGORİLERİ VE BÜTÇE KORUMASI ---');
       lines.push('"Negatif Kategori", "Kelime Adedi", "Örnek Negatif Terimler"');
       sub.negativeCategories.forEach((n: NegativeCategory) => {
@@ -427,19 +472,21 @@ export class ExportService {
     }
 
     // Section 4: Parameters & Funnel Setup
-    lines.push('--- BÖLÜM 4: KAMPANYA VE DÖNÜŞÜM HUNİSİ HESAPLAMA PARAMETRELERİ ---');
-    lines.push('"Parametre", "Değer"');
-    const p = sub.parameters || {};
-    if (p.targetImpressionShare) lines.push(`"Hedef Pazar Gösterim Payı (IS)", "%${p.targetImpressionShare}"`);
-    if (p.expectedCtr) lines.push(`"Beklenen Tıklama Oranı (CTR)", "%${p.expectedCtr}"`);
-    if (p.searchLeadCr) lines.push(`"Arama Ağı Lead Dönüşüm Oranı (CR)", "%${p.searchLeadCr}"`);
-    if (p.searchHealthyLeadRate) lines.push(`"Nitelikli Lead Oranı", "%${p.searchHealthyLeadRate}"`);
-    if (p.searchCloseRate) lines.push(`"Satış Kapatma Oranı", "%${p.searchCloseRate}"`);
-    if (p.avgDealValue) lines.push(`"Ortalama Anlaşma Tutarı", "₺${p.avgDealValue.toLocaleString('tr-TR')}"`);
-    if (p.metaCpm) lines.push(`"Meta Hedef CPM", "₺${p.metaCpm}"`);
-    if (p.metaCtr) lines.push(`"Meta Hedef CTR", "%${p.metaCtr}"`);
-    if (p.youtubeCpv) lines.push(`"YouTube Hedef CPV", "₺${p.youtubeCpv}"`);
-    if (p.gdnCpm) lines.push(`"GDN Hedef CPM", "₺${p.gdnCpm}"`);
+    if (config.includeChannelParameters) {
+      lines.push('--- BÖLÜM 4: KAMPANYA VE DÖNÜŞÜM HUNİSİ HESAPLAMA PARAMETRELERİ ---');
+      lines.push('"Parametre", "Değer"');
+      const p = sub.parameters || {};
+      if (p.targetImpressionShare) lines.push(`"Hedef Pazar Gösterim Payı (IS)", "%${p.targetImpressionShare}"`);
+      if (p.expectedCtr) lines.push(`"Beklenen Tıklama Oranı (CTR)", "%${p.expectedCtr}"`);
+      if (p.searchLeadCr) lines.push(`"Arama Ağı Lead Dönüşüm Oranı (CR)", "%${p.searchLeadCr}"`);
+      if (p.searchHealthyLeadRate) lines.push(`"Nitelikli Lead Oranı", "%${p.searchHealthyLeadRate}"`);
+      if (p.searchCloseRate) lines.push(`"Satış Kapatma Oranı", "%${p.searchCloseRate}"`);
+      if (p.avgDealValue) lines.push(`"Ortalama Anlaşma Tutarı", "₺${p.avgDealValue.toLocaleString('tr-TR')}"`);
+      if (p.metaCpm) lines.push(`"Meta Hedef CPM", "₺${p.metaCpm}"`);
+      if (p.metaCtr) lines.push(`"Meta Hedef CTR", "%${p.metaCtr}"`);
+      if (p.youtubeCpv) lines.push(`"YouTube Hedef CPV", "₺${p.youtubeCpv}"`);
+      if (p.gdnCpm) lines.push(`"GDN Hedef CPM", "₺${p.gdnCpm}"`);
+    }
 
     const csvString = lines.join('\n');
     const blob = new Blob(['\uFEFF' + csvString], { type: 'text/csv;charset=utf-8;' });
@@ -459,14 +506,27 @@ export class ExportService {
    */
   public static printSubCampaignReport(
     sub: SubCampaignItem, 
-    masterPlan?: { name?: string; clientName?: string; period?: string; startDate?: string; endDate?: string }
+    masterPlan?: { name?: string; clientName?: string; period?: string; startDate?: string; endDate?: string },
+    userConfig?: Partial<SubCampaignExportConfig>
   ): void {
+    const config: SubCampaignExportConfig = { ...DEFAULT_EXPORT_CONFIG, ...userConfig };
     const m = this.extractSubCampaignMetrics(sub);
     const isLeadGen = sub.businessModel !== 'ECOMMERCE';
     const locNames = (sub.targetLocations || []).map(l => l.name).join(', ') || 'Tüm Türkiye';
-    const keywords: KeywordMetric[] = sub.selectedKeywords && sub.selectedKeywords.length > 0 
+
+    let allKws: KeywordMetric[] = sub.selectedKeywords && sub.selectedKeywords.length > 0 
       ? sub.selectedKeywords 
       : (sub.discoveredKeywords || []);
+
+    if (config.keywordFilter === 'SELECTED_ONLY') {
+      allKws = sub.selectedKeywords && sub.selectedKeywords.length > 0 ? sub.selectedKeywords : allKws.filter(k => k.isSelected);
+    } else if (config.keywordFilter === 'AI_PICKS_ONLY') {
+      allKws = allKws.filter(k => k.isAiStrategistPick);
+    }
+
+    const maxCount = config.maxKeywordCount > 0 ? config.maxKeywordCount : allKws.length;
+    const keywords = allKws.slice(0, maxCount);
+
     const poolFallbackAvg = keywords.length > 0 
       ? (keywords.reduce((sum, k) => sum + (k.highCpc || k.lowCpc || 0), 0) / keywords.length || 18.5) 
       : 18.5;
@@ -850,6 +910,7 @@ export class ExportService {
               <strong>Platform:</strong> ${sub.platform} (${sub.objective})
             </div>
 
+            ${config.includeGeneralInfo ? `
             <div class="campaign-details-grid">
               <div class="detail-item">
                 <strong>Aylık Net Bütçe</strong>
@@ -873,10 +934,11 @@ export class ExportService {
                 <strong>Kampanya Dönemi</strong>
                 <span>${masterPlan.period}</span>
               </div>` : ''}
-            </div>
+            </div>` : ''}
           </div>
 
           <!-- KPI Cards Grid -->
+          ${config.includeKpiSummary ? `
           <div class="stat-grid">
             <div class="stat-card">
               <div class="stat-label">Aylık Medya Yatırımı</div>
@@ -901,9 +963,10 @@ export class ExportService {
               <div class="stat-value" style="color: #16a34a;">₺${m.revenue.toLocaleString('tr-TR')}</div>
               <div class="stat-sub">Tahmini ROAS: <strong>${m.roas.toFixed(1)}x</strong> ${m.deals > 0 ? `(${m.deals} Müşteri)` : ''}</div>
             </div>
-          </div>
+          </div>` : ''}
 
           <!-- Conversion Funnel Projections -->
+          ${config.includeFunnel ? `
           <div class="section-title">
             <span>🎯</span>
             <span>Uçtan Uca Büyüme & Dönüşüm Hunisi Projeksiyonu</span>
@@ -939,10 +1002,10 @@ export class ExportService {
               <div class="lbl">Toplam Ciro</div>
               <div class="rate" style="background:#dcfce7; color:#166534;">${m.roas.toFixed(1)}x ROAS</div>
             </div>
-          </div>
+          </div>` : ''}
 
           <!-- Keywords Table (if Google Search / Keywords exist) -->
-          ${keywords.length > 0 ? `
+          ${config.includeKeywords && keywords.length > 0 ? `
           <div class="section-title">
             <span>🔍</span>
             <span>Hedeflenen Anahtar Kelimeler & TBM Fırsat Analizi (${keywords.length} Kelime)</span>
@@ -963,7 +1026,7 @@ export class ExportService {
               </tr>
             </thead>
             <tbody>
-              ${keywords.slice(0, 40).map(k => {
+              ${keywords.map(k => {
                 const cpc = this.sanitizeKeyword(k, poolFallbackAvg);
                 const intentClass = k.intent === 'TRANSACTIONAL' ? 'badge-intent-trans' : (k.intent === 'INFORMATIONAL' ? 'badge-intent-info' : 'badge-intent-comm');
                 const intentLabel = k.intent === 'TRANSACTIONAL' ? 'Satın Alma' : (k.intent === 'INFORMATIONAL' ? 'Bilgi' : 'Ticari');
@@ -990,11 +1053,10 @@ export class ExportService {
               }).join('')}
             </tbody>
           </table>
-          ${keywords.length > 40 ? `<div style="font-size:11px; color:#64748b; margin-top:6px; font-style:italic;">* İlk 40 anahtar kelime gösterilmektedir. Listenin tamamı (${keywords.length} kelime) CSV dışa aktarımında mevcuttur.</div>` : ''}
           ` : ''}
 
           <!-- Negative Safeguards -->
-          ${sub.negativeCategories && sub.negativeCategories.length > 0 ? `
+          ${config.includeNegativeKeywords && sub.negativeCategories && sub.negativeCategories.length > 0 ? `
           <div class="section-title">
             <span>🛡️</span>
             <span>Aktif Negatif Kelime Koruması (${sub.negativeCategories.length} Kategori)</span>
@@ -1012,7 +1074,24 @@ export class ExportService {
           </div>
           ` : ''}
 
+          <!-- Channel & Funnel Setup Parameters -->
+          ${config.includeChannelParameters && sub.parameters ? `
+          <div class="section-title">
+            <span>⚙️</span>
+            <span>Kanal & Simülasyon Hesaplama Parametreleri</span>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 18px; margin-bottom: 20px;">
+            ${sub.parameters.targetImpressionShare ? `<div><strong style="display:block; font-size:11px; color:#64748b;">Hedef Gösterim Payı (IS)</strong><span style="font-weight:700; color:#0f172a;">%${sub.parameters.targetImpressionShare}</span></div>` : ''}
+            ${sub.parameters.expectedCtr ? `<div><strong style="display:block; font-size:11px; color:#64748b;">Beklenen TO (CTR)</strong><span style="font-weight:700; color:#0f172a;">%${sub.parameters.expectedCtr}</span></div>` : ''}
+            ${sub.parameters.searchLeadCr ? `<div><strong style="display:block; font-size:11px; color:#64748b;">Lead Dönüşüm Oranı (CR)</strong><span style="font-weight:700; color:#0f172a;">%${sub.parameters.searchLeadCr}</span></div>` : ''}
+            ${sub.parameters.searchHealthyLeadRate ? `<div><strong style="display:block; font-size:11px; color:#64748b;">Nitelikli Lead Oranı</strong><span style="font-weight:700; color:#0f172a;">%${sub.parameters.searchHealthyLeadRate}</span></div>` : ''}
+            ${sub.parameters.searchCloseRate ? `<div><strong style="display:block; font-size:11px; color:#64748b;">Satış Kapatma Oranı</strong><span style="font-weight:700; color:#0f172a;">%${sub.parameters.searchCloseRate}</span></div>` : ''}
+            ${sub.parameters.avgDealValue ? `<div><strong style="display:block; font-size:11px; color:#64748b;">Ort. Anlaşma Tutarı</strong><span style="font-weight:700; color:#0f172a;">₺${sub.parameters.avgDealValue.toLocaleString('tr-TR')}</span></div>` : ''}
+          </div>
+          ` : ''}
+
           <!-- Strategic Notes -->
+          ${config.includeStrategicNotes ? `
           <div class="section-title">
             <span>💡</span>
             <span>Stratejik Uygulama & Kampanya Başlatma Notları</span>
@@ -1021,7 +1100,7 @@ export class ExportService {
             <p style="margin-bottom: 6px;">• <strong>Hedefleme Optimizasyonu:</strong> Bu alt kampanya ${sub.languageName || 'belirlenen dilde'} ve seçilen ${locNames} coğrafi bölgesinde en yüksek satın alma niyetine sahip kitleye odaklanacak şekilde modellenmiştir.</p>
             <p style="margin-bottom: 6px;">• <strong>Bütçe Dağılımı:</strong> Aylık ₺${(sub.monthlyBudget || 0).toLocaleString('tr-TR')} bütçe ile günlük ₺${Math.round((sub.monthlyBudget || 0) / 30.4).toLocaleString('tr-TR')} harcama tavanı öngörülmüştür.</p>
             <p>• <strong>Dönüşüm Takibi:</strong> Kampanya canlıya alınmadan önce dönüşüm piksellerinin (Google Ads Enhanced Conversions / Meta CAPI) doğrulanması tavsiye edilir.</p>
-          </div>
+          </div>` : ''}
 
           <!-- Footer -->
           <div class="footer">
