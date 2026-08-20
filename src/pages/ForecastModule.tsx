@@ -2809,6 +2809,8 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       const baseHigh = (directLocHighCpc !== undefined && directLocHighCpc > 0) 
         ? directLocHighCpc * intentMultiplier
         : (k.highCpc > 0 ? k.highCpc : 0);
+      const hasDirectLocCpc = directLocLowCpc !== undefined && directLocLowCpc > 0.05;
+      const isEstimated = !hasDirectLocCpc && Boolean(k.isCpcEstimated || (k.rawLowCpc !== undefined && k.rawLowCpc <= 0.05) || k.cpcEstimationCluster);
 
       if (directLocVol !== undefined) {
         return {
@@ -2816,6 +2818,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           monthlyVolume: directLocVol,
           lowCpc: Math.round(baseLow * 100) / 100,
           highCpc: Math.round(baseHigh * 100) / 100,
+          isCpcEstimated: isEstimated,
         };
       }
 
@@ -2823,6 +2826,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         ...k,
         lowCpc: Math.round(baseLow * 100) / 100,
         highCpc: Math.round(baseHigh * 100) / 100,
+        isCpcEstimated: isEstimated,
       };
     });
   }, [imputedKeywords, activeLocationScope, activeScopeMetric, activeScopeLocation, selectedLocations]);
@@ -5721,7 +5725,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
                                   {/* Top of page CPC */}
                                   <td style={{ padding: '0.5rem 0.75rem', whiteSpace: 'nowrap' }}>
-                                    {kw.isCpcEstimated ? (
+                                    {Boolean(kw.isCpcEstimated || (typeof kw.rawLowCpc === 'number' && kw.rawLowCpc <= 0.05) || kw.cpcEstimationCluster) ? (
                                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}>
                                         <span style={{ fontSize: '0.75rem', color: 'var(--text-primary)', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
                                           ≈ ₺{kw.lowCpc.toFixed(2)} - ₺{kw.highCpc.toFixed(2)}

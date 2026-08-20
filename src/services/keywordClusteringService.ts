@@ -91,8 +91,18 @@ export const groupKeywordsSemantically = (
       : 1;
 
     return kws.map(k => {
-      const rawLow = typeof k.rawLowCpc === 'number' ? k.rawLowCpc : (typeof k.lowCpc === 'number' ? k.lowCpc : 0);
-      const rawHigh = typeof k.rawHighCpc === 'number' ? k.rawHighCpc : (typeof k.highCpc === 'number' ? k.highCpc : 0);
+      const isAlreadyEstimated = Boolean(
+        k.isCpcEstimated || 
+        (typeof k.rawLowCpc === 'number' && k.rawLowCpc <= 0.05) ||
+        (typeof k.rawHighCpc === 'number' && k.rawHighCpc <= 0.05)
+      );
+
+      const rawLow = (typeof k.rawLowCpc === 'number') 
+        ? k.rawLowCpc 
+        : (isAlreadyEstimated ? 0 : (typeof k.lowCpc === 'number' ? k.lowCpc : 0));
+      const rawHigh = (typeof k.rawHighCpc === 'number') 
+        ? k.rawHighCpc 
+        : (isAlreadyEstimated ? 0 : (typeof k.highCpc === 'number' ? k.highCpc : 0));
       const sanitizedIsAiStrategist = Boolean(k.isAiStrategistPick);
 
       // Determine keyword intent multiplier
