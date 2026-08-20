@@ -89,6 +89,7 @@ export const groupKeywordsSemantically = (
     const currMult = (typeof imputationSettings?.defaultCurrencyMultiplier === 'number' && imputationSettings.defaultCurrencyMultiplier > 1) 
       ? imputationSettings.defaultCurrencyMultiplier 
       : 1;
+    console.log('[CPC_DEBUG] processClusterKeywords called:', { clusterName, kwCount: kws.length, transMult, commMult, infoMult, autoImpute, clusterMedianLow, clusterMedianHigh });
 
     return kws.map(k => {
       const isAlreadyEstimated = Boolean(
@@ -132,6 +133,7 @@ export const groupKeywordsSemantically = (
         if (autoImpute && clusterMedianLow > 0.05 && clusterMedianHigh > 0.05) {
           const estimatedLow = Math.round(clusterMedianLow * effectiveMult * 100) / 100;
           const estimatedHigh = Math.round(clusterMedianHigh * effectiveMult * 100) / 100;
+          console.log('[CPC_DEBUG] Case A impute:', { kw: k.keyword.substring(0, 30), intent: k.intent, effectiveMult, estimatedLow, estimatedHigh, rawLow, rawHigh, isAlreadyEstimated, isCpcEstimated: k.isCpcEstimated, origLowCpc: k.lowCpc });
           return {
             ...k,
             rawLowCpc: rawLow,
