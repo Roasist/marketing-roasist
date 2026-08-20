@@ -2573,7 +2573,6 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     };
 
     // 1. Calculate direct geo volumes and CPC sums from active keywords pool
-    let poolHasAnyGeoVolume = false;
     const locGeoVolumes: Record<string, number> = {};
     const locGeoCpcData: Record<string, { weightedCpcSum: number; volSum: number; simpleCpcSum: number; count: number }> = {};
 
@@ -2608,7 +2607,6 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           }
 
           if (kwVol > 0) {
-            poolHasAnyGeoVolume = true;
             volSum += kwVol;
           }
         }
@@ -2638,14 +2636,15 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       const off = findOfficial(loc);
       const cpcData = locGeoCpcData[locKey];
 
-      // 1. Ülkenin Ham Hacmi: Seçili kelimelerin o ülkedeki geoVolumes toplamı
+      // 1. Ülkenin Ham Hacmi: Seçili kelimelerin geoVolumes toplamı, yoksa Google Ads resmi bölge dökümü, yoksa erişim ağırlığı
       let cVol = 0;
-      if (poolHasAnyGeoVolume && locGeoVolumes[locKey] !== undefined) {
+      if (locGeoVolumes[locKey] && locGeoVolumes[locKey] > 0) {
         cVol = locGeoVolumes[locKey];
-      } else if (off && off.monthlyVolume !== undefined) {
+      } else if (off && (off.monthlyVolume || 0) > 0) {
         cVol = off.monthlyVolume;
       } else {
-        cVol = 0;
+        const reach = (loc as any).reach || 500000;
+        cVol = Math.max(50, Math.round(reach / 10000));
       }
 
       // 2. Ülkenin Ortalama TBM'si: Seçili kelimelerin hacim ağırlıklı veya doğrudan ortalama TBM'si
@@ -2677,37 +2676,33 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     });
 
     const totalPoolVol = activePool.reduce((s, k) => s + (Number(k.monthlyVolume) || 0), 0);
-    const sumRawBreakdownVol = items.reduce((s, item) => s + item.monthlyVolume, 0);
+    const sumRawBreakdownVol = items.reduce((s, item) => s + (item.monthlyVolume || 0), 0);
 
-    if (totalPoolVol > 0) {
-      if (sumRawBreakdownVol > 0) {
-        // Distribute the exact selected pool volume (e.g. 1,620) across locations based on Google Ads regional demand share
-        let distributedSum = 0;
-        items.forEach((item, idx) => {
-          if (idx === items.length - 1) {
-            item.monthlyVolume = Math.max(0, totalPoolVol - distributedSum);
-          } else {
-            const share = item.monthlyVolume / sumRawBreakdownVol;
-            const scaled = Math.round(totalPoolVol * share);
-            item.monthlyVolume = scaled;
-            distributedSum += scaled;
-          }
-        });
-      } else {
-        // Fallback: Equal distribution if Google Ads returned zero regional geo volumes
-        const perLoc = Math.floor(totalPoolVol / items.length);
-        let rem = totalPoolVol % items.length;
-        items.forEach(item => {
-          item.monthlyVolume = perLoc + (rem > 0 ? 1 : 0);
-          if (rem > 0) rem--;
-        });
+    if (totalPoolVol > 0 && sumRawBreakdownVol > 0) {
+      let distributedSum = 0;
+      items.forEach((item, idx) => {
+        if (idx === items.length - 1) {
+          item.monthlyVolume = Math.max(10, totalPoolVol - distributedSum);
+        } else {
+          const share = item.monthlyVolume / sumRawBreakdownVol;
+          const scaled = Math.max(10, Math.round(totalPoolVol * share));
+          item.monthlyVolume = scaled;
+          distributedSum += scaled;
+        }
+      });
+      // Second pass to ensure exact total match
+      const currentSum = items.reduce((s, item) => s + item.monthlyVolume, 0);
+      const diff = totalPoolVol - currentSum;
+      if (diff !== 0 && items.length > 0) {
+        const maxItem = items.reduce((prev, curr) => (curr.monthlyVolume > prev.monthlyVolume ? curr : prev), items[0]);
+        maxItem.monthlyVolume = Math.max(10, maxItem.monthlyVolume + diff);
       }
     }
 
     const finalSumVol = items.reduce((s, item) => s + item.monthlyVolume, 0);
     items.forEach(item => {
       const share = finalSumVol > 0 ? (item.monthlyVolume / finalSumVol) : (1 / items.length);
-      item.sharePercent = Math.round(share * 100);
+      item.sharePercent = Math.max(1, Math.round(share * 100));
       item.estClicks = Math.round((simulation.estClicks || 0) * share);
       item.estConversions = Math.round((simulation.estConversions || 0) * share);
     });
