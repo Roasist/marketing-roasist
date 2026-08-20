@@ -237,10 +237,14 @@ export const ExportCustomizationModal: React.FC<ExportCustomizationModalProps> =
   };
 
   const handleExport = () => {
+    const finalSubCampaign = {
+      ...subCampaign,
+      name: subName?.trim() || subCampaign.name
+    };
     if (format === 'CSV') {
-      ExportService.exportSubCampaignToCsv(subCampaign, masterPlan, config);
+      ExportService.exportSubCampaignToCsv(finalSubCampaign, masterPlan, config);
     } else {
-      ExportService.printSubCampaignReport(subCampaign, masterPlan, config);
+      ExportService.printSubCampaignReport(finalSubCampaign, masterPlan, config);
     }
     onClose();
   };

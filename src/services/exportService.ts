@@ -719,10 +719,10 @@ export class ExportService {
 
       if (breakdown.length > 0) {
         lines.push(`--- HEDEF PAZAR VE COĞRAFİ KIRILIM PROJEKSİYONU (${breakdown.length} Bölge) ---`);
-        lines.push('"Hedef Bölge / Pazar", "Bayrak", "Aylık Arama Hacmi", "Pazar Payı (%)", "Ortalama TBM (₺)", "Tahmini Bütçe Payı (₺)"');
+        lines.push('"Hedef Bölge / Pazar", "Bayrak", "Aylık Arama Hacmi", "Ortalama TBM (₺)", "Tahmini Bütçe Payı"');
         breakdown.forEach(cm => {
           const estBudget = Math.round(((sub.monthlyBudget || 0) * (cm.sharePercent || 0)) / 100);
-          lines.push(`"${(cm.name || '').replace(/"/g, '""')}", "${cm.flag || '🌐'}", "${cm.monthlyVolume || 0}", "%${cm.sharePercent || 0}", "₺${(cm.avgCpc || 0).toFixed(2)}", "₺${estBudget.toLocaleString('tr-TR')}"`);
+          lines.push(`"${(cm.name || '').replace(/"/g, '""')}", "${cm.flag || '🌐'}", "${cm.monthlyVolume || 0}", "₺${(cm.avgCpc || 0).toFixed(2)}", "₺${estBudget.toLocaleString('tr-TR')} (%${cm.sharePercent || 0})"`);
         });
         lines.push('');
       }
@@ -1261,9 +1261,17 @@ export class ExportService {
           <!-- Executive Header -->
           <div class="header">
             <div>
-              <div class="brand-logo">
-                <span>⚡ ROASIST</span>
-                <span class="tag">MARKETING INTELLIGENCE OS</span>
+              <div class="brand-logo" style="display:flex; align-items:center; gap: 10px;">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 819.98 200" style="height: 26px; width: auto;" fill="#7601ff">
+                  <path d="M176.71,198.48v1.32l-35.19.2c-1.72-2.67-2.88-6.5-3.64-11.52-.59-4.79-1.15-10-1.55-15.35s-.56-10.76-1-15.75a95,95,0,0,0-1.16-12.48c-1-4.42-2.51-8.08-4.62-10.56a20.66,20.66,0,0,0-7.46-6.17,32.19,32.19,0,0,0-9.81-2.88c-3.66-.36-7.29-.56-11.15-.56h-47v-35h56.29v18.62L164.6,77.1,110.46,45.8V64.42H54.17v16L0,49.07,54.17,17.74V34.08h64.9c18.26,0,32.29,3.47,41.89,10.17,9.78,6.93,14.6,18.06,14.6,33.41,0,10.4-2.12,18.85-6.34,24.79C165,108.79,158.06,114,148.65,118.2a28.6,28.6,0,0,1,11.52,7.29,35.16,35.16,0,0,1,6.18,11.13A60.62,60.62,0,0,1,169,149.69c.4,4.62.56,9.21.76,13.44.2,6.33.4,11.52.79,15.74.36,4.06,1,7.5,1.32,10A24.35,24.35,0,0,0,174,195,8.76,8.76,0,0,0,176.71,198.48Z"></path>
+                  <path d="M186,84q1.68-15.32,7.38-26.28a41.37,41.37,0,0,1,16.45-17.12q10.74-6.15,28.86-6.15t28.86,6.15A41.37,41.37,0,0,1,284,57.73q5.7,11,7.38,26.28a308.26,308.26,0,0,1,1.68,33.45A307.5,307.5,0,0,1,291.39,151q-1.68,15.21-7.38,26.17A39.24,39.24,0,0,1,267.56,194q-10.74,5.82-28.86,5.82T209.84,194a39.24,39.24,0,0,1-16.45-16.78Q187.69,166.25,186,151a307.5,307.5,0,0,1-1.68-33.57A308.26,308.26,0,0,1,186,84Zm31.32,60.86a76.29,76.29,0,0,0,3.13,18.35q2.35,7,6.72,10.29c2.91,2.17,6.74,3.25,11.52,3.25s8.61-1.08,11.52-3.25,5.15-5.59,6.71-10.29a76.24,76.24,0,0,0,3.14-18.35q.78-11.3.78-27.41t-.78-27.29a77.72,77.72,0,0,0-3.14-18.35q-2.34-7.16-6.71-10.4T238.7,58.17c-4.78,0-8.61,1.09-11.52,3.25s-5.15,5.63-6.72,10.4a77.78,77.78,0,0,0-3.13,18.35q-.78,11.19-.78,27.29T217.33,144.87Z"></path>
+                  <path d="M383,37.59,425.3,197.34H391.74l-7.39-33.79H341.84l-7.38,33.79H300.9L343.19,37.59Zm-4.25,99.56L363.32,65.33h-.44l-15.44,71.82Z"></path>
+                  <path d="M462.44,152.14a53,53,0,0,0,.9,10.18,17.61,17.61,0,0,0,3.35,7.72,16.6,16.6,0,0,0,6.6,4.93,26.39,26.39,0,0,0,10.41,1.79A20.56,20.56,0,0,0,497,172q5.92-4.81,5.93-14.88a26.93,26.93,0,0,0-1.45-9.29,18.47,18.47,0,0,0-4.82-7.05,34.1,34.1,0,0,0-8.83-5.7,126.18,126.18,0,0,0-13.54-5.26,115.68,115.68,0,0,1-18.57-7.83,49.79,49.79,0,0,1-13.09-10,35.53,35.53,0,0,1-7.72-13.2,55.56,55.56,0,0,1-2.46-17.34q0-23.72,13.2-35.35t36.25-11.63a79.06,79.06,0,0,1,19.8,2.34,41.63,41.63,0,0,1,15.66,7.61,35.58,35.58,0,0,1,10.29,13.43q3.69,8.16,3.69,19.57v4.48H500.48q0-11.42-4-17.56T483,58.17a22.43,22.43,0,0,0-8.95,1.57,15.1,15.1,0,0,0-5.71,4.14,14.16,14.16,0,0,0-2.91,5.93,30.48,30.48,0,0,0-.78,6.93,23.06,23.06,0,0,0,3.13,12.42q3.13,5,13.43,9.29l24.83,10.74a75.73,75.73,0,0,1,15,8.39,41,41,0,0,1,9.29,9.39,31.46,31.46,0,0,1,4.81,11.08,62.31,62.31,0,0,1,1.34,13.42q0,25.29-14.65,36.81T481,199.8q-27.3,0-39-11.86t-11.75-34v-6.48h32.22Z"></path>
+                  <path d="M554.17,37.59h32.22V197.34H554.17ZM582.81,26.4H557.75V0h25.06Z"></path>
+                  <path d="M636.29,152.14a53.81,53.81,0,0,0,.89,10.18,17.74,17.74,0,0,0,3.36,7.72,16.6,16.6,0,0,0,6.6,4.93,26.37,26.37,0,0,0,10.4,1.79A20.59,20.59,0,0,0,670.86,172q5.92-4.81,5.93-14.88a26.68,26.68,0,0,0-1.46-9.29,18.33,18.33,0,0,0-4.81-7.05,34.17,34.17,0,0,0-8.84-5.7,125.1,125.1,0,0,0-13.53-5.26,115.68,115.68,0,0,1-18.57-7.83,49.63,49.63,0,0,1-13.09-10,35.53,35.53,0,0,1-7.72-13.2,55.56,55.56,0,0,1-2.46-17.34q0-23.72,13.2-35.35t36.24-11.63a79.2,79.2,0,0,1,19.81,2.34,41.63,41.63,0,0,1,15.66,7.61,35.58,35.58,0,0,1,10.29,13.43Q705.2,66,705.2,77.41v4.48H674.33q0-11.42-4-17.56t-13.43-6.16a22.46,22.46,0,0,0-9,1.57,15,15,0,0,0-5.7,4.14,14.16,14.16,0,0,0-2.91,5.93,29.93,29.93,0,0,0-.78,6.93,23.06,23.06,0,0,0,3.13,12.42q3.14,5,13.42,9.29l24.84,10.74a76,76,0,0,1,15,8.39A41,41,0,0,1,704.2,127a31.44,31.44,0,0,1,4.8,11.08,61.66,61.66,0,0,1,1.35,13.42q0,25.29-14.66,36.81T654.86,199.8q-27.3,0-39-11.86t-11.75-34v-6.48h32.22Z"></path>
+                  <path d="M820,64h-34.9V197.34H752.86V64H718V37.59H820Z"></path>
+                </svg>
+                <span class="tag">INTELLIGENCE OS</span>
               </div>
               <div style="font-size: 12px; color: #64748b; margin-top: 4px;">
                 Resmi Google & Meta API Algoritmik Kampanya Simülatörü
@@ -1465,11 +1473,10 @@ export class ExportService {
             <table style="margin-bottom: 24px;">
               <thead>
                 <tr>
-                  <th style="width: 32%;">Hedef Bölge / Pazar</th>
-                  <th style="text-align: right; width: 20%;">Aylık Arama Hacmi</th>
-                  <th style="text-align: center; width: 14%;">Pazar Payı</th>
-                  <th style="text-align: right; width: 17%;">Ortalama TBM</th>
-                  <th style="text-align: right; width: 17%;">Tahmini Bütçe Payı</th>
+                  <th style="width: 36%;">Hedef Bölge / Pazar</th>
+                  <th style="text-align: right; width: 22%;">Aylık Arama Hacmi</th>
+                  <th style="text-align: right; width: 20%;">Ortalama TBM</th>
+                  <th style="text-align: right; width: 22%;">Tahmini Bütçe Payı</th>
                 </tr>
               </thead>
               <tbody>
@@ -1486,16 +1493,11 @@ export class ExportService {
                     <td style="text-align: right; font-weight: 700; color: #1e293b;">
                       ${(cm.monthlyVolume || 0).toLocaleString('tr-TR')}
                     </td>
-                    <td style="text-align: center;">
-                      <span class="badge" style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; font-weight:700;">
-                        %${cm.sharePercent || 0}
-                      </span>
-                    </td>
                     <td style="text-align: right; font-weight: 700; font-family: monospace; color: ${cm.avgCpc > 0 ? '#2563eb' : '#64748b'};">
                       ${cm.avgCpc > 0 ? `₺${cm.avgCpc.toFixed(2)}` : 'TBM Yok'}
                     </td>
                     <td style="text-align: right; font-weight: 700; color: #0f172a;">
-                      ₺${estBudget.toLocaleString('tr-TR')}
+                      ₺${estBudget.toLocaleString('tr-TR')} <span class="badge" style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; font-weight:700; margin-left:4px;">%${cm.sharePercent || 0}</span>
                     </td>
                   </tr>
                   `;
