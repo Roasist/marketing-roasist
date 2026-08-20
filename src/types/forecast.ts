@@ -32,6 +32,7 @@ export interface CpcImputationSettings {
   commercialMultiplier: number;    // default 1.00
   informationalMultiplier: number; // default 0.85
   autoImputeMissingCpc: boolean;   // default true
+  defaultCurrencyMultiplier?: number;
 }
 
 export interface CountryOption {

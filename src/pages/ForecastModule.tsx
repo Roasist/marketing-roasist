@@ -5159,9 +5159,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                                   onClick={(e) => e.stopPropagation()}
                                   style={{ cursor: 'pointer' }}
                                 />
-                                <span style={{ fontSize: '1rem', flexShrink: 0 }}>{cluster.icon}</span>
+                                <span style={{ fontSize: '1rem', flexShrink: 0 }}>{cluster.icon || '🎯'}</span>
                                 <span style={{ fontSize: '0.8rem', fontWeight: isActive ? 700 : 500, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                  {cluster.name}
+                                  {cluster.name.replace(/^[\p{Emoji}\u200d\s]+/u, '').trim() || cluster.name}
                                 </span>
                               </div>
                               
@@ -5197,9 +5197,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem', borderBottom: '1px solid var(--border-default)', paddingBottom: '0.85rem' }}>
                       <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: '1.3rem' }}>{activeCluster.icon}</span>
+                          <span style={{ fontSize: '1.3rem' }}>{activeCluster.icon || '🎯'}</span>
                           <span style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                            {activeCluster.name}
+                            {activeCluster.name.replace(/^[\p{Emoji}\u200d\s]+/u, '').trim() || activeCluster.name}
                           </span>
                           <span className="badge badge-active" style={{ fontSize: '0.72rem' }}>
                             {activeCluster.keywords.length} Kelime
