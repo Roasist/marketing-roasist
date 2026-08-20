@@ -486,6 +486,32 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     } catch (e) {}
   }, [cpcImputationSettings]);
 
+  const handleSaveCpcSettings = (newSettings?: CpcImputationSettings) => {
+    const settings = newSettings || cpcImputationSettings;
+    setCpcImputationSettings(settings);
+    try {
+      localStorage.setItem('roasist_cpc_imputation_settings', JSON.stringify(settings));
+    } catch (e) {}
+
+    // Update active sub-campaign snapshot with new settings
+    if (activeSubCampaignId) {
+      setSubCampaigns(prev => prev.map(sc => {
+        if (sc.id === activeSubCampaignId) {
+          return {
+            ...sc,
+            cpcImputationSettings: settings,
+            parameters: {
+              ...(sc.parameters || {}),
+              cpcImputationSettings: settings
+            }
+          };
+        }
+        return sc;
+      }));
+    }
+    setShowCpcSettingsModal(false);
+  };
+
   const parsedSeedList = useMemo(() => {
     if (!query || mode !== 'KEYWORDS') return [];
     return query.split(/[\n\r,;]+/).map(s => s.trim()).filter(s => s.length > 0);
@@ -1164,6 +1190,11 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       if (target.parameters.gdnCpm !== undefined) setGdnCpm(target.parameters.gdnCpm);
       if (target.parameters.gdnCtr !== undefined) setGdnCtr(target.parameters.gdnCtr);
       if (target.parameters.gdnAssistedCr !== undefined) setGdnAssistedCr(target.parameters.gdnAssistedCr);
+    }
+
+    const targetCpcSettings = target.cpcImputationSettings || (target.parameters as any)?.cpcImputationSettings;
+    if (targetCpcSettings) {
+      setCpcImputationSettings(targetCpcSettings);
     }
 
     if (target.platform === 'META') {
@@ -5325,7 +5356,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                             <SlidersHorizontal size={13} />
                             <span>TBM Çarpanları</span>
                             <span style={{ fontSize: '0.62rem', backgroundColor: '#8b5cf6', color: '#fff', borderRadius: '10px', padding: '1px 5px' }}>
-                              {cpcImputationSettings.transactionalMultiplier}x
+                              {Number(cpcImputationSettings.transactionalMultiplier || 1.15).toFixed(2)}x
                             </span>
                           </button>
 
@@ -9767,7 +9798,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
               <button
                 type="button"
-                onClick={() => setShowCpcSettingsModal(false)}
+                onClick={() => handleSaveCpcSettings()}
                 className="btn-primary"
                 style={{ padding: '0.5rem 1.25rem', fontSize: '0.82rem', fontWeight: 600 }}
               >
