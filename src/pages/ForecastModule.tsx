@@ -7556,19 +7556,6 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                         }}
                       />
                     </div>
-
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
-                        Ortalama Anlaşma / Satış Tutarı (₺ - İsteğe Bağlı)
-                      </label>
-                      <input
-                        type="number"
-                        placeholder="Örn: 50000"
-                        value={avgDealValue || ''}
-                        onChange={(e) => setAvgDealValue(Number(e.target.value) || 0)}
-                        style={{ width: '100%', fontSize: '0.85rem' }}
-                      />
-                    </div>
                   </>
                 )}
 
