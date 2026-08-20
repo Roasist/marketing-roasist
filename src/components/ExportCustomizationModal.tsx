@@ -776,7 +776,7 @@ export const ExportCustomizationModal: React.FC<ExportCustomizationModalProps> =
                             <span>Uçtan Uca Dönüşüm Hunisi Projeksiyonu</span>
                           </div>
                           <div style={{ fontSize: '0.68rem', color: 'var(--text-secondary)' }}>
-                            Pazar Gösterimi → Nitelikli Trafik → SQL Lead / Satış Akışı.
+                            Pazar Gösterimi → Nitelikli Trafik → Brüt & Nitelikli Talep Akışı.
                           </div>
                         </div>
                       </div>
@@ -815,7 +815,7 @@ export const ExportCustomizationModal: React.FC<ExportCustomizationModalProps> =
                             <span>Temel Performans & Finansal KPI Kartları</span>
                           </div>
                           <div style={{ fontSize: '0.68rem', color: 'var(--text-secondary)' }}>
-                            Aylık Bütçe, Ortalama TBM/CPM, CPL/CPQL veya Ciro/ROAS.
+                            Aylık Tahmini Bütçe, Ortalama TBM/CPM, Brüt & Nitelikli Talep.
                           </div>
                         </div>
                       </div>

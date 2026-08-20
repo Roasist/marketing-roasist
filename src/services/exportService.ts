@@ -515,44 +515,54 @@ export class ExportService {
 
     // Section 1: Parameters
     if (config.includeChannelParameters) {
-      lines.push('--- BÖLÜM 1: KANAL & SİMÜLASYON HESAPLAMA PARAMETRELERİ ---');
+      lines.push('--- KANAL & SİMÜLASYON HESAPLAMA PARAMETRELERİ ---');
       lines.push('"Parametre", "Değer"');
       const p = sub.parameters || {};
+      const platformUpper = (sub.platform || 'GOOGLE_SEARCH').toUpperCase();
+      const isMeta = platformUpper.includes('META') || platformUpper.includes('FACEBOOK') || platformUpper.includes('INSTAGRAM');
+      const isYouTube = platformUpper.includes('YOUTUBE') || platformUpper.includes('VIDEO');
+      const isGDN = platformUpper.includes('GDN') || platformUpper.includes('DISPLAY');
+
       if (p.targetImpressionShare) lines.push(`"Hedef Pazar Gösterim Payı (IS)", "%${p.targetImpressionShare}"`);
       if (p.expectedCtr) lines.push(`"Beklenen Tıklama Oranı (CTR)", "%${p.expectedCtr}"`);
       if (p.searchLeadCr) lines.push(`"Arama Ağı Lead Dönüşüm Oranı (CR)", "%${p.searchLeadCr}"`);
       if (p.searchHealthyLeadRate) lines.push(`"Nitelikli Lead Oranı", "%${p.searchHealthyLeadRate}"`);
-      if (p.searchCloseRate) lines.push(`"Satış Kapatma Oranı", "%${p.searchCloseRate}"`);
-      if (p.avgDealValue) lines.push(`"Ortalama Anlaşma Tutarı", "₺${p.avgDealValue.toLocaleString('tr-TR')}"`);
-      if (p.metaCpm) lines.push(`"Meta Hedef CPM", "₺${p.metaCpm}"`);
-      if (p.metaCtr) lines.push(`"Meta Hedef CTR", "%${p.metaCtr}"`);
-      if (p.youtubeCpv) lines.push(`"YouTube Hedef CPV", "₺${p.youtubeCpv}"`);
-      if (p.gdnCpm) lines.push(`"GDN Hedef CPM", "₺${p.gdnCpm}"`);
+      if (!isLeadGen && p.searchCloseRate) lines.push(`"Satış Kapatma Oranı", "%${p.searchCloseRate}"`);
+      if (!isLeadGen && p.avgDealValue) lines.push(`"Ortalama Anlaşma Tutarı", "₺${p.avgDealValue.toLocaleString('tr-TR')}"`);
+      if (isMeta && p.metaCpm) lines.push(`"Meta Hedef CPM", "₺${p.metaCpm}"`);
+      if (isMeta && p.metaCtr) lines.push(`"Meta Hedef CTR", "%${p.metaCtr}"`);
+      if (isYouTube && p.youtubeCpv) lines.push(`"YouTube Hedef CPV", "₺${p.youtubeCpv}"`);
+      if (isGDN && p.gdnCpm) lines.push(`"GDN Hedef CPM", "₺${p.gdnCpm}"`);
       lines.push('');
     }
 
     // Section 2: Funnel Projections
     if (config.includeFunnel) {
-      lines.push(`--- BÖLÜM 2: UÇTAN UCA BÜYÜME & DÖNÜŞÜM HUNİSİ PROJEKSİYONU (${subCampaignName}) ---`);
+      lines.push(`--- UÇTAN UCA BÜYÜME & DÖNÜŞÜM HUNİSİ PROJEKSİYONU (${subCampaignName}) ---`);
       lines.push('"Huni Aşaması", "Tahmini Hacim", "Birim", "Metrik / Oran"');
-      if (vm.impressions) lines.push(`"1. Pazar Gösterimi (Reach)", "${m.impressions}", "Adet", "%${m.marketShare || 0} IS"`);
-      if (vm.clicks) lines.push(`"2. Nitelikli Trafik (Clicks)", "${m.clicks}", "Adet", "%${m.ctr.toFixed(2)} TO / ₺${m.cpc.toFixed(2)} TBM"`);
-      if (vm.conversions) lines.push(`"3. Brüt Talep / Sipariş", "${m.conversions}", "Adet", "₺${m.cpl.toLocaleString('tr-TR')} CPL"`);
-      if (isLeadGen && vm.healthyLeads) lines.push(`"4. Nitelikli Talep (SQL Leads)", "${m.healthyLeads}", "Adet", "₺${m.cpql.toLocaleString('tr-TR')} CPQL"`);
-      if (vm.deals || vm.revenue) lines.push(`"5. Kapanan Müşteri / Satış", "${m.deals || 0}", "Adet", "${m.cac > 0 ? `₺${m.cac.toLocaleString('tr-TR')} CAC` : ''}"`);
+      if (vm.impressions) lines.push(`"Pazar Gösterimi", "${m.impressions}", "Adet", "%${m.marketShare || 0} IS"`);
+      if (vm.clicks) lines.push(`"Nitelikli Trafik", "${m.clicks}", "Adet", "%${m.ctr.toFixed(2)} TO / ₺${m.cpc.toFixed(2)} TBM"`);
+      if (vm.conversions) lines.push(`"Brüt Talep", "${m.conversions}", "Adet", "₺${m.cpl.toLocaleString('tr-TR')} ${isLeadGen ? 'CPL' : 'CPA'}"`);
+      if (isLeadGen && vm.healthyLeads) lines.push(`"Nitelikli Talep", "${m.healthyLeads}", "Adet", "₺${m.cpql.toLocaleString('tr-TR')} CPQL"`);
+      if (!isLeadGen && (vm.deals || vm.revenue)) lines.push(`"Sipariş & Satış", "${m.deals || 0}", "Adet", "${m.cac > 0 ? `₺${m.cac.toLocaleString('tr-TR')} CAC` : ''}"`);
       lines.push('');
     }
 
     // Section 3: Key Financial & Performance KPIs
     if (config.includeKpiSummary) {
-      lines.push(`--- BÖLÜM 3: TEMEL PERFORMANS & FİNANSAL KPI KARTLARI (${subCampaignName}) ---`);
+      lines.push(`--- TEMEL PERFORMANS & FİNANSAL KPI KARTLARI (${subCampaignName}) ---`);
       lines.push('"KPI", "Değer", "Birim", "Açıklama"');
-      if (vm.budget) lines.push(`"Aylık Medya Bütçesi", "${sub.monthlyBudget || 0}", "₺", "Kanal için ayrılan aylık net bütçe"`);
+      if (vm.budget) lines.push(`"Aylık Tahmini Bütçe", "${sub.monthlyBudget || 0}", "₺", "Kanal için ayrılan aylık net bütçe"`);
       if (vm.cpc) lines.push(`"Ortalama TBM (CPC)", "₺${m.cpc.toFixed(2)}", "₺", "Sistem Ortalama TBM"`);
       if (vm.cpm && m.cpm > 0) lines.push(`"Bin Gösterim Başı Maliyet (CPM)", "₺${m.cpm.toFixed(2)}", "₺", "Cost Per Mille"`);
-      if (isLeadGen && vm.cac && m.cac > 0) lines.push(`"Müşteri Edinme Maliyeti (CAC)", "₺${m.cac.toLocaleString('tr-TR')}", "₺", "Kapanan müşteri başı nihai maliyet"`);
-      if (vm.revenue) lines.push(`"Tahmini Toplam Ciro", "₺${m.revenue.toLocaleString('tr-TR')}", "₺", "Model bazlı toplam gelir"`);
-      if (vm.roas) lines.push(`"Tahmini ROAS", "${m.roas.toFixed(1)}x", "Kat", "Gelir / Harcama Çarpanı"`);
+      if (isLeadGen) {
+        if (vm.conversions) lines.push(`"Tahmini Brüt Talep", "${m.conversions}", "Talep", "CPL: ₺${m.cpl.toLocaleString('tr-TR')}"`);
+        if (vm.healthyLeads) lines.push(`"Nitelikli Talep", "${m.healthyLeads}", "Lead", "CPQL: ₺${m.cpql.toLocaleString('tr-TR')}"`);
+      } else {
+        if (vm.conversions) lines.push(`"Tahmini Satış", "${m.conversions}", "Adet", "CPA: ₺${m.cpl.toLocaleString('tr-TR')}"`);
+        if (vm.revenue) lines.push(`"Tahmini Toplam Ciro", "₺${m.revenue.toLocaleString('tr-TR')}", "₺", "Model bazlı toplam gelir"`);
+        if (vm.roas) lines.push(`"Tahmini ROAS", "${m.roas.toFixed(1)}x", "Kat", "Gelir / Harcama Çarpanı"`);
+      }
       lines.push('');
     }
 
@@ -825,7 +835,7 @@ export class ExportService {
             display: flex;
             align-items: center;
             gap: 8px;
-            font-size: 15.5px;
+            font-size: 15px;
             font-weight: 800;
             color: #0f172a;
             padding-bottom: 12px;
@@ -833,59 +843,77 @@ export class ExportService {
             margin-bottom: 18px;
           }
           .growth-sub-section {
-            margin-bottom: 18px;
+            margin-bottom: 20px;
           }
           .growth-sub-section:last-child {
             margin-bottom: 0;
           }
           .growth-sub-title {
-            font-size: 12px;
+            font-size: 11.5px;
             font-weight: 700;
             color: #475569;
             text-transform: uppercase;
-            letter-spacing: 0.4px;
-            margin-bottom: 8px;
+            letter-spacing: 0.5px;
+            margin-bottom: 10px;
             display: flex;
             align-items: center;
             gap: 6px;
           }
 
-          /* KPI Stat Grid */
-          .stat-grid {
+          /* Universal Metric Tile Design (Unified across Parameters, Funnel, and KPI Cards) */
+          .metric-tile-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 12px;
-            margin-bottom: 24px;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 10px;
           }
-          .stat-card {
+          .metric-tile {
             background: #ffffff;
             border: 1px solid #e2e8f0;
-            border-radius: 10px;
-            padding: 14px 16px;
-            border-top: 3px solid #2563eb;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+            border-radius: 8px;
+            padding: 12px 14px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+            display: flex;
+            flex-direction: column;
+            justifyContent: space-between;
           }
-          .stat-card.emerald { border-top-color: #10b981; background: #f0fdf4; }
-          .stat-card.purple { border-top-color: #9333ea; }
-          .stat-card.amber { border-top-color: #f59e0b; }
-          .stat-label {
-            font-size: 11px;
+          .metric-tile.emerald {
+            border-color: #bbf7d0;
+            background: #f0fdf4;
+          }
+          .metric-tile .tile-lbl {
+            font-size: 10px;
             font-weight: 700;
             color: #64748b;
             text-transform: uppercase;
             letter-spacing: 0.5px;
             margin-bottom: 4px;
           }
-          .stat-value {
-            font-size: 22px;
+          .metric-tile .tile-val {
+            font-size: 18px;
             font-weight: 800;
             font-family: 'Outfit', sans-serif;
             color: #0f172a;
+            line-height: 1.2;
           }
-          .stat-sub {
-            font-size: 11px;
+          .metric-tile .tile-sub {
+            font-size: 10.5px;
             color: #64748b;
-            margin-top: 2px;
+            margin-top: 4px;
+          }
+          .metric-tile .tile-badge {
+            font-size: 10px;
+            background: #eff6ff;
+            color: #2563eb;
+            padding: 2px 7px;
+            border-radius: 99px;
+            display: inline-block;
+            margin-top: 5px;
+            font-weight: 700;
+            width: fit-content;
+          }
+          .metric-tile.emerald .tile-badge {
+            background: #dcfce7;
+            color: #166534;
           }
 
           /* Section Titles */
@@ -1117,66 +1145,76 @@ export class ExportService {
             </div>
 
             <!-- Sub-Section 1: Simülasyon Hesaplama Parametreleri -->
-            ${config.includeChannelParameters && sub.parameters ? `
-            <div class="growth-sub-section">
-              <div class="growth-sub-title">
-                <span>⚙️</span>
-                <span>1. Kanal & Simülasyon Hesaplama Parametreleri</span>
+            ${(() => {
+              if (!config.includeChannelParameters || !sub.parameters) return '';
+              const p = sub.parameters;
+              const platformUpper = (sub.platform || 'GOOGLE_SEARCH').toUpperCase();
+              const isMeta = platformUpper.includes('META') || platformUpper.includes('FACEBOOK') || platformUpper.includes('INSTAGRAM');
+              const isYouTube = platformUpper.includes('YOUTUBE') || platformUpper.includes('VIDEO');
+              const isGDN = platformUpper.includes('GDN') || platformUpper.includes('DISPLAY');
+
+              return `
+              <div class="growth-sub-section">
+                <div class="growth-sub-title">
+                  <span>⚙️</span>
+                  <span>Kanal & Simülasyon Hesaplama Parametreleri</span>
+                </div>
+                <div class="metric-tile-grid">
+                  ${p.targetImpressionShare ? `<div class="metric-tile"><div class="tile-lbl">Hedef Gösterim Payı (IS)</div><div class="tile-val" style="color:#2563eb;">%${p.targetImpressionShare}</div><div class="tile-sub">Hedeflenen Pazar Payı</div></div>` : ''}
+                  ${p.expectedCtr ? `<div class="metric-tile"><div class="tile-lbl">Beklenen TO (CTR)</div><div class="tile-val" style="color:#2563eb;">%${p.expectedCtr}</div><div class="tile-sub">Tıklama Oranı Tahmini</div></div>` : ''}
+                  ${p.searchLeadCr ? `<div class="metric-tile"><div class="tile-lbl">Lead Dönüşüm Oranı (CR)</div><div class="tile-val" style="color:#2563eb;">%${p.searchLeadCr}</div><div class="tile-sub">Ziyaretçi / Talep Oranı</div></div>` : ''}
+                  ${p.searchHealthyLeadRate ? `<div class="metric-tile"><div class="tile-lbl">Nitelikli Lead Oranı</div><div class="tile-val" style="color:#2563eb;">%${p.searchHealthyLeadRate}</div><div class="tile-sub">Satışa Uygunluk Oranı</div></div>` : ''}
+                  ${!isLeadGen && p.searchCloseRate ? `<div class="metric-tile"><div class="tile-lbl">Satış Kapatma Oranı</div><div class="tile-val" style="color:#2563eb;">%${p.searchCloseRate}</div><div class="tile-sub">Lead / Satış Oranı</div></div>` : ''}
+                  ${!isLeadGen && p.avgDealValue ? `<div class="metric-tile"><div class="tile-lbl">Ortalama Sepet / Sipariş</div><div class="tile-val" style="color:#2563eb;">₺${p.avgDealValue.toLocaleString('tr-TR')}</div><div class="tile-sub">Birim Sipariş Değeri</div></div>` : ''}
+                  ${isMeta && p.metaCpm ? `<div class="metric-tile"><div class="tile-lbl">Meta Hedef CPM</div><div class="tile-val" style="color:#2563eb;">₺${p.metaCpm}</div><div class="tile-sub">Bin Gösterim Maliyeti</div></div>` : ''}
+                  ${isYouTube && p.youtubeCpv ? `<div class="metric-tile"><div class="tile-lbl">YouTube Hedef CPV</div><div class="tile-val" style="color:#2563eb;">₺${p.youtubeCpv}</div><div class="tile-sub">İzleme Başı Maliyet</div></div>` : ''}
+                  ${isGDN && p.gdnCpm ? `<div class="metric-tile"><div class="tile-lbl">GDN Hedef CPM</div><div class="tile-val" style="color:#2563eb;">₺${p.gdnCpm}</div><div class="tile-sub">Görüntülü Reklam CPM</div></div>` : ''}
+                </div>
               </div>
-              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px;">
-                ${sub.parameters.targetImpressionShare ? `<div><strong style="display:block; font-size:10.5px; color:#64748b; margin-bottom:2px;">Hedef Gösterim Payı (IS)</strong><span style="font-weight:700; color:#0f172a; font-size:13.5px;">%${sub.parameters.targetImpressionShare}</span></div>` : ''}
-                ${sub.parameters.expectedCtr ? `<div><strong style="display:block; font-size:10.5px; color:#64748b; margin-bottom:2px;">Beklenen TO (CTR)</strong><span style="font-weight:700; color:#0f172a; font-size:13.5px;">%${sub.parameters.expectedCtr}</span></div>` : ''}
-                ${sub.parameters.searchLeadCr ? `<div><strong style="display:block; font-size:10.5px; color:#64748b; margin-bottom:2px;">Lead Dönüşüm Oranı (CR)</strong><span style="font-weight:700; color:#0f172a; font-size:13.5px;">%${sub.parameters.searchLeadCr}</span></div>` : ''}
-                ${sub.parameters.searchHealthyLeadRate ? `<div><strong style="display:block; font-size:10.5px; color:#64748b; margin-bottom:2px;">Nitelikli Lead Oranı</strong><span style="font-weight:700; color:#0f172a; font-size:13.5px;">%${sub.parameters.searchHealthyLeadRate}</span></div>` : ''}
-                ${!isLeadGen && sub.parameters.searchCloseRate ? `<div><strong style="display:block; font-size:10.5px; color:#64748b; margin-bottom:2px;">Satış Kapatma Oranı</strong><span style="font-weight:700; color:#0f172a; font-size:13.5px;">%${sub.parameters.searchCloseRate}</span></div>` : ''}
-                ${!isLeadGen && sub.parameters.avgDealValue ? `<div><strong style="display:block; font-size:10.5px; color:#64748b; margin-bottom:2px;">Ort. Sepet / Anlaşma</strong><span style="font-weight:700; color:#0f172a; font-size:13.5px;">₺${sub.parameters.avgDealValue.toLocaleString('tr-TR')}</span></div>` : ''}
-                ${sub.parameters.metaCpm ? `<div><strong style="display:block; font-size:10.5px; color:#64748b; margin-bottom:2px;">Meta Hedef CPM</strong><span style="font-weight:700; color:#0f172a; font-size:13.5px;">₺${sub.parameters.metaCpm}</span></div>` : ''}
-                ${sub.parameters.youtubeCpv ? `<div><strong style="display:block; font-size:10.5px; color:#64748b; margin-bottom:2px;">YouTube Hedef CPV</strong><span style="font-weight:700; color:#0f172a; font-size:13.5px;">₺${sub.parameters.youtubeCpv}</span></div>` : ''}
-              </div>
-            </div>
-            ` : ''}
+              `;
+            })()}
 
             <!-- Sub-Section 2: Uçtan Uca Büyüme & Dönüşüm Hunisi Projeksiyonu -->
             ${config.includeFunnel ? `
             <div class="growth-sub-section">
               <div class="growth-sub-title">
                 <span>🎯</span>
-                <span>2. Uçtan Uca Büyüme & Dönüşüm Hunisi Projeksiyonu</span>
+                <span>Uçtan Uca Büyüme & Dönüşüm Hunisi Projeksiyonu</span>
               </div>
-              <div class="funnel-box" style="margin-bottom: 0;">
+              <div class="metric-tile-grid">
                 ${vm.impressions ? `
-                <div class="funnel-step">
-                  <div class="val">${m.impressions.toLocaleString('tr-TR')}</div>
-                  <div class="lbl">1. Pazar Gösterimi</div>
-                  <div class="rate">${m.marketShare > 0 ? `%${m.marketShare} IS` : 'Hedef Kitle'}</div>
+                <div class="metric-tile">
+                  <div class="tile-lbl">Pazar Gösterimi</div>
+                  <div class="tile-val" style="color: #2563eb;">${m.impressions.toLocaleString('tr-TR')}</div>
+                  <span class="tile-badge">${m.marketShare > 0 ? `%${m.marketShare} IS` : 'Hedef Kitle'}</span>
                 </div>` : ''}
 
                 ${vm.clicks ? `
-                <div class="funnel-step">
-                  <div class="val">${m.clicks.toLocaleString('tr-TR')}</div>
-                  <div class="lbl">2. Nitelikli Trafik</div>
-                  <div class="rate">${vm.ctr ? `%${m.ctr.toFixed(2)} TO` : 'Tıklama'}</div>
+                <div class="metric-tile">
+                  <div class="tile-lbl">Nitelikli Trafik</div>
+                  <div class="tile-val" style="color: #2563eb;">${m.clicks.toLocaleString('tr-TR')}</div>
+                  <span class="tile-badge">${vm.ctr ? `%${m.ctr.toFixed(2)} TO` : 'Tıklama'}</span>
                 </div>` : ''}
 
                 ${vm.conversions ? `
-                <div class="funnel-step">
-                  <div class="val">${m.conversions.toLocaleString('tr-TR')}</div>
-                  <div class="lbl">3. ${isLeadGen ? 'Brüt Talep / Lead' : 'Sepet / Satış'}</div>
-                  <div class="rate">${vm.cpl ? `₺${m.cpl.toLocaleString('tr-TR')} ${isLeadGen ? 'CPL' : 'CPA'}` : 'Dönüşüm'}</div>
+                <div class="metric-tile">
+                  <div class="tile-lbl">${isLeadGen ? 'Brüt Talep' : 'Sepet / Sipariş'}</div>
+                  <div class="tile-val" style="color: #2563eb;">${m.conversions.toLocaleString('tr-TR')}</div>
+                  <span class="tile-badge">${vm.cpl ? `₺${m.cpl.toLocaleString('tr-TR')} ${isLeadGen ? 'CPL' : 'CPA'}` : 'Dönüşüm'}</span>
                 </div>` : ''}
 
                 ${(isLeadGen ? vm.healthyLeads : vm.conversions) ? `
-                <div class="funnel-step" style="border-color: #86efac; background: #f0fdf4;">
-                  <div class="val" style="color: #16a34a;">${(isLeadGen ? m.healthyLeads : m.conversions).toLocaleString('tr-TR')}</div>
-                  <div class="lbl">4. ${isLeadGen ? 'Nitelikli SQL Lead' : 'Net Sipariş'}</div>
-                  <div class="rate" style="background:#dcfce7; color:#166534;">${isLeadGen ? (vm.cpql ? `₺${m.cpql.toLocaleString('tr-TR')} CPQL` : 'Nitelikli') : 'Satış'}</div>
+                <div class="metric-tile emerald">
+                  <div class="tile-lbl">${isLeadGen ? 'Nitelikli Talep' : 'Net Sipariş'}</div>
+                  <div class="tile-val" style="color: #16a34a;">${(isLeadGen ? m.healthyLeads : m.conversions).toLocaleString('tr-TR')}</div>
+                  <span class="tile-badge">${isLeadGen ? (vm.cpql ? `₺${m.cpql.toLocaleString('tr-TR')} CPQL` : 'Nitelikli') : 'Satış'}</span>
                 </div>` : ''}
 
                 ${!isLeadGen && (vm.deals || vm.revenue) ? `
-                <div class="funnel-step" style="border-color: #86efac; background: #f0fdf4;">
-                  <div class="val" style="color: #16a34a;">${vm.revenue ? `₺${m.revenue.toLocaleString('tr-TR')}` : `${m.deals} Sipariş`}</div>
-                  <div class="lbl">5. Ciro & ROAS</div>
-                  <div class="rate" style="background:#dcfce7; color:#166534;">${m.roas > 0 ? `${m.roas.toFixed(1)}x ROAS` : 'Satış'}</div>
+                <div class="metric-tile emerald">
+                  <div class="tile-lbl">Toplam Ciro & ROAS</div>
+                  <div class="tile-val" style="color: #16a34a;">${vm.revenue ? `₺${m.revenue.toLocaleString('tr-TR')}` : `${m.deals} Sipariş`}</div>
+                  <span class="tile-badge">${m.roas > 0 ? `${m.roas.toFixed(1)}x ROAS` : 'Satış'}</span>
                 </div>` : ''}
               </div>
             </div>
@@ -1184,60 +1222,60 @@ export class ExportService {
 
             <!-- Sub-Section 3: Temel Performans & KPI Kartları -->
             ${config.includeKpiSummary ? `
-            <div class="growth-sub-section" style="margin-top: 14px;">
+            <div class="growth-sub-section">
               <div class="growth-sub-title">
                 <span>📊</span>
-                <span>3. Temel Performans & KPI Kartları</span>
+                <span>Temel Performans & KPI Kartları</span>
               </div>
-              <div class="stat-grid" style="margin-bottom: 0;">
+              <div class="metric-tile-grid">
                 ${vm.budget ? `
-                <div class="stat-card">
-                  <div class="stat-label">Aylık Medya Bütçesi</div>
-                  <div class="stat-value" style="color: #2563eb;">₺${(sub.monthlyBudget || 0).toLocaleString('tr-TR')}</div>
-                  <div class="stat-sub">Günlük ₺${Math.round((sub.monthlyBudget || 0) / 30.4).toLocaleString('tr-TR')} Harcama Tavanı</div>
+                <div class="metric-tile">
+                  <div class="tile-lbl">Aylık Tahmini Bütçe</div>
+                  <div class="tile-val" style="color: #2563eb;">₺${(sub.monthlyBudget || 0).toLocaleString('tr-TR')}</div>
+                  <div class="tile-sub">Günlük ₺${Math.round((sub.monthlyBudget || 0) / 30.4).toLocaleString('tr-TR')} Harcama Tavanı</div>
                 </div>` : ''}
 
                 ${vm.cpc ? `
-                <div class="stat-card">
-                  <div class="stat-label">Ortalama TBM & CPM</div>
-                  <div class="stat-value" style="color: #2563eb;">₺${m.cpc.toFixed(2)}</div>
-                  <div class="stat-sub">${vm.cpm && m.cpm > 0 ? `CPM: ₺${m.cpm.toFixed(2)}` : 'Sistem Ortalama TBM'}</div>
+                <div class="metric-tile">
+                  <div class="tile-lbl">Ortalama TBM & CPM</div>
+                  <div class="tile-val" style="color: #2563eb;">₺${m.cpc.toFixed(2)}</div>
+                  <div class="tile-sub">${vm.cpm && m.cpm > 0 ? `CPM: ₺${m.cpm.toFixed(2)}` : 'Sistem Ortalama TBM'}</div>
                 </div>` : ''}
 
                 ${isLeadGen ? `
                   ${vm.conversions ? `
-                  <div class="stat-card emerald">
-                    <div class="stat-label">Tahmini Brüt Talep (CPL)</div>
-                    <div class="stat-value" style="color: #16a34a;">${m.conversions.toLocaleString('tr-TR')} Talep</div>
-                    <div class="stat-sub">${vm.cpl ? `CPL: ₺${m.cpl.toLocaleString('tr-TR')}` : 'Form / WhatsApp'}</div>
+                  <div class="metric-tile emerald">
+                    <div class="tile-lbl">Tahmini Brüt Talep</div>
+                    <div class="tile-val" style="color: #16a34a;">${m.conversions.toLocaleString('tr-TR')} Talep</div>
+                    <div class="tile-sub">${vm.cpl ? `CPL: ₺${m.cpl.toLocaleString('tr-TR')}` : 'Form / WhatsApp'}</div>
                   </div>` : ''}
 
                   ${vm.healthyLeads ? `
-                  <div class="stat-card emerald">
-                    <div class="stat-label">Nitelikli SQL Talep (CPQL)</div>
-                    <div class="stat-value" style="color: #16a34a;">${m.healthyLeads.toLocaleString('tr-TR')} Lead</div>
-                    <div class="stat-sub">${vm.cpql ? `CPQL: ₺${m.cpql.toLocaleString('tr-TR')}` : 'Satışa Uygun'}</div>
+                  <div class="metric-tile emerald">
+                    <div class="tile-lbl">Nitelikli Talep</div>
+                    <div class="tile-val" style="color: #16a34a;">${m.healthyLeads.toLocaleString('tr-TR')} Lead</div>
+                    <div class="tile-sub">${vm.cpql ? `CPQL: ₺${m.cpql.toLocaleString('tr-TR')}` : 'Satışa Uygun'}</div>
                   </div>` : ''}
                 ` : `
                   ${vm.conversions ? `
-                  <div class="stat-card emerald">
-                    <div class="stat-label">Tahmini Satış (CPA)</div>
-                    <div class="stat-value" style="color: #16a34a;">${m.conversions.toLocaleString('tr-TR')} Adet</div>
-                    <div class="stat-sub">${vm.cpl ? `CPA: ₺${m.cpl.toLocaleString('tr-TR')}` : 'Sipariş'}</div>
+                  <div class="metric-tile emerald">
+                    <div class="tile-lbl">Tahmini Satış</div>
+                    <div class="tile-val" style="color: #16a34a;">${m.conversions.toLocaleString('tr-TR')} Adet</div>
+                    <div class="tile-sub">${vm.cpl ? `CPA: ₺${m.cpl.toLocaleString('tr-TR')}` : 'Sipariş'}</div>
                   </div>` : ''}
 
                   ${vm.revenue ? `
-                  <div class="stat-card emerald">
-                    <div class="stat-label">Tahmini Toplam Ciro</div>
-                    <div class="stat-value" style="color: #16a34a;">₺${m.revenue.toLocaleString('tr-TR')}</div>
-                    <div class="stat-sub">${m.roas > 0 ? `Tahmini ROAS: <strong>${m.roas.toFixed(1)}x</strong>` : 'Gelir Modeli'}</div>
+                  <div class="metric-tile emerald">
+                    <div class="tile-lbl">Tahmini Toplam Ciro</div>
+                    <div class="tile-val" style="color: #16a34a;">₺${m.revenue.toLocaleString('tr-TR')}</div>
+                    <div class="tile-sub">${m.roas > 0 ? `Tahmini ROAS: <strong>${m.roas.toFixed(1)}x</strong>` : 'Gelir Modeli'}</div>
                   </div>` : ''}
 
                   ${vm.roas ? `
-                  <div class="stat-card emerald">
-                    <div class="stat-label">Tahmini ROAS (Yatırım Getirisi)</div>
-                    <div class="stat-value" style="color: #16a34a;">${m.roas.toFixed(1)}x</div>
-                    <div class="stat-sub">Gelir / Harcama Çarpanı</div>
+                  <div class="metric-tile emerald">
+                    <div class="tile-lbl">Tahmini ROAS</div>
+                    <div class="tile-val" style="color: #16a34a;">${m.roas.toFixed(1)}x</div>
+                    <div class="tile-sub">Gelir / Harcama Çarpanı</div>
                   </div>` : ''}
                 `}
               </div>
