@@ -800,7 +800,8 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
         }
 
         if (!empty($topSeeds)) {
-            $seedBatches = array_chunk(array_slice($topSeeds, 0, 100), 20);
+            // Query ALL keywords (no artificial limit) for accurate per-location volume data
+            $seedBatches = array_chunk($topSeeds, 20);
             foreach ($seedBatches as $seedList) {
                 $batchLang = detectLanguageConstantForKeywords($seedList, $effectiveLangConst);
                 $allRequests[] = [
@@ -846,7 +847,14 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
         }
     }
 
-    $requestBatches = array_chunk($allRequests, 28);
+    // Large keyword sets with many locations can generate thousands of requests
+    // Use larger batches for better throughput
+    $requestBatches = array_chunk($allRequests, 40);
+
+    // Increase PHP time limit for large keyword/location matrices
+    if (count($allRequests) > 200) {
+        @set_time_limit(120);
+    }
 
     foreach ($requestBatches as $batchIdx => $batch) {
         $mh = curl_multi_init();
@@ -858,7 +866,7 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
             curl_setopt($chLoc, CURLOPT_POST, true);
             curl_setopt($chLoc, CURLOPT_POSTFIELDS, json_encode($req['payload']));
             curl_setopt($chLoc, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($chLoc, CURLOPT_TIMEOUT, 14);
+            curl_setopt($chLoc, CURLOPT_TIMEOUT, 15);
             curl_setopt($chLoc, CURLOPT_HTTPHEADER, [
                 "Authorization: Bearer {$accessToken}",
                 "developer-token: {$devToken}",
@@ -2910,7 +2918,7 @@ if ($action === 'discover' && $method === 'POST') {
     $includeSuggestions = isset($input['includeSuggestions']) ? (bool)$input['includeSuggestions'] : true;
     $clientSeeds = !empty($input['seedKeywords']) && is_array($input['seedKeywords']) ? $input['seedKeywords'] : [];
 
-    $cacheKey = md5("forecast_v39_{$mode}_{$query}_" . ($includeSuggestions ? 'sug_1_' : 'sug_0_') . ($requestedLanguage ?: 'auto') . '_' . ($requestedCountryCode ?: 'auto') . '_' . implode('_', (array)$requestedGeoTargetConstants));
+    $cacheKey = md5("forecast_v40_{$mode}_{$query}_" . ($includeSuggestions ? 'sug_1_' : 'sug_0_') . ($requestedLanguage ?: 'auto') . '_' . ($requestedCountryCode ?: 'auto') . '_' . implode('_', (array)$requestedGeoTargetConstants));
 
     // 1. Check Server-Side Cache
     $stmtCache = $pdo->prepare("SELECT data, created_at FROM keyword_cache WHERE cache_key = ?");
