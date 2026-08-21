@@ -1415,57 +1415,63 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
 
     $effectiveLangConst = !empty($uniqueSeeds) ? detectLanguageConstantForKeywords($uniqueSeeds, $langConst) : $langConst;
 
-    // Step A: Discover initial keyword pool via Google Ads API with combined target locations
+    // Step A: Discover initial keyword pool via Google Ads API with chunked geo target constants (max 10 per request)
     if (!empty($cleanSiteUrl) && count($uniqueSeeds) < 15) {
-        $discPayload = [
-            "keywordPlanNetwork" => "GOOGLE_SEARCH",
-            "includeAdultKeywords" => false,
-            "language" => $effectiveLangConst,
-            "geoTargetConstants" => $finalGeoList,
-            "siteSeed" => ["siteUrl" => $cleanSiteUrl]
-        ];
-        $discCh = curl_init("https://googleads.googleapis.com/v22/customers/{$customerId}:generateKeywordIdeas");
-        curl_setopt($discCh, CURLOPT_POST, true);
-        curl_setopt($discCh, CURLOPT_POSTFIELDS, json_encode($discPayload));
-        curl_setopt($discCh, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($discCh, CURLOPT_HTTPHEADER, [
-            'Authorization: Bearer ' . $accessToken,
-            'developer-token: ' . $devToken,
-            'Content-Type: application/json'
-        ]);
-        curl_setopt($discCh, CURLOPT_TIMEOUT, 8);
-        $discResp = curl_exec($discCh);
-        curl_close($discCh);
-        $discJson = json_decode($discResp, true);
-        if (!empty($discJson['results'])) {
-            foreach ($discJson['results'] as $dr) {
-                $dt = trim($dr['text'] ?? '');
-                if (!empty($dt) && !in_array($dt, $uniqueSeeds)) {
-                    $uniqueSeeds[] = $dt;
-                    if (count($uniqueSeeds) >= 200) break;
+        $siteGeoChunks = array_chunk($finalGeoList, 10);
+        foreach ($siteGeoChunks as $sgChunk) {
+            $discPayload = [
+                "keywordPlanNetwork" => "GOOGLE_SEARCH",
+                "includeAdultKeywords" => false,
+                "language" => $effectiveLangConst,
+                "geoTargetConstants" => $sgChunk,
+                "siteSeed" => ["siteUrl" => $cleanSiteUrl]
+            ];
+            $discCh = curl_init("https://googleads.googleapis.com/v22/customers/{$customerId}:generateKeywordIdeas");
+            curl_setopt($discCh, CURLOPT_POST, true);
+            curl_setopt($discCh, CURLOPT_POSTFIELDS, json_encode($discPayload));
+            curl_setopt($discCh, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($discCh, CURLOPT_HTTPHEADER, [
+                'Authorization: Bearer ' . $accessToken,
+                'developer-token: ' . $devToken,
+                'Content-Type: application/json'
+            ]);
+            curl_setopt($discCh, CURLOPT_TIMEOUT, 8);
+            $discResp = curl_exec($discCh);
+            curl_close($discCh);
+            $discJson = json_decode($discResp, true);
+            if (!empty($discJson['results'])) {
+                foreach ($discJson['results'] as $dr) {
+                    $dt = trim($dr['text'] ?? '');
+                    if (!empty($dt) && !in_array($dt, $uniqueSeeds)) {
+                        $uniqueSeeds[] = $dt;
+                        if (count($uniqueSeeds) >= 200) break 2;
+                    }
                 }
             }
         }
     }
 
-    // Step B: Query seeds across all targeted locations combined (returns accurate aggregate search volume)
+    // Step B: Query seeds across all targeted locations in batches of 20 keywords & max 10 geo targets
     $discoveryRequests = [];
     if (!empty($uniqueSeeds)) {
         $seedBatches = array_chunk($uniqueSeeds, 20);
+        $geoChunks = array_chunk($finalGeoList, 10);
         foreach ($seedBatches as $seedList) {
             $batchLang = detectLanguageConstantForKeywords($seedList, $effectiveLangConst);
-            $discoveryRequests[] = [
-                'geoId' => 'ALL',
-                'endpoint' => 'generateKeywordIdeas',
-                'isSeed' => true,
-                'payload' => [
-                    "keywordPlanNetwork" => "GOOGLE_SEARCH",
-                    "includeAdultKeywords" => false,
-                    "language" => $batchLang,
-                    "geoTargetConstants" => $finalGeoList,
-                    "keywordSeed" => ["keywords" => $seedList]
-                ]
-            ];
+            foreach ($geoChunks as $gChunk) {
+                $discoveryRequests[] = [
+                    'geoId' => 'ALL',
+                    'endpoint' => 'generateKeywordIdeas',
+                    'isSeed' => true,
+                    'payload' => [
+                        "keywordPlanNetwork" => "GOOGLE_SEARCH",
+                        "includeAdultKeywords" => false,
+                        "language" => $batchLang,
+                        "geoTargetConstants" => $gChunk,
+                        "keywordSeed" => ["keywords" => $seedList]
+                    ]
+                ];
+            }
         }
     }
 
@@ -1498,7 +1504,8 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
                 'isSuggested' => false,
                 'source' => 'USER_SEED',
                 'geoVolumes' => [],
-                'geoCpc' => []
+                'geoCpc' => [],
+                'monthlySearchVolumes' => []
             ];
         }
     }
@@ -1524,6 +1531,7 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
                     'isSeed' => false,
                     'payload' => [
                         "keywordPlanNetwork" => "GOOGLE_SEARCH",
+                        "includeAdultKeywords" => false,
                         "language" => $batchLang,
                         "geoTargetConstants" => [$geoResource],
                         "keywordSeed" => ["keywords" => $dBatch]
@@ -2901,7 +2909,7 @@ if ($action === 'discover' && $method === 'POST') {
     $includeSuggestions = isset($input['includeSuggestions']) ? (bool)$input['includeSuggestions'] : true;
     $clientSeeds = !empty($input['seedKeywords']) && is_array($input['seedKeywords']) ? $input['seedKeywords'] : [];
 
-    $cacheKey = md5("forecast_v36_{$mode}_{$query}_" . ($includeSuggestions ? 'sug_1_' : 'sug_0_') . ($requestedLanguage ?: 'auto') . '_' . ($requestedCountryCode ?: 'auto') . '_' . implode('_', (array)$requestedGeoTargetConstants));
+    $cacheKey = md5("forecast_v37_{$mode}_{$query}_" . ($includeSuggestions ? 'sug_1_' : 'sug_0_') . ($requestedLanguage ?: 'auto') . '_' . ($requestedCountryCode ?: 'auto') . '_' . implode('_', (array)$requestedGeoTargetConstants));
 
     // 1. Check Server-Side Cache
     $stmtCache = $pdo->prepare("SELECT data, created_at FROM keyword_cache WHERE cache_key = ?");
