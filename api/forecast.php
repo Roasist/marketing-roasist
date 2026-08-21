@@ -3046,26 +3046,36 @@ if ($action === 'location_breakdown' && $method === 'POST') {
     }
 
     $locationsMeta = $input['locations'] ?? [];
-    $breakdownResult = calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $keywords, $geoTargetConstants, $language, $locationsMeta);
-    $locationList = is_array($breakdownResult) && isset($breakdownResult['breakdown']) ? $breakdownResult['breakdown'] : (is_array($breakdownResult) ? $breakdownResult : []);
-    $geoMap = $breakdownResult['keywordGeoMap'] ?? [];
+    try {
+        $breakdownResult = calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $keywords, $geoTargetConstants, $language, $locationsMeta);
+        $locationList = is_array($breakdownResult) && isset($breakdownResult['breakdown']) ? $breakdownResult['breakdown'] : (is_array($breakdownResult) ? $breakdownResult : []);
+        $geoMap = $breakdownResult['keywordGeoMap'] ?? [];
 
-    // Save to Cache
-    if (!empty($locationList) || !empty($geoMap)) {
-        $dataToSave = json_encode([
+        // Save to Cache
+        if (!empty($locationList) || !empty($geoMap)) {
+            $dataToSave = json_encode([
+                'locationBreakdown' => $locationList,
+                'keywordGeoMap' => $geoMap
+            ], JSON_UNESCAPED_UNICODE);
+            $stmtSave = $pdo->prepare("INSERT OR REPLACE INTO keyword_cache (cache_key, query_text, mode, data, created_at) VALUES (?, ?, ?, ?, datetime('now'))");
+            $stmtSave->execute([$cacheKey, $query, $mode, $dataToSave]);
+        }
+
+        echo json_encode([
+            'status' => 'success',
             'locationBreakdown' => $locationList,
             'keywordGeoMap' => $geoMap
         ], JSON_UNESCAPED_UNICODE);
-        $stmtSave = $pdo->prepare("INSERT OR REPLACE INTO keyword_cache (cache_key, query_text, mode, data, created_at) VALUES (?, ?, ?, ?, datetime('now'))");
-        $stmtSave->execute([$cacheKey, $query, $mode, $dataToSave]);
+        exit;
+    } catch (Throwable $e) {
+        http_response_code(500);
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'Hata: ' . $e->getMessage(),
+            'file' => $e->getFile(),
+            'line' => $e->getLine()
+        ], JSON_UNESCAPED_UNICODE);
     }
-
-    echo json_encode([
-        'status' => 'success',
-        'locationBreakdown' => $locationList,
-        'keywordGeoMap' => $geoMap
-    ], JSON_UNESCAPED_UNICODE);
-    exit;
 }
 
 // -------------------------------------------------------------
