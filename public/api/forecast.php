@@ -3057,8 +3057,8 @@ if ($action === 'location_breakdown' && $method === 'POST') {
                 'locationBreakdown' => $locationList,
                 'keywordGeoMap' => $geoMap
             ], JSON_UNESCAPED_UNICODE);
-            $stmtSave = $pdo->prepare("INSERT OR REPLACE INTO keyword_cache (cache_key, query_text, mode, data, created_at) VALUES (?, ?, ?, ?, datetime('now'))");
-            $stmtSave->execute([$cacheKey, $query, $mode, $dataToSave]);
+            $stmtSave = $pdo->prepare("INSERT OR REPLACE INTO keyword_cache (cache_key, data, created_at) VALUES (?, ?, datetime('now'))");
+            $stmtSave->execute([$cacheKey, $dataToSave]);
         }
 
         echo json_encode([
