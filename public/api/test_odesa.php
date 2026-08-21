@@ -25,18 +25,29 @@ $tRes = json_decode(curl_exec($chToken), true);
 curl_close($chToken);
 $accessToken = $tRes['access_token'] ?? '';
 
-$kw1 = 'купить квартиру в одессе';
-$kw2 = 'гражданство турции по недвижимости';
+$kw = 'гражданство турции по недвижимости';
 $geo = 'geoTargetConstants/20812'; // Odesa Oblast
 
-$chApi = curl_init("https://googleads.googleapis.com/v22/customers/{$customerId}:generateKeywordIdeas");
+// Test generateKeywordHistoricalMetrics WITH historicalMetricsOptions yearMonthRange
+$chApi = curl_init("https://googleads.googleapis.com/v22/customers/{$customerId}:generateKeywordHistoricalMetrics");
 curl_setopt($chApi, CURLOPT_POST, true);
 $payload = [
     "keywordPlanNetwork" => "GOOGLE_SEARCH",
     "language" => "languageConstants/1031",
     "geoTargetConstants" => [$geo],
-    "keywordSeed" => ["keywords" => [$kw1, $kw2]],
-    "includeAdultKeywords" => false
+    "keywords" => [$kw],
+    "historicalMetricsOptions" => [
+        "yearMonthRange" => [
+            "startYearMonth" => [
+                "year" => 2025,
+                "month" => "AUGUST"
+            ],
+            "endYearMonth" => [
+                "year" => 2026,
+                "month" => "JULY"
+            ]
+        ]
+    ]
 ];
 curl_setopt($chApi, CURLOPT_POSTFIELDS, json_encode($payload));
 curl_setopt($chApi, CURLOPT_RETURNTRANSFER, true);
@@ -51,19 +62,8 @@ curl_close($chApi);
 
 $json = json_decode($resp, true);
 
-$first5 = [];
-if (!empty($json['results'])) {
-    foreach (array_slice($json['results'], 0, 10) as $r) {
-        $first5[] = [
-            'text' => $r['text'] ?? '',
-            'hasMetrics' => isset($r['keywordIdeaMetrics']),
-            'metrics' => $r['keywordIdeaMetrics'] ?? null
-        ];
-    }
-}
-
 echo json_encode([
     'httpCode' => $httpCode,
-    'resultsCount' => count($json['results'] ?? []),
-    'first10' => $first5
+    'payloadSent' => $payload,
+    'rawResponse' => $json
 ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
