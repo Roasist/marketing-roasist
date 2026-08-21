@@ -28,103 +28,29 @@ $accessToken = $tRes['access_token'] ?? '';
 $kw = 'гражданство турции по недвижимости';
 $geo = 'geoTargetConstants/20812'; // Odesa Oblast
 
-$testCases = [
-  'Ideas_RU_SEARCH' => [
-    'endpoint' => 'generateKeywordIdeas',
-    'payload' => [
-      'keywordPlanNetwork' => 'GOOGLE_SEARCH',
-      'includeAdultKeywords' => false,
-      'language' => 'languageConstants/1031',
-      'geoTargetConstants' => [$geo],
-      'keywordSeed' => ['keywords' => [$kw]]
-    ]
-  ],
-  'Ideas_NOLANG_SEARCH' => [
-    'endpoint' => 'generateKeywordIdeas',
-    'payload' => [
-      'keywordPlanNetwork' => 'GOOGLE_SEARCH',
-      'includeAdultKeywords' => false,
-      'geoTargetConstants' => [$geo],
-      'keywordSeed' => ['keywords' => [$kw]]
-    ]
-  ],
-  'Ideas_RU_SEARCH_AND_PARTNERS' => [
-    'endpoint' => 'generateKeywordIdeas',
-    'payload' => [
-      'keywordPlanNetwork' => 'GOOGLE_SEARCH_AND_PARTNERS',
-      'includeAdultKeywords' => false,
-      'language' => 'languageConstants/1031',
-      'geoTargetConstants' => [$geo],
-      'keywordSeed' => ['keywords' => [$kw]]
-    ]
-  ],
-  'Historical_RU_SEARCH' => [
-    'endpoint' => 'generateKeywordHistoricalMetrics',
-    'payload' => [
-      'keywordPlanNetwork' => 'GOOGLE_SEARCH',
-      'language' => 'languageConstants/1031',
-      'geoTargetConstants' => [$geo],
-      'keywords' => [$kw]
-    ]
-  ],
-  'Historical_NOLANG_SEARCH' => [
-    'endpoint' => 'generateKeywordHistoricalMetrics',
-    'payload' => [
-      'keywordPlanNetwork' => 'GOOGLE_SEARCH',
-      'geoTargetConstants' => [$geo],
-      'keywords' => [$kw]
-    ]
-  ],
-  'Historical_RU_SEARCH_AND_PARTNERS' => [
-    'endpoint' => 'generateKeywordHistoricalMetrics',
-    'payload' => [
-      'keywordPlanNetwork' => 'GOOGLE_SEARCH_AND_PARTNERS',
-      'language' => 'languageConstants/1031',
-      'geoTargetConstants' => [$geo],
-      'keywords' => [$kw]
-    ]
-  ]
+$chApi = curl_init("https://googleads.googleapis.com/v22/customers/{$customerId}:generateKeywordHistoricalMetrics");
+curl_setopt($chApi, CURLOPT_POST, true);
+$payload = [
+    "keywordPlanNetwork" => "GOOGLE_SEARCH",
+    "language" => "languageConstants/1031",
+    "geoTargetConstants" => [$geo],
+    "keywords" => [$kw],
+    "includeAdultKeywords" => false
 ];
+curl_setopt($chApi, CURLOPT_POSTFIELDS, json_encode($payload));
+curl_setopt($chApi, CURLOPT_RETURNTRANSFER, true);
+curl_setopt($chApi, CURLOPT_HTTPHEADER, [
+    "Authorization: Bearer {$accessToken}",
+    "developer-token: {$devToken}",
+    "Content-Type: application/json"
+]);
+$resp = curl_exec($chApi);
+$httpCode = curl_getinfo($chApi, CURLINFO_HTTP_CODE);
+curl_close($chApi);
 
-$output = [];
-foreach ($testCases as $name => $tc) {
-    $chApi = curl_init("https://googleads.googleapis.com/v22/customers/{$customerId}:" . $tc['endpoint']);
-    curl_setopt($chApi, CURLOPT_POST, true);
-    curl_setopt($chApi, CURLOPT_POSTFIELDS, json_encode($tc['payload']));
-    curl_setopt($chApi, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($chApi, CURLOPT_HTTPHEADER, [
-        "Authorization: Bearer {$accessToken}",
-        "developer-token: {$devToken}",
-        "Content-Type: application/json"
-    ]);
-    $resp = curl_exec($chApi);
-    $httpCode = curl_getinfo($chApi, CURLINFO_HTTP_CODE);
-    curl_close($chApi);
+$json = json_decode($resp, true);
 
-    $json = json_decode($resp, true);
-    $results = $json['results'] ?? [];
-    
-    $exactVol = null;
-    $top5 = [];
-    foreach ($results as $r) {
-        $text = $r['text'] ?? $r['keyword'] ?? '';
-        $m = $r['keywordIdeaMetrics'] ?? $r['keywordMetrics'] ?? [];
-        $vol = $m['avgMonthlySearches'] ?? 0;
-        if (count($top5) < 5) {
-            $top5[] = ['text' => $text, 'vol' => $vol];
-        }
-        if (mb_strtolower(trim($text), 'UTF-8') === mb_strtolower(trim($kw), 'UTF-8')) {
-            $exactVol = $vol;
-        }
-    }
-
-    $output[$name] = [
-        'httpCode' => $httpCode,
-        'resultsCount' => count($results),
-        'exactKeywordVolume' => $exactVol,
-        'top5Results' => $top5,
-        'rawError' => $httpCode !== 200 ? substr($resp, 0, 300) : null
-    ];
-}
-
-echo json_encode($output, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+echo json_encode([
+    'httpCode' => $httpCode,
+    'fullRawResponse' => $json
+], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
