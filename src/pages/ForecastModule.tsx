@@ -2922,18 +2922,15 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       const off = findOfficial(loc);
       const cpcData = locGeoCpcData[locKey];
 
-      // 1. Ülkenin Ham Hacmi: Seçili kelimelerin geoVolumes toplamı, yoksa Google Ads resmi bölge dökümü, yoksa erişim ağırlığı
+      // Ülkenin Gerçek Hacmi: Yalnızca Google Ads API'den gelen seçili kelimelerin geoVolumes toplamı
       let cVol = 0;
-      if (locGeoVolumes[locKey] && locGeoVolumes[locKey] > 0) {
+      if (locGeoVolumes[locKey] !== undefined) {
         cVol = locGeoVolumes[locKey];
       } else if (off && (off.monthlyVolume || 0) > 0) {
         cVol = off.monthlyVolume;
-      } else {
-        const reach = (loc as any).reach || 500000;
-        cVol = Math.max(50, Math.round(reach / 10000));
       }
 
-      // 2. Ülkenin Ortalama TBM'si: Seçili kelimelerin hacim ağırlıklı veya doğrudan ortalama TBM'si
+      // Ülkenin Ortalama TBM'si: Seçili kelimelerin hacim ağırlıklı veya doğrudan ortalama TBM'si
       let locBaseCpc = 0;
       if (cpcData && cpcData.volSum > 0 && cpcData.weightedCpcSum > 0) {
         locBaseCpc = cpcData.weightedCpcSum / cpcData.volSum;
@@ -2961,34 +2958,10 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       };
     });
 
-    const totalPoolVol = activePool.reduce((s, k) => s + (Number(k.monthlyVolume) || 0), 0);
-    const sumRawBreakdownVol = items.reduce((s, item) => s + (item.monthlyVolume || 0), 0);
-
-    if (totalPoolVol > 0 && sumRawBreakdownVol > 0) {
-      let distributedSum = 0;
-      items.forEach((item, idx) => {
-        if (idx === items.length - 1) {
-          item.monthlyVolume = Math.max(10, totalPoolVol - distributedSum);
-        } else {
-          const share = item.monthlyVolume / sumRawBreakdownVol;
-          const scaled = Math.max(10, Math.round(totalPoolVol * share));
-          item.monthlyVolume = scaled;
-          distributedSum += scaled;
-        }
-      });
-      // Second pass to ensure exact total match
-      const currentSum = items.reduce((s, item) => s + item.monthlyVolume, 0);
-      const diff = totalPoolVol - currentSum;
-      if (diff !== 0 && items.length > 0) {
-        const maxItem = items.reduce((prev, curr) => (curr.monthlyVolume > prev.monthlyVolume ? curr : prev), items[0]);
-        maxItem.monthlyVolume = Math.max(10, maxItem.monthlyVolume + diff);
-      }
-    }
-
     const finalSumVol = items.reduce((s, item) => s + item.monthlyVolume, 0);
     items.forEach(item => {
       const share = finalSumVol > 0 ? (item.monthlyVolume / finalSumVol) : (1 / items.length);
-      item.sharePercent = Math.max(1, Math.round(share * 100));
+      item.sharePercent = Math.round(share * 100);
       item.estClicks = Math.round((simulation.estClicks || 0) * share);
       item.estConversions = Math.round((simulation.estConversions || 0) * share);
     });
@@ -3087,11 +3060,6 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     const cleanGeoId = targetGeoId.replace(/[^0-9]/g, '');
     const locCc = (activeScopeLocation?.countryCode || '').toUpperCase();
 
-    // The verified location market share percentage from countryBreakdown
-    const locShareRatio = (activeScopeMetric && activeScopeMetric.sharePercent > 0)
-      ? (activeScopeMetric.sharePercent / 100)
-      : (1 / Math.max(1, selectedLocations.length));
-
     return imputedKeywords.map(k => {
       // 1. Direct official Google Ads volume for this exact location (pure official data)
       let directLocVol: number | null = null;
@@ -3149,12 +3117,10 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       }
 
       // Compute effective regional volume:
-      // If direct Google Ads volume was returned (either 0 or > 0), use the exact Google Ads API value!
+      // STRICT RULE: ONLY direct official Google Ads API volume is used. If not present or 0, it is strictly 0.
       let effectiveLocVol = 0;
       if (directLocVol !== null) {
         effectiveLocVol = directLocVol;
-      } else if (k.monthlyVolume > 0 && locShareRatio > 0) {
-        effectiveLocVol = Math.round(k.monthlyVolume * locShareRatio);
       }
 
       let directCpcObj = undefined;
