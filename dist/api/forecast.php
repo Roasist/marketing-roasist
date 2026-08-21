@@ -1059,12 +1059,26 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
         }
     }
 
+    $requestedSeedMap = [];
+    if (!empty($topSeeds) && is_array($topSeeds)) {
+        foreach ($topSeeds as $ts) {
+            $tsNorm = mb_strtolower(preg_replace('/\s+/', ' ', trim($ts)), 'UTF-8');
+            if (!empty($tsNorm)) {
+                $requestedSeedMap[$tsNorm] = true;
+            }
+        }
+    }
+
     foreach ($geoConstants as $geo) {
         $geoId = preg_replace('/[^0-9]/', '', $geo);
         
         $vol = 0;
         $posCount = 0;
-        foreach ($keywordGeoMap as $kwMetrics) {
+        foreach ($keywordGeoMap as $kwKey => $kwMetrics) {
+            // Strict filter: ONLY count volume if this keyword is in the requested seeds!
+            if (!empty($requestedSeedMap) && !isset($requestedSeedMap[$kwKey])) {
+                continue;
+            }
             if (isset($kwMetrics[$geoId]) && $kwMetrics[$geoId]['monthlyVolume'] > 0) {
                 $vol += (int)$kwMetrics[$geoId]['monthlyVolume'];
                 $posCount++;
