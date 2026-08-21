@@ -2049,18 +2049,30 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   };
 
   const handleRefreshStep2GoogleAdsData = async () => {
-    if (isRefreshingStep2Google || !step2WorkingKeywords || step2WorkingKeywords.length === 0) {
+    if (isRefreshingStep2Google) return;
+
+    const targetKws = (step2WorkingKeywords && step2WorkingKeywords.length > 0)
+      ? step2WorkingKeywords
+      : (keywords && keywords.length > 0 ? keywords : []);
+
+    if (targetKws.length === 0) {
+      alert('Analiz edilecek seçili anahtar kelime bulunamadı.');
       return;
     }
+
+    const targetLocs = (selectedLocations && selectedLocations.length > 0)
+      ? selectedLocations
+      : [{ id: '2792', name: 'Türkiye', canonicalName: 'Türkiye', countryCode: 'TR', targetType: 'Country', flag: '🇹🇷' } as GeoTargetLocation];
+
     setIsRefreshingStep2Google(true);
     try {
       const res = await ApiService.getLocationBreakdown({
-        query: step2WorkingKeywords.map(k => k.keyword).join(', '),
+        query: targetKws.map(k => k.keyword).join(', '),
         mode: 'KEYWORDS',
         language: detectedLanguage || 'tr',
-        geoTargetConstants: selectedLocations.map(l => l.id),
-        keywords: step2WorkingKeywords,
-        locations: selectedLocations,
+        geoTargetConstants: targetLocs.map(l => l.id),
+        keywords: targetKws,
+        locations: targetLocs,
         bypassCache: true
       });
 
@@ -2098,63 +2110,98 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           }));
         }
 
-        // Open inspection modal so the user can immediately inspect the fresh Google Ads numbers
-        if (res.breakdown && res.breakdown.length > 0) {
-          const totalVol = res.breakdown.reduce((sum: number, b: any) => sum + (Number(b.monthlyVolume) || 0), 0);
-          const succCount = res.breakdown.filter((b: any) => Number(b.monthlyVolume) > 0).length;
-          setLocationAuditData({
-            totalLocations: selectedLocations.length,
-            successLocations: succCount,
-            totalKeywords: step2WorkingKeywords.length,
-            totalVolume: totalVol,
-            detectedLanguage: detectedLanguageName || detectedLanguage || 'Otomatik',
-            sector: businessModel || 'Genel Sektör',
-            locations: res.breakdown.map((b: any) => {
-              const bCleanId = String(b.id || '').replace(/\D/g, '');
-              const matchingLoc = selectedLocations.find(l => String(l.id).replace(/\D/g, '') === bCleanId);
-              
-              const kwBreakdownList = step2WorkingKeywords.map(k => {
-                const kRaw = String(k.keyword || '');
-                const kNorm1 = kRaw.toLowerCase().trim();
-                const kNorm2 = kRaw.toLowerCase().replace(/\s+/g, ' ').trim();
-                const geoData = res.keywordGeoMap?.[kNorm1]?.[bCleanId] || res.keywordGeoMap?.[kNorm2]?.[bCleanId];
-                const vol = geoData?.monthlyVolume !== undefined ? Number(geoData.monthlyVolume) : Number(k.geoVolumes?.[bCleanId] || 0);
-                const low = geoData?.lowCpc !== undefined ? Number(geoData.lowCpc) : Number(k.geoCpc?.[bCleanId]?.lowCpc || 0);
-                const high = geoData?.highCpc !== undefined ? Number(geoData.highCpc) : Number(k.geoCpc?.[bCleanId]?.highCpc || 0);
-                return {
-                  keyword: k.keyword,
-                  monthlyVolume: vol,
-                  lowCpc: low,
-                  highCpc: high,
-                  intent: k.intent
-                };
-              });
-
-              const hasVol = Number(b.monthlyVolume) > 0;
-              return {
-                id: String(b.id || ''),
-                cleanId: bCleanId,
-                name: b.name || matchingLoc?.name || 'Bilinmeyen Bölge',
-                canonicalName: b.canonicalName || matchingLoc?.canonicalName || b.name,
-                countryCode: b.countryCode || matchingLoc?.countryCode || 'TR',
-                targetType: b.targetType || matchingLoc?.targetType || 'Bölge',
-                flag: b.flag || matchingLoc?.flag || '📍',
-                searchVolume: Number(b.monthlyVolume) || 0,
-                avgCpc: Number(b.avgCpc) || 0,
-                keywordsWithVolumeCount: Number(b.keywordsWithVolumeCount) || 0,
-                status: (hasVol ? 'SUCCESS' : 'NO_VOLUME') as 'SUCCESS' | 'NO_VOLUME',
-                statusMessage: hasVol
-                  ? 'Google Ads API: 200 OK — Hacim verisi başarıyla alındı'
-                  : 'Google Ads API: 200 OK — Bu 36 kelime için bu il/bölgede kayıtlı arama yok (0)',
-                keywordDetails: kwBreakdownList
-              };
-            })
+        // Construct Location Audit Data
+        const rawBreakdown = (res.breakdown && res.breakdown.length > 0) ? res.breakdown : [];
+        const auditLocations = targetLocs.map(loc => {
+          const cleanId = String(loc.id).replace(/\D/g, '');
+          const matchingB = rawBreakdown.find((b: any) => String(b.id || '').replace(/\D/g, '') === cleanId);
+          
+          const kwBreakdownList = targetKws.map(k => {
+            const kRaw = String(k.keyword || '');
+            const kNorm1 = kRaw.toLowerCase().trim();
+            const kNorm2 = kRaw.toLowerCase().replace(/\s+/g, ' ').trim();
+            const geoData = res.keywordGeoMap?.[kNorm1]?.[cleanId] || res.keywordGeoMap?.[kNorm2]?.[cleanId];
+            const vol = geoData?.monthlyVolume !== undefined ? Number(geoData.monthlyVolume) : Number(k.geoVolumes?.[cleanId] || 0);
+            const low = geoData?.lowCpc !== undefined ? Number(geoData.lowCpc) : Number(k.geoCpc?.[cleanId]?.lowCpc || 0);
+            const high = geoData?.highCpc !== undefined ? Number(geoData.highCpc) : Number(k.geoCpc?.[cleanId]?.highCpc || 0);
+            return {
+              keyword: k.keyword,
+              monthlyVolume: vol,
+              lowCpc: low,
+              highCpc: high,
+              intent: k.intent
+            };
           });
-          setShowLocationAuditModal(true);
-        }
+
+          const locVol = matchingB ? Number(matchingB.monthlyVolume) || 0 : kwBreakdownList.reduce((s, kw) => s + kw.monthlyVolume, 0);
+          const locCpc = matchingB ? Number(matchingB.avgCpc) || 0 : 0;
+          const posKwCount = kwBreakdownList.filter(kw => kw.monthlyVolume > 0).length;
+
+          return {
+            id: String(loc.id || ''),
+            cleanId: cleanId || String(loc.id || ''),
+            name: loc.name || matchingB?.name || 'Bilinmeyen Bölge',
+            canonicalName: loc.canonicalName || matchingB?.canonicalName || loc.name,
+            countryCode: loc.countryCode || matchingB?.countryCode || 'TR',
+            targetType: loc.targetType || matchingB?.targetType || 'Bölge',
+            flag: loc.flag || matchingB?.flag || '📍',
+            searchVolume: locVol,
+            avgCpc: locCpc,
+            keywordsWithVolumeCount: posKwCount,
+            status: (locVol > 0 ? 'SUCCESS' : 'NO_VOLUME') as 'SUCCESS' | 'NO_VOLUME',
+            statusMessage: locVol > 0
+              ? 'Google Ads API: 200 OK — Hacim verisi başarıyla alındı'
+              : 'Google Ads API: 200 OK — Bu kelimeler için bu il/bölgede kayıtlı arama yok (0)',
+            keywordDetails: kwBreakdownList
+          };
+        });
+
+        const totalVol = auditLocations.reduce((sum: number, b: any) => sum + (Number(b.searchVolume) || 0), 0);
+        const succCount = auditLocations.filter((b: any) => Number(b.searchVolume) > 0).length;
+
+        setLocationAuditData({
+          totalLocations: targetLocs.length,
+          successLocations: succCount,
+          totalKeywords: targetKws.length,
+          totalVolume: totalVol,
+          detectedLanguage: detectedLanguageName || detectedLanguage || 'Otomatik',
+          sector: businessModel || 'Genel Sektör',
+          locations: auditLocations
+        });
+        setShowLocationAuditModal(true);
       }
     } catch (err: any) {
       console.error('Error refreshing step 2 keywords from Google Ads:', err);
+      setLocationAuditData({
+        totalLocations: targetLocs.length,
+        successLocations: 0,
+        totalKeywords: targetKws.length,
+        totalVolume: 0,
+        detectedLanguage: detectedLanguageName || detectedLanguage || 'Otomatik',
+        sector: businessModel || 'Genel Sektör',
+        locations: targetLocs.map(loc => ({
+          id: String(loc.id || ''),
+          cleanId: String(loc.id || '').replace(/\D/g, ''),
+          name: loc.name || 'Bölge',
+          canonicalName: loc.canonicalName || loc.name,
+          countryCode: loc.countryCode || 'TR',
+          targetType: loc.targetType || 'Bölge',
+          flag: loc.flag || '📍',
+          searchVolume: 0,
+          avgCpc: 0,
+          keywordsWithVolumeCount: 0,
+          status: 'ERROR' as 'ERROR',
+          statusMessage: `Bağlantı Hatası: ${err?.message || 'Google Ads API ile iletişim kurulamadı.'}`,
+          keywordDetails: targetKws.map(k => ({
+            keyword: k.keyword,
+            monthlyVolume: 0,
+            lowCpc: 0,
+            highCpc: 0,
+            intent: k.intent
+          }))
+        }))
+      });
+      setShowLocationAuditModal(true);
     } finally {
       setIsRefreshingStep2Google(false);
     }
