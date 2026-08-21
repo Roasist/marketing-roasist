@@ -814,10 +814,7 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
                     "keywordPlanNetwork" => "GOOGLE_SEARCH",
                     "language" => $histLang,
                     "geoTargetConstants" => [$geoResource],
-                    "keywords" => $topHistoricalSeeds,
-                    "historicalMetricsOptions" => [
-                        "includeAverageCpc" => true
-                    ]
+                    "keywords" => $topHistoricalSeeds
                 ]
             ];
         }
@@ -1063,6 +1060,13 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
         $cc = $locMeta['countryCode'] ?? 'TR';
         $flag = $locMeta['flag'] ?? ($flagMap[$cc] ?? '🌍');
 
+        $posCount = 0;
+        foreach ($keywordGeoMap as $kwMetrics) {
+            if (isset($kwMetrics[$geoId]) && $kwMetrics[$geoId]['monthlyVolume'] > 0) {
+                $posCount++;
+            }
+        }
+
         $breakdown[] = [
             'id' => (string)$geoId,
             'code' => $cc,
@@ -1073,7 +1077,8 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
             'monthlyVolume' => $vol,
             'avgCpc' => $avgCpc,
             'lowCpc' => $lowCpc,
-            'highCpc' => $avgCpc
+            'highCpc' => $avgCpc,
+            'keywordsWithVolumeCount' => $posCount
         ];
     }
 
