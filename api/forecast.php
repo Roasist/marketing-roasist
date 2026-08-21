@@ -798,12 +798,31 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
         }
     }
 
-    // Build all requests: Interleave by seed batch across ALL locations
-    // This ensures every single location is queried in parallel from Round 1 without timeouts
+    // Build all requests: Dual Engine (Historical Metrics + Keyword Ideas) across ALL 14 locations
     $allRequests = [];
     if (!empty($topSeeds)) {
-        // 80 top seeds = 4 batches * 14 locations = 56 parallel requests (completes in ~2s)
-        $seedBatches = array_chunk(array_slice($topSeeds, 0, 80), 20);
+        // Engine 1: generateKeywordHistoricalMetrics (queries up to 250 keywords in a single call per location)
+        $topHistoricalSeeds = array_slice($topSeeds, 0, 250);
+        $histLang = detectLanguageConstantForKeywords($topHistoricalSeeds, $effectiveLangConst);
+        foreach ($geoConstants as $geo) {
+            $geoResource = strpos($geo, 'geoTargetConstants/') === 0 ? $geo : "geoTargetConstants/{$geo}";
+            $geoId = preg_replace('/[^0-9]/', '', $geo);
+            $allRequests[] = [
+                'geoId' => $geoId,
+                'geoResource' => $geoResource,
+                'endpoint' => 'generateKeywordHistoricalMetrics',
+                'payload' => [
+                    "keywordPlanNetwork" => "GOOGLE_SEARCH",
+                    "includeAdultKeywords" => false,
+                    "language" => $histLang,
+                    "geoTargetConstants" => [$geoResource],
+                    "keywords" => $topHistoricalSeeds
+                ]
+            ];
+        }
+
+        // Engine 2: generateKeywordIdeas (8 batches of 20 seeds = 160 seeds interleaved across all locations)
+        $seedBatches = array_chunk(array_slice($topSeeds, 0, 160), 20);
         foreach ($seedBatches as $seedList) {
             $batchLang = detectLanguageConstantForKeywords($seedList, $effectiveLangConst);
             foreach ($geoConstants as $geo) {
@@ -2947,7 +2966,7 @@ if ($action === 'discover' && $method === 'POST') {
     $includeSuggestions = isset($input['includeSuggestions']) ? (bool)$input['includeSuggestions'] : true;
     $clientSeeds = !empty($input['seedKeywords']) && is_array($input['seedKeywords']) ? $input['seedKeywords'] : [];
 
-    $cacheKey = md5("forecast_v42_{$mode}_{$query}_" . ($includeSuggestions ? 'sug_1_' : 'sug_0_') . ($requestedLanguage ?: 'auto') . '_' . ($requestedCountryCode ?: 'auto') . '_' . implode('_', (array)$requestedGeoTargetConstants));
+    $cacheKey = md5("forecast_v43_{$mode}_{$query}_" . ($includeSuggestions ? 'sug_1_' : 'sug_0_') . ($requestedLanguage ?: 'auto') . '_' . ($requestedCountryCode ?: 'auto') . '_' . implode('_', (array)$requestedGeoTargetConstants));
 
     // 1. Check Server-Side Cache
     $stmtCache = $pdo->prepare("SELECT data, created_at FROM keyword_cache WHERE cache_key = ?");
