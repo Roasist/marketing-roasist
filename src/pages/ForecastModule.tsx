@@ -3012,19 +3012,21 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         cVol = off.monthlyVolume;
       }
 
-      // Ülkenin Ortalama TBM'si: Seçili kelimelerin hacim ağırlıklı veya doğrudan ortalama TBM'si
+      // Ülkenin Ortalama TBM'si: Yalnızca arama hacmi > 0 olan bölgeler için hesaplanır
       let locBaseCpc = 0;
-      if (cpcData && cpcData.volSum > 0 && cpcData.weightedCpcSum > 0) {
-        locBaseCpc = cpcData.weightedCpcSum / cpcData.volSum;
-      } else if (cpcData && cpcData.count > 0 && cpcData.simpleCpcSum > 0) {
-        locBaseCpc = cpcData.simpleCpcSum / cpcData.count;
-      } else if (off && (off.avgCpc || 0) > 0) {
-        locBaseCpc = off.avgCpc;
-      } else {
-        locBaseCpc = avgTopPageCpc || 25.0;
+      if (cVol > 0) {
+        if (cpcData && cpcData.volSum > 0 && cpcData.weightedCpcSum > 0) {
+          locBaseCpc = cpcData.weightedCpcSum / cpcData.volSum;
+        } else if (cpcData && cpcData.count > 0 && cpcData.simpleCpcSum > 0) {
+          locBaseCpc = cpcData.simpleCpcSum / cpcData.count;
+        } else if (off && (off.avgCpc || 0) > 0) {
+          locBaseCpc = off.avgCpc;
+        } else {
+          locBaseCpc = avgTopPageCpc || 0;
+        }
       }
 
-      const finalCpc = Number((locBaseCpc * scenarioMultiplier.cpcMult).toFixed(2));
+      const finalCpc = cVol > 0 ? Number((locBaseCpc * scenarioMultiplier.cpcMult).toFixed(2)) : 0;
 
       return {
         id: String(loc.id),
@@ -3042,10 +3044,17 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
     const finalSumVol = items.reduce((s, item) => s + item.monthlyVolume, 0);
     items.forEach(item => {
-      const share = finalSumVol > 0 ? (item.monthlyVolume / finalSumVol) : (1 / items.length);
-      item.sharePercent = Math.round(share * 100);
-      item.estClicks = Math.round((simulation.estClicks || 0) * share);
-      item.estConversions = Math.round((simulation.estConversions || 0) * share);
+      if (item.monthlyVolume > 0 && finalSumVol > 0) {
+        const share = item.monthlyVolume / finalSumVol;
+        item.sharePercent = Math.round(share * 100);
+        item.estClicks = Math.round((simulation.estClicks || 0) * share);
+        item.estConversions = Math.round((simulation.estConversions || 0) * share);
+      } else {
+        item.sharePercent = 0;
+        item.estClicks = 0;
+        item.estConversions = 0;
+        item.avgCpc = 0;
+      }
     });
 
     return items;
@@ -5472,7 +5481,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                         <strong>{activeScopeLocation.canonicalName || activeScopeLocation.name}</strong>
                       </span>
                       <span className="badge badge-neutral" style={{ fontSize: '0.72rem' }}>Pazar Payı: %{activeScopeMetric?.sharePercent ?? 0}</span>
-                      <span className="badge badge-neutral" style={{ fontSize: '0.72rem' }}>Bölgesel Ort. TBM: ₺{(activeScopeMetric?.avgCpc ?? 0).toFixed(2)}</span>
+                      <span className="badge badge-neutral" style={{ fontSize: '0.72rem' }}>Bölgesel Ort. TBM: {(activeScopeMetric?.monthlyVolume ?? 0) > 0 && (activeScopeMetric?.avgCpc ?? 0) > 0 ? `₺${(activeScopeMetric?.avgCpc ?? 0).toFixed(2)}` : 'TBM Yok'}</span>
                       <span className="badge badge-neutral" style={{ fontSize: '0.72rem' }}>Arama Havuzu: {(activeScopeMetric?.monthlyVolume ?? 0).toLocaleString('tr-TR')} /ay</span>
                     </div>
                     <button
