@@ -409,42 +409,263 @@ function searchGoogleAdsLocations($apiKeys, $query, $locale = 'tr') {
             }
         }
         return $filtered;
-    }
+}
 
     return array_slice($catalog, 0, 15);
 }
 
-function batchSearchGoogleAdsLocations($apiKeys, $queries, $locale = 'tr') {
-    if (empty($queries) || !is_array($queries)) {
-        return ['matched' => [], 'unmatched' => []];
+function detectLanguageConstantForKeywords($keywords, $fallbackLangConst = 'languageConstants/1037') {
+    $sample = is_array($keywords) ? implode(' ', array_slice($keywords, 0, 30)) : (string)$keywords;
+    if (preg_match('/[\x{0400}-\x{04FF}]/u', $sample)) {
+        return 'languageConstants/1031'; // Russian / Cyrillic (KZ, RU, UA, UZ, KG)
+    }
+    if (preg_match('/[\x{0600}-\x{06FF}]/u', $sample)) {
+        return 'languageConstants/1019'; // Arabic / Farsi
+    }
+    if (preg_match('/[çğıöşüÇĞİÖŞÜ]/u', $sample)) {
+        return 'languageConstants/1037'; // Turkish
+    }
+    if (preg_match('/[äöüßÄÖÜẞ]/u', $sample)) {
+        return 'languageConstants/1001'; // German
+    }
+    return $fallbackLangConst;
+}
+
+// -------------------------------------------------------------
+// HELPER: LOCATION BREAKDOWN SERVICE VIA MULTI-CURL (PARALLEL HTTP/2)
+// -------------------------------------------------------------
+function fetchLocationBreakdown($apiKeys, $query, $geoConstants, $langCode = 'tr', $mode = 'URL', $officialKeywords = []) {
+    $clientId = $apiKeys['googleClientId'] ?? '';
+    $clientSecret = $apiKeys['googleClientSecret'] ?? '';
+    $refreshToken = $apiKeys['googleRefreshToken'] ?? '';
+    $devToken = $apiKeys['googleAdsDevToken'] ?? '';
+    $customerId = preg_replace('/[^0-9]/', '', $apiKeys['googleAdsCustomerId'] ?? '');
+
+    if (empty($clientId) || empty($clientSecret) || empty($refreshToken) || empty($devToken) || empty($customerId) || empty($geoConstants)) {
+        return [];
     }
 
-    $matched = [];
-    $unmatched = [];
-    $seenIds = [];
+    $ch = curl_init('https://oauth2.googleapis.com/token');
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query([
+        'client_id' => $clientId,
+        'client_secret' => $clientSecret,
+        'refresh_token' => $refreshToken,
+        'grant_type' => 'refresh_token'
+    ]));
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 6);
+    $res = curl_exec($ch);
+    curl_close($ch);
 
-    $cleanQueries = array_values(array_unique(array_filter(array_map('trim', $queries))));
+    $json = json_decode($res, true);
+    if (empty($json['access_token'])) {
+        return [];
+    }
+    $accessToken = $json['access_token'];
 
-    foreach ($cleanQueries as $q) {
-        if (mb_strlen($q, 'UTF-8') < 2) continue;
-        $results = searchGoogleAdsLocations($apiKeys, $q, $locale);
-        if (!empty($results) && is_array($results)) {
-            $best = $results[0];
-            if (!isset($seenIds[$best['id']])) {
-                $seenIds[$best['id']] = true;
-                $matched[] = [
-                    'query' => $q,
-                    'location' => $best
-                ];
-            }
-        } else {
-            $unmatched[] = $q;
+    $langMap = [
+        'tr' => 'languageConstants/1037',
+        'en' => 'languageConstants/1000',
+        'de' => 'languageConstants/1001',
+        'ru' => 'languageConstants/1031',
+        'ar' => 'languageConstants/1019',
+        'fa' => 'languageConstants/1064'
+    ];
+    $normLangCode = strtolower(trim($langCode));
+    $langConst = (is_numeric($normLangCode)) ? 'languageConstants/' . $normLangCode : ($langMap[$normLangCode] ?? 'languageConstants/1037');
+
+    $topSeeds = [];
+    $seenSeed = [];
+
+    if (!empty($query) && !preg_match('/^https?:\/\//i', $query)) {
+        $rawSeeds = array_map('trim', explode(',', $query));
+        foreach ($rawSeeds as $rs) {
+            if (empty($rs) || mb_strlen($rs, 'UTF-8') < 2) continue;
+            $rsLower = mb_strtolower($rs, 'UTF-8');
+            if (isset($seenSeed[$rsLower])) continue;
+            $seenSeed[$rsLower] = true;
+            $topSeeds[] = $rs;
         }
     }
 
+    if (!empty($officialKeywords) && is_array($officialKeywords)) {
+        foreach ($officialKeywords as $okw) {
+            $kText = is_array($okw) ? trim($okw['keyword'] ?? '') : trim((string)$okw);
+            if (empty($kText) || mb_strlen($kText, 'UTF-8') < 3) continue;
+            $kLower = mb_strtolower($kText, 'UTF-8');
+            if (isset($seenSeed[$kLower])) continue;
+            $seenSeed[$kLower] = true;
+            $topSeeds[] = $kText;
+        }
+    }
+
+    $effectiveLangConst = !empty($topSeeds) ? detectLanguageConstantForKeywords($topSeeds, $langConst) : $langConst;
+
+    $keywordGeoMap = [];
+    $geoVolSum = [];
+    $geoCpcSum = [];
+    $geoLowCpcSum = [];
+    $geoCpcCount = [];
+
+    $allRequests = [];
+    foreach ($geoConstants as $geo) {
+        $geoResource = strpos($geo, 'geoTargetConstants/') === 0 ? $geo : "geoTargetConstants/{$geo}";
+        $geoId = preg_replace('/[^0-9]/', '', $geo);
+        if (!isset($geoVolSum[$geoId])) {
+            $geoVolSum[$geoId] = 0;
+            $geoCpcSum[$geoId] = 0.0;
+            $geoLowCpcSum[$geoId] = 0.0;
+            $geoCpcCount[$geoId] = 0;
+        }
+
+        if (!empty($topSeeds)) {
+            $seedBatches = array_chunk($topSeeds, 500);
+            foreach ($seedBatches as $seedList) {
+                $allRequests[] = [
+                    'geoId' => $geoId,
+                    'geoResource' => $geoResource,
+                    'endpoint' => 'generateKeywordHistoricalMetrics',
+                    'payload' => [
+                        "keywordPlanNetwork" => "GOOGLE_SEARCH",
+                        "language" => $effectiveLangConst,
+                        "geoTargetConstants" => [$geoResource],
+                        "keywords" => $seedList
+                    ]
+                ];
+            }
+        } elseif ($mode === 'URL' && !empty($query) && preg_match('/^https?:\/\//i', $query)) {
+            $allRequests[] = [
+                'geoId' => $geoId,
+                'geoResource' => $geoResource,
+                'endpoint' => 'generateKeywordIdeas',
+                'payload' => [
+                    "keywordPlanNetwork" => "GOOGLE_SEARCH",
+                    "language" => $effectiveLangConst,
+                    "geoTargetConstants" => [$geoResource],
+                    "urlSeed" => ["url" => $query]
+                ]
+            ];
+        } else {
+            $cleanSite = preg_replace('/^https?:\/\//i', '', $query);
+            $cleanSite = preg_replace('/^www\./i', '', $cleanSite);
+            $cleanSite = explode('/', $cleanSite)[0];
+            $allRequests[] = [
+                'geoId' => $geoId,
+                'geoResource' => $geoResource,
+                'endpoint' => 'generateKeywordIdeas',
+                'payload' => [
+                    "keywordPlanNetwork" => "GOOGLE_SEARCH",
+                    "language" => $effectiveLangConst,
+                    "geoTargetConstants" => [$geoResource],
+                    "siteSeed" => ["siteUrl" => "https://{$cleanSite}"]
+                ]
+            ];
+        }
+    }
+
+    $requestBatches = array_chunk($allRequests, 28);
+
+    foreach ($requestBatches as $batchIdx => $batch) {
+        $mh = curl_multi_init();
+        $curlHandles = [];
+
+        foreach ($batch as $reqIdx => $req) {
+            $endpoint = $req['endpoint'] ?? 'generateKeywordIdeas';
+            $chLoc = curl_init("https://googleads.googleapis.com/v22/customers/{$customerId}:{$endpoint}");
+            curl_setopt($chLoc, CURLOPT_POST, true);
+            curl_setopt($chLoc, CURLOPT_POSTFIELDS, json_encode($req['payload']));
+            curl_setopt($chLoc, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($chLoc, CURLOPT_TIMEOUT, 14);
+            curl_setopt($chLoc, CURLOPT_HTTPHEADER, [
+                "Authorization: Bearer {$accessToken}",
+                "developer-token: {$devToken}",
+                "Content-Type: application/json"
+            ]);
+            curl_multi_add_handle($mh, $chLoc);
+            $curlHandles[] = ['ch' => $chLoc, 'req' => $req];
+        }
+
+        $active = null;
+        do {
+            $mrc = curl_multi_exec($mh, $active);
+        } while ($mrc == CURLM_CALL_MULTI_PERFORM);
+
+        while ($active && $mrc == CURLM_OK) {
+            if (curl_multi_select($mh, 0.5) != -1) {
+                do {
+                    $mrc = curl_multi_exec($mh, $active);
+                } while ($mrc == CURLM_CALL_MULTI_PERFORM);
+            } else {
+                usleep(25000);
+            }
+        }
+
+        foreach ($curlHandles as $hData) {
+            $chLoc = $hData['ch'];
+            $req = $hData['req'];
+            $geoId = $req['geoId'];
+            $resp = curl_multi_getcontent($chLoc);
+            $httpCode = curl_getinfo($chLoc, CURLINFO_HTTP_CODE);
+            curl_multi_remove_handle($mh, $chLoc);
+            curl_close($chLoc);
+
+            $json = ($httpCode === 200) ? json_decode($resp, true) : null;
+            $results = $json['results'] ?? [];
+
+            foreach ($results as $r) {
+                $m = $r['keywordMetrics'] ?? $r['keywordIdeaMetrics'] ?? [];
+                $v = (int)($m['avgMonthlySearches'] ?? 0);
+                $high = (float)(($m['highTopOfPageBidMicros'] ?? 0) / 1000000);
+                $low = (float)(($m['lowTopOfPageBidMicros'] ?? 0) / 1000000);
+
+                $kwText = $r['text'] ?? '';
+                if (!empty($kwText)) {
+                    $kwNorm = mb_strtolower(preg_replace('/\s+/', ' ', trim($kwText)), 'UTF-8');
+                    $keywordGeoMap[$kwNorm][$geoId] = [
+                        'monthlyVolume' => $v,
+                        'lowCpc' => $low,
+                        'highCpc' => $high
+                    ];
+                }
+
+                $geoVolSum[$geoId] += $v;
+                if ($high > 0) {
+                    $geoCpcSum[$geoId] += $high;
+                    $geoLowCpcSum[$geoId] += $low;
+                    $geoCpcCount[$geoId]++;
+                }
+            }
+        }
+        curl_multi_close($mh);
+        if ($batchIdx < count($requestBatches) - 1) {
+            usleep(40000);
+        }
+    }
+
+    $breakdown = [];
+    foreach ($geoConstants as $geo) {
+        $geoId = preg_replace('/[^0-9]/', '', $geo);
+        $vol = $geoVolSum[$geoId] ?? 0;
+        $cnt = $geoCpcCount[$geoId] ?? 0;
+        $avgCpc = $cnt > 0 ? round(($geoCpcSum[$geoId] ?? 0) / $cnt, 2) : 0.0;
+        
+        $locMeta = searchGoogleAdsLocations($apiKeys, $geoId, $langCode)[0] ?? null;
+        $name = $locMeta['name'] ?? "Bölge {$geoId}";
+        $cc = $locMeta['countryCode'] ?? 'TR';
+
+        $breakdown[] = [
+            'id' => (string)$geoId,
+            'code' => $cc,
+            'name' => $name,
+            'monthlyVolume' => $vol,
+            'avgCpc' => $avgCpc
+        ];
+    }
+
     return [
-        'matched' => $matched,
-        'unmatched' => $unmatched
+        'breakdown' => $breakdown,
+        'keywordGeoMap' => $keywordGeoMap
     ];
 }
 
@@ -496,11 +717,7 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
         'fa' => 'languageConstants/1064'
     ];
     $normLangCode = strtolower(trim($langCode));
-    if (is_numeric($normLangCode)) {
-        $langConst = 'languageConstants/' . $normLangCode;
-    } else {
-        $langConst = $langMap[$normLangCode] ?? 'languageConstants/1037';
-    }
+    $langConst = (is_numeric($normLangCode)) ? 'languageConstants/' . $normLangCode : ($langMap[$normLangCode] ?? 'languageConstants/1037');
 
     $topSeeds = [];
     $seenSeed = [];
@@ -527,6 +744,8 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
             $topSeeds[] = $kText;
         }
     }
+
+    $effectiveLangConst = !empty($topSeeds) ? detectLanguageConstantForKeywords($topSeeds, $langConst) : $langConst;
 
     $flagMap = [
         'TR' => '🇹🇷', 'DE' => '🇩🇪', 'GB' => '🇬🇧', 'US' => '🇺🇸',
@@ -567,7 +786,7 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
         }
     }
 
-    // Build all requests: chunk seeds into 20s for every single region
+    // Build all requests using official generateKeywordHistoricalMetrics
     $allRequests = [];
     foreach ($geoConstants as $geo) {
         $geoResource = strpos($geo, 'geoTargetConstants/') === 0 ? $geo : "geoTargetConstants/{$geo}";
@@ -580,16 +799,17 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
         }
 
         if (!empty($topSeeds)) {
-            $seedBatches = array_chunk($topSeeds, 20);
+            $seedBatches = array_chunk($topSeeds, 500);
             foreach ($seedBatches as $seedList) {
                 $allRequests[] = [
                     'geoId' => $geoId,
                     'geoResource' => $geoResource,
+                    'endpoint' => 'generateKeywordHistoricalMetrics',
                     'payload' => [
                         "keywordPlanNetwork" => "GOOGLE_SEARCH",
-                        "language" => $langConst,
+                        "language" => $effectiveLangConst,
                         "geoTargetConstants" => [$geoResource],
-                        "keywordSeed" => ["keywords" => $seedList]
+                        "keywords" => $seedList
                     ]
                 ];
             }
@@ -597,9 +817,10 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
             $allRequests[] = [
                 'geoId' => $geoId,
                 'geoResource' => $geoResource,
+                'endpoint' => 'generateKeywordIdeas',
                 'payload' => [
                     "keywordPlanNetwork" => "GOOGLE_SEARCH",
-                    "language" => $langConst,
+                    "language" => $effectiveLangConst,
                     "geoTargetConstants" => [$geoResource],
                     "urlSeed" => ["url" => $query]
                 ]
@@ -611,9 +832,10 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
             $allRequests[] = [
                 'geoId' => $geoId,
                 'geoResource' => $geoResource,
+                'endpoint' => 'generateKeywordIdeas',
                 'payload' => [
                     "keywordPlanNetwork" => "GOOGLE_SEARCH",
-                    "language" => $langConst,
+                    "language" => $effectiveLangConst,
                     "geoTargetConstants" => [$geoResource],
                     "siteSeed" => ["siteUrl" => "https://{$cleanSite}"]
                 ]
@@ -628,7 +850,8 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
         $curlHandles = [];
 
         foreach ($batch as $reqIdx => $req) {
-            $chLoc = curl_init("https://googleads.googleapis.com/v22/customers/{$customerId}:generateKeywordIdeas");
+            $endpoint = $req['endpoint'] ?? 'generateKeywordIdeas';
+            $chLoc = curl_init("https://googleads.googleapis.com/v22/customers/{$customerId}:{$endpoint}");
             curl_setopt($chLoc, CURLOPT_POST, true);
             curl_setopt($chLoc, CURLOPT_POSTFIELDS, json_encode($req['payload']));
             curl_setopt($chLoc, CURLOPT_RETURNTRANSFER, true);
@@ -673,7 +896,7 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
             $results = $json['results'] ?? [];
 
             foreach ($results as $r) {
-                $m = $r['keywordIdeaMetrics'] ?? [];
+                $m = $r['keywordMetrics'] ?? $r['keywordIdeaMetrics'] ?? [];
                 $v = (int)($m['avgMonthlySearches'] ?? 0);
                 $high = (float)(($m['highTopOfPageBidMicros'] ?? 0) / 1000000);
                 $low = (float)(($m['lowTopOfPageBidMicros'] ?? 0) / 1000000);
@@ -765,23 +988,7 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
     }
     $inputBaseCpc = $inputKeywordCpcCount > 0 ? ($inputKeywordCpcSum / $inputKeywordCpcCount) : 0.0;
 
-    // Fill in any locations that had zero volume or missing CPC with baseline metrics
-    foreach ($breakdown as &$b) {
-        $reach = (int)($locMetaMap[$b['id']]['reach'] ?? 500000);
-        if ($reach <= 0) $reach = 500000;
-
-        if ($b['monthlyVolume'] === 0) {
-            $b['monthlyVolume'] = max(240, (int)round(($reach / 1500000) * ($maxVol > 0 ? $maxVol * 0.45 : 1600)));
-        }
-
-        // If Google Ads API did not return a CPC for this location, fallback to input keywords' real average CPC
-        if ($b['avgCpc'] === 0.0 || $b['avgCpc'] === 0) {
-            $b['avgCpc'] = ($inputBaseCpc > 0) ? round($inputBaseCpc, 2) : round($avgMarketCpc, 2);
-            $b['highCpc'] = $b['avgCpc'];
-        }
-    }
-    unset($b);
-
+    // Calculate share percentages
     $totalBreakdownVol = array_sum(array_column($breakdown, 'monthlyVolume'));
     foreach ($breakdown as &$b) {
         $b['sharePercent'] = $totalBreakdownVol > 0 ? round(($b['monthlyVolume'] / $totalBreakdownVol) * 100, 1) : round(100 / max(1, count($breakdown)), 1);
@@ -963,8 +1170,8 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
         }
     }
 
-    // Multi-cURL Batched Request Executor for Individual Locations (chunks of 4)
-    $executeParallelGoogleAdsCalls = function($requests, $batchSize = 4) use ($customerId, $accessToken, $devToken) {
+    // Multi-cURL Batched Request Executor with Dynamic Endpoint Support
+    $executeParallelGoogleAdsCalls = function($requests, $batchSize = 28) use ($customerId, $accessToken, $devToken) {
         if (empty($requests)) return [];
         $batches = array_chunk($requests, $batchSize);
         $results = [];
@@ -973,7 +1180,8 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
             $mh = curl_multi_init();
             $handles = [];
             foreach ($batch as $key => $req) {
-                $ch = curl_init("https://googleads.googleapis.com/v22/customers/{$customerId}:generateKeywordIdeas");
+                $endpoint = $req['endpoint'] ?? 'generateKeywordIdeas';
+                $ch = curl_init("https://googleads.googleapis.com/v22/customers/{$customerId}:{$endpoint}");
                 curl_setopt($ch, CURLOPT_POST, true);
                 curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($req['payload']));
                 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -1027,7 +1235,7 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
             curl_multi_close($mh);
 
             if ($batchIdx < count($batches) - 1) {
-                usleep(50000); // 50ms pause between batches
+                usleep(40000);
             }
         }
         return $results;
@@ -1049,7 +1257,7 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
                 
                 // Normalize key for 100% airtight deduplication
                 $kwKey = mb_strtolower(preg_replace('/\s+/', ' ', $kwText), 'UTF-8');
-                $metrics = $r['keywordIdeaMetrics'] ?? [];
+                $metrics = $r['keywordMetrics'] ?? $r['keywordIdeaMetrics'] ?? [];
                 $avgVol = (int)($metrics['avgMonthlySearches'] ?? 0);
                 $lowBid = isset($metrics['lowTopOfPageBidMicros']) ? round($metrics['lowTopOfPageBidMicros'] / 1000000, 2) : 0.0;
                 $highBid = isset($metrics['highTopOfPageBidMicros']) ? round($metrics['highTopOfPageBidMicros'] / 1000000, 2) : 0.0;
@@ -1178,12 +1386,14 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
         $uniqueSeeds = array_values(array_unique(array_filter($keywords)));
     }
 
-    // If URL is provided and we need more seeds, query site once for top keyword ideas (0.5s)
+    $effectiveLangConst = !empty($uniqueSeeds) ? detectLanguageConstantForKeywords($uniqueSeeds, $langConst) : $langConst;
+
+    // Step A: Discover initial keyword pool via Google Ads API
     if (!empty($cleanSiteUrl) && count($uniqueSeeds) < 15) {
         $firstGeo = $finalGeoList[0] ?? $geoConst;
         $discPayload = [
             "keywordPlanNetwork" => "GOOGLE_SEARCH",
-            "language" => $langConst,
+            "language" => $effectiveLangConst,
             "geoTargetConstants" => [$firstGeo],
             "siteSeed" => ["siteUrl" => $cleanSiteUrl]
         ];
@@ -1205,83 +1415,53 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
                 $dt = trim($dr['text'] ?? '');
                 if (!empty($dt) && !in_array($dt, $uniqueSeeds)) {
                     $uniqueSeeds[] = $dt;
-                    if (count($uniqueSeeds) >= 100) break;
+                    if (count($uniqueSeeds) >= 200) break;
                 }
             }
         }
     }
 
-    // Build Individual Location Requests (Support multi-batch for unlimited bulk user seeds in chunks of 20)
-    $requests = [];
+    // Step B: Use generateKeywordIdeas on primary seed batches (chunks of 20) to expand suggestions
+    $discoveryRequests = [];
     if (!empty($uniqueSeeds)) {
-        $seedBatches = array_chunk($uniqueSeeds, 20);
+        $seedBatches = array_chunk(array_slice($uniqueSeeds, 0, 40), 20);
         foreach ($seedBatches as $seedList) {
-            foreach ($finalGeoList as $geo) {
-                $geoResource = strpos($geo, 'geoTargetConstants/') === 0 ? $geo : "geoTargetConstants/{$geo}";
-                $geoId = preg_replace('/[^0-9]/', '', $geo);
+            $batchLang = detectLanguageConstantForKeywords($seedList, $effectiveLangConst);
+            $firstGeo = $finalGeoList[0] ?? $geoConst;
+            $geoResource = strpos($firstGeo, 'geoTargetConstants/') === 0 ? $firstGeo : "geoTargetConstants/{$firstGeo}";
+            $geoId = preg_replace('/[^0-9]/', '', $firstGeo);
 
-                $requests[] = [
-                    'geoId' => $geoId,
-                    'isSeed' => true,
-                    'payload' => [
-                        "keywordPlanNetwork" => "GOOGLE_SEARCH",
-                        "language" => $langConst,
-                        "geoTargetConstants" => [$geoResource],
-                        "keywordSeed" => ["keywords" => $seedList]
-                    ]
-                ];
-            }
+            $discoveryRequests[] = [
+                'geoId' => $geoId,
+                'endpoint' => 'generateKeywordIdeas',
+                'isSeed' => true,
+                'payload' => [
+                    "keywordPlanNetwork" => "GOOGLE_SEARCH",
+                    "language" => $batchLang,
+                    "geoTargetConstants" => [$geoResource],
+                    "keywordSeed" => ["keywords" => $seedList]
+                ]
+            ];
         }
     }
 
-    // Execute ALL individual location requests in fast parallel batches of 28!
-    $parallelResults = $executeParallelGoogleAdsCalls($requests, 28);
-    $parseLocationResults($parallelResults);
-
-    // Cross-query all discovered keyword ideas across all target locations so every location has 100% complete metrics
-    if (!empty($parsedKeywords) && count($finalGeoList) > 1) {
-        $allDiscoveredTexts = array_values(array_unique(array_map(function($pk) {
-            return trim($pk['keyword'] ?? '');
-        }, $parsedKeywords)));
-        $allDiscoveredTexts = array_filter($allDiscoveredTexts);
-
-        $crossRequests = [];
-        $discoveredBatches = array_chunk($allDiscoveredTexts, 20);
-        foreach ($discoveredBatches as $dBatch) {
-            foreach ($finalGeoList as $geo) {
-                $geoResource = strpos($geo, 'geoTargetConstants/') === 0 ? $geo : "geoTargetConstants/{$geo}";
-                $geoId = preg_replace('/[^0-9]/', '', $geo);
-
-                $crossRequests[] = [
-                    'geoId' => $geoId,
-                    'isSeed' => false,
-                    'payload' => [
-                        "keywordPlanNetwork" => "GOOGLE_SEARCH",
-                        "language" => $langConst,
-                        "geoTargetConstants" => [$geoResource],
-                        "keywordSeed" => ["keywords" => $dBatch]
-                    ]
-                ];
-            }
-        }
-        if (!empty($crossRequests)) {
-            $crossResults = $executeParallelGoogleAdsCalls($crossRequests, 28);
-            $parseLocationResults($crossResults);
-        }
+    if (!empty($discoveryRequests)) {
+        $parallelResults = $executeParallelGoogleAdsCalls($discoveryRequests, 28);
+        $parseLocationResults($parallelResults);
     }
 
-    // Guaranteed inclusion of all user seed keywords with honest official Google Ads data
+    // Ensure all uniqueSeeds are included in parsed pool
     foreach ($uniqueSeeds as $uSeed) {
         $uClean = is_array($uSeed) ? ($uSeed['keyword'] ?? '') : (string)$uSeed;
         $uClean = trim($uClean);
         if (empty($uClean)) continue;
         $uKey = mb_strtolower(preg_replace('/\s+/', ' ', $uClean), 'UTF-8');
-        if (isset($seedKeys[$uKey]) && !isset($keywordIndexMap[$uKey])) {
+        if (!isset($keywordIndexMap[$uKey])) {
             $keywordIndexMap[$uKey] = count($parsedKeywords);
             $parsedKeywords[] = [
                 'id' => 'user_seed_' . (count($parsedKeywords) + 1) . '_' . substr(md5($uClean), 0, 6),
                 'keyword' => $uClean,
-                'monthlyVolume' => 0, // Real 0 volume from Google Ads Keyword Planner
+                'monthlyVolume' => 0,
                 'lowCpc' => 0.0,
                 'highCpc' => 0.0,
                 'competition' => 'LOW',
@@ -1296,6 +1476,41 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
                 'geoVolumes' => [],
                 'geoCpc' => []
             ];
+        }
+    }
+
+    // Step C: EXACT HISTORICAL METRICS QUERY ACROSS ALL TARGET LOCATIONS!
+    // generateKeywordHistoricalMetrics fetches 100% official historical volume & CPC for all keywords across all locations in parallel!
+    if (!empty($parsedKeywords)) {
+        $allDiscoveredTexts = array_values(array_unique(array_map(function($pk) {
+            return trim($pk['keyword'] ?? '');
+        }, $parsedKeywords)));
+        $allDiscoveredTexts = array_filter($allDiscoveredTexts);
+
+        $crossRequests = [];
+        $discoveredBatches = array_chunk($allDiscoveredTexts, 500); // up to 500 keywords per batch
+        foreach ($discoveredBatches as $dBatch) {
+            $batchLang = detectLanguageConstantForKeywords($dBatch, $effectiveLangConst);
+            foreach ($finalGeoList as $geo) {
+                $geoResource = strpos($geo, 'geoTargetConstants/') === 0 ? $geo : "geoTargetConstants/{$geo}";
+                $geoId = preg_replace('/[^0-9]/', '', $geo);
+
+                $crossRequests[] = [
+                    'geoId' => $geoId,
+                    'endpoint' => 'generateKeywordHistoricalMetrics',
+                    'isSeed' => false,
+                    'payload' => [
+                        "keywordPlanNetwork" => "GOOGLE_SEARCH",
+                        "language" => $batchLang,
+                        "geoTargetConstants" => [$geoResource],
+                        "keywords" => $dBatch
+                    ]
+                ];
+            }
+        }
+        if (!empty($crossRequests)) {
+            $crossResults = $executeParallelGoogleAdsCalls($crossRequests, 28);
+            $parseLocationResults($crossResults);
         }
     }
 
@@ -2663,7 +2878,7 @@ if ($action === 'discover' && $method === 'POST') {
     $includeSuggestions = isset($input['includeSuggestions']) ? (bool)$input['includeSuggestions'] : true;
     $clientSeeds = !empty($input['seedKeywords']) && is_array($input['seedKeywords']) ? $input['seedKeywords'] : [];
 
-    $cacheKey = md5("forecast_v31_{$mode}_{$query}_" . ($includeSuggestions ? 'sug_1_' : 'sug_0_') . ($requestedLanguage ?: 'auto') . '_' . ($requestedCountryCode ?: 'auto') . '_' . implode('_', (array)$requestedGeoTargetConstants));
+    $cacheKey = md5("forecast_v33_{$mode}_{$query}_" . ($includeSuggestions ? 'sug_1_' : 'sug_0_') . ($requestedLanguage ?: 'auto') . '_' . ($requestedCountryCode ?: 'auto') . '_' . implode('_', (array)$requestedGeoTargetConstants));
 
     // 1. Check Server-Side Cache
     $stmtCache = $pdo->prepare("SELECT data, created_at FROM keyword_cache WHERE cache_key = ?");
