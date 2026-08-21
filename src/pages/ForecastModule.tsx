@@ -674,6 +674,13 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   const [isStep2Completed, setIsStep2Completed] = useState<boolean>(false);
   const [isStep3Completed, setIsStep3Completed] = useState<boolean>(false);
 
+  // Synchronize step2ApprovedKeywordIds with selectedKeywordIds while in Step 1
+  useEffect(() => {
+    if (currentStep === 1 && selectedKeywordIds.size > 0) {
+      setStep2ApprovedKeywordIds(new Set(selectedKeywordIds));
+    }
+  }, [currentStep, selectedKeywordIds]);
+
   // Simulation & Business Model Parameters
   const [businessModel, setBusinessModel] = useState<BusinessModel>('LEAD_GEN');
   const [budgetMode, setBudgetMode] = useState<'BY_BUDGET' | 'BY_IMPRESSION_SHARE'>('BY_BUDGET');
