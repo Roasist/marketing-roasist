@@ -38,11 +38,11 @@ $payload = [
     "keywords" => [$kw],
     "historicalMetricsOptions" => [
         "yearMonthRange" => [
-            "startYearMonth" => [
+            "start" => [
                 "year" => 2025,
                 "month" => "AUGUST"
             ],
-            "endYearMonth" => [
+            "end" => [
                 "year" => 2026,
                 "month" => "JULY"
             ]
