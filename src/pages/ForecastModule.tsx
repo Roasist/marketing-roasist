@@ -37,7 +37,8 @@ import {
   CheckCircle,
   AlertCircle,
   ChevronDown,
-  ShieldCheck
+  ShieldCheck,
+  Loader2
 } from 'lucide-react';
 import { ExportCustomizationModal } from '../components/ExportCustomizationModal';
 import { KeywordCluster, groupKeywordsSemantically, enrichKeywordsWithClusterCpc } from '../services/keywordClusteringService';
@@ -59,7 +60,8 @@ import {
   CampaignPlatform,
   CampaignObjective,
   SubCampaignItem,
-  CpcImputationSettings
+  CpcImputationSettings,
+  SearchIntent
 } from '../types/forecast';
 import { ApiService } from '../services/apiService';
 
@@ -2039,25 +2041,96 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     }
   };
 
-  const handleAddCustomKeyword = () => {
-    if (!newKeywordInput.trim()) return;
+  const [isAddingCustomKeyword, setIsAddingCustomKeyword] = useState<boolean>(false);
+
+  const handleAddCustomKeyword = async () => {
+    if (!newKeywordInput.trim() || isAddingCustomKeyword) return;
     const cleanKw = newKeywordInput.trim();
+    setNewKeywordInput('');
+    setIsAddingCustomKeyword(true);
+
     const newId = 'custom_' + Date.now();
+    const targetLocs = (selectedLocations && selectedLocations.length > 0)
+      ? selectedLocations
+      : [{ id: '2792', name: 'Türkiye', canonicalName: 'Türkiye', countryCode: 'TR', targetType: 'Country', flag: '🇹🇷' } as GeoTargetLocation];
+
+    // Detect Intent
+    const normKw = cleanKw.toLowerCase();
+    let detectedIntent: SearchIntent = 'TRANSACTIONAL';
+    if (normKw.includes('satın') || normKw.includes('fiyat') || normKw.includes('buy') || normKw.includes('cost') || normKw.includes('price') || normKw.includes('satılık') || normKw.includes('pass') || normKw.includes('passport') || normKw.includes('citizenship')) {
+      detectedIntent = 'TRANSACTIONAL';
+    } else if (normKw.includes('en iyi') || normKw.includes('best') || normKw.includes('top') || normKw.includes('karşılaştır')) {
+      detectedIntent = 'COMMERCIAL';
+    } else if (normKw.includes('nasıl') || normKw.includes('nedir') || normKw.includes('how') || normKw.includes('what')) {
+      detectedIntent = 'INFORMATIONAL';
+    }
+
+    let liveGeoVolumes: Record<string, number> = {};
+    let liveGeoCpc: Record<string, { lowCpc: number; highCpc: number }> = {};
+    let totalLiveVol = 0;
+    let mainLowCpc = 0;
+    let mainHighCpc = 0;
+
+    try {
+      const res = await ApiService.getLocationBreakdown({
+        query: cleanKw,
+        mode: 'KEYWORDS',
+        language: detectedLanguage || 'tr',
+        geoTargetConstants: targetLocs.map(l => l.id),
+        keywords: [{ id: newId, keyword: cleanKw } as KeywordMetric],
+        locations: targetLocs,
+        bypassCache: true
+      });
+
+      if (res && res.keywordGeoMap) {
+        const kNorm1 = cleanKw.toLowerCase().trim();
+        const kNorm2 = cleanKw.toLowerCase().replace(/\s+/g, ' ').trim();
+        const geoData = res.keywordGeoMap[kNorm1] || res.keywordGeoMap[kNorm2] || Object.values(res.keywordGeoMap)[0];
+        
+        if (geoData) {
+          for (const [gId, metrics] of Object.entries(geoData as Record<string, any>)) {
+            const cleanGId = String(gId).replace(/\D/g, '');
+            const vol = Number(metrics.monthlyVolume) || 0;
+            const low = Number(metrics.lowCpc) || 0;
+            const high = Number(metrics.highCpc) || 0;
+
+            liveGeoVolumes[cleanGId] = vol;
+            liveGeoVolumes[String(gId)] = vol;
+            liveGeoVolumes[`geoTargetConstants/${cleanGId}`] = vol;
+
+            liveGeoCpc[cleanGId] = { lowCpc: low, highCpc: high };
+            liveGeoCpc[String(gId)] = { lowCpc: low, highCpc: high };
+
+            if (vol > 0) totalLiveVol += vol;
+            if (low > 0 && (mainLowCpc === 0 || low < mainLowCpc)) mainLowCpc = low;
+            if (high > mainHighCpc) mainHighCpc = high;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Google Ads API failed for custom keyword:', e);
+    } finally {
+      setIsAddingCustomKeyword(false);
+    }
+
     const newMetric: KeywordMetric = {
       id: newId,
       keyword: cleanKw,
-      monthlyVolume: 4200,
-      lowCpc: 4.80,
-      highCpc: 19.50,
+      monthlyVolume: totalLiveVol,
+      lowCpc: mainLowCpc,
+      highCpc: mainHighCpc,
       competition: 'MEDIUM',
-      competitionIndex: 65,
-      intent: 'TRANSACTIONAL',
-      trendChangePercent: 15,
-      opportunityScore: 88
+      competitionIndex: 50,
+      intent: detectedIntent,
+      trendChangePercent: 0,
+      opportunityScore: 75,
+      geoVolumes: liveGeoVolumes,
+      geoCpc: liveGeoCpc
     };
+
     setKeywords(prev => [newMetric, ...prev]);
     setSelectedKeywordIds(prev => new Set([...prev, newId]));
-    setNewKeywordInput('');
+    setStep2ApprovedKeywordIds(prev => new Set([...prev, newId]));
   };
 
   const handleRemoveKeyword = (id: string, e: React.MouseEvent) => {
@@ -6110,11 +6183,11 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                             />
                             <button
                               onClick={handleAddCustomKeyword}
-                              disabled={!newKeywordInput.trim()}
+                              disabled={!newKeywordInput.trim() || isAddingCustomKeyword}
                               className="btn-secondary"
                               style={{ fontSize: '0.72rem', padding: '0.35rem 0.65rem', whiteSpace: 'nowrap' }}
                             >
-                              <Plus size={12} /> Ekle
+                              {isAddingCustomKeyword ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />} {isAddingCustomKeyword ? 'Aranıyor...' : 'Ekle'}
                             </button>
                           </div>
                         </div>
