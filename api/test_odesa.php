@@ -28,13 +28,13 @@ $accessToken = $tRes['access_token'] ?? '';
 $kw = 'гражданство турции по недвижимости';
 $geo = 'geoTargetConstants/20812'; // Odesa Oblast
 
-$chApi = curl_init("https://googleads.googleapis.com/v22/customers/{$customerId}:generateKeywordHistoricalMetrics");
+$chApi = curl_init("https://googleads.googleapis.com/v22/customers/{$customerId}:generateKeywordIdeas");
 curl_setopt($chApi, CURLOPT_POST, true);
 $payload = [
     "keywordPlanNetwork" => "GOOGLE_SEARCH",
     "language" => "languageConstants/1031",
     "geoTargetConstants" => [$geo],
-    "keywords" => [$kw],
+    "keywordSeed" => ["keywords" => [$kw]],
     "includeAdultKeywords" => false
 ];
 curl_setopt($chApi, CURLOPT_POSTFIELDS, json_encode($payload));
@@ -50,7 +50,18 @@ curl_close($chApi);
 
 $json = json_decode($resp, true);
 
+$firstItem = null;
+if (!empty($json['results'])) {
+    foreach ($json['results'] as $r) {
+        if (mb_strtolower(trim($r['text'] ?? ''), 'UTF-8') === mb_strtolower(trim($kw), 'UTF-8')) {
+            $firstItem = $r;
+            break;
+        }
+    }
+}
+
 echo json_encode([
     'httpCode' => $httpCode,
-    'fullRawResponse' => $json
+    'exactKeywordResult' => $firstItem,
+    'totalResultsCount' => count($json['results'] ?? [])
 ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
