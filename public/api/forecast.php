@@ -798,25 +798,32 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
         }
     }
 
-    // Build all requests: Ultra-fast direct Google Ads Historical Metrics across ALL locations (1 call per location)
+    // Build all requests using generateKeywordIdeas (same approach as Step C in discover)
+    // generateKeywordIdeas with keywordSeed returns per-keyword metrics for the exact seeds
+    // generateKeywordHistoricalMetrics has different sensitivity thresholds and misses data
     $allRequests = [];
+    $diagnostics = []; // Per-location debug info
+
     if (!empty($topSeeds)) {
-        $topHistoricalSeeds = array_slice($topSeeds, 0, 5000);
-        $histLang = detectLanguageConstantForKeywords($topHistoricalSeeds, $effectiveLangConst);
+        $seedBatches = array_chunk($topSeeds, 20); // batch keywords in groups of 20
         foreach ($geoConstants as $geo) {
             $geoResource = strpos($geo, 'geoTargetConstants/') === 0 ? $geo : "geoTargetConstants/{$geo}";
             $geoId = preg_replace('/[^0-9]/', '', $geo);
-            $allRequests[] = [
-                'geoId' => $geoId,
-                'geoResource' => $geoResource,
-                'endpoint' => 'generateKeywordHistoricalMetrics',
-                'payload' => [
-                    "keywordPlanNetwork" => "GOOGLE_SEARCH",
-                    "language" => $histLang,
-                    "geoTargetConstants" => [$geoResource],
-                    "keywords" => $topHistoricalSeeds
-                ]
-            ];
+            foreach ($seedBatches as $seedList) {
+                $batchLang = detectLanguageConstantForKeywords($seedList, $effectiveLangConst);
+                $allRequests[] = [
+                    'geoId' => $geoId,
+                    'geoResource' => $geoResource,
+                    'endpoint' => 'generateKeywordIdeas',
+                    'payload' => [
+                        "keywordPlanNetwork" => "GOOGLE_SEARCH",
+                        "includeAdultKeywords" => false,
+                        "language" => $batchLang,
+                        "geoTargetConstants" => [$geoResource],
+                        "keywordSeed" => ["keywords" => $seedList]
+                    ]
+                ];
+            }
         }
     } elseif ($mode === 'URL' && !empty($query) && preg_match('/^https?:\/\//i', $query)) {
         foreach ($geoConstants as $geo) {
@@ -857,8 +864,8 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
         }
     }
 
-    // Process all location requests in a single high-performance multi-cURL batch (up to 20 concurrent)
-    $requestBatches = array_chunk($allRequests, 20);
+    // Process requests in smaller batches (max 10 concurrent) to avoid rate limiting
+    $requestBatches = array_chunk($allRequests, 10);
     $failedRequests = [];
 
     foreach ($requestBatches as $batchIdx => $batch) {
@@ -871,7 +878,7 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
             curl_setopt($chLoc, CURLOPT_POST, true);
             curl_setopt($chLoc, CURLOPT_POSTFIELDS, json_encode($req['payload']));
             curl_setopt($chLoc, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($chLoc, CURLOPT_TIMEOUT, 12);
+            curl_setopt($chLoc, CURLOPT_TIMEOUT, 15);
             curl_setopt($chLoc, CURLOPT_HTTPHEADER, [
                 "Authorization: Bearer {$accessToken}",
                 "developer-token: {$devToken}",
@@ -887,12 +894,12 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
         } while ($mrc == CURLM_CALL_MULTI_PERFORM);
 
         while ($active && $mrc == CURLM_OK) {
-            if (curl_multi_select($mh, 0.2) != -1) {
+            if (curl_multi_select($mh, 0.3) != -1) {
                 do {
                     $mrc = curl_multi_exec($mh, $active);
                 } while ($mrc == CURLM_CALL_MULTI_PERFORM);
             } else {
-                usleep(15000);
+                usleep(20000);
                 do {
                     $mrc = curl_multi_exec($mh, $active);
                 } while ($mrc == CURLM_CALL_MULTI_PERFORM);
@@ -908,14 +915,27 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
             curl_multi_remove_handle($mh, $chLoc);
             curl_close($chLoc);
 
+            // Collect diagnostics per location
+            if (!isset($diagnostics[$geoId])) {
+                $diagnostics[$geoId] = ['httpCodes' => [], 'resultCounts' => [], 'errors' => []];
+            }
+            $diagnostics[$geoId]['httpCodes'][] = $httpCode;
+
             if ($httpCode === 429 || $httpCode === 503 || $httpCode === 500) {
-                // Queue for retry
                 $failedRequests[] = $req;
+                $diagnostics[$geoId]['errors'][] = "HTTP {$httpCode} — rate limited/server error, queued for retry";
                 continue;
             }
 
-            $json = ($httpCode === 200) ? json_decode($resp, true) : null;
+            if ($httpCode !== 200) {
+                $errBody = substr($resp ?? '', 0, 300);
+                $diagnostics[$geoId]['errors'][] = "HTTP {$httpCode}: {$errBody}";
+                continue;
+            }
+
+            $json = json_decode($resp, true);
             $results = $json['results'] ?? [];
+            $diagnostics[$geoId]['resultCounts'][] = count($results);
 
             foreach ($results as $r) {
                 $m = $r['keywordIdeaMetrics'] ?? $r['keywordMetrics'] ?? [];
@@ -926,15 +946,18 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
                 $kwText = $r['text'] ?? $r['keyword'] ?? $r['keywordText'] ?? '';
                 if (!empty($kwText)) {
                     $kwNorm = mb_strtolower(preg_replace('/\s+/', ' ', trim($kwText)), 'UTF-8');
-                    $keywordGeoMap[$kwNorm][$geoId] = [
-                        'monthlyVolume' => $v,
-                        'lowCpc' => $low,
-                        'highCpc' => $high
-                    ];
-                    // Also cross-populate aliases for Odesa (Oblast 20812 <-> City 1012854 <-> 1012861)
+                    // Only update if this result is better than what we have
+                    if (!isset($keywordGeoMap[$kwNorm][$geoId]) || $keywordGeoMap[$kwNorm][$geoId]['monthlyVolume'] < $v) {
+                        $keywordGeoMap[$kwNorm][$geoId] = [
+                            'monthlyVolume' => $v,
+                            'lowCpc' => $low,
+                            'highCpc' => $high
+                        ];
+                    }
+                    // Cross-populate Odesa aliases
                     if ($geoId === '1012854' || $geoId === '20812' || $geoId === '1012861') {
                         foreach (['1012854', '20812', '1012861'] as $oAlias) {
-                            if (!isset($keywordGeoMap[$kwNorm][$oAlias]) || $keywordGeoMap[$kwNorm][$oAlias]['monthlyVolume'] === 0) {
+                            if (!isset($keywordGeoMap[$kwNorm][$oAlias]) || $keywordGeoMap[$kwNorm][$oAlias]['monthlyVolume'] < $v) {
                                 $keywordGeoMap[$kwNorm][$oAlias] = [
                                     'monthlyVolume' => $v,
                                     'lowCpc' => $low,
@@ -945,24 +968,17 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
                     }
                 }
 
-                $geoVolSum[$geoId] += $v;
-                if ($geoId === '1012854' || $geoId === '20812' || $geoId === '1012861') {
-                    foreach (['1012854', '20812', '1012861'] as $oAlias) {
-                        if (!isset($geoVolSum[$oAlias]) || $geoVolSum[$oAlias] === 0) {
-                            $geoVolSum[$oAlias] = $geoVolSum[$geoId];
-                        }
-                    }
-                }
+                // Recalculate geo sums from map (will be done after all results)
                 if ($high > 0) {
-                    $geoCpcSum[$geoId] += $high;
-                    $geoLowCpcSum[$geoId] += $low;
-                    $geoCpcCount[$geoId]++;
+                    $geoCpcSum[$geoId] = ($geoCpcSum[$geoId] ?? 0) + $high;
+                    $geoLowCpcSum[$geoId] = ($geoLowCpcSum[$geoId] ?? 0) + $low;
+                    $geoCpcCount[$geoId] = ($geoCpcCount[$geoId] ?? 0) + 1;
                 }
             }
         }
         curl_multi_close($mh);
         if ($batchIdx < count($requestBatches) - 1) {
-            usleep(60000); // 60ms pause between batches
+            usleep(100000); // 100ms pause between batches to avoid rate limiting
         }
     }
 
@@ -1045,7 +1061,16 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
 
     foreach ($geoConstants as $geo) {
         $geoId = preg_replace('/[^0-9]/', '', $geo);
-        $vol = $geoVolSum[$geoId] ?? 0;
+        
+        $vol = 0;
+        $posCount = 0;
+        foreach ($keywordGeoMap as $kwMetrics) {
+            if (isset($kwMetrics[$geoId]) && $kwMetrics[$geoId]['monthlyVolume'] > 0) {
+                $vol += (int)$kwMetrics[$geoId]['monthlyVolume'];
+                $posCount++;
+            }
+        }
+
         $cnt = $geoCpcCount[$geoId] ?? 0;
         $avgCpc = $cnt > 0 ? round(($geoCpcSum[$geoId] ?? 0) / $cnt, 2) : 0.0;
         $lowCpc = $cnt > 0 ? round(($geoLowCpcSum[$geoId] ?? 0) / $cnt, 2) : 0.0;
@@ -1059,13 +1084,6 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
         $canonical = $locMeta['canonicalName'] ?? $name;
         $cc = $locMeta['countryCode'] ?? 'TR';
         $flag = $locMeta['flag'] ?? ($flagMap[$cc] ?? '🌍');
-
-        $posCount = 0;
-        foreach ($keywordGeoMap as $kwMetrics) {
-            if (isset($kwMetrics[$geoId]) && $kwMetrics[$geoId]['monthlyVolume'] > 0) {
-                $posCount++;
-            }
-        }
 
         $breakdown[] = [
             'id' => (string)$geoId,
