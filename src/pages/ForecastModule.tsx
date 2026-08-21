@@ -3149,15 +3149,12 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       }
 
       // Compute effective regional volume:
-      // If direct Google Ads volume was returned, use the exact Google Ads API value!
-      // If direct volume is null or 0, estimate from market share so user gets realistic regional data:
+      // If direct Google Ads volume was returned (either 0 or > 0), use the exact Google Ads API value!
       let effectiveLocVol = 0;
-      if (directLocVol !== null && directLocVol > 0) {
+      if (directLocVol !== null) {
         effectiveLocVol = directLocVol;
-      } else if (directLocVol === 0 && (!activeScopeMetric || activeScopeMetric.sharePercent <= 0)) {
-        effectiveLocVol = 0;
-      } else if (k.monthlyVolume > 0) {
-        effectiveLocVol = Math.max(10, Math.round(k.monthlyVolume * locShareRatio));
+      } else if (k.monthlyVolume > 0 && locShareRatio > 0) {
+        effectiveLocVol = Math.round(k.monthlyVolume * locShareRatio);
       }
 
       let directCpcObj = undefined;
