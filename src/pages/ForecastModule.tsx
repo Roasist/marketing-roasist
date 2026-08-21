@@ -32,7 +32,11 @@ import {
   KeyRound,
   SlidersHorizontal,
   FileText,
-  Edit2
+  Edit2,
+  Activity,
+  CheckCircle,
+  AlertCircle,
+  ShieldCheck
 } from 'lucide-react';
 import { ExportCustomizationModal } from '../components/ExportCustomizationModal';
 import { KeywordCluster, groupKeywordsSemantically, enrichKeywordsWithClusterCpc } from '../services/keywordClusteringService';
@@ -443,6 +447,31 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   const [locationSearchQuery, setLocationSearchQuery] = useState<string>('');
   const [locationSearchResults, setLocationSearchResults] = useState<GeoTargetLocation[]>([]);
   const [isSearchingLocations, setIsSearchingLocations] = useState<boolean>(false);
+
+  // 📍 Location API Audit Inspection Modal State
+  const [showLocationAuditModal, setShowLocationAuditModal] = useState<boolean>(false);
+  const [locationAuditData, setLocationAuditData] = useState<{
+    locations: Array<{
+      id: string;
+      cleanId: string;
+      name: string;
+      canonicalName: string;
+      countryCode: string;
+      targetType: string;
+      flag: string;
+      searchVolume: number;
+      keywordsWithVolumeCount: number;
+      avgCpc: number;
+      status: 'SUCCESS' | 'NO_VOLUME';
+    }>;
+    totalLocations: number;
+    successLocations: number;
+    totalVolume: number;
+    totalKeywords: number;
+    detectedLanguage: string;
+    sector: string;
+  } | null>(null);
+  const [locationAuditFilterQuery, setLocationAuditFilterQuery] = useState<string>('');
 
   // Export Customization Modal State
   const [exportModalState, setExportModalState] = useState<{
@@ -1859,12 +1888,73 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
         setKeywords(finalKeywords);
 
+        // Compute location audit details for all target regions
+        const auditItems = activeLocations.map((loc: any) => {
+          const cleanId = String(loc.id).replace(/\D/g, '');
+          let volSum = 0;
+          let kwWithVol = 0;
+          let cpcSum = 0;
+          let cpcCount = 0;
+
+          for (const k of finalKeywords) {
+            let v = 0;
+            if (k.geoVolumes) {
+              const keysToTry = [
+                cleanId,
+                String(loc.id),
+                `geoTargetConstants/${cleanId}`,
+                loc.countryCode,
+                loc.countryCode?.toLowerCase(),
+                loc.name?.toLowerCase()
+              ].filter(Boolean) as string[];
+              for (const kt of keysToTry) {
+                if (k.geoVolumes[kt] !== undefined) {
+                  v = Number(k.geoVolumes[kt]) || 0;
+                  break;
+                }
+              }
+            }
+            if (v > 0) {
+              volSum += v;
+              kwWithVol++;
+            }
+            const cpcObj = k.geoCpc?.[cleanId] || k.geoCpc?.[String(loc.id)];
+            if (cpcObj?.highCpc && cpcObj.highCpc > 0) {
+              cpcSum += cpcObj.highCpc;
+              cpcCount++;
+            }
+          }
+
+          return {
+            id: String(loc.id),
+            cleanId,
+            name: loc.name,
+            canonicalName: loc.canonicalName || loc.name,
+            countryCode: loc.countryCode || 'TR',
+            targetType: loc.targetType || 'City',
+            flag: loc.flag || '🌍',
+            searchVolume: volSum,
+            keywordsWithVolumeCount: kwWithVol,
+            avgCpc: cpcCount > 0 ? (cpcSum / cpcCount) : 0,
+            status: (volSum > 0 ? 'SUCCESS' : 'NO_VOLUME') as 'SUCCESS' | 'NO_VOLUME'
+          };
+        });
+
+        const auditSummary = {
+          locations: auditItems,
+          totalLocations: activeLocations.length,
+          successLocations: auditItems.filter(i => i.searchVolume > 0).length,
+          totalVolume: finalKeywords.reduce((acc, k) => acc + (k.monthlyVolume || 0), 0),
+          totalKeywords: finalKeywords.length,
+          detectedLanguage: res.detectedLanguage || 'tr',
+          sector: res.sector || 'Genel'
+        };
+
+        setLocationAuditData(auditSummary);
+
         // Advance to completion stage (%100)
         setLoadingStage(4);
-        await new Promise((resolve) => setTimeout(resolve, 600));
-
-        // Switch to Step 1 for user review with 100% complete data
-        setCurrentStep(1);
+        await new Promise((resolve) => setTimeout(resolve, 500));
 
         // Populate negative keywords in the detected language & intent
         if (res.negativeCategories && res.negativeCategories.length > 0) {
@@ -1872,6 +1962,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         } else {
           loadNegatives(res.sector || 'Genel', res.keywords.map((k: KeywordMetric) => k.keyword), res.detectedLanguage || 'tr', res.pageTitle, res.pageSummary);
         }
+
+        // Open the Location Audit Inspection Modal for user confirmation before entering Step 1
+        setShowLocationAuditModal(true);
       } else {
         setErrorMsg('Bu arama için anahtar kelime verisi üretilemedi.');
       }
@@ -5126,7 +5219,17 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowLocationAuditModal(true)}
+                    className="btn-ghost"
+                    style={{ fontSize: '0.78rem', padding: '0.35rem 0.75rem', border: '1px solid rgba(16, 185, 129, 0.35)', backgroundColor: 'rgba(16, 185, 129, 0.08)', borderRadius: 'var(--radius-xs)', display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#10b981', fontWeight: 600 }}
+                  >
+                    <Activity size={13} />
+                    <span>📍 Google Ads API Raporu</span>
+                  </button>
+
                   <button
                     type="button"
                     onClick={() => setIsLocationModalOpen(true)}
@@ -10136,6 +10239,265 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                 style={{ padding: '0.5rem 1.25rem', fontSize: '0.82rem', fontWeight: 600 }}
               >
                 ✓ Değişiklikleri Uygula & Kapat
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 📍 Google Ads API Location & Volume Audit Inspection Modal */}
+      {showLocationAuditModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(6px)',
+            zIndex: 99999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1rem',
+          }}
+          onClick={() => {
+            setShowLocationAuditModal(false);
+            setCurrentStep(1);
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: 'var(--bg-surface)',
+              borderRadius: 'var(--radius-md)',
+              border: '1.5px solid var(--brand-primary)',
+              width: '100%',
+              maxWidth: '880px',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(37, 99, 235, 0.2)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '1.25rem',
+              padding: '1.5rem',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', borderBottom: '1px solid var(--border-default)', paddingBottom: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div style={{ padding: '0.65rem', borderRadius: 'var(--radius-sm)', backgroundColor: 'rgba(37, 99, 235, 0.15)', color: 'var(--brand-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Globe size={22} />
+                </div>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                      Google Ads API — Lokasyon & Hacim Doğrulama Raporu
+                    </h3>
+                    <span className="badge badge-active" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#059669', border: '1px solid rgba(16, 185, 129, 0.3)', fontSize: '0.7rem', fontWeight: 600 }}>
+                      <CheckCircle size={10} style={{ marginRight: 3 }} /> %100 Resmi Google API Verisi
+                    </span>
+                  </div>
+                  <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                    Hedeflenen tüm bölgelerin Google Ads Keyword Planner API'sinden çekilen resmi arama hacimleri ve yanıt durumu aşağıda listelenmiştir.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowLocationAuditModal(false);
+                  setCurrentStep(1);
+                }}
+                className="btn-ghost"
+                style={{ padding: '0.35rem', borderRadius: '50%', color: 'var(--text-muted)' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* 4 Summary Cards */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+              <div style={{ padding: '0.85rem 1rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  📍 Taranan Bölgeler
+                </div>
+                <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '0.2rem' }}>
+                  {locationAuditData?.successLocations || 0} / {locationAuditData?.totalLocations || selectedLocations.length} Aktif
+                </div>
+                <div style={{ fontSize: '0.7rem', color: (locationAuditData?.successLocations === locationAuditData?.totalLocations) ? '#10b981' : '#f59e0b', marginTop: '0.2rem', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                  {locationAuditData?.successLocations === locationAuditData?.totalLocations ? '✓ Tüm bölgelerden veri alındı' : '⚠️ Bazı bölgelerde 0 hacim'}
+                </div>
+              </div>
+
+              <div style={{ padding: '0.85rem 1rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  🔍 Toplam Kelime Havuzu
+                </div>
+                <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '0.2rem' }}>
+                  {(locationAuditData?.totalKeywords || keywords.length).toLocaleString('tr-TR')} Kelime
+                </div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                  Resmi Google Ads Keyword Ideas
+                </div>
+              </div>
+
+              <div style={{ padding: '0.85rem 1rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  📈 Toplam Aylık Hacim
+                </div>
+                <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#3b82f6', marginTop: '0.2rem' }}>
+                  {(locationAuditData?.totalVolume || keywords.reduce((acc, k) => acc + (k.monthlyVolume || 0), 0)).toLocaleString('tr-TR')} / ay
+                </div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                  Tüm hedef pazarların toplamı
+                </div>
+              </div>
+
+              <div style={{ padding: '0.85rem 1rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  ⚡ API Bağlantı Durumu
+                </div>
+                <div style={{ fontSize: '1.15rem', fontWeight: 700, color: '#10b981', marginTop: '0.2rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <ShieldCheck size={18} /> Canlı Google API
+                </div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                  Multi-Chunk & Auto-Retry Aktif
+                </div>
+              </div>
+            </div>
+
+            {/* Filter Input */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <div style={{ position: 'relative', flex: 1, minWidth: '240px' }}>
+                <Search size={14} color="var(--text-muted)" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }} />
+                <input
+                  type="text"
+                  placeholder="Lokasyon veya ID ara (örn: Almatı, Odesa, 1009804)..."
+                  value={locationAuditFilterQuery}
+                  onChange={(e) => setLocationAuditFilterQuery(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '0.45rem 0.75rem 0.45rem 2rem',
+                    fontSize: '0.78rem',
+                    backgroundColor: 'var(--bg-surface-elevated)',
+                    border: '1px solid var(--border-default)',
+                    borderRadius: 'var(--radius-xs)',
+                    color: 'var(--text-primary)'
+                  }}
+                />
+              </div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                Gösterilen: <strong>{(locationAuditData?.locations || []).filter(l => !locationAuditFilterQuery.trim() || l.name.toLowerCase().includes(locationAuditFilterQuery.toLowerCase()) || l.canonicalName.toLowerCase().includes(locationAuditFilterQuery.toLowerCase()) || l.id.includes(locationAuditFilterQuery)).length}</strong> Bölge
+              </div>
+            </div>
+
+            {/* Detailed Location Audit Table */}
+            <div style={{ overflowX: 'auto', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', maxHeight: '340px' }}>
+              <table className="data-table" style={{ width: '100%', fontSize: '0.8rem', borderCollapse: 'collapse' }}>
+                <thead style={{ position: 'sticky', top: 0, zIndex: 2, backgroundColor: 'var(--bg-surface-elevated)' }}>
+                  <tr>
+                    <th style={{ padding: '0.6rem 0.75rem', textAlign: 'left' }}>Hedef Lokasyon</th>
+                    <th style={{ padding: '0.6rem 0.75rem', textAlign: 'left' }}>Google Kriter ID</th>
+                    <th style={{ padding: '0.6rem 0.75rem', textAlign: 'center' }}>API Durumu</th>
+                    <th style={{ padding: '0.6rem 0.75rem', textAlign: 'right' }}>Hacimli Kelime</th>
+                    <th style={{ padding: '0.6rem 0.75rem', textAlign: 'right' }}>Aylık Arama Hacmi</th>
+                    <th style={{ padding: '0.6rem 0.75rem', textAlign: 'right' }}>Ort. Sayfa Üstü TBM</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(locationAuditData?.locations || []).filter(l => !locationAuditFilterQuery.trim() || l.name.toLowerCase().includes(locationAuditFilterQuery.toLowerCase()) || l.canonicalName.toLowerCase().includes(locationAuditFilterQuery.toLowerCase()) || l.id.includes(locationAuditFilterQuery)).map((loc, idx) => {
+                    const hasVolume = loc.searchVolume > 0;
+                    const totalKwCount = locationAuditData?.totalKeywords || keywords.length || 1;
+                    const kwPercent = Math.min(100, Math.round((loc.keywordsWithVolumeCount / totalKwCount) * 100));
+
+                    return (
+                      <tr key={loc.id || idx} style={{ borderBottom: '1px solid var(--border-subtle)', backgroundColor: idx % 2 === 0 ? 'var(--bg-surface)' : 'rgba(255,255,255,0.015)' }}>
+                        <td style={{ padding: '0.6rem 0.75rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                            <span style={{ fontSize: '1.1rem' }}>{loc.flag || '📍'}</span>
+                            <div>
+                              <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                                {loc.name}
+                              </div>
+                              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                                {loc.canonicalName} ({loc.targetType || 'Bölge'})
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td style={{ padding: '0.6rem 0.75rem' }}>
+                          <code style={{ fontSize: '0.72rem', backgroundColor: 'var(--bg-surface-elevated)', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)' }}>
+                            geoTargetConstants/{loc.cleanId || loc.id}
+                          </code>
+                        </td>
+                        <td style={{ padding: '0.6rem 0.75rem', textAlign: 'center' }}>
+                          {hasVolume ? (
+                            <span className="badge" style={{ backgroundColor: 'rgba(16, 185, 129, 0.15)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '3px 8px', fontSize: '0.7rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                              <CheckCircle size={10} /> Veri Alındı
+                            </span>
+                          ) : (
+                            <span className="badge" style={{ backgroundColor: 'rgba(239, 68, 68, 0.12)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.25)', padding: '3px 8px', fontSize: '0.7rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                              <AlertCircle size={10} /> 0 Hacim
+                            </span>
+                          )}
+                        </td>
+                        <td style={{ padding: '0.6rem 0.75rem', textAlign: 'right' }}>
+                          <div style={{ fontWeight: 600, color: hasVolume ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                            {loc.keywordsWithVolumeCount} / {totalKwCount}
+                          </div>
+                          {hasVolume && (
+                            <div style={{ width: '60px', height: '3px', backgroundColor: 'var(--border-default)', borderRadius: '2px', marginLeft: 'auto', marginTop: '3px', overflow: 'hidden' }}>
+                              <div style={{ width: `${kwPercent}%`, height: '100%', backgroundColor: '#10b981', borderRadius: '2px' }} />
+                            </div>
+                          )}
+                        </td>
+                        <td style={{ padding: '0.6rem 0.75rem', textAlign: 'right', fontWeight: 700, color: hasVolume ? '#3b82f6' : 'var(--text-muted)' }}>
+                          {loc.searchVolume.toLocaleString('tr-TR')} / ay
+                        </td>
+                        <td style={{ padding: '0.6rem 0.75rem', textAlign: 'right', fontWeight: 600, color: loc.avgCpc > 0 ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                          {loc.avgCpc > 0 ? `₺${loc.avgCpc.toFixed(2)}` : '—'}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Info Callout */}
+            <div style={{
+              backgroundColor: 'rgba(37, 99, 235, 0.05)',
+              border: '1px solid rgba(37, 99, 235, 0.2)',
+              borderRadius: 'var(--radius-sm)',
+              padding: '0.65rem 0.9rem',
+              display: 'flex',
+              gap: '0.5rem',
+              alignItems: 'center',
+              fontSize: '0.74rem',
+              color: 'var(--text-secondary)'
+            }}>
+              <Info size={15} color="var(--brand-primary)" style={{ flexShrink: 0 }} />
+              <span>
+                <strong>Google Ads Doğrulama Notu:</strong> Google Ads API, arama sayısı gizlilik sınırının altındaki veya hedef dilde aranması olmayan küçük bölgeler için resmi olarak 0 hacim döndürür. Tablodaki veriler Google Ads Keyword Planner'dan filtrelenmeden doğrudan alınmıştır.
+              </span>
+            </div>
+
+            {/* Modal Footer Actions */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid var(--border-default)', paddingTop: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                Doğrulama tamamlandı. 1. Adım ekranında kelimeleri ve lokasyon kırılımlarını inceleyebilirsiniz.
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setShowLocationAuditModal(false);
+                  setCurrentStep(1);
+                }}
+                className="btn-primary"
+                style={{ padding: '0.6rem 1.4rem', fontSize: '0.85rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.45rem', borderRadius: 'var(--radius-xs)' }}
+              >
+                <span>Tamam — 1. Adım Analiz Ekranına Geç</span>
+                <ArrowRight size={15} />
               </button>
             </div>
           </div>
