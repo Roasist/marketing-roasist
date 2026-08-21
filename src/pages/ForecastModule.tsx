@@ -421,6 +421,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   const [pageSummary, setPageSummary] = useState<string>('');
   const [keywords, setKeywords] = useState<KeywordMetric[]>([]);
   const [selectedKeywordIds, setSelectedKeywordIds] = useState<Set<string>>(new Set());
+  const [step2ApprovedKeywordIds, setStep2ApprovedKeywordIds] = useState<Set<string>>(new Set());
   const [newKeywordInput, setNewKeywordInput] = useState<string>('');
 
   // Guaranteed Non-Auto Resolved Language for UI Display & APIs
@@ -1165,7 +1166,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     isApplyingSubCampaignRef.current = true;
     setActiveSubCampaignId(target.id);
     setKeywords(target.discoveredKeywords || []);
-    setSelectedKeywordIds(new Set((target.selectedKeywords || []).map(k => k.id)));
+    const loadedSelIds = new Set((target.selectedKeywords || []).map(k => k.id));
+    setSelectedKeywordIds(loadedSelIds);
+    setStep2ApprovedKeywordIds(loadedSelIds);
     setNegativeCategories(target.negativeCategories || []);
     if (target.targetLocations && target.targetLocations.length > 0) {
       setSelectedLocations(target.targetLocations);
@@ -1847,12 +1850,30 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
   const handleRemoveKeyword = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    setKeywords(prev => prev.filter(k => k.id !== id));
-    setSelectedKeywordIds(prev => {
-      const next = new Set(prev);
-      next.delete(id);
-      return next;
-    });
+    if (currentStep === 2) {
+      setSelectedKeywordIds(prev => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+      setStep2ApprovedKeywordIds(prev => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    } else {
+      setKeywords(prev => prev.filter(k => k.id !== id));
+      setSelectedKeywordIds(prev => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+      setStep2ApprovedKeywordIds(prev => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    }
   };
 
   const loadNegatives = async (sector: string, kwList: string[], lang: string, pageTitle?: string, pageSummary?: string) => {
@@ -2863,54 +2884,67 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     });
   }, [imputedKeywords, activeLocationScope, activeScopeMetric, activeScopeLocation, selectedLocations, cpcImputationSettings]);
 
+  // In Step 2, the pool of keywords is strictly the approved keywords carried over from Step 1
+  const step2WorkingKeywords = useMemo(() => {
+    if (currentStep === 2) {
+      const approvedSet = step2ApprovedKeywordIds.size > 0 ? step2ApprovedKeywordIds : selectedKeywordIds;
+      return scopedKeywords.filter(k => approvedSet.has(k.id));
+    }
+    return scopedKeywords;
+  }, [currentStep, scopedKeywords, step2ApprovedKeywordIds, selectedKeywordIds]);
+
   // Scoped clusters (Ad Group Themes)
   const keywordClusters = useMemo(() => {
-    const kwMap = new Map(scopedKeywords.map(k => [k.id, k]));
-    return baseKeywordClusters.map(cluster => {
-      const cKws = cluster.keywords.map(k => {
-        const scopedK = kwMap.get(k.id);
-        if (scopedK) {
-          // Only preserve estimation metadata if the keyword is actually estimated
-          const isEstimated = Boolean(k.isCpcEstimated || scopedK.isCpcEstimated);
-          return {
-            ...k,
-            ...scopedK,
-            isCpcEstimated: isEstimated,
-            cpcEstimationCluster: isEstimated ? (k.cpcEstimationCluster || scopedK.cpcEstimationCluster || cluster.name) : undefined,
-            cpcEstimationMultiplier: isEstimated ? (k.cpcEstimationMultiplier || scopedK.cpcEstimationMultiplier) : undefined
-          };
-        }
-        return k;
-      });
-      const totalVol = cKws.reduce((s, k) => s + k.monthlyVolume, 0);
-      const cpcSum = cKws.reduce((s, k) => s + ((k.lowCpc + k.highCpc) / 2), 0);
-      const avgCpc = cKws.length > 0 ? (cpcSum / cKws.length) : 0;
-      const selectedCount = cKws.filter(k => selectedKeywordIds.has(k.id)).length;
-      return {
-        ...cluster,
-        keywords: cKws,
-        totalVolume: totalVol,
-        avgCpc: Math.round(avgCpc * 100) / 100,
-        selectedCount
-      };
-    });
-  }, [baseKeywordClusters, scopedKeywords, selectedKeywordIds]);
+    const kwMap = new Map(step2WorkingKeywords.map(k => [k.id, k]));
+    return baseKeywordClusters
+      .map(cluster => {
+        const cKws = cluster.keywords
+          .map(k => {
+            const scopedK = kwMap.get(k.id);
+            if (!scopedK) return null;
+            const isEstimated = Boolean(k.isCpcEstimated || scopedK.isCpcEstimated);
+            return {
+              ...k,
+              ...scopedK,
+              isCpcEstimated: isEstimated,
+              cpcEstimationCluster: isEstimated ? (k.cpcEstimationCluster || scopedK.cpcEstimationCluster || cluster.name) : undefined,
+              cpcEstimationMultiplier: isEstimated ? (k.cpcEstimationMultiplier || scopedK.cpcEstimationMultiplier) : undefined
+            };
+          })
+          .filter(Boolean) as KeywordMetric[];
 
-  // Active Cluster details for Step 1
+        if (currentStep === 2 && cKws.length === 0) return null;
+
+        const totalVol = cKws.reduce((s, k) => s + k.monthlyVolume, 0);
+        const cpcSum = cKws.reduce((s, k) => s + ((k.lowCpc + k.highCpc) / 2), 0);
+        const avgCpc = cKws.length > 0 ? (cpcSum / cKws.length) : 0;
+        const selectedCount = cKws.filter(k => selectedKeywordIds.has(k.id)).length;
+        return {
+          ...cluster,
+          keywords: cKws,
+          totalVolume: totalVol,
+          avgCpc: Math.round(avgCpc * 100) / 100,
+          selectedCount
+        };
+      })
+      .filter(Boolean) as KeywordCluster[];
+  }, [baseKeywordClusters, step2WorkingKeywords, selectedKeywordIds, currentStep]);
+
+  // Active Cluster details for Step 1 & Step 2
   const activeCluster = useMemo(() => {
-    const activeKwList = scopedKeywords;
+    const activeKwList = step2WorkingKeywords;
     if (activeClusterId === 'ALL') {
       const totalVol = activeKwList.reduce((s, k) => s + k.monthlyVolume, 0);
       const cpcSum = activeKwList.reduce((s, k) => s + ((k.lowCpc + k.highCpc) / 2), 0);
       const transactionalCount = activeKwList.filter(k => k.intent === 'TRANSACTIONAL').length;
       return {
         id: 'ALL',
-        name: 'Tüm Anahtar Kelimeler',
+        name: currentStep === 2 ? 'Tüm Seçilen Kelimeler' : 'Tüm Anahtar Kelimeler',
         icon: '✨',
         keywords: activeKwList,
         totalVolume: totalVol,
         avgCpc: activeKwList.length > 0 ? cpcSum / activeKwList.length : 0,
-        selectedCount: selectedKeywordIds.size,
+        selectedCount: currentStep === 2 ? activeKwList.filter(k => selectedKeywordIds.has(k.id)).length : selectedKeywordIds.size,
         transactionalCount
       };
     }
@@ -2921,7 +2955,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     }
     return {
       id: 'ALL',
-      name: 'Tüm Anahtar Kelimeler',
+      name: currentStep === 2 ? 'Tüm Seçilen Kelimeler' : 'Tüm Anahtar Kelimeler',
       icon: '✨',
       keywords: activeKwList,
       totalVolume: 0,
@@ -2929,34 +2963,28 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       selectedCount: 0,
       transactionalCount: 0
     };
-  }, [activeClusterId, keywordClusters, scopedKeywords, selectedKeywordIds]);
+  }, [activeClusterId, keywordClusters, step2WorkingKeywords, selectedKeywordIds, currentStep]);
 
   // Count of strategist picks in the current view
   const strategistCountInView = useMemo(() => {
-    const baseList = activeCluster ? activeCluster.keywords : scopedKeywords;
+    const baseList = activeCluster ? activeCluster.keywords : step2WorkingKeywords;
     return baseList.filter(k => !!k.isAiStrategistPick || k.id?.startsWith('ai_strat_') || k.id?.startsWith('ai_alt_')).length;
-  }, [activeCluster, scopedKeywords]);
+  }, [activeCluster, step2WorkingKeywords]);
 
   // Count of user seeds vs suggestions in the current view
   const userSeedsCountInView = useMemo(() => {
-    const baseList = activeCluster ? activeCluster.keywords : scopedKeywords;
+    const baseList = activeCluster ? activeCluster.keywords : step2WorkingKeywords;
     return baseList.filter(k => !!k.isUserSeed || k.source === 'USER_SEED' || k.id?.startsWith('seed_kw_') || k.id?.startsWith('user_seed_')).length;
-  }, [activeCluster, scopedKeywords]);
+  }, [activeCluster, step2WorkingKeywords]);
 
   const expansionCountInView = useMemo(() => {
-    const baseList = activeCluster ? activeCluster.keywords : scopedKeywords;
+    const baseList = activeCluster ? activeCluster.keywords : step2WorkingKeywords;
     return baseList.filter(k => !k.isUserSeed && k.source !== 'USER_SEED' && !k.id?.startsWith('seed_kw_') && !k.id?.startsWith('user_seed_')).length;
-  }, [activeCluster, scopedKeywords]);
+  }, [activeCluster, step2WorkingKeywords]);
 
   // Filtered & Sorted Keywords for the active right-side data grid
   const activeKeywordsGrid = useMemo(() => {
-    let baseList = activeCluster ? activeCluster.keywords : scopedKeywords;
-
-    // In Step 2 (Review Step): ONLY show selected keywords!
-    if (currentStep === 2) {
-      baseList = baseList.filter(k => selectedKeywordIds.has(k.id));
-    }
-
+    const baseList = activeCluster ? activeCluster.keywords : step2WorkingKeywords;
     const searchLower = step1SearchFilter.toLowerCase().trim();
 
     return baseList
@@ -2980,7 +3008,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         if (step1SortBy === 'ALPHABETICAL') return a.keyword.localeCompare(b.keyword);
         return 0;
       });
-  }, [activeCluster, scopedKeywords, currentStep, selectedKeywordIds, step1SearchFilter, step1SourceFilter, step1IntentFilter, step1SortBy, mode]);
+  }, [activeCluster, step2WorkingKeywords, step1SearchFilter, step1SourceFilter, step1IntentFilter, step1SortBy, mode]);
 
   const maxVolumeInGrid = useMemo(() => {
     return Math.max(...activeKeywordsGrid.map(k => k.monthlyVolume), 1);
@@ -4796,7 +4824,12 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           <button
             type="button"
             onClick={() => {
-              if (selectedKeywordIds.size > 0) setCurrentStep(2);
+              if (selectedKeywordIds.size > 0) {
+                if (step2ApprovedKeywordIds.size === 0) {
+                  setStep2ApprovedKeywordIds(new Set(selectedKeywordIds));
+                }
+                setCurrentStep(2);
+              }
             }}
             disabled={selectedKeywordIds.size === 0}
             style={{
@@ -5151,8 +5184,13 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                         <button
                           type="button"
                           onClick={() => {
-                            const allIds = new Set(keywords.map(k => k.id));
-                            setSelectedKeywordIds(allIds);
+                            if (currentStep === 2) {
+                              const pool = step2ApprovedKeywordIds.size > 0 ? step2ApprovedKeywordIds : selectedKeywordIds;
+                              setSelectedKeywordIds(new Set(pool));
+                            } else {
+                              const allIds = new Set(keywords.map(k => k.id));
+                              setSelectedKeywordIds(allIds);
+                            }
                           }}
                           className="btn-ghost"
                           style={{ fontSize: '0.68rem', padding: '0.2rem 0.45rem', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-default)' }}
@@ -5193,18 +5231,18 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                           </span>
                         </div>
                         <span className="badge badge-neutral" style={{ fontSize: '0.68rem', padding: '1px 6px' }}>
-                          {currentStep === 2 ? selectedKeywordIds.size : keywords.length}
+                          {currentStep === 2 ? step2WorkingKeywords.length : keywords.length}
                         </span>
                       </div>
 
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
                         <span>📈 {selectedTotalVolume.toLocaleString('tr-TR')} arama (Seçili)</span>
-                        <span>Seçili: <strong style={{ color: 'var(--brand-primary)' }}>{selectedKeywordIds.size}</strong>/{currentStep === 2 ? selectedKeywordIds.size : keywords.length}</span>
+                        <span>Seçili: <strong style={{ color: 'var(--brand-primary)' }}>{selectedKeywordIds.size}</strong>/{currentStep === 2 ? step2WorkingKeywords.length : keywords.length}</span>
                       </div>
 
                       {/* Mini Selection Bar */}
                       <div style={{ height: '3px', width: '100%', backgroundColor: 'rgba(0,0,0,0.06)', borderRadius: '2px', overflow: 'hidden' }}>
-                        <div style={{ height: '100%', width: `${currentStep === 2 ? 100 : ((selectedKeywordIds.size / (keywords.length || 1)) * 100)}%`, backgroundColor: 'var(--brand-primary)', transition: 'width 0.2s ease' }} />
+                        <div style={{ height: '100%', width: `${((selectedKeywordIds.size / ((currentStep === 2 ? step2WorkingKeywords.length : keywords.length) || 1)) * 100)}%`, backgroundColor: 'var(--brand-primary)', transition: 'width 0.2s ease' }} />
                       </div>
                     </div>
 
@@ -5901,7 +5939,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                         Gösterilen: <strong>{activeKeywordsGrid.length}</strong> kelime • Bu grupta seçili: <strong style={{ color: 'var(--brand-primary)' }}>{activeKeywordsGrid.filter(k => selectedKeywordIds.has(k.id)).length}</strong>
                       </div>
                       <div>
-                        Toplam Seçili Havuz: <strong style={{ color: 'var(--brand-primary)' }}>{selectedKeywordIds.size} / {keywords.length}</strong>
+                        Toplam Seçili Havuz: <strong style={{ color: 'var(--brand-primary)' }}>{selectedKeywordIds.size} / {currentStep === 2 ? step2WorkingKeywords.length : keywords.length}</strong>
                       </div>
                     </div>
 
@@ -5939,6 +5977,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                   {currentStep === 1 ? (
                     <button
                       onClick={() => {
+                        setStep2ApprovedKeywordIds(new Set(selectedKeywordIds));
                         setIsStep1Completed(true);
                         setCurrentStep(2);
                       }}
