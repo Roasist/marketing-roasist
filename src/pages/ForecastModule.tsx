@@ -1718,17 +1718,8 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       clearTimeout(timer1);
       clearTimeout(timer2);
 
-      // Advance to completion stage (%100)
-      setLoadingStage(3);
-
-      // Ensure that user sees the full completed animation with all checkmarks for at least 750ms
-      const elapsed = Date.now() - startTime;
-      const minTotalTime = 2200; // minimum 2.2s total experience
-      const remainingTime = Math.max(minTotalTime - elapsed, 750);
-      await new Promise((resolve) => setTimeout(resolve, remainingTime));
-
       if (res && res.keywords && res.keywords.length > 0) {
-        setKeywords(res.keywords);
+        let finalKeywords = res.keywords;
         setSectorName(res.sector || 'Genel');
         let langCode = res.detectedLanguage;
         if (!langCode || langCode === 'auto') {
@@ -1754,40 +1745,84 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         }
 
         // Only initialize locations if user hasn't explicitly customized them yet
+        let effectiveLocations = selectedLocations;
         if (!selectedLocations || selectedLocations.length === 0) {
           if (res.detectedLanguage === 'ru') {
-            setSelectedLocations([
+            effectiveLocations = [
               { id: '2643', resourceName: 'geoTargetConstants/2643', name: 'Rusya', canonicalName: 'Rusya', countryCode: 'RU', targetType: 'Country', reach: 145000000, flag: '🇷🇺', cpcMultiplier: 1.6, volumeMultiplier: 1.8 },
               { id: '2398', resourceName: 'geoTargetConstants/2398', name: 'Kazakistan', canonicalName: 'Kazakistan', countryCode: 'KZ', targetType: 'Country', reach: 19500000, flag: '🇰🇿', cpcMultiplier: 1.4, volumeMultiplier: 0.9 }
-            ]);
+            ];
           } else if (res.detectedLanguage === 'fa') {
-            setSelectedLocations([
+            effectiveLocations = [
               { id: '2792', resourceName: 'geoTargetConstants/2792', name: 'Türkiye', canonicalName: 'Türkiye', countryCode: 'TR', targetType: 'Country', reach: 85000000, flag: '🇹🇷', cpcMultiplier: 1.0, volumeMultiplier: 1.0 },
               { id: '1000010', resourceName: 'geoTargetConstants/1000010', name: 'Dubai', canonicalName: 'Dubai, Birleşik Arap Emirlikleri', countryCode: 'AE', targetType: 'City', reach: 3400000, flag: '🇦🇪', cpcMultiplier: 2.4, volumeMultiplier: 0.8 },
               { id: '2276', resourceName: 'geoTargetConstants/2276', name: 'Almanya', canonicalName: 'Almanya', countryCode: 'DE', targetType: 'Country', reach: 84000000, flag: '🇩🇪', cpcMultiplier: 2.8, volumeMultiplier: 1.4 }
-            ]);
+            ];
           } else if (res.detectedLanguage === 'ar') {
-            setSelectedLocations([
+            effectiveLocations = [
               { id: '1000010', resourceName: 'geoTargetConstants/1000010', name: 'Dubai', canonicalName: 'Dubai, Birleşik Arap Emirlikleri', countryCode: 'AE', targetType: 'City', reach: 3400000, flag: '🇦🇪', cpcMultiplier: 2.4, volumeMultiplier: 0.8 },
               { id: '2682', resourceName: 'geoTargetConstants/2682', name: 'Suudi Arabistan', canonicalName: 'Suudi Arabistan', countryCode: 'SA', targetType: 'Country', reach: 35000000, flag: '🇸🇦', cpcMultiplier: 2.1, volumeMultiplier: 1.2 }
-            ]);
+            ];
           } else if (res.detectedLanguage === 'de') {
-            setSelectedLocations([
+            effectiveLocations = [
               { id: '2276', resourceName: 'geoTargetConstants/2276', name: 'Almanya', canonicalName: 'Almanya', countryCode: 'DE', targetType: 'Country', reach: 84000000, flag: '🇩🇪', cpcMultiplier: 2.8, volumeMultiplier: 1.4 }
-            ]);
+            ];
           } else if (res.detectedLanguage === 'en') {
-            setSelectedLocations([
+            effectiveLocations = [
               { id: '2826', resourceName: 'geoTargetConstants/2826', name: 'Birleşik Krallık', canonicalName: 'Birleşik Krallık', countryCode: 'GB', targetType: 'Country', reach: 67000000, flag: '🇬🇧', cpcMultiplier: 3.2, volumeMultiplier: 1.3 },
               { id: '2840', resourceName: 'geoTargetConstants/2840', name: 'Amerika Birleşik Devletleri', canonicalName: 'Amerika Birleşik Devletleri', countryCode: 'US', targetType: 'Country', reach: 335000000, flag: '🇺🇸', cpcMultiplier: 3.5, volumeMultiplier: 2.0 }
-            ]);
+            ];
           } else {
-            setSelectedLocations([DEFAULT_LOCATIONS[0]]);
+            effectiveLocations = [DEFAULT_LOCATIONS[0]];
           }
+          setSelectedLocations(effectiveLocations);
         }
 
         if ((res as any).locationBreakdown && (res as any).locationBreakdown.length > 0) {
           setOfficialLocationBreakdown((res as any).locationBreakdown);
         }
+
+        // Fetch per-location breakdown BEFORE showing Step 1
+        // This ensures all geo volumes are populated when the user sees results
+        if (effectiveLocations.length >= 2) {
+          try {
+            const breakdownRes = await ApiService.getLocationBreakdown({
+              query: m === 'URL' ? q.trim() : res.keywords.map((k: any) => k.keyword).join(', '),
+              mode: m,
+              language: langCode || 'tr',
+              geoTargetConstants: effectiveLocations.map((l: any) => l.id),
+              keywords: res.keywords,
+              locations: effectiveLocations
+            });
+
+            if (breakdownRes) {
+              if (breakdownRes.breakdown && breakdownRes.breakdown.length > 0) {
+                setOfficialLocationBreakdown(breakdownRes.breakdown);
+              }
+              if (breakdownRes.keywordGeoMap && Object.keys(breakdownRes.keywordGeoMap).length > 0) {
+                // Merge geo volumes directly into keywords before setting them
+                finalKeywords = res.keywords.map((k: any) => {
+                  const kNorm = k.keyword.toLowerCase().trim();
+                  const geoData = breakdownRes.keywordGeoMap[kNorm];
+                  if (geoData) {
+                    const newGeoVolumes = { ...(k.geoVolumes || {}) };
+                    const newGeoCpc = { ...(k.geoCpc || {}) };
+                    for (const [gId, metrics] of Object.entries(geoData as Record<string, any>)) {
+                      newGeoVolumes[gId] = metrics.monthlyVolume;
+                      newGeoCpc[gId] = { lowCpc: metrics.lowCpc, highCpc: metrics.highCpc };
+                    }
+                    return { ...k, geoVolumes: newGeoVolumes, geoCpc: newGeoCpc };
+                  }
+                  return k;
+                });
+              }
+            }
+          } catch (breakdownErr) {
+            console.warn('Location breakdown during discover:', breakdownErr);
+          }
+        }
+
+        setKeywords(finalKeywords);
 
         // Dynamic Multi-Channel CPM & CPV benchmarks based on Sector & Target Market
         const isIntl = (res.detectedLanguage && res.detectedLanguage !== 'tr') || (res.suggestedCountries && res.suggestedCountries.some((c: any) => ['DE', 'GB', 'US', 'AE', 'SA', 'RU'].includes(c.code)));
@@ -1810,17 +1845,26 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         }
 
         // Auto-select all keywords by default
-        const allIds = new Set<string>(res.keywords.map((k: KeywordMetric) => k.id));
+        const allIds = new Set<string>(finalKeywords.map((k: KeywordMetric) => k.id));
         setSelectedKeywordIds(allIds);
 
-        // Switch to Step 1 for user review
+        // Advance to completion stage (%100)
+        setLoadingStage(3);
+
+        // Ensure that user sees the full completed animation with all checkmarks
+        const elapsed = Date.now() - startTime;
+        const minTotalTime = 2200; // minimum 2.2s total experience
+        const remainingTime = Math.max(minTotalTime - elapsed, 600);
+        await new Promise((resolve) => setTimeout(resolve, remainingTime));
+
+        // Switch to Step 1 for user review (now with complete geo data)
         setCurrentStep(1);
 
         // Populate negative keywords in the detected language & intent
         if (res.negativeCategories && res.negativeCategories.length > 0) {
           setNegativeCategories(res.negativeCategories);
         } else {
-          loadNegatives(res.sector || 'Genel', res.keywords.map((k: KeywordMetric) => k.keyword), res.detectedLanguage || 'tr', res.pageTitle, res.pageSummary);
+          loadNegatives(res.sector || 'Genel', finalKeywords.map((k: KeywordMetric) => k.keyword), res.detectedLanguage || 'tr', res.pageTitle, res.pageSummary);
         }
       } else {
         setErrorMsg('Bu arama için anahtar kelime verisi üretilemedi.');
