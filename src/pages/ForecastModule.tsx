@@ -1291,8 +1291,8 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
     const hasKeywords = (target.discoveredKeywords && target.discoveredKeywords.length > 0) || (target.selectedKeywords && target.selectedKeywords.length > 0);
     setIsStep1Completed(hasKeywords);
-    setIsStep2Completed(hasKeywords || target.platform !== 'GOOGLE');
-    setIsStep3Completed(Boolean(target.simulationResult || (target.monthlyBudget && target.monthlyBudget > 0)));
+    setIsStep2Completed(false);
+    setIsStep3Completed(false);
     if (!hasKeywords && target.platform === 'GOOGLE' && (target.objective === 'GOOGLE_SEARCH' || !target.objective)) {
       setCurrentStep(1);
     }
@@ -1723,6 +1723,10 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     setIsLoading(true);
     setErrorMsg(null);
     setLoadingStage(0); // Stage 1: Sayfa Taranıyor (%25)
+    setIsStep1Completed(false);
+    setIsStep2Completed(false);
+    setIsStep3Completed(false);
+    setPlanSaveSuccess(false);
 
     const startTime = Date.now();
 
@@ -1887,6 +1891,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         }
 
         setKeywords(finalKeywords);
+        setIsStep1Completed(true);
+        setIsStep2Completed(false);
+        setIsStep3Completed(false);
 
         // Compute location audit details for all target regions
         const auditItems = activeLocations.map((loc: any) => {
