@@ -520,17 +520,18 @@ function fetchLocationBreakdown($apiKeys, $query, $geoConstants, $langCode = 'tr
         }
 
         if (!empty($topSeeds)) {
-            $seedBatches = array_chunk($topSeeds, 500);
+            $seedBatches = array_chunk($topSeeds, 20);
             foreach ($seedBatches as $seedList) {
+                $batchLang = detectLanguageConstantForKeywords($seedList, $effectiveLangConst);
                 $allRequests[] = [
                     'geoId' => $geoId,
                     'geoResource' => $geoResource,
-                    'endpoint' => 'generateKeywordHistoricalMetrics',
+                    'endpoint' => 'generateKeywordIdeas',
                     'payload' => [
                         "keywordPlanNetwork" => "GOOGLE_SEARCH",
-                        "language" => $effectiveLangConst,
+                        "language" => $batchLang,
                         "geoTargetConstants" => [$geoResource],
-                        "keywords" => $seedList
+                        "keywordSeed" => ["keywords" => $seedList]
                     ]
                 ];
             }
@@ -799,17 +800,18 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
         }
 
         if (!empty($topSeeds)) {
-            $seedBatches = array_chunk($topSeeds, 500);
+            $seedBatches = array_chunk($topSeeds, 20);
             foreach ($seedBatches as $seedList) {
+                $batchLang = detectLanguageConstantForKeywords($seedList, $effectiveLangConst);
                 $allRequests[] = [
                     'geoId' => $geoId,
                     'geoResource' => $geoResource,
-                    'endpoint' => 'generateKeywordHistoricalMetrics',
+                    'endpoint' => 'generateKeywordIdeas',
                     'payload' => [
                         "keywordPlanNetwork" => "GOOGLE_SEARCH",
-                        "language" => $effectiveLangConst,
+                        "language" => $batchLang,
                         "geoTargetConstants" => [$geoResource],
-                        "keywords" => $seedList
+                        "keywordSeed" => ["keywords" => $seedList]
                     ]
                 ];
             }
@@ -1488,7 +1490,7 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
         $allDiscoveredTexts = array_filter($allDiscoveredTexts);
 
         $crossRequests = [];
-        $discoveredBatches = array_chunk($allDiscoveredTexts, 500); // up to 500 keywords per batch
+        $discoveredBatches = array_chunk($allDiscoveredTexts, 20); // chunks of 20 for universal Google Ads API support
         foreach ($discoveredBatches as $dBatch) {
             $batchLang = detectLanguageConstantForKeywords($dBatch, $effectiveLangConst);
             foreach ($finalGeoList as $geo) {
@@ -1497,13 +1499,13 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
 
                 $crossRequests[] = [
                     'geoId' => $geoId,
-                    'endpoint' => 'generateKeywordHistoricalMetrics',
+                    'endpoint' => 'generateKeywordIdeas',
                     'isSeed' => false,
                     'payload' => [
                         "keywordPlanNetwork" => "GOOGLE_SEARCH",
                         "language" => $batchLang,
                         "geoTargetConstants" => [$geoResource],
-                        "keywords" => $dBatch
+                        "keywordSeed" => ["keywords" => $dBatch]
                     ]
                 ];
             }
@@ -2878,7 +2880,7 @@ if ($action === 'discover' && $method === 'POST') {
     $includeSuggestions = isset($input['includeSuggestions']) ? (bool)$input['includeSuggestions'] : true;
     $clientSeeds = !empty($input['seedKeywords']) && is_array($input['seedKeywords']) ? $input['seedKeywords'] : [];
 
-    $cacheKey = md5("forecast_v34_{$mode}_{$query}_" . ($includeSuggestions ? 'sug_1_' : 'sug_0_') . ($requestedLanguage ?: 'auto') . '_' . ($requestedCountryCode ?: 'auto') . '_' . implode('_', (array)$requestedGeoTargetConstants));
+    $cacheKey = md5("forecast_v35_{$mode}_{$query}_" . ($includeSuggestions ? 'sug_1_' : 'sug_0_') . ($requestedLanguage ?: 'auto') . '_' . ($requestedCountryCode ?: 'auto') . '_' . implode('_', (array)$requestedGeoTargetConstants));
 
     // 1. Check Server-Side Cache
     $stmtCache = $pdo->prepare("SELECT data, created_at FROM keyword_cache WHERE cache_key = ?");
