@@ -896,7 +896,7 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
             $results = $json['results'] ?? [];
 
             foreach ($results as $r) {
-                $m = $r['keywordMetrics'] ?? $r['keywordIdeaMetrics'] ?? [];
+                $m = $r['keywordIdeaMetrics'] ?? $r['keywordMetrics'] ?? [];
                 $v = (int)($m['avgMonthlySearches'] ?? 0);
                 $high = (float)(($m['highTopOfPageBidMicros'] ?? 0) / 1000000);
                 $low = (float)(($m['lowTopOfPageBidMicros'] ?? 0) / 1000000);
@@ -1421,27 +1421,28 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
         }
     }
 
-    // Step B: Use generateKeywordIdeas on primary seed batches (chunks of 20) to expand suggestions
+    // Step B: Query seeds across all locations in batches of 20 with dynamic language
     $discoveryRequests = [];
     if (!empty($uniqueSeeds)) {
-        $seedBatches = array_chunk(array_slice($uniqueSeeds, 0, 40), 20);
+        $seedBatches = array_chunk($uniqueSeeds, 20);
         foreach ($seedBatches as $seedList) {
             $batchLang = detectLanguageConstantForKeywords($seedList, $effectiveLangConst);
-            $firstGeo = $finalGeoList[0] ?? $geoConst;
-            $geoResource = strpos($firstGeo, 'geoTargetConstants/') === 0 ? $firstGeo : "geoTargetConstants/{$firstGeo}";
-            $geoId = preg_replace('/[^0-9]/', '', $firstGeo);
+            foreach ($finalGeoList as $geo) {
+                $geoResource = strpos($geo, 'geoTargetConstants/') === 0 ? $geo : "geoTargetConstants/{$geo}";
+                $geoId = preg_replace('/[^0-9]/', '', $geo);
 
-            $discoveryRequests[] = [
-                'geoId' => $geoId,
-                'endpoint' => 'generateKeywordIdeas',
-                'isSeed' => true,
-                'payload' => [
-                    "keywordPlanNetwork" => "GOOGLE_SEARCH",
-                    "language" => $batchLang,
-                    "geoTargetConstants" => [$geoResource],
-                    "keywordSeed" => ["keywords" => $seedList]
-                ]
-            ];
+                $discoveryRequests[] = [
+                    'geoId' => $geoId,
+                    'endpoint' => 'generateKeywordIdeas',
+                    'isSeed' => true,
+                    'payload' => [
+                        "keywordPlanNetwork" => "GOOGLE_SEARCH",
+                        "language" => $batchLang,
+                        "geoTargetConstants" => [$geoResource],
+                        "keywordSeed" => ["keywords" => $seedList]
+                    ]
+                ];
+            }
         }
     }
 
@@ -1479,9 +1480,8 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
         }
     }
 
-    // Step C: EXACT HISTORICAL METRICS QUERY ACROSS ALL TARGET LOCATIONS!
-    // generateKeywordHistoricalMetrics fetches 100% official historical volume & CPC for all keywords across all locations in parallel!
-    if (!empty($parsedKeywords)) {
+    // Step C: Cross-query all discovered keyword ideas across all target locations
+    if (!empty($parsedKeywords) && count($finalGeoList) > 1) {
         $allDiscoveredTexts = array_values(array_unique(array_map(function($pk) {
             return trim($pk['keyword'] ?? '');
         }, $parsedKeywords)));
@@ -2878,7 +2878,7 @@ if ($action === 'discover' && $method === 'POST') {
     $includeSuggestions = isset($input['includeSuggestions']) ? (bool)$input['includeSuggestions'] : true;
     $clientSeeds = !empty($input['seedKeywords']) && is_array($input['seedKeywords']) ? $input['seedKeywords'] : [];
 
-    $cacheKey = md5("forecast_v33_{$mode}_{$query}_" . ($includeSuggestions ? 'sug_1_' : 'sug_0_') . ($requestedLanguage ?: 'auto') . '_' . ($requestedCountryCode ?: 'auto') . '_' . implode('_', (array)$requestedGeoTargetConstants));
+    $cacheKey = md5("forecast_v34_{$mode}_{$query}_" . ($includeSuggestions ? 'sug_1_' : 'sug_0_') . ($requestedLanguage ?: 'auto') . '_' . ($requestedCountryCode ?: 'auto') . '_' . implode('_', (array)$requestedGeoTargetConstants));
 
     // 1. Check Server-Side Cache
     $stmtCache = $pdo->prepare("SELECT data, created_at FROM keyword_cache WHERE cache_key = ?");

@@ -2838,15 +2838,22 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
         for (const key of keysToTry) {
           if (k.geoVolumes[key] !== undefined) {
-            directLocVol = Number(k.geoVolumes[key]) || 0;
+            directLocVol = Number(k.geoVolumes[key]);
             break;
           }
         }
-        if (directLocVol === undefined && poolHasGeoData) {
+      }
+
+      // If direct volume is not explicitly found or is 0 while overall keyword has search volume, allocate by market share
+      if (directLocVol === undefined || directLocVol === 0) {
+        if (k.monthlyVolume && k.monthlyVolume > 0 && activeScopeMetric && activeScopeMetric.sharePercent > 0) {
+          const shareRatio = activeScopeMetric.sharePercent / 100;
+          directLocVol = Math.max(10, Math.round(k.monthlyVolume * shareRatio));
+        } else if (k.monthlyVolume && k.monthlyVolume > 0 && selectedLocations.length <= 1) {
+          directLocVol = k.monthlyVolume;
+        } else if (poolHasGeoData && directLocVol === undefined) {
           directLocVol = 0;
         }
-      } else if (poolHasGeoData) {
-        directLocVol = 0;
       }
 
       const directCpcObj = k.geoCpc ? (
