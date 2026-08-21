@@ -805,7 +805,7 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
     $diagnostics = []; // Per-location debug info
 
     if (!empty($topSeeds)) {
-        $seedBatches = array_chunk($topSeeds, 20); // batch keywords in groups of 20
+        $seedBatches = array_chunk($topSeeds, 10); // batch keywords in exact groups of 10 for maximum regional precision
         foreach ($geoConstants as $geo) {
             $geoResource = strpos($geo, 'geoTargetConstants/') === 0 ? $geo : "geoTargetConstants/{$geo}";
             $geoId = preg_replace('/[^0-9]/', '', $geo);
@@ -1692,7 +1692,7 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
         $allDiscoveredTexts = array_filter($allDiscoveredTexts);
 
         $crossRequests = [];
-        $discoveredBatches = array_chunk(array_slice($allDiscoveredTexts, 0, 40), 20);
+        $discoveredBatches = array_chunk(array_slice($allDiscoveredTexts, 0, 60), 10);
         foreach ($discoveredBatches as $dBatch) {
             $batchLang = detectLanguageConstantForKeywords($dBatch, $effectiveLangConst);
             foreach ($finalGeoList as $geo) {
