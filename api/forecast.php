@@ -1348,6 +1348,25 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
                     $isAiStrategist = $isUserSeed && !$isNegativeRental;
                 }
 
+                $monthlyVolumes = [];
+                if (!empty($metrics['monthlySearchVolumes']) && is_array($metrics['monthlySearchVolumes'])) {
+                    foreach ($metrics['monthlySearchVolumes'] as $mv) {
+                        $monthlyVolumes[] = [
+                            'year' => (int)($mv['year'] ?? 0),
+                            'month' => (string)($mv['month'] ?? ''),
+                            'monthlySearches' => (int)($mv['monthlySearches'] ?? 0)
+                        ];
+                    }
+                }
+                $trendPercent = 0;
+                if (count($monthlyVolumes) >= 2) {
+                    $recentVol = $monthlyVolumes[count($monthlyVolumes) - 1]['monthlySearches'] ?? 0;
+                    $oldVol = $monthlyVolumes[0]['monthlySearches'] ?? 0;
+                    if ($oldVol > 0) {
+                        $trendPercent = round((($recentVol - $oldVol) / $oldVol) * 100);
+                    }
+                }
+
                 $geoVolumesInit = [];
                 $geoCpcInit = [];
                 if ($geoId !== 'ALL') {
@@ -1365,14 +1384,15 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
                     'competition' => $comp,
                     'competitionIndex' => $compIdx,
                     'intent' => $intent,
-                    'trendChangePercent' => 0,
+                    'trendChangePercent' => $trendPercent,
                     'opportunityScore' => $oppScore,
                     'isAiStrategistPick' => $isAiStrategist,
                     'isUserSeed' => $isUserSeed,
                     'isSuggested' => !$isUserSeed,
                     'source' => $isUserSeed ? 'USER_SEED' : 'EXPANSION',
                     'geoVolumes' => $geoVolumesInit,
-                    'geoCpc' => $geoCpcInit
+                    'geoCpc' => $geoCpcInit,
+                    'monthlySearchVolumes' => $monthlyVolumes
                 ];
             }
         }
@@ -1399,6 +1419,7 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
     if (!empty($cleanSiteUrl) && count($uniqueSeeds) < 15) {
         $discPayload = [
             "keywordPlanNetwork" => "GOOGLE_SEARCH",
+            "includeAdultKeywords" => false,
             "language" => $effectiveLangConst,
             "geoTargetConstants" => $finalGeoList,
             "siteSeed" => ["siteUrl" => $cleanSiteUrl]
@@ -1439,6 +1460,7 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
                 'isSeed' => true,
                 'payload' => [
                     "keywordPlanNetwork" => "GOOGLE_SEARCH",
+                    "includeAdultKeywords" => false,
                     "language" => $batchLang,
                     "geoTargetConstants" => $finalGeoList,
                     "keywordSeed" => ["keywords" => $seedList]
