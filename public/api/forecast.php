@@ -1293,12 +1293,26 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
                 if (isset($keywordIndexMap[$kwKey])) {
                     $pos = $keywordIndexMap[$kwKey];
                     if ($geoId === 'ALL') {
-                        $parsedKeywords[$pos]['monthlyVolume'] = max($parsedKeywords[$pos]['monthlyVolume'], $avgVol);
+                        // Accurately sum volumes across geo chunks (Group 1: 10 geos + Group 2: 4 geos)
+                        $parsedKeywords[$pos]['monthlyVolume'] += $avgVol;
                         if ($lowBid > 0) {
                             $parsedKeywords[$pos]['lowCpc'] = $parsedKeywords[$pos]['lowCpc'] > 0 ? min($parsedKeywords[$pos]['lowCpc'], $lowBid) : $lowBid;
                         }
                         if ($highBid > 0) {
                             $parsedKeywords[$pos]['highCpc'] = max($parsedKeywords[$pos]['highCpc'], $highBid);
+                        }
+                        if (!empty($metrics['monthlySearchVolumes']) && is_array($metrics['monthlySearchVolumes'])) {
+                            foreach ($metrics['monthlySearchVolumes'] as $mvIdx => $mv) {
+                                if (isset($parsedKeywords[$pos]['monthlySearchVolumes'][$mvIdx])) {
+                                    $parsedKeywords[$pos]['monthlySearchVolumes'][$mvIdx]['monthlySearches'] += (int)($mv['monthlySearches'] ?? 0);
+                                } else {
+                                    $parsedKeywords[$pos]['monthlySearchVolumes'][] = [
+                                        'year' => (int)($mv['year'] ?? 0),
+                                        'month' => (string)($mv['month'] ?? ''),
+                                        'monthlySearches' => (int)($mv['monthlySearches'] ?? 0)
+                                    ];
+                                }
+                            }
                         }
                     } else {
                         $parsedKeywords[$pos]['geoVolumes'][$geoId] = $avgVol;
@@ -2933,7 +2947,7 @@ if ($action === 'discover' && $method === 'POST') {
     $includeSuggestions = isset($input['includeSuggestions']) ? (bool)$input['includeSuggestions'] : true;
     $clientSeeds = !empty($input['seedKeywords']) && is_array($input['seedKeywords']) ? $input['seedKeywords'] : [];
 
-    $cacheKey = md5("forecast_v41_{$mode}_{$query}_" . ($includeSuggestions ? 'sug_1_' : 'sug_0_') . ($requestedLanguage ?: 'auto') . '_' . ($requestedCountryCode ?: 'auto') . '_' . implode('_', (array)$requestedGeoTargetConstants));
+    $cacheKey = md5("forecast_v42_{$mode}_{$query}_" . ($includeSuggestions ? 'sug_1_' : 'sug_0_') . ($requestedLanguage ?: 'auto') . '_' . ($requestedCountryCode ?: 'auto') . '_' . implode('_', (array)$requestedGeoTargetConstants));
 
     // 1. Check Server-Side Cache
     $stmtCache = $pdo->prepare("SELECT data, created_at FROM keyword_cache WHERE cache_key = ?");
