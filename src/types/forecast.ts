@@ -164,6 +164,10 @@ export interface SubCampaignItem {
   negativeCategories: NegativeCategory[];
   cpcImputationSettings?: CpcImputationSettings;
   countryBreakdown?: CountryMetric[];
+  // Step completion status
+  isStep1Completed?: boolean;
+  isStep2Completed?: boolean;
+  isStep3Completed?: boolean;
   
   // Model specific parameters snapshot
   businessModel?: BusinessModel;

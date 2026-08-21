@@ -712,9 +712,38 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   // Growth Scenario Projection (Muhafazakar / Beklenen / Agresif)
   const [growthScenario, setGrowthScenario] = useState<GrowthScenario>('REALISTIC');
   const [showScenarioTooltip, setShowScenarioTooltip] = useState<boolean>(false);
-  const [isStep1Completed, setIsStep1Completed] = useState<boolean>(false);
-  const [isStep2Completed, setIsStep2Completed] = useState<boolean>(false);
-  const [isStep3Completed, setIsStep3Completed] = useState<boolean>(false);
+  const [isStep1Completed, setIsStep1Completed] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('roasist_step_completion_last');
+      if (saved) return JSON.parse(saved).isStep1Completed || false;
+    } catch (e) {}
+    return false;
+  });
+  const [isStep2Completed, setIsStep2Completed] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('roasist_step_completion_last');
+      if (saved) return JSON.parse(saved).isStep2Completed || false;
+    } catch (e) {}
+    return false;
+  });
+  const [isStep3Completed, setIsStep3Completed] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('roasist_step_completion_last');
+      if (saved) return JSON.parse(saved).isStep3Completed || false;
+    } catch (e) {}
+    return false;
+  });
+
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('roasist_step_completion_last', JSON.stringify({
+        isStep1Completed,
+        isStep2Completed,
+        isStep3Completed
+      }));
+    } catch (e) {}
+  }, [isStep1Completed, isStep2Completed, isStep3Completed]);
 
   // Synchronize step2ApprovedKeywordIds with selectedKeywordIds while in Step 1
   useEffect(() => {
@@ -861,6 +890,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
     if (prevParamsRef.current && prevParamsRef.current !== paramsSignature) {
       setIsStep2Completed(false);
+      setIsStep3Completed(false);
     }
     prevParamsRef.current = paramsSignature;
   }, [
@@ -910,6 +940,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     if (prevKeywordsRef.current && prevKeywordsRef.current !== kwSignature) {
       setIsStep1Completed(false);
       setIsStep2Completed(false);
+      setIsStep3Completed(false);
     }
     prevKeywordsRef.current = kwSignature;
   }, [keywords, selectedKeywordIds]);
@@ -1172,6 +1203,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         targetLocations: selectedLocations,
         countryBreakdown: countryBreakdown.length > 0 ? countryBreakdown : c.countryBreakdown,
         businessModel,
+        isStep1Completed,
+        isStep2Completed,
+        isStep3Completed,
         languageCode: finalLangCode,
         languageName: finalLangName,
         languageFlag: finalLangFlag,
@@ -1303,9 +1337,13 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     }
 
     const hasKeywords = (target.discoveredKeywords && target.discoveredKeywords.length > 0) || (target.selectedKeywords && target.selectedKeywords.length > 0);
-    setIsStep1Completed(hasKeywords);
-    setIsStep2Completed(false);
-    setIsStep3Completed(false);
+    const step1Done = target.isStep1Completed !== undefined ? target.isStep1Completed : hasKeywords;
+    const step2Done = target.isStep2Completed !== undefined ? target.isStep2Completed : (target.selectedKeywords && target.selectedKeywords.length > 0);
+    const step3Done = target.isStep3Completed !== undefined ? target.isStep3Completed : (step1Done && step2Done && hasKeywords);
+
+    setIsStep1Completed(step1Done);
+    setIsStep2Completed(step2Done);
+    setIsStep3Completed(step3Done);
     if (!hasKeywords && target.platform === 'GOOGLE' && (target.objective === 'GOOGLE_SEARCH' || !target.objective)) {
       setCurrentStep(1);
     }
