@@ -1835,8 +1835,10 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
               }
               if (breakdownRes.keywordGeoMap && Object.keys(breakdownRes.keywordGeoMap).length > 0) {
                 finalKeywords = res.keywords.map((k: any) => {
-                  const kNorm = k.keyword.toLowerCase().trim();
-                  const geoData = breakdownRes.keywordGeoMap[kNorm];
+                  const kRaw = String(k.keyword || '');
+                  const kNorm1 = kRaw.toLowerCase().trim();
+                  const kNorm2 = kRaw.toLowerCase().replace(/\s+/g, ' ').trim();
+                  const geoData = breakdownRes.keywordGeoMap[kNorm1] || breakdownRes.keywordGeoMap[kNorm2];
                   if (geoData) {
                     const newGeoVolumes = { ...(k.geoVolumes || {}) };
                     const newGeoCpc = { ...(k.geoCpc || {}) };

@@ -798,11 +798,11 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
         }
     }
 
-    // Build all requests: Dual Engine (Historical Metrics + Keyword Ideas) across ALL 14 locations
+    // Build all requests: Dual Engine (Historical Metrics + Keyword Ideas) across ALL locations
     $allRequests = [];
     if (!empty($topSeeds)) {
-        // Engine 1: generateKeywordHistoricalMetrics (queries up to 250 keywords in a single call per location)
-        $topHistoricalSeeds = array_slice($topSeeds, 0, 250);
+        // Engine 1: generateKeywordHistoricalMetrics (queries up to 300 keywords in a single call per location)
+        $topHistoricalSeeds = array_slice($topSeeds, 0, 300);
         $histLang = detectLanguageConstantForKeywords($topHistoricalSeeds, $effectiveLangConst);
         foreach ($geoConstants as $geo) {
             $geoResource = strpos($geo, 'geoTargetConstants/') === 0 ? $geo : "geoTargetConstants/{$geo}";
@@ -821,7 +821,7 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
             ];
         }
 
-        // Engine 2: generateKeywordIdeas (8 batches of 20 seeds = 160 seeds interleaved across all locations)
+        // Engine 2: generateKeywordIdeas (Interleaved 20-seed batches across all locations)
         $seedBatches = array_chunk(array_slice($topSeeds, 0, 160), 20);
         foreach ($seedBatches as $seedList) {
             $batchLang = detectLanguageConstantForKeywords($seedList, $effectiveLangConst);
@@ -881,14 +881,9 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
         }
     }
 
-    // Large keyword sets with many locations can generate thousands of requests
-    // Use larger batches for better throughput
-    $requestBatches = array_chunk($allRequests, 40);
-
-    // Increase PHP time limit for large keyword/location matrices
-    if (count($allRequests) > 200) {
-        @set_time_limit(120);
-    }
+    // Process requests in safe concurrency chunks (max 8 concurrent to avoid Google Ads 429 rate limiting)
+    $requestBatches = array_chunk($allRequests, 8);
+    $failedRequests = [];
 
     foreach ($requestBatches as $batchIdx => $batch) {
         $mh = curl_multi_init();
@@ -900,7 +895,7 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
             curl_setopt($chLoc, CURLOPT_POST, true);
             curl_setopt($chLoc, CURLOPT_POSTFIELDS, json_encode($req['payload']));
             curl_setopt($chLoc, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($chLoc, CURLOPT_TIMEOUT, 15);
+            curl_setopt($chLoc, CURLOPT_TIMEOUT, 12);
             curl_setopt($chLoc, CURLOPT_HTTPHEADER, [
                 "Authorization: Bearer {$accessToken}",
                 "developer-token: {$devToken}",
@@ -916,12 +911,12 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
         } while ($mrc == CURLM_CALL_MULTI_PERFORM);
 
         while ($active && $mrc == CURLM_OK) {
-            if (curl_multi_select($mh, 0.5) != -1) {
+            if (curl_multi_select($mh, 0.2) != -1) {
                 do {
                     $mrc = curl_multi_exec($mh, $active);
                 } while ($mrc == CURLM_CALL_MULTI_PERFORM);
             } else {
-                usleep(25000);
+                usleep(15000);
                 do {
                     $mrc = curl_multi_exec($mh, $active);
                 } while ($mrc == CURLM_CALL_MULTI_PERFORM);
@@ -936,6 +931,12 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
             $httpCode = curl_getinfo($chLoc, CURLINFO_HTTP_CODE);
             curl_multi_remove_handle($mh, $chLoc);
             curl_close($chLoc);
+
+            if ($httpCode === 429 || $httpCode === 503 || $httpCode === 500) {
+                // Queue for retry
+                $failedRequests[] = $req;
+                continue;
+            }
 
             $json = ($httpCode === 200) ? json_decode($resp, true) : null;
             $results = $json['results'] ?? [];
@@ -985,7 +986,84 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
         }
         curl_multi_close($mh);
         if ($batchIdx < count($requestBatches) - 1) {
-            usleep(40000);
+            usleep(60000); // 60ms pause between batches
+        }
+    }
+
+    // Execute retries if any throttled requests occurred
+    if (!empty($failedRequests)) {
+        usleep(300000); // Wait 300ms before retrying
+        $retryBatches = array_chunk($failedRequests, 4);
+        foreach ($retryBatches as $rBatch) {
+            $mh = curl_multi_init();
+            $curlHandles = [];
+            foreach ($rBatch as $req) {
+                $endpoint = $req['endpoint'] ?? 'generateKeywordIdeas';
+                $chLoc = curl_init("https://googleads.googleapis.com/v22/customers/{$customerId}:{$endpoint}");
+                curl_setopt($chLoc, CURLOPT_POST, true);
+                curl_setopt($chLoc, CURLOPT_POSTFIELDS, json_encode($req['payload']));
+                curl_setopt($chLoc, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($chLoc, CURLOPT_TIMEOUT, 12);
+                curl_setopt($chLoc, CURLOPT_HTTPHEADER, [
+                    "Authorization: Bearer {$accessToken}",
+                    "developer-token: {$devToken}",
+                    "Content-Type: application/json"
+                ]);
+                curl_multi_add_handle($mh, $chLoc);
+                $curlHandles[] = ['ch' => $chLoc, 'req' => $req];
+            }
+            $active = null;
+            do {
+                $mrc = curl_multi_exec($mh, $active);
+            } while ($mrc == CURLM_CALL_MULTI_PERFORM);
+            while ($active && $mrc == CURLM_OK) {
+                if (curl_multi_select($mh, 0.2) != -1) {
+                    do {
+                        $mrc = curl_multi_exec($mh, $active);
+                    } while ($mrc == CURLM_CALL_MULTI_PERFORM);
+                } else {
+                    usleep(15000);
+                    do {
+                        $mrc = curl_multi_exec($mh, $active);
+                    } while ($mrc == CURLM_CALL_MULTI_PERFORM);
+                }
+            }
+            foreach ($curlHandles as $hData) {
+                $chLoc = $hData['ch'];
+                $req = $hData['req'];
+                $geoId = $req['geoId'];
+                $resp = curl_multi_getcontent($chLoc);
+                $httpCode = curl_getinfo($chLoc, CURLINFO_HTTP_CODE);
+                curl_multi_remove_handle($mh, $chLoc);
+                curl_close($chLoc);
+                if ($httpCode === 200) {
+                    $json = json_decode($resp, true);
+                    $results = $json['results'] ?? [];
+                    foreach ($results as $r) {
+                        $m = $r['keywordIdeaMetrics'] ?? $r['keywordMetrics'] ?? [];
+                        $v = (int)($m['avgMonthlySearches'] ?? 0);
+                        $high = (float)(($m['highTopOfPageBidMicros'] ?? 0) / 1000000);
+                        $low = (float)(($m['lowTopOfPageBidMicros'] ?? 0) / 1000000);
+                        $kwText = $r['text'] ?? '';
+                        if (!empty($kwText)) {
+                            $kwNorm = mb_strtolower(preg_replace('/\s+/', ' ', trim($kwText)), 'UTF-8');
+                            $keywordGeoMap[$kwNorm][$geoId] = [
+                                'monthlyVolume' => $v,
+                                'lowCpc' => $low,
+                                'highCpc' => $high
+                            ];
+                        }
+                        $geoVolSum[$geoId] += $v;
+                        if ($high > 0) {
+                            $geoCpcSum[$geoId] += $high;
+                            $geoLowCpcSum[$geoId] += $low;
+                            $geoCpcCount[$geoId]++;
+                        }
+                    }
+                }
+            }
+            curl_multi_close($mh);
+            usleep(100000);
         }
     }
 
@@ -2989,7 +3067,7 @@ if ($action === 'discover' && $method === 'POST') {
     $includeSuggestions = isset($input['includeSuggestions']) ? (bool)$input['includeSuggestions'] : true;
     $clientSeeds = !empty($input['seedKeywords']) && is_array($input['seedKeywords']) ? $input['seedKeywords'] : [];
 
-    $cacheKey = md5("forecast_v44_{$mode}_{$query}_" . ($includeSuggestions ? 'sug_1_' : 'sug_0_') . ($requestedLanguage ?: 'auto') . '_' . ($requestedCountryCode ?: 'auto') . '_' . implode('_', (array)$requestedGeoTargetConstants));
+    $cacheKey = md5("forecast_v45_{$mode}_{$query}_" . ($includeSuggestions ? 'sug_1_' : 'sug_0_') . ($requestedLanguage ?: 'auto') . '_' . ($requestedCountryCode ?: 'auto') . '_' . implode('_', (array)$requestedGeoTargetConstants));
 
     // 1. Check Server-Side Cache
     $stmtCache = $pdo->prepare("SELECT data, created_at FROM keyword_cache WHERE cache_key = ?");
