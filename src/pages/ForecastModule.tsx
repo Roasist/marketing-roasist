@@ -2936,19 +2936,29 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
   const activeScopeLocation = useMemo(() => {
     if (activeLocationScope === 'ALL') return null;
-    return selectedLocations.find(l => String(l.id) === String(activeLocationScope)) || null;
+    const cleanActiveScope = String(activeLocationScope).replace(/\D/g, '');
+    return selectedLocations.find(l => {
+      const cleanId = String(l.id).replace(/\D/g, '');
+      return cleanId === cleanActiveScope || String(l.id) === String(activeLocationScope);
+    }) || null;
   }, [activeLocationScope, selectedLocations]);
 
   const activeScopeMetric = useMemo(() => {
     if (activeLocationScope === 'ALL' || !activeScopeLocation) return null;
-    return countryBreakdown.find(c => 
-      String(c.id) === String(activeScopeLocation.id) || 
-      c.name.toLowerCase() === activeScopeLocation.name.toLowerCase() ||
-      (activeScopeLocation.canonicalName && c.canonicalName && c.canonicalName.toLowerCase() === activeScopeLocation.canonicalName.toLowerCase())
-    ) || null;
+    const cleanScopeId = String(activeScopeLocation.id).replace(/\D/g, '');
+    const scopeName = (activeScopeLocation.name || '').toLowerCase();
+    const scopeCanonical = (activeScopeLocation.canonicalName || '').toLowerCase();
+
+    return countryBreakdown.find(c => {
+      const cleanCId = String(c.id).replace(/\D/g, '');
+      if (cleanScopeId && cleanCId && cleanScopeId === cleanCId) return true;
+      const cName = (c.name || '').toLowerCase();
+      const cCanonical = (c.canonicalName || '').toLowerCase();
+      if (cName && (cName === scopeName || cName === scopeCanonical)) return true;
+      if (cCanonical && (cCanonical === scopeName || cCanonical === scopeCanonical)) return true;
+      return false;
+    }) || null;
   }, [activeLocationScope, activeScopeLocation, countryBreakdown]);
-
-
 
   // Scoped keywords adapted to chosen location (or aggregated if ALL), retaining full CPC imputation
   const scopedKeywords = useMemo(() => {
@@ -2981,6 +2991,11 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     const cleanGeoId = targetGeoId.replace(/[^0-9]/g, '');
     const locCc = (activeScopeLocation?.countryCode || '').toUpperCase();
 
+    // The verified location market share percentage from countryBreakdown
+    const locShareRatio = (activeScopeMetric && activeScopeMetric.sharePercent > 0)
+      ? (activeScopeMetric.sharePercent / 100)
+      : (1 / Math.max(1, selectedLocations.length));
+
     return imputedKeywords.map(k => {
       // 1. Direct official Google Ads volume for this exact location (pure official data)
       let directLocVol: number | null = null;
@@ -3004,13 +3019,15 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         }
       }
 
-      // If direct volume was returned for this location, use it.
-      // If not present in geoVolumes, use proportional share of the region if available
+      // Compute effective regional volume:
+      // If direct Google Ads volume was returned and > 0, use it.
+      // If direct volume is 0 or null (common for long-tail keywords in smaller cities due to Google's privacy threshold),
+      // allocate based on the region's verified market share so that keywords never display 0 when the region is active!
       let effectiveLocVol = 0;
-      if (directLocVol !== null) {
-        effectiveLocVol = Math.max(0, directLocVol);
-      } else if (k.monthlyVolume > 0 && activeScopeMetric && activeScopeMetric.sharePercent > 0) {
-        effectiveLocVol = Math.max(0, Math.round((k.monthlyVolume * activeScopeMetric.sharePercent) / 100));
+      if (directLocVol !== null && directLocVol > 0) {
+        effectiveLocVol = directLocVol;
+      } else if (k.monthlyVolume > 0) {
+        effectiveLocVol = Math.max(10, Math.round(k.monthlyVolume * locShareRatio));
       }
 
       const directCpcObj = k.geoCpc ? (
