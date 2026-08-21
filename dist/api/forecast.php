@@ -954,9 +954,28 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
                         'lowCpc' => $low,
                         'highCpc' => $high
                     ];
+                    // Also cross-populate aliases for Odesa (Oblast 20812 <-> City 1012854 <-> 1012861)
+                    if ($geoId === '1012854' || $geoId === '20812' || $geoId === '1012861') {
+                        foreach (['1012854', '20812', '1012861'] as $oAlias) {
+                            if (!isset($keywordGeoMap[$kwNorm][$oAlias]) || $keywordGeoMap[$kwNorm][$oAlias]['monthlyVolume'] === 0) {
+                                $keywordGeoMap[$kwNorm][$oAlias] = [
+                                    'monthlyVolume' => $v,
+                                    'lowCpc' => $low,
+                                    'highCpc' => $high
+                                ];
+                            }
+                        }
+                    }
                 }
 
                 $geoVolSum[$geoId] += $v;
+                if ($geoId === '1012854' || $geoId === '20812' || $geoId === '1012861') {
+                    foreach (['1012854', '20812', '1012861'] as $oAlias) {
+                        if (!isset($geoVolSum[$oAlias]) || $geoVolSum[$oAlias] === 0) {
+                            $geoVolSum[$oAlias] = $geoVolSum[$geoId];
+                        }
+                    }
+                }
                 if ($high > 0) {
                     $geoCpcSum[$geoId] += $high;
                     $geoLowCpcSum[$geoId] += $low;
@@ -1191,10 +1210,14 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
         foreach ($geoTargetConstants as $gtc) {
             $gtcClean = trim((string)$gtc);
             if (empty($gtcClean)) continue;
+            $numericId = preg_replace('/[^0-9]/', '', $gtcClean);
+            if ($numericId === '1012861') {
+                $numericId = '1012854';
+            }
             if (strpos($gtcClean, 'geoTargetConstants/') === 0) {
-                $finalGeoList[] = $gtcClean;
-            } elseif (is_numeric($gtcClean)) {
-                $finalGeoList[] = 'geoTargetConstants/' . $gtcClean;
+                $finalGeoList[] = 'geoTargetConstants/' . $numericId;
+            } elseif (is_numeric($numericId)) {
+                $finalGeoList[] = 'geoTargetConstants/' . $numericId;
             }
         }
     }
@@ -2966,7 +2989,7 @@ if ($action === 'discover' && $method === 'POST') {
     $includeSuggestions = isset($input['includeSuggestions']) ? (bool)$input['includeSuggestions'] : true;
     $clientSeeds = !empty($input['seedKeywords']) && is_array($input['seedKeywords']) ? $input['seedKeywords'] : [];
 
-    $cacheKey = md5("forecast_v43_{$mode}_{$query}_" . ($includeSuggestions ? 'sug_1_' : 'sug_0_') . ($requestedLanguage ?: 'auto') . '_' . ($requestedCountryCode ?: 'auto') . '_' . implode('_', (array)$requestedGeoTargetConstants));
+    $cacheKey = md5("forecast_v44_{$mode}_{$query}_" . ($includeSuggestions ? 'sug_1_' : 'sug_0_') . ($requestedLanguage ?: 'auto') . '_' . ($requestedCountryCode ?: 'auto') . '_' . implode('_', (array)$requestedGeoTargetConstants));
 
     // 1. Check Server-Side Cache
     $stmtCache = $pdo->prepare("SELECT data, created_at FROM keyword_cache WHERE cache_key = ?");
