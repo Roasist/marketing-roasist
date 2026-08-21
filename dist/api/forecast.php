@@ -798,54 +798,28 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
         }
     }
 
-    // Build all requests: Dual Engine (Historical Metrics + Keyword Ideas) across ALL locations
+    // Build all requests: Ultra-fast direct Google Ads Historical Metrics across ALL locations (1 call per location)
     $allRequests = [];
     if (!empty($topSeeds)) {
-        // Engine 1: generateKeywordHistoricalMetrics (queries up to 4,000 keywords in 1,000-keyword batches per location)
-        $topHistoricalSeeds = array_slice($topSeeds, 0, 4000);
-        $histBatches = array_chunk($topHistoricalSeeds, 1000);
-        foreach ($histBatches as $hBatch) {
-            $histLang = detectLanguageConstantForKeywords($hBatch, $effectiveLangConst);
-            foreach ($geoConstants as $geo) {
-                $geoResource = strpos($geo, 'geoTargetConstants/') === 0 ? $geo : "geoTargetConstants/{$geo}";
-                $geoId = preg_replace('/[^0-9]/', '', $geo);
-                $allRequests[] = [
-                    'geoId' => $geoId,
-                    'geoResource' => $geoResource,
-                    'endpoint' => 'generateKeywordHistoricalMetrics',
-                    'payload' => [
-                        "keywordPlanNetwork" => "GOOGLE_SEARCH",
-                        "language" => $histLang,
-                        "geoTargetConstants" => [$geoResource],
-                        "keywords" => $hBatch,
-                        "historicalMetricsOptions" => [
-                            "includeAverageCpc" => true
-                        ]
+        $topHistoricalSeeds = array_slice($topSeeds, 0, 5000);
+        $histLang = detectLanguageConstantForKeywords($topHistoricalSeeds, $effectiveLangConst);
+        foreach ($geoConstants as $geo) {
+            $geoResource = strpos($geo, 'geoTargetConstants/') === 0 ? $geo : "geoTargetConstants/{$geo}";
+            $geoId = preg_replace('/[^0-9]/', '', $geo);
+            $allRequests[] = [
+                'geoId' => $geoId,
+                'geoResource' => $geoResource,
+                'endpoint' => 'generateKeywordHistoricalMetrics',
+                'payload' => [
+                    "keywordPlanNetwork" => "GOOGLE_SEARCH",
+                    "language" => $histLang,
+                    "geoTargetConstants" => [$geoResource],
+                    "keywords" => $topHistoricalSeeds,
+                    "historicalMetricsOptions" => [
+                        "includeAverageCpc" => true
                     ]
-                ];
-            }
-        }
-
-        // Engine 2: generateKeywordIdeas (Interleaved 20-seed batches across all locations)
-        $seedBatches = array_chunk(array_slice($topSeeds, 0, 160), 20);
-        foreach ($seedBatches as $seedList) {
-            $batchLang = detectLanguageConstantForKeywords($seedList, $effectiveLangConst);
-            foreach ($geoConstants as $geo) {
-                $geoResource = strpos($geo, 'geoTargetConstants/') === 0 ? $geo : "geoTargetConstants/{$geo}";
-                $geoId = preg_replace('/[^0-9]/', '', $geo);
-                $allRequests[] = [
-                    'geoId' => $geoId,
-                    'geoResource' => $geoResource,
-                    'endpoint' => 'generateKeywordIdeas',
-                    'payload' => [
-                        "keywordPlanNetwork" => "GOOGLE_SEARCH",
-                        "includeAdultKeywords" => false,
-                        "language" => $batchLang,
-                        "geoTargetConstants" => [$geoResource],
-                        "keywordSeed" => ["keywords" => $seedList]
-                    ]
-                ];
-            }
+                ]
+            ];
         }
     } elseif ($mode === 'URL' && !empty($query) && preg_match('/^https?:\/\//i', $query)) {
         foreach ($geoConstants as $geo) {
@@ -886,8 +860,8 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
         }
     }
 
-    // Process requests in safe concurrency chunks (max 8 concurrent to avoid Google Ads 429 rate limiting)
-    $requestBatches = array_chunk($allRequests, 8);
+    // Process all location requests in a single high-performance multi-cURL batch (up to 20 concurrent)
+    $requestBatches = array_chunk($allRequests, 20);
     $failedRequests = [];
 
     foreach ($requestBatches as $batchIdx => $batch) {

@@ -3000,10 +3000,34 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       // 1. Direct official Google Ads volume for this exact location (pure official data)
       let directLocVol: number | null = null;
       if (k.geoVolumes && Object.keys(k.geoVolumes).length > 0) {
+        const geoAliases: Record<string, string[]> = {
+          '20812': ['1012854', '1012861', '20812'],
+          '1012854': ['20812', '1012861', '1012854'],
+          '1012852': ['20807', '9075775', '1012852'],
+          '20807': ['1012852', '9075775', '20807'],
+          '1012853': ['20808', '1012853'],
+          '20808': ['1012853', '20808'],
+          '1009804': ['20398', '1009804'],
+          '20398': ['1009804', '20398'],
+          '1009805': ['20399', '1009805'],
+          '20399': ['1009805', '20399'],
+          '1028308': ['20836', '1028531', '1028308'],
+          '20836': ['1028308', '1028531', '20836'],
+          '20835': ['1028310', '20835'],
+          '20833': ['1028311', '20833'],
+          '20834': ['1028309', '20834'],
+          '1009941': ['2417', '1009941'],
+          '2417': ['1009941', '2417'],
+          '1009942': ['20417', '1009942']
+        };
+        const extraAliases = geoAliases[cleanGeoId] || [];
+
         const keysToTry = [
           cleanGeoId,
           targetGeoId,
           String(activeLocationScope),
+          ...extraAliases,
+          ...extraAliases.map(a => `geoTargetConstants/${a}`),
           `geoTargetConstants/${cleanGeoId}`,
           locCc,
           locCc.toLowerCase(),
@@ -3012,26 +3036,44 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         ].filter(Boolean) as string[];
 
         for (const key of keysToTry) {
-          if (k.geoVolumes[key] !== undefined) {
+          if (k.geoVolumes[key] !== undefined && k.geoVolumes[key] > 0) {
             directLocVol = Number(k.geoVolumes[key]);
             break;
+          }
+        }
+        // Fallback: check if explicitly 0
+        if (directLocVol === null) {
+          for (const key of keysToTry) {
+            if (k.geoVolumes[key] !== undefined) {
+              directLocVol = Number(k.geoVolumes[key]);
+              break;
+            }
           }
         }
       }
 
       // Compute effective regional volume:
-      // If direct Google Ads volume was returned (either > 0 or 0), use the exact Google Ads API value!
-      // If direct volume is null (not yet queried by Google Ads), estimate from market share:
+      // If direct Google Ads volume was returned, use the exact Google Ads API value!
+      // If direct volume is null or 0, estimate from market share so user gets realistic regional data:
       let effectiveLocVol = 0;
-      if (directLocVol !== null) {
+      if (directLocVol !== null && directLocVol > 0) {
         effectiveLocVol = directLocVol;
+      } else if (directLocVol === 0 && (!activeScopeMetric || activeScopeMetric.sharePercent <= 0)) {
+        effectiveLocVol = 0;
       } else if (k.monthlyVolume > 0) {
         effectiveLocVol = Math.max(10, Math.round(k.monthlyVolume * locShareRatio));
       }
 
-      const directCpcObj = k.geoCpc ? (
-        k.geoCpc[cleanGeoId] || k.geoCpc[targetGeoId] || k.geoCpc[String(activeLocationScope)] || k.geoCpc['geoTargetConstants/' + cleanGeoId]
-      ) : undefined;
+      let directCpcObj = undefined;
+      if (k.geoCpc) {
+        const checkKeys = [cleanGeoId, targetGeoId, String(activeLocationScope), `geoTargetConstants/${cleanGeoId}`];
+        for (const ck of checkKeys) {
+          if (k.geoCpc[ck]) {
+            directCpcObj = k.geoCpc[ck];
+            break;
+          }
+        }
+      }
       const directLocLowCpc = directCpcObj?.lowCpc;
       const directLocHighCpc = directCpcObj?.highCpc;
 
