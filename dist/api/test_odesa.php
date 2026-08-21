@@ -25,82 +25,45 @@ $tRes = json_decode(curl_exec($chToken), true);
 curl_close($chToken);
 $accessToken = $tRes['access_token'] ?? '';
 
-$kw = 'гражданство турции по недвижимости';
+$kw1 = 'купить квартиру в одессе';
+$kw2 = 'гражданство турции по недвижимости';
 $geo = 'geoTargetConstants/20812'; // Odesa Oblast
 
-// Let us test generateKeywordIdeas without language parameter vs with language parameter vs historical metrics with historicalMetricsOptions
-$testCases = [
-  'Ideas_With_Language' => [
-    'endpoint' => 'generateKeywordIdeas',
-    'payload' => [
-      'keywordPlanNetwork' => 'GOOGLE_SEARCH',
-      'includeAdultKeywords' => false,
-      'language' => 'languageConstants/1031',
-      'geoTargetConstants' => [$geo],
-      'keywordSeed' => ['keywords' => [$kw]]
-    ]
-  ],
-  'Ideas_Without_Language' => [
-    'endpoint' => 'generateKeywordIdeas',
-    'payload' => [
-      'keywordPlanNetwork' => 'GOOGLE_SEARCH',
-      'includeAdultKeywords' => false,
-      'geoTargetConstants' => [$geo],
-      'keywordSeed' => ['keywords' => [$kw]]
-    ]
-  ],
-  'Historical_With_Language' => [
-    'endpoint' => 'generateKeywordHistoricalMetrics',
-    'payload' => [
-      'keywordPlanNetwork' => 'GOOGLE_SEARCH',
-      'language' => 'languageConstants/1031',
-      'geoTargetConstants' => [$geo],
-      'keywords' => [$kw]
-    ]
-  ],
-  'Historical_Without_Language' => [
-    'endpoint' => 'generateKeywordHistoricalMetrics',
-    'payload' => [
-      'keywordPlanNetwork' => 'GOOGLE_SEARCH',
-      'geoTargetConstants' => [$geo],
-      'keywords' => [$kw]
-    ]
-  ]
+$chApi = curl_init("https://googleads.googleapis.com/v22/customers/{$customerId}:generateKeywordIdeas");
+curl_setopt($chApi, CURLOPT_POST, true);
+$payload = [
+    "keywordPlanNetwork" => "GOOGLE_SEARCH",
+    "language" => "languageConstants/1031",
+    "geoTargetConstants" => [$geo],
+    "keywordSeed" => ["keywords" => [$kw1, $kw2]],
+    "includeAdultKeywords" => false
 ];
+curl_setopt($chApi, CURLOPT_POSTFIELDS, json_encode($payload));
+curl_setopt($chApi, CURLOPT_RETURNTRANSFER, true);
+curl_setopt($chApi, CURLOPT_HTTPHEADER, [
+    "Authorization: Bearer {$accessToken}",
+    "developer-token: {$devToken}",
+    "Content-Type: application/json"
+]);
+$resp = curl_exec($chApi);
+$httpCode = curl_getinfo($chApi, CURLINFO_HTTP_CODE);
+curl_close($chApi);
 
-$results = [];
-foreach ($testCases as $name => $tc) {
-    $chApi = curl_init("https://googleads.googleapis.com/v22/customers/{$customerId}:" . $tc['endpoint']);
-    curl_setopt($chApi, CURLOPT_POST, true);
-    curl_setopt($chApi, CURLOPT_POSTFIELDS, json_encode($tc['payload']));
-    curl_setopt($chApi, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($chApi, CURLOPT_HTTPHEADER, [
-        "Authorization: Bearer {$accessToken}",
-        "developer-token: {$devToken}",
-        "Content-Type: application/json"
-    ]);
-    $resp = curl_exec($chApi);
-    $httpCode = curl_getinfo($chApi, CURLINFO_HTTP_CODE);
-    curl_close($chApi);
+$json = json_decode($resp, true);
 
-    $json = json_decode($resp, true);
-    
-    // Find the item matching $kw or first item with metrics
-    $itemFound = null;
-    if (!empty($json['results'])) {
-        foreach ($json['results'] as $r) {
-            if (mb_strtolower(trim($r['text'] ?? ''), 'UTF-8') === mb_strtolower(trim($kw), 'UTF-8')) {
-                $itemFound = $r;
-                break;
-            }
-        }
+$first5 = [];
+if (!empty($json['results'])) {
+    foreach (array_slice($json['results'], 0, 10) as $r) {
+        $first5[] = [
+            'text' => $r['text'] ?? '',
+            'hasMetrics' => isset($r['keywordIdeaMetrics']),
+            'metrics' => $r['keywordIdeaMetrics'] ?? null
+        ];
     }
-    
-    $results[$name] = [
-        'httpCode' => $httpCode,
-        'exactItem' => $itemFound,
-        'rawFirst5Results' => array_slice($json['results'] ?? [], 0, 5)
-    ];
 }
 
-echo json_encode($results, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+echo json_encode([
+    'httpCode' => $httpCode,
+    'resultsCount' => count($json['results'] ?? []),
+    'first10' => $first5
+], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
