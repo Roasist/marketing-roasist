@@ -6053,9 +6053,28 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                                         </span>
                                       </div>
                                     ) : kw.lowCpc > 0 ? (
-                                      <span style={{ fontSize: '0.75rem', color: 'var(--text-primary)', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
-                                        ₺{kw.lowCpc.toFixed(2)} - ₺{kw.highCpc.toFixed(2)}
-                                      </span>
+                                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}>
+                                        <span style={{ fontSize: '0.75rem', color: 'var(--text-primary)', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
+                                          ₺{kw.lowCpc.toFixed(2)} - ₺{kw.highCpc.toFixed(2)}
+                                        </span>
+                                        {kw.cpcEstimationMultiplier && kw.cpcEstimationMultiplier !== 1.0 && (
+                                          <span 
+                                            title={`Google Ads taban TBM verisi (${(kw.rawLowCpc ?? kw.lowCpc).toFixed(2)} - ${(kw.rawHighCpc ?? kw.highCpc).toFixed(2)} ₺), ${kw.intent === 'TRANSACTIONAL' ? 'Satın Alma' : (kw.intent === 'INFORMATIONAL' ? 'Bilgi' : 'Ticari')} niyeti için ${kw.cpcEstimationMultiplier.toFixed(2)}x çarpanı ile hesaplanmıştır.`}
+                                            style={{ 
+                                              fontSize: '0.62rem', 
+                                              fontWeight: 600, 
+                                              padding: '1px 4px', 
+                                              borderRadius: '3px', 
+                                              backgroundColor: 'rgba(37, 99, 235, 0.08)', 
+                                              color: 'var(--brand-primary)',
+                                              border: '1px solid rgba(37, 99, 235, 0.2)',
+                                              cursor: 'help'
+                                            }}
+                                          >
+                                            {kw.cpcEstimationMultiplier.toFixed(2)}x
+                                          </span>
+                                        )}
+                                      </div>
                                     ) : (
                                       <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
                                         ₺0.00 - ₺0.00

@@ -105,25 +105,7 @@ export const groupKeywordsSemantically = (
 
       const hasRealGoogleCpc = (rawLow > 0.05 && rawHigh > 0.05) && !isSyntheticBenchmark;
 
-      if (hasRealGoogleCpc) {
-        // REAL GOOGLE ADS DATA: Preserve exact bids, no estimation, no Tahmin badge!
-        const scaledLow = Math.round(rawLow * currMult * 100) / 100;
-        const scaledHigh = Math.round(rawHigh * currMult * 100) / 100;
-
-        return {
-          ...k,
-          rawLowCpc: rawLow,
-          rawHighCpc: rawHigh,
-          lowCpc: scaledLow,
-          highCpc: scaledHigh,
-          isCpcEstimated: false,
-          cpcEstimationCluster: undefined,
-          cpcEstimationMultiplier: undefined,
-          isAiStrategistPick: Boolean(k.isAiStrategistPick)
-        };
-      }
-
-      // ESTIMATED KEYWORD (Google Ads data missing or synthetic benchmark)
+      // Determine Intent Multiplier based on query intent
       let intentMultiplier = commMult;
       if (k.intent === 'TRANSACTIONAL') {
         intentMultiplier = transMult;
@@ -133,6 +115,25 @@ export const groupKeywordsSemantically = (
         intentMultiplier = commMult;
       }
 
+      if (hasRealGoogleCpc) {
+        // REAL GOOGLE ADS DATA: Scale base bids by currency multiplier and intent multiplier
+        const scaledLow = Math.round(rawLow * currMult * intentMultiplier * 100) / 100;
+        const scaledHigh = Math.round(rawHigh * currMult * intentMultiplier * 100) / 100;
+
+        return {
+          ...k,
+          rawLowCpc: rawLow,
+          rawHighCpc: rawHigh,
+          lowCpc: scaledLow,
+          highCpc: scaledHigh,
+          isCpcEstimated: false,
+          cpcEstimationCluster: undefined,
+          cpcEstimationMultiplier: intentMultiplier,
+          isAiStrategistPick: Boolean(k.isAiStrategistPick)
+        };
+      }
+
+      // ESTIMATED KEYWORD (Google Ads data missing or synthetic benchmark)
       const effectiveMult = currMult * intentMultiplier;
       const baseLow = (rawLow > 0.05 && !isSyntheticBenchmark) ? rawLow : clusterMedianLow;
       const baseHigh = (rawHigh > 0.05 && !isSyntheticBenchmark) ? rawHigh : clusterMedianHigh;
