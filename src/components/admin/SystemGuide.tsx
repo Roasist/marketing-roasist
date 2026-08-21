@@ -56,6 +56,10 @@ export const SystemGuide: React.FC = () => {
       a: 'Admin panelindeki "API Bağlantıları" sekmesinden Google Ads Developer Token, Customer ID, Client ID, Client Secret, Refresh Token ve Google Gemini API anahtarlarını güvenli bir şekilde girebilir ve "Bağlantıyı Test Et" butonu ile canlı doğrulama yapabilirsiniz.'
     },
     {
+      q: 'Google Ads API sorgularında anahtar kelime ve lokasyon limitleri nelerdir? 10\'dan fazla lokasyon nasıl sorgulanır?',
+      a: 'Google Ads Keyword Planner API, "generateKeywordIdeas" metodunda tek bir istekte en fazla 20 tohum kelime ve en fazla 10 coğrafi lokasyon kabul eder. "generateKeywordHistoricalMetrics" metodunda ise tek istekte 10.000 adede kadar kelimenin geçmiş resmi verisi çekilebilir. Roasist Marketing Suite; 10\'dan fazla lokasyon (örn: 14 bölge) seçildiğinde lokasyonları otomatik 10\'arlı paketlere (chunk) böler, kelimeleri 20\'şerli tohum gruplarıyla paralel cURL havuzunda eşzamanlı çalıştırır ve dönen sonuçları toplayarak (+ =) 14 bölgenin tüm verisini eksiksiz birleştirir.'
+    },
+    {
       q: 'Yapılan güncellemeler canlı sunucuya nasıl aktarılıyor?',
       a: 'Roasist Marketing Suite, tam otomatik Zero-Downtime Deploy Webhook altyapısına sahiptir. Kod GitHub\'a gönderildiğinde sunucu webhook tetiklenir, OPcache ve LiteSpeed önbellekleri otomatik temizlenir ve sistem kesintisiz güncellenir.'
     }
@@ -287,6 +291,69 @@ export const SystemGuide: React.FC = () => {
                   </tr>
                 </tbody>
               </table>
+            </div>
+          </div>
+
+          {/* GOOGLE ADS API QUERY LIMITS & MULTI-LOCATION ARCHITECTURE */}
+          <div style={{ marginTop: '1rem', borderTop: '1px solid var(--border-default)', paddingTop: '1rem' }}>
+            <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.6rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Zap size={16} color="#3b82f6" />
+              Google Ads API Kelime & Lokasyon Limitleri ve Çoklu Bölge (Multi-Location) Mimarisi
+            </h4>
+            
+            <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '0.85rem' }}>
+              Google Ads Keyword Planner API, doğrudan veritabanı sorguları yaparken sıkı limitlere ve kısıtlamalara sahiptir. Roasist Marketing Suite, bu kısıtlamaları otomatik paketleme (chunking) ve paralel eşzamanlı istek mimarisiyle şeffaf olarak yönetir:
+            </p>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '0.85rem', marginBottom: '1rem' }}>
+              
+              {/* Method 1 Card */}
+              <div style={{ padding: '1rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(59,130,246,0.3)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                  <span style={{ fontWeight: 700, fontSize: '0.85rem', color: '#3b82f6' }}>
+                    1. generateKeywordIdeas
+                  </span>
+                  <span className="badge" style={{ backgroundColor: 'rgba(59,130,246,0.1)', color: '#3b82f6', fontSize: '0.7rem' }}>
+                    Kelime Keşfi & Öneri
+                  </span>
+                </div>
+                <ul style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0, paddingLeft: '1.2rem', lineHeight: 1.55 }}>
+                  <li><strong>Maksimum Tohum Kelime:</strong> Tek bir istekte en fazla <code>20 kelime</code> (<code>keywordSeed.keywords ≤ 20</code>).</li>
+                  <li><strong>Maksimum Lokasyon Sınırı:</strong> Tek bir istekte en fazla <code>10 lokasyon</code> (<code>geoTargetConstants ≤ 10</code>).</li>
+                  <li><strong>Maksimum URL Tohumu:</strong> Tek bir istekte 1 adet URL/Site.</li>
+                  <li><strong>Üretilen Havuz:</strong> 20 tohumdan ortalama <code>500 - 1.500 adet</code> ilişkili resmi anahtar kelime önerisi ve hacmi döndürür.</li>
+                </ul>
+              </div>
+
+              {/* Method 2 Card */}
+              <div style={{ padding: '1rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(16,185,129,0.3)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                  <span style={{ fontWeight: 700, fontSize: '0.85rem', color: '#10b981' }}>
+                    2. generateKeywordHistoricalMetrics
+                  </span>
+                  <span className="badge" style={{ backgroundColor: 'rgba(16,185,129,0.1)', color: '#10b981', fontSize: '0.7rem' }}>
+                    Metrik & Hacim Doğrulama
+                  </span>
+                </div>
+                <ul style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0, paddingLeft: '1.2rem', lineHeight: 1.55 }}>
+                  <li><strong>Maksimum Anahtar Kelime:</strong> Tek bir istekte <code>10.000 adede kadar</code> kelime (<code>keywords ≤ 10.000</code>).</li>
+                  <li><strong>Maksimum Lokasyon Sınırı:</strong> Tek bir istekte en fazla <code>10 lokasyon</code> (<code>geoTargetConstants ≤ 10</code>).</li>
+                  <li><strong>Kullanım Amacı:</strong> Yeni kelime türetmeden, mevcut listenin doğrudan resmi arama hacmi, TBM ve geçmiş 12 aylık trendini çeker.</li>
+                  <li><strong>Dönen Sonuç:</strong> Gönderilen listenin birebir Google Ads resmi veritabanı karşılığı.</li>
+                </ul>
+              </div>
+
+            </div>
+
+            {/* Chunking & Interleaving Methodology Banner */}
+            <div style={{ padding: '0.9rem 1.1rem', backgroundColor: 'rgba(234,179,8,0.08)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(234,179,8,0.25)' }}>
+              <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#eab308', marginBottom: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <Sparkles size={14} />
+                10+ Lokasyon ve Yüksek Kelime Hacminde Roasist Otomatik Paketleme (Chunking & Interleaving) Mimarisi
+              </div>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.55 }}>
+                Kullanıcı 10'dan fazla lokasyon (örneğin 14 bölge) hedeflediğinde, sistem lokasyonları otomatik olarak <strong>maksimum 10'arlı paketlere</strong> (Grup 1: 10 lokasyon, Grup 2: 4 lokasyon) böler. Kelimeleri ise <strong>20'şerli tohum paketlerine</strong> ayırarak paralel cURL havuzunda eşzamanlı olarak Google Ads'e iletir. Dönen sonuçlar her kelime için matematiksel olarak toplanarak (<code>+=</code>) 14 bölgenin hem toplam pazar hacmi hem de her bir bölgenin tekil arama hacmi sıfır hata ve sıfır kota aşımıyla birleştirilir.
+              </p>
             </div>
           </div>
 
