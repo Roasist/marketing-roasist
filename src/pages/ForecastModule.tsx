@@ -602,10 +602,10 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
             hasMatchingGeo = true;
           }
         }
-        if (hasMatchingGeo && sumGeo > 0) {
+        if (hasMatchingGeo) {
           return {
             ...k,
-            monthlyVolume: Math.max(k.monthlyVolume || 0, sumGeo)
+            monthlyVolume: sumGeo
           };
         }
       }
@@ -3125,10 +3125,10 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
               hasMatchingGeo = true;
             }
           }
-          if (hasMatchingGeo && sumGeo > 0) {
+          if (hasMatchingGeo) {
             return {
               ...k,
-              monthlyVolume: Math.max(k.monthlyVolume || 0, sumGeo)
+              monthlyVolume: sumGeo
             };
           }
         }
