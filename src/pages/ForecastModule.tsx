@@ -1718,8 +1718,16 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       clearTimeout(timer1);
       clearTimeout(timer2);
 
+      // Advance to completion stage (%100)
+      setLoadingStage(3);
+
+      // Ensure that user sees the full completed animation with all checkmarks for at least 750ms
+      const elapsed = Date.now() - startTime;
+      const minTotalTime = 2200; // minimum 2.2s total experience
+      const remainingTime = Math.max(minTotalTime - elapsed, 750);
+      await new Promise((resolve) => setTimeout(resolve, remainingTime));
+
       if (res && res.keywords && res.keywords.length > 0) {
-        let finalKeywords = res.keywords;
         setSectorName(res.sector || 'Genel');
         let langCode = res.detectedLanguage;
         if (!langCode || langCode === 'auto') {
@@ -1744,55 +1752,81 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           setBusinessModel('ECOMMERCE');
         }
 
-        // Only initialize locations if user hasn't explicitly customized them yet
-        let effectiveLocations = selectedLocations;
-        if (!selectedLocations || selectedLocations.length === 0) {
+        // Resolve active target locations
+        let activeLocations = selectedLocations && selectedLocations.length > 0 ? [...selectedLocations] : [];
+        if (activeLocations.length === 0) {
           if (res.detectedLanguage === 'ru') {
-            effectiveLocations = [
+            activeLocations = [
               { id: '2643', resourceName: 'geoTargetConstants/2643', name: 'Rusya', canonicalName: 'Rusya', countryCode: 'RU', targetType: 'Country', reach: 145000000, flag: '🇷🇺', cpcMultiplier: 1.6, volumeMultiplier: 1.8 },
               { id: '2398', resourceName: 'geoTargetConstants/2398', name: 'Kazakistan', canonicalName: 'Kazakistan', countryCode: 'KZ', targetType: 'Country', reach: 19500000, flag: '🇰🇿', cpcMultiplier: 1.4, volumeMultiplier: 0.9 }
             ];
           } else if (res.detectedLanguage === 'fa') {
-            effectiveLocations = [
+            activeLocations = [
               { id: '2792', resourceName: 'geoTargetConstants/2792', name: 'Türkiye', canonicalName: 'Türkiye', countryCode: 'TR', targetType: 'Country', reach: 85000000, flag: '🇹🇷', cpcMultiplier: 1.0, volumeMultiplier: 1.0 },
               { id: '1000010', resourceName: 'geoTargetConstants/1000010', name: 'Dubai', canonicalName: 'Dubai, Birleşik Arap Emirlikleri', countryCode: 'AE', targetType: 'City', reach: 3400000, flag: '🇦🇪', cpcMultiplier: 2.4, volumeMultiplier: 0.8 },
               { id: '2276', resourceName: 'geoTargetConstants/2276', name: 'Almanya', canonicalName: 'Almanya', countryCode: 'DE', targetType: 'Country', reach: 84000000, flag: '🇩🇪', cpcMultiplier: 2.8, volumeMultiplier: 1.4 }
             ];
           } else if (res.detectedLanguage === 'ar') {
-            effectiveLocations = [
+            activeLocations = [
               { id: '1000010', resourceName: 'geoTargetConstants/1000010', name: 'Dubai', canonicalName: 'Dubai, Birleşik Arap Emirlikleri', countryCode: 'AE', targetType: 'City', reach: 3400000, flag: '🇦🇪', cpcMultiplier: 2.4, volumeMultiplier: 0.8 },
               { id: '2682', resourceName: 'geoTargetConstants/2682', name: 'Suudi Arabistan', canonicalName: 'Suudi Arabistan', countryCode: 'SA', targetType: 'Country', reach: 35000000, flag: '🇸🇦', cpcMultiplier: 2.1, volumeMultiplier: 1.2 }
             ];
           } else if (res.detectedLanguage === 'de') {
-            effectiveLocations = [
+            activeLocations = [
               { id: '2276', resourceName: 'geoTargetConstants/2276', name: 'Almanya', canonicalName: 'Almanya', countryCode: 'DE', targetType: 'Country', reach: 84000000, flag: '🇩🇪', cpcMultiplier: 2.8, volumeMultiplier: 1.4 }
             ];
           } else if (res.detectedLanguage === 'en') {
-            effectiveLocations = [
+            activeLocations = [
               { id: '2826', resourceName: 'geoTargetConstants/2826', name: 'Birleşik Krallık', canonicalName: 'Birleşik Krallık', countryCode: 'GB', targetType: 'Country', reach: 67000000, flag: '🇬🇧', cpcMultiplier: 3.2, volumeMultiplier: 1.3 },
               { id: '2840', resourceName: 'geoTargetConstants/2840', name: 'Amerika Birleşik Devletleri', canonicalName: 'Amerika Birleşik Devletleri', countryCode: 'US', targetType: 'Country', reach: 335000000, flag: '🇺🇸', cpcMultiplier: 3.5, volumeMultiplier: 2.0 }
             ];
           } else {
-            effectiveLocations = [DEFAULT_LOCATIONS[0]];
+            activeLocations = [DEFAULT_LOCATIONS[0]];
           }
-          setSelectedLocations(effectiveLocations);
+          setSelectedLocations(activeLocations);
         }
 
         if ((res as any).locationBreakdown && (res as any).locationBreakdown.length > 0) {
           setOfficialLocationBreakdown((res as any).locationBreakdown);
         }
 
-        // Fetch per-location breakdown BEFORE showing Step 1
-        // This ensures all geo volumes are populated when the user sees results
-        if (effectiveLocations.length >= 2) {
+        // Dynamic Multi-Channel CPM & CPV benchmarks based on Sector & Target Market
+        const isIntl = (res.detectedLanguage && res.detectedLanguage !== 'tr') || (res.suggestedCountries && res.suggestedCountries.some((c: any) => ['DE', 'GB', 'US', 'AE', 'SA', 'RU'].includes(c.code)));
+        if (/emlak|gayrimenkul|citizenship|vatandaşlık|villa|property|real estate|klinik|health|saç ekim|hair transplant|estetik|hastane/.test(lowerContext)) {
+          setMetaCpm(isIntl ? 320 : 120);
+          setGdnCpm(isIntl ? 28 : 16);
+          setYoutubeCpv(isIntl ? 0.75 : 0.40);
+        } else if (/otel|hotel|tatil|resort|turizm|pansiyon/.test(lowerContext)) {
+          setMetaCpm(isIntl ? 190 : 85);
+          setGdnCpm(16);
+          setYoutubeCpv(0.35);
+        } else if (/e-ticaret|eticaret|shop|store|giyim|ayakkabı/.test(lowerContext)) {
+          setMetaCpm(isIntl ? 110 : 55);
+          setGdnCpm(12);
+          setYoutubeCpv(0.28);
+        } else {
+          setMetaCpm(isIntl ? 140 : 70);
+          setGdnCpm(15);
+          setYoutubeCpv(0.35);
+        }
+
+        // Auto-select all keywords by default
+        const allIds = new Set<string>(res.keywords.map((k: KeywordMetric) => k.id));
+        setSelectedKeywordIds(allIds);
+
+        // Fetch per-location breakdown for all target locations BEFORE revealing Step 1
+        let finalKeywords: KeywordMetric[] = res.keywords;
+        if (activeLocations.length >= 2) {
+          setLoadingStage(3); // Stage 4: Bölgesel Veriler (%85)
           try {
+            const locLangCode = res.detectedLanguage || 'tr';
             const breakdownRes = await ApiService.getLocationBreakdown({
               query: m === 'URL' ? q.trim() : res.keywords.map((k: any) => k.keyword).join(', '),
               mode: m,
-              language: langCode || 'tr',
-              geoTargetConstants: effectiveLocations.map((l: any) => l.id),
+              language: locLangCode,
+              geoTargetConstants: activeLocations.map((l: any) => l.id),
               keywords: res.keywords,
-              locations: effectiveLocations
+              locations: activeLocations
             });
 
             if (breakdownRes) {
@@ -1800,7 +1834,6 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                 setOfficialLocationBreakdown(breakdownRes.breakdown);
               }
               if (breakdownRes.keywordGeoMap && Object.keys(breakdownRes.keywordGeoMap).length > 0) {
-                // Merge geo volumes directly into keywords before setting them
                 finalKeywords = res.keywords.map((k: any) => {
                   const kNorm = k.keyword.toLowerCase().trim();
                   const geoData = breakdownRes.keywordGeoMap[kNorm];
@@ -1824,47 +1857,18 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
         setKeywords(finalKeywords);
 
-        // Dynamic Multi-Channel CPM & CPV benchmarks based on Sector & Target Market
-        const isIntl = (res.detectedLanguage && res.detectedLanguage !== 'tr') || (res.suggestedCountries && res.suggestedCountries.some((c: any) => ['DE', 'GB', 'US', 'AE', 'SA', 'RU'].includes(c.code)));
-        if (/emlak|gayrimenkul|citizenship|vatandaşlık|villa|property|real estate|klinik|health|saç ekim|hair transplant|estetik|hastane/.test(lowerContext)) {
-          setMetaCpm(isIntl ? 320 : 120);
-          setGdnCpm(isIntl ? 28 : 16);
-          setYoutubeCpv(isIntl ? 0.75 : 0.40);
-        } else if (/otel|hotel|tatil|resort|turizm|pansiyon/.test(lowerContext)) {
-          setMetaCpm(isIntl ? 190 : 85);
-          setGdnCpm(16);
-          setYoutubeCpv(0.35);
-        } else if (/e-ticaret|eticaret|shop|store|giyim|ayakkabı/.test(lowerContext)) {
-          setMetaCpm(isIntl ? 110 : 55);
-          setGdnCpm(12);
-          setYoutubeCpv(0.28);
-        } else {
-          setMetaCpm(isIntl ? 140 : 70);
-          setGdnCpm(15);
-          setYoutubeCpv(0.35);
-        }
-
-        // Auto-select all keywords by default
-        const allIds = new Set<string>(finalKeywords.map((k: KeywordMetric) => k.id));
-        setSelectedKeywordIds(allIds);
-
         // Advance to completion stage (%100)
-        setLoadingStage(3);
+        setLoadingStage(4);
+        await new Promise((resolve) => setTimeout(resolve, 600));
 
-        // Ensure that user sees the full completed animation with all checkmarks
-        const elapsed = Date.now() - startTime;
-        const minTotalTime = 2200; // minimum 2.2s total experience
-        const remainingTime = Math.max(minTotalTime - elapsed, 600);
-        await new Promise((resolve) => setTimeout(resolve, remainingTime));
-
-        // Switch to Step 1 for user review (now with complete geo data)
+        // Switch to Step 1 for user review with 100% complete data
         setCurrentStep(1);
 
         // Populate negative keywords in the detected language & intent
         if (res.negativeCategories && res.negativeCategories.length > 0) {
           setNegativeCategories(res.negativeCategories);
         } else {
-          loadNegatives(res.sector || 'Genel', finalKeywords.map((k: KeywordMetric) => k.keyword), res.detectedLanguage || 'tr', res.pageTitle, res.pageSummary);
+          loadNegatives(res.sector || 'Genel', res.keywords.map((k: KeywordMetric) => k.keyword), res.detectedLanguage || 'tr', res.pageTitle, res.pageSummary);
         }
       } else {
         setErrorMsg('Bu arama için anahtar kelime verisi üretilemedi.');
@@ -4715,7 +4719,8 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                   {loadingStage === 0 && '🌐'}
                   {loadingStage === 1 && '🔍'}
                   {loadingStage === 2 && '⚡'}
-                  {loadingStage === 3 && '🎯'}
+                  {loadingStage === 3 && '📍'}
+                  {loadingStage === 4 && '🎯'}
                 </span>
                 <div className="animate-ping" style={{
                   position: 'absolute',
@@ -4728,10 +4733,10 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
               </div>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: loadingStage === 3 ? '#10b981' : 'var(--brand-primary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                    {loadingStage === 3 ? 'TAMAMLANDI (4/4)' : `ADIM ${loadingStage + 1} / 4`}
+                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: loadingStage === 4 ? '#10b981' : 'var(--brand-primary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    {loadingStage === 4 ? 'TAMAMLANDI (5/5)' : `ADIM ${loadingStage + 1} / 5`}
                   </span>
-                  {loadingStage === 3 ? (
+                  {loadingStage === 4 ? (
                     <span className="badge badge-active" style={{ fontSize: '0.7rem', padding: '2px 8px', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
                       <Check size={11} /> Sonuçlar Hazırlandı!
                     </span>
@@ -4745,23 +4750,25 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                   {loadingStage === 0 && 'Açılış Sayfası Taranıyor & İçerik Kazınıyor'}
                   {loadingStage === 1 && 'Dil, Sektör & Coğrafi Lokasyon Analizi'}
                   {loadingStage === 2 && 'Google Ads Keyword Planner Verileri Çekiliyor'}
-                  {loadingStage === 3 && 'Semantik Reklam Grupları & Bütçe Projeksiyonu'}
+                  {loadingStage === 3 && 'Tüm Hedef Bölgelerin Resmi Hacim & TBM Verileri Alınıyor'}
+                  {loadingStage === 4 && 'Semantik Reklam Grupları & Bütçe Projeksiyonu'}
                 </div>
                 <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.25rem', maxWidth: '650px', lineHeight: 1.45 }}>
                   {loadingStage === 0 && 'Hedef web sitesi ve SPA bileşenleri taranıyor, ana başlıklar ve metin blokları çözümleniyor...'}
                   {loadingStage === 1 && 'Sayfanın dili, hedef coğrafi pazarlar ve iş modeli sektörel olarak sınıflandırılıyor...'}
                   {loadingStage === 2 && 'Resmi Google arama hacimleri, rekabet indeksleri ve sayfa üstü TBM teklifleri alınıyor...'}
-                  {loadingStage === 3 && 'Anahtar kelimeler Ad Group temalarına kümeleniyor ve bütçe simülasyonu oluşturuluyor...'}
+                  {loadingStage === 3 && 'Seçili tüm hedef şehir ve eyaletlerin bağımsız resmi arama havuzları Google Ads API ile işleniyor...'}
+                  {loadingStage === 4 && 'Anahtar kelimeler Ad Group temalarına kümeleniyor ve bütçe simülasyonu oluşturuluyor...'}
                 </div>
               </div>
             </div>
 
             <div style={{ textAlign: 'right', minWidth: '120px' }}>
-              <div style={{ fontSize: '1.75rem', fontWeight: 800, color: loadingStage === 3 ? '#10b981' : 'var(--brand-primary)' }}>
-                %{loadingStage === 0 ? 25 : (loadingStage === 1 ? 50 : (loadingStage === 2 ? 75 : 100))}
+              <div style={{ fontSize: '1.75rem', fontWeight: 800, color: loadingStage === 4 ? '#10b981' : 'var(--brand-primary)' }}>
+                %{loadingStage === 0 ? 20 : (loadingStage === 1 ? 40 : (loadingStage === 2 ? 65 : (loadingStage === 3 ? 85 : 100)))}
               </div>
               <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                {loadingStage === 3 ? 'Veriler aktarılıyor...' : 'Ortalama 2-3 saniye'}
+                {loadingStage === 4 ? 'Veriler aktarılıyor...' : 'Ortalama 3-4 saniye'}
               </div>
             </div>
           </div>
@@ -4769,24 +4776,25 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           {/* Animated Smooth Progress Bar */}
           <div style={{ width: '100%', height: '8px', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-full)', overflow: 'hidden', border: '1px solid var(--border-default)' }}>
             <div style={{
-              width: `${loadingStage === 0 ? 25 : (loadingStage === 1 ? 50 : (loadingStage === 2 ? 75 : 100))}%`,
+              width: `${loadingStage === 0 ? 20 : (loadingStage === 1 ? 40 : (loadingStage === 2 ? 65 : (loadingStage === 3 ? 85 : 100)))}%`,
               height: '100%',
-              backgroundColor: loadingStage === 3 ? '#10b981' : 'var(--brand-primary)',
+              backgroundColor: loadingStage === 4 ? '#10b981' : 'var(--brand-primary)',
               borderRadius: 'var(--radius-full)',
               transition: 'width 0.5s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.3s ease'
             }} />
           </div>
 
-          {/* 4 Step Horizontal Indicator Pills */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem', paddingTop: '0.5rem', borderTop: '1px solid var(--border-default)' }}>
+          {/* 5 Step Horizontal Indicator Pills */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid var(--border-default)' }}>
             {[
               { title: 'Sayfa Taraması', stage: 0 },
-              { title: 'Dil & Sektör Analizi', stage: 1 },
-              { title: 'Google Ads Hacimleri', stage: 2 },
-              { title: 'Gruplama & Projeksiyon', stage: 3 }
+              { title: 'Dil & Sektör', stage: 1 },
+              { title: 'Google Hacimleri', stage: 2 },
+              { title: 'Bölgesel Kırılım', stage: 3 },
+              { title: 'Gruplama & Projeksiyon', stage: 4 }
             ].map((st) => {
-              const isPast = st.stage < loadingStage || loadingStage === 3;
-              const isCurrent = st.stage === loadingStage && loadingStage !== 3;
+              const isPast = st.stage < loadingStage || loadingStage === 4;
+              const isCurrent = st.stage === loadingStage && loadingStage !== 4;
               return (
                 <div key={st.stage} style={{
                   display: 'flex',
