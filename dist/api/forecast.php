@@ -815,10 +815,12 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
                     'endpoint' => 'generateKeywordHistoricalMetrics',
                     'payload' => [
                         "keywordPlanNetwork" => "GOOGLE_SEARCH",
-                        "includeAdultKeywords" => false,
                         "language" => $histLang,
                         "geoTargetConstants" => [$geoResource],
-                        "keywords" => $hBatch
+                        "keywords" => $hBatch,
+                        "historicalMetricsOptions" => [
+                            "includeAverageCpc" => true
+                        ]
                     ]
                 ];
             }

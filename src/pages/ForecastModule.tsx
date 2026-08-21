@@ -3020,11 +3020,10 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       }
 
       // Compute effective regional volume:
-      // If direct Google Ads volume was returned and > 0, use it.
-      // If direct volume is 0 or null (common for long-tail keywords in smaller cities due to Google's privacy threshold),
-      // allocate based on the region's verified market share so that keywords never display 0 when the region is active!
+      // If direct Google Ads volume was returned (either > 0 or 0), use the exact Google Ads API value!
+      // If direct volume is null (not yet queried by Google Ads), estimate from market share:
       let effectiveLocVol = 0;
-      if (directLocVol !== null && directLocVol > 0) {
+      if (directLocVol !== null) {
         effectiveLocVol = directLocVol;
       } else if (k.monthlyVolume > 0) {
         effectiveLocVol = Math.max(10, Math.round(k.monthlyVolume * locShareRatio));
