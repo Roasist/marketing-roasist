@@ -1876,8 +1876,12 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     const newGeoVolumes = { ...(k.geoVolumes || {}) };
                     const newGeoCpc = { ...(k.geoCpc || {}) };
                     for (const [gId, metrics] of Object.entries(geoData as Record<string, any>)) {
-                      newGeoVolumes[gId] = metrics.monthlyVolume;
-                      newGeoCpc[gId] = { lowCpc: metrics.lowCpc, highCpc: metrics.highCpc };
+                      const cleanGId = String(gId).replace(/\D/g, '');
+                      newGeoVolumes[cleanGId] = metrics.monthlyVolume;
+                      newGeoVolumes[String(gId)] = metrics.monthlyVolume;
+                      newGeoVolumes[`geoTargetConstants/${cleanGId}`] = metrics.monthlyVolume;
+                      newGeoCpc[cleanGId] = { lowCpc: metrics.lowCpc, highCpc: metrics.highCpc };
+                      newGeoCpc[String(gId)] = { lowCpc: metrics.lowCpc, highCpc: metrics.highCpc };
                     }
                     return { ...k, geoVolumes: newGeoVolumes, geoCpc: newGeoCpc };
                   }
@@ -2692,14 +2696,20 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           }
           if (res.keywordGeoMap && Object.keys(res.keywordGeoMap).length > 0) {
             setKeywords(prev => prev.map(k => {
-              const kNorm = k.keyword.toLowerCase().trim();
-              const geoData = res.keywordGeoMap[kNorm];
+              const kRaw = String(k.keyword || '');
+              const kNorm1 = kRaw.toLowerCase().trim();
+              const kNorm2 = kRaw.toLowerCase().replace(/\s+/g, ' ').trim();
+              const geoData = res.keywordGeoMap[kNorm1] || res.keywordGeoMap[kNorm2];
               if (geoData) {
                 const newGeoVolumes = { ...(k.geoVolumes || {}) };
                 const newGeoCpc = { ...(k.geoCpc || {}) };
                 for (const [gId, metrics] of Object.entries(geoData as Record<string, any>)) {
-                  newGeoVolumes[gId] = metrics.monthlyVolume;
-                  newGeoCpc[gId] = { lowCpc: metrics.lowCpc, highCpc: metrics.highCpc };
+                  const cleanGId = String(gId).replace(/\D/g, '');
+                  newGeoVolumes[cleanGId] = metrics.monthlyVolume;
+                  newGeoVolumes[String(gId)] = metrics.monthlyVolume;
+                  newGeoVolumes[`geoTargetConstants/${cleanGId}`] = metrics.monthlyVolume;
+                  newGeoCpc[cleanGId] = { lowCpc: metrics.lowCpc, highCpc: metrics.highCpc };
+                  newGeoCpc[String(gId)] = { lowCpc: metrics.lowCpc, highCpc: metrics.highCpc };
                 }
                 return {
                   ...k,
@@ -2967,17 +2977,18 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       });
     }
 
-    const targetGeoId = String(activeScopeMetric?.id || activeScopeLocation?.id || '');
+    const targetGeoId = String(activeScopeMetric?.id || activeScopeLocation?.id || activeLocationScope || '');
     const cleanGeoId = targetGeoId.replace(/[^0-9]/g, '');
     const locCc = (activeScopeLocation?.countryCode || '').toUpperCase();
 
     return imputedKeywords.map(k => {
-      // 1. Direct official Google Ads volume for this exact location (pure official data only)
-      let directLocVol = 0;
+      // 1. Direct official Google Ads volume for this exact location (pure official data)
+      let directLocVol: number | null = null;
       if (k.geoVolumes && Object.keys(k.geoVolumes).length > 0) {
         const keysToTry = [
           cleanGeoId,
           targetGeoId,
+          String(activeLocationScope),
           `geoTargetConstants/${cleanGeoId}`,
           locCc,
           locCc.toLowerCase(),
@@ -2987,14 +2998,23 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
         for (const key of keysToTry) {
           if (k.geoVolumes[key] !== undefined) {
-            directLocVol = Math.max(0, Number(k.geoVolumes[key]) || 0);
+            directLocVol = Number(k.geoVolumes[key]);
             break;
           }
         }
       }
 
+      // If direct volume was returned for this location, use it.
+      // If not present in geoVolumes, use proportional share of the region if available
+      let effectiveLocVol = 0;
+      if (directLocVol !== null) {
+        effectiveLocVol = Math.max(0, directLocVol);
+      } else if (k.monthlyVolume > 0 && activeScopeMetric && activeScopeMetric.sharePercent > 0) {
+        effectiveLocVol = Math.max(0, Math.round((k.monthlyVolume * activeScopeMetric.sharePercent) / 100));
+      }
+
       const directCpcObj = k.geoCpc ? (
-        k.geoCpc[cleanGeoId] || k.geoCpc[targetGeoId] || k.geoCpc['geoTargetConstants/' + cleanGeoId]
+        k.geoCpc[cleanGeoId] || k.geoCpc[targetGeoId] || k.geoCpc[String(activeLocationScope)] || k.geoCpc['geoTargetConstants/' + cleanGeoId]
       ) : undefined;
       const directLocLowCpc = directCpcObj?.lowCpc;
       const directLocHighCpc = directCpcObj?.highCpc;
@@ -3014,19 +3034,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       const hasDirectLocCpc = directLocLowCpc !== undefined && directLocLowCpc > 0.05;
       const isEstimated = !hasDirectLocCpc && Boolean(k.isCpcEstimated || k.cpcEstimationMultiplier || k.cpcEstimationCluster);
 
-      if (directLocVol !== undefined) {
-        return {
-          ...k,
-          monthlyVolume: directLocVol,
-          lowCpc: Math.round(baseLow * 100) / 100,
-          highCpc: Math.round(baseHigh * 100) / 100,
-          isCpcEstimated: isEstimated,
-          cpcEstimationMultiplier: isEstimated ? intentMultiplier : undefined
-        };
-      }
-
       return {
         ...k,
+        monthlyVolume: effectiveLocVol,
         lowCpc: Math.round(baseLow * 100) / 100,
         highCpc: Math.round(baseHigh * 100) / 100,
         isCpcEstimated: isEstimated,

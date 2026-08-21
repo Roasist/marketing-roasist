@@ -801,24 +801,27 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
     // Build all requests: Dual Engine (Historical Metrics + Keyword Ideas) across ALL locations
     $allRequests = [];
     if (!empty($topSeeds)) {
-        // Engine 1: generateKeywordHistoricalMetrics (queries up to 300 keywords in a single call per location)
-        $topHistoricalSeeds = array_slice($topSeeds, 0, 300);
-        $histLang = detectLanguageConstantForKeywords($topHistoricalSeeds, $effectiveLangConst);
-        foreach ($geoConstants as $geo) {
-            $geoResource = strpos($geo, 'geoTargetConstants/') === 0 ? $geo : "geoTargetConstants/{$geo}";
-            $geoId = preg_replace('/[^0-9]/', '', $geo);
-            $allRequests[] = [
-                'geoId' => $geoId,
-                'geoResource' => $geoResource,
-                'endpoint' => 'generateKeywordHistoricalMetrics',
-                'payload' => [
-                    "keywordPlanNetwork" => "GOOGLE_SEARCH",
-                    "includeAdultKeywords" => false,
-                    "language" => $histLang,
-                    "geoTargetConstants" => [$geoResource],
-                    "keywords" => $topHistoricalSeeds
-                ]
-            ];
+        // Engine 1: generateKeywordHistoricalMetrics (queries up to 4,000 keywords in 1,000-keyword batches per location)
+        $topHistoricalSeeds = array_slice($topSeeds, 0, 4000);
+        $histBatches = array_chunk($topHistoricalSeeds, 1000);
+        foreach ($histBatches as $hBatch) {
+            $histLang = detectLanguageConstantForKeywords($hBatch, $effectiveLangConst);
+            foreach ($geoConstants as $geo) {
+                $geoResource = strpos($geo, 'geoTargetConstants/') === 0 ? $geo : "geoTargetConstants/{$geo}";
+                $geoId = preg_replace('/[^0-9]/', '', $geo);
+                $allRequests[] = [
+                    'geoId' => $geoId,
+                    'geoResource' => $geoResource,
+                    'endpoint' => 'generateKeywordHistoricalMetrics',
+                    'payload' => [
+                        "keywordPlanNetwork" => "GOOGLE_SEARCH",
+                        "includeAdultKeywords" => false,
+                        "language" => $histLang,
+                        "geoTargetConstants" => [$geoResource],
+                        "keywords" => $hBatch
+                    ]
+                ];
+            }
         }
 
         // Engine 2: generateKeywordIdeas (Interleaved 20-seed batches across all locations)
@@ -947,7 +950,7 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
                 $high = (float)(($m['highTopOfPageBidMicros'] ?? 0) / 1000000);
                 $low = (float)(($m['lowTopOfPageBidMicros'] ?? 0) / 1000000);
 
-                $kwText = $r['text'] ?? '';
+                $kwText = $r['text'] ?? $r['keyword'] ?? $r['keywordText'] ?? '';
                 if (!empty($kwText)) {
                     $kwNorm = mb_strtolower(preg_replace('/\s+/', ' ', trim($kwText)), 'UTF-8');
                     $keywordGeoMap[$kwNorm][$geoId] = [
@@ -1044,7 +1047,7 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
                         $v = (int)($m['avgMonthlySearches'] ?? 0);
                         $high = (float)(($m['highTopOfPageBidMicros'] ?? 0) / 1000000);
                         $low = (float)(($m['lowTopOfPageBidMicros'] ?? 0) / 1000000);
-                        $kwText = $r['text'] ?? '';
+                        $kwText = $r['text'] ?? $r['keyword'] ?? $r['keywordText'] ?? '';
                         if (!empty($kwText)) {
                             $kwNorm = mb_strtolower(preg_replace('/\s+/', ' ', trim($kwText)), 'UTF-8');
                             $keywordGeoMap[$kwNorm][$geoId] = [
