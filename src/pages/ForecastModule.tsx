@@ -695,6 +695,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   const [selectedBatchLocationIds, setSelectedBatchLocationIds] = useState<Set<string>>(new Set());
   const [officialLocationBreakdown, setOfficialLocationBreakdown] = useState<CountryMetric[]>([]);
   const [isLoadingLocationBreakdown, setIsLoadingLocationBreakdown] = useState<boolean>(false);
+  const [isRefreshingStep2Google, setIsRefreshingStep2Google] = useState<boolean>(false);
 
   // Growth Scenario Projection (Muhafazakar / Beklenen / Agresif)
   const [growthScenario, setGrowthScenario] = useState<GrowthScenario>('REALISTIC');
@@ -2034,6 +2035,95 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         next.delete(id);
         return next;
       });
+    }
+  };
+
+  const handleRefreshStep2GoogleAdsData = async () => {
+    if (isRefreshingStep2Google || !step2WorkingKeywords || step2WorkingKeywords.length === 0) {
+      return;
+    }
+    setIsRefreshingStep2Google(true);
+    try {
+      const res = await ApiService.getLocationBreakdown({
+        query: step2WorkingKeywords.map(k => k.keyword).join(', '),
+        mode: 'KEYWORDS',
+        language: detectedLanguage || 'tr',
+        geoTargetConstants: selectedLocations.map(l => l.id),
+        keywords: step2WorkingKeywords,
+        locations: selectedLocations,
+        bypassCache: true
+      });
+
+      if (res) {
+        if (res.breakdown && res.breakdown.length > 0) {
+          setOfficialLocationBreakdown(res.breakdown);
+        }
+        if (res.keywordGeoMap && Object.keys(res.keywordGeoMap).length > 0) {
+          setKeywords(prev => prev.map(k => {
+            const kRaw = String(k.keyword || '');
+            const kNorm1 = kRaw.toLowerCase().trim();
+            const kNorm2 = kRaw.toLowerCase().replace(/\s+/g, ' ').trim();
+            const geoData = res.keywordGeoMap[kNorm1] || res.keywordGeoMap[kNorm2];
+            if (geoData) {
+              const newGeoVolumes = { ...(k.geoVolumes || {}) };
+              const newGeoCpc = { ...(k.geoCpc || {}) };
+              let totalLiveVol = 0;
+              for (const [gId, metrics] of Object.entries(geoData as Record<string, any>)) {
+                const cleanGId = String(gId).replace(/\D/g, '');
+                newGeoVolumes[cleanGId] = metrics.monthlyVolume;
+                newGeoVolumes[String(gId)] = metrics.monthlyVolume;
+                newGeoVolumes[`geoTargetConstants/${cleanGId}`] = metrics.monthlyVolume;
+                newGeoCpc[cleanGId] = { lowCpc: metrics.lowCpc, highCpc: metrics.highCpc };
+                newGeoCpc[String(gId)] = { lowCpc: metrics.lowCpc, highCpc: metrics.highCpc };
+                if (metrics.monthlyVolume > 0) totalLiveVol += metrics.monthlyVolume;
+              }
+              return {
+                ...k,
+                monthlyVolume: totalLiveVol > 0 ? totalLiveVol : k.monthlyVolume,
+                geoVolumes: newGeoVolumes,
+                geoCpc: newGeoCpc
+              };
+            }
+            return k;
+          }));
+        }
+
+        // Open inspection modal so the user can immediately inspect the fresh Google Ads numbers
+        if (res.breakdown && res.breakdown.length > 0) {
+          const totalVol = res.breakdown.reduce((sum: number, b: any) => sum + (Number(b.monthlyVolume) || 0), 0);
+          const succCount = res.breakdown.filter((b: any) => Number(b.monthlyVolume) > 0).length;
+          setLocationAuditData({
+            totalLocations: selectedLocations.length,
+            successLocations: succCount,
+            totalKeywords: step2WorkingKeywords.length,
+            totalVolume: totalVol,
+            detectedLanguage: detectedLanguageName || detectedLanguage || 'Otomatik',
+            sector: businessModel || 'Genel Sektör',
+            locations: res.breakdown.map((b: any) => {
+              const bCleanId = String(b.id || '').replace(/\D/g, '');
+              const matchingLoc = selectedLocations.find(l => String(l.id).replace(/\D/g, '') === bCleanId);
+              return {
+                id: String(b.id || ''),
+                cleanId: bCleanId,
+                name: b.name || matchingLoc?.name || 'Bilinmeyen Bölge',
+                canonicalName: b.canonicalName || matchingLoc?.canonicalName || b.name,
+                countryCode: b.countryCode || matchingLoc?.countryCode || 'TR',
+                targetType: b.targetType || matchingLoc?.targetType || 'Bölge',
+                flag: b.flag || matchingLoc?.flag || '📍',
+                searchVolume: Number(b.monthlyVolume) || 0,
+                avgCpc: Number(b.avgCpc) || 0,
+                keywordsWithVolumeCount: Number(b.keywordsWithVolumeCount) || 0,
+                status: (Number(b.monthlyVolume) > 0 ? 'SUCCESS' : 'NO_VOLUME') as 'SUCCESS' | 'NO_VOLUME'
+              };
+            })
+          });
+          setShowLocationAuditModal(true);
+        }
+      }
+    } catch (err: any) {
+      console.error('Error refreshing step 2 keywords from Google Ads:', err);
+    } finally {
+      setIsRefreshingStep2Google(false);
     }
   };
 
@@ -5606,6 +5696,45 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                             </div>
                           );
                         })()}
+
+                        {currentStep === 2 && (
+                          <button
+                            type="button"
+                            onClick={handleRefreshStep2GoogleAdsData}
+                            disabled={isRefreshingStep2Google || step2WorkingKeywords.length === 0}
+                            className="btn-secondary"
+                            title="Yalnızca 2. adımdaki bu seçili kelimeler için Google Ads API'den en güncel resmi arama hacimlerini, TBM ve bölgesel kırılımları doğrudan canlı olarak çeker."
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              fontSize: '0.74rem',
+                              padding: '0.35rem 0.75rem',
+                              borderRadius: 'var(--radius-xs)',
+                              border: '1px solid rgba(16, 185, 129, 0.45)',
+                              backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                              color: '#059669',
+                              fontWeight: 700,
+                              cursor: isRefreshingStep2Google ? 'not-allowed' : 'pointer',
+                              whiteSpace: 'nowrap'
+                            }}
+                          >
+                            {isRefreshingStep2Google ? (
+                              <>
+                                <RefreshCw size={13} className="animate-spin" />
+                                <span>Google Ads'ten Çekiliyor...</span>
+                              </>
+                            ) : (
+                              <>
+                                <RefreshCw size={13} />
+                                <span>⚡ Google API'den Canlı Yenile</span>
+                                <span style={{ fontSize: '0.62rem', backgroundColor: '#10b981', color: '#fff', borderRadius: '10px', padding: '1px 6px' }}>
+                                  {step2WorkingKeywords.length} Kelime
+                                </span>
+                              </>
+                            )}
+                          </button>
+                        )}
 
                         <button
                           type="button"

@@ -316,6 +316,7 @@ export class ApiService {
     geoTargetConstants: string[];
     keywords?: any[];
     locations?: any[];
+    bypassCache?: boolean;
   }): Promise<{ breakdown: any[]; keywordGeoMap: Record<string, any> }> {
     const res = await this.request<{ status: string; locationBreakdown: any[]; keywordGeoMap?: Record<string, any> }>(
       '/forecast.php?action=location_breakdown',

@@ -3022,12 +3022,14 @@ if ($action === 'location_breakdown' && $method === 'POST') {
     }, $keywords), 0, 10)) : '';
     $cacheKey = md5("loc_breakdown_v2_{$mode}_{$query}_{$language}_" . implode('_', (array)$geoTargetConstants) . "_{$kwCount}_{$firstKws}");
 
-    // Check Server-Side Cache
+    $bypassCache = !empty($input['bypassCache']);
+
+    // Check Server-Side Cache (skip if bypassCache is requested)
     $stmtCache = $pdo->prepare("SELECT data, created_at FROM keyword_cache WHERE cache_key = ?");
     $stmtCache->execute([$cacheKey]);
     $cached = $stmtCache->fetch();
 
-    if ($cached && (time() - strtotime($cached['created_at']) < 86400)) { // 24-hour cache
+    if (!$bypassCache && $cached && (time() - strtotime($cached['created_at']) < 86400)) { // 24-hour cache
         $cachedData = json_decode($cached['data'], true);
         echo json_encode([
             'status' => 'success',
