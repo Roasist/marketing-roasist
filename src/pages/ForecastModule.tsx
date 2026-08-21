@@ -2822,8 +2822,8 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     const locCc = (activeScopeLocation?.countryCode || '').toUpperCase();
 
     return imputedKeywords.map(k => {
-      // 1. Direct official Google Ads volume for this exact location
-      let directLocVol: number | undefined = undefined;
+      // 1. Direct official Google Ads volume for this exact location (pure official data only)
+      let directLocVol = 0;
       if (k.geoVolumes && Object.keys(k.geoVolumes).length > 0) {
         const keysToTry = [
           cleanGeoId,
@@ -2836,23 +2836,10 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         ].filter(Boolean) as string[];
 
         for (const key of keysToTry) {
-          if (k.geoVolumes[key] !== undefined && Number(k.geoVolumes[key]) > 0) {
-            directLocVol = Number(k.geoVolumes[key]);
+          if (k.geoVolumes[key] !== undefined) {
+            directLocVol = Math.max(0, Number(k.geoVolumes[key]) || 0);
             break;
           }
-        }
-      }
-
-      // If direct volume was not explicitly found or is 0, allocate by region's official market share
-      if (directLocVol === undefined || directLocVol === 0) {
-        if (activeScopeMetric && activeScopeMetric.sharePercent > 0 && k.monthlyVolume && k.monthlyVolume > 0) {
-          const share = activeScopeMetric.sharePercent / 100;
-          const allocated = Math.round(k.monthlyVolume * share);
-          directLocVol = allocated > 0 ? allocated : (k.monthlyVolume >= 10 && activeScopeMetric.sharePercent >= 5 ? 10 : 0);
-        } else if (k.monthlyVolume && k.monthlyVolume > 0 && selectedLocations.length <= 1) {
-          directLocVol = k.monthlyVolume;
-        } else {
-          directLocVol = directLocVol !== undefined ? directLocVol : 0;
         }
       }
 
