@@ -787,10 +787,8 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
         }
     }
 
-    // Build all requests using official generateKeywordHistoricalMetrics
-    $allRequests = [];
+    // Pre-initialize geo tracking sums for all locations
     foreach ($geoConstants as $geo) {
-        $geoResource = strpos($geo, 'geoTargetConstants/') === 0 ? $geo : "geoTargetConstants/{$geo}";
         $geoId = preg_replace('/[^0-9]/', '', $geo);
         if (!isset($geoVolSum[$geoId])) {
             $geoVolSum[$geoId] = 0;
@@ -798,12 +796,19 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
             $geoLowCpcSum[$geoId] = 0.0;
             $geoCpcCount[$geoId] = 0;
         }
+    }
 
-        if (!empty($topSeeds)) {
-            // Query ALL keywords (no artificial limit) for accurate per-location volume data
-            $seedBatches = array_chunk($topSeeds, 20);
-            foreach ($seedBatches as $seedList) {
-                $batchLang = detectLanguageConstantForKeywords($seedList, $effectiveLangConst);
+    // Build all requests: Interleave by seed batch across ALL locations
+    // This ensures every single location is queried in parallel from Round 1 without timeouts
+    $allRequests = [];
+    if (!empty($topSeeds)) {
+        // 80 top seeds = 4 batches * 14 locations = 56 parallel requests (completes in ~2s)
+        $seedBatches = array_chunk(array_slice($topSeeds, 0, 80), 20);
+        foreach ($seedBatches as $seedList) {
+            $batchLang = detectLanguageConstantForKeywords($seedList, $effectiveLangConst);
+            foreach ($geoConstants as $geo) {
+                $geoResource = strpos($geo, 'geoTargetConstants/') === 0 ? $geo : "geoTargetConstants/{$geo}";
+                $geoId = preg_replace('/[^0-9]/', '', $geo);
                 $allRequests[] = [
                     'geoId' => $geoId,
                     'geoResource' => $geoResource,
@@ -817,28 +822,38 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
                     ]
                 ];
             }
-        } elseif ($mode === 'URL' && !empty($query) && preg_match('/^https?:\/\//i', $query)) {
+        }
+    } elseif ($mode === 'URL' && !empty($query) && preg_match('/^https?:\/\//i', $query)) {
+        foreach ($geoConstants as $geo) {
+            $geoResource = strpos($geo, 'geoTargetConstants/') === 0 ? $geo : "geoTargetConstants/{$geo}";
+            $geoId = preg_replace('/[^0-9]/', '', $geo);
             $allRequests[] = [
                 'geoId' => $geoId,
                 'geoResource' => $geoResource,
                 'endpoint' => 'generateKeywordIdeas',
                 'payload' => [
                     "keywordPlanNetwork" => "GOOGLE_SEARCH",
+                    "includeAdultKeywords" => false,
                     "language" => $effectiveLangConst,
                     "geoTargetConstants" => [$geoResource],
                     "urlSeed" => ["url" => $query]
                 ]
             ];
-        } else {
-            $cleanSite = preg_replace('/^https?:\/\//i', '', $query);
-            $cleanSite = preg_replace('/^www\./i', '', $cleanSite);
-            $cleanSite = explode('/', $cleanSite)[0];
+        }
+    } else {
+        $cleanSite = preg_replace('/^https?:\/\//i', '', $query);
+        $cleanSite = preg_replace('/^www\./i', '', $cleanSite);
+        $cleanSite = explode('/', $cleanSite)[0];
+        foreach ($geoConstants as $geo) {
+            $geoResource = strpos($geo, 'geoTargetConstants/') === 0 ? $geo : "geoTargetConstants/{$geo}";
+            $geoId = preg_replace('/[^0-9]/', '', $geo);
             $allRequests[] = [
                 'geoId' => $geoId,
                 'geoResource' => $geoResource,
                 'endpoint' => 'generateKeywordIdeas',
                 'payload' => [
                     "keywordPlanNetwork" => "GOOGLE_SEARCH",
+                    "includeAdultKeywords" => false,
                     "language" => $effectiveLangConst,
                     "geoTargetConstants" => [$geoResource],
                     "siteSeed" => ["siteUrl" => "https://{$cleanSite}"]
@@ -2918,7 +2933,7 @@ if ($action === 'discover' && $method === 'POST') {
     $includeSuggestions = isset($input['includeSuggestions']) ? (bool)$input['includeSuggestions'] : true;
     $clientSeeds = !empty($input['seedKeywords']) && is_array($input['seedKeywords']) ? $input['seedKeywords'] : [];
 
-    $cacheKey = md5("forecast_v40_{$mode}_{$query}_" . ($includeSuggestions ? 'sug_1_' : 'sug_0_') . ($requestedLanguage ?: 'auto') . '_' . ($requestedCountryCode ?: 'auto') . '_' . implode('_', (array)$requestedGeoTargetConstants));
+    $cacheKey = md5("forecast_v41_{$mode}_{$query}_" . ($includeSuggestions ? 'sug_1_' : 'sug_0_') . ($requestedLanguage ?: 'auto') . '_' . ($requestedCountryCode ?: 'auto') . '_' . implode('_', (array)$requestedGeoTargetConstants));
 
     // 1. Check Server-Side Cache
     $stmtCache = $pdo->prepare("SELECT data, created_at FROM keyword_cache WHERE cache_key = ?");
