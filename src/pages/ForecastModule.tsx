@@ -2088,7 +2088,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     }
   };
 
-  const handleRefreshStep2GoogleAdsData = async () => {
+  const handleRefreshStep2GoogleAdsData = async (showModal: boolean = true) => {
     if (isRefreshingStep2Google) return;
 
     const targetKws = (step2WorkingKeywords && step2WorkingKeywords.length > 0)
@@ -2096,7 +2096,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       : (keywords && keywords.length > 0 ? keywords : []);
 
     if (targetKws.length === 0) {
-      alert('Analiz edilecek seçili anahtar kelime bulunamadı.');
+      if (showModal) alert('Analiz edilecek seçili anahtar kelime bulunamadı.');
       return;
     }
 
@@ -2208,7 +2208,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           sector: businessModel || 'Genel Sektör',
           locations: auditLocations
         });
-        setShowLocationAuditModal(true);
+        if (showModal) {
+          setShowLocationAuditModal(true);
+        }
       }
     } catch (err: any) {
       console.error('Error refreshing step 2 keywords from Google Ads:', err);
@@ -2246,6 +2248,8 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       setIsRefreshingStep2Google(false);
     }
   };
+
+
 
   const loadNegatives = async (sector: string, kwList: string[], lang: string, pageTitle?: string, pageSummary?: string) => {
     try {
@@ -3300,6 +3304,41 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     }
     return scopedKeywords;
   }, [currentStep, scopedKeywords, step2ApprovedKeywordIds, selectedKeywordIds]);
+
+  // Auto-fetch per-location Google Ads API volumes when entering Step 2 or changing selected locations
+  const hasAutoFetchedStep2GeoRef = useRef<string>('');
+  useEffect(() => {
+    if (currentStep === 2 && selectedLocations.length > 0 && step2WorkingKeywords.length > 0) {
+      const geoSig = `${selectedLocations.map(l => l.id).sort().join(',')}_${step2WorkingKeywords.length}`;
+      if (hasAutoFetchedStep2GeoRef.current !== geoSig) {
+        hasAutoFetchedStep2GeoRef.current = geoSig;
+        const needsFetch = step2WorkingKeywords.some(k => {
+          if (!k.geoVolumes || Object.keys(k.geoVolumes).length === 0) return true;
+          return selectedLocations.some(loc => {
+            const cId = String(loc.id).replace(/\D/g, '');
+            return k.geoVolumes?.[cId] === undefined && k.geoVolumes?.[String(loc.id)] === undefined;
+          });
+        });
+        if (needsFetch) {
+          handleRefreshStep2GoogleAdsData(false);
+        }
+      }
+    }
+  }, [currentStep, selectedLocations, step2WorkingKeywords]);
+
+  // Auto-fetch when user selects a specific location scope if per-location volumes are missing
+  useEffect(() => {
+    if (activeLocationScope !== 'ALL' && activeLocationScope && step2WorkingKeywords.length > 0) {
+      const cleanScopeId = String(activeLocationScope).replace(/\D/g, '');
+      const missingGeoData = step2WorkingKeywords.some(k => {
+        if (!k.geoVolumes || Object.keys(k.geoVolumes).length === 0) return true;
+        return k.geoVolumes?.[cleanScopeId] === undefined && k.geoVolumes?.[String(activeLocationScope)] === undefined;
+      });
+      if (missingGeoData && !isRefreshingStep2Google) {
+        handleRefreshStep2GoogleAdsData(false);
+      }
+    }
+  }, [activeLocationScope, step2WorkingKeywords]);
 
   // Scoped clusters (Ad Group Themes)
   const keywordClusters = useMemo(() => {
@@ -5793,7 +5832,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                         {currentStep === 2 && (
                           <button
                             type="button"
-                            onClick={handleRefreshStep2GoogleAdsData}
+                            onClick={() => handleRefreshStep2GoogleAdsData(true)}
                             disabled={isRefreshingStep2Google || step2WorkingKeywords.length === 0}
                             className="btn-secondary"
                             title="Yalnızca 2. adımdaki bu seçili kelimeler için Google Ads API'den en güncel resmi arama hacimlerini, TBM ve bölgesel kırılımları doğrudan canlı olarak çeker."
