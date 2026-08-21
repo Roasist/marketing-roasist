@@ -3462,9 +3462,12 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   }, [activeKeywordsGrid]);
 
   const selectedScopedKeywords = useMemo(() => {
+    if (currentStep === 2) {
+      return step2WorkingKeywords;
+    }
     const allAvailable = scopedKeywords.length > 0 ? scopedKeywords : imputedKeywords;
     return allAvailable.filter(k => selectedKeywordIds.has(k.id));
-  }, [scopedKeywords, imputedKeywords, selectedKeywordIds]);
+  }, [currentStep, step2WorkingKeywords, scopedKeywords, imputedKeywords, selectedKeywordIds]);
 
   const selectedTotalVolume = useMemo(() => {
     return selectedScopedKeywords.reduce((s, k) => s + (Number(k.monthlyVolume) || 0), 0);
@@ -5622,7 +5625,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     <div>
                       <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>SEÇİLİ KELİME HAVUZU</div>
                       <div style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--brand-primary)' }}>
-                        {selectedKeywordIds.size} <span style={{ fontSize: '0.78rem', fontWeight: 500, color: 'var(--text-muted)' }}>/ {scopedKeywords.length} (%{Math.round((selectedKeywordIds.size / (scopedKeywords.length || 1)) * 100)})</span>
+                        {currentStep === 2 ? step2WorkingKeywords.length : selectedKeywordIds.size} <span style={{ fontSize: '0.78rem', fontWeight: 500, color: 'var(--text-muted)' }}>/ {currentStep === 2 ? step2WorkingKeywords.length : scopedKeywords.length} (%{Math.round(((currentStep === 2 ? step2WorkingKeywords.length : selectedKeywordIds.size) / ((currentStep === 2 ? step2WorkingKeywords.length : scopedKeywords.length) || 1)) * 100)})</span>
                       </div>
                     </div>
                   </div>
@@ -5698,12 +5701,12 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
                         <span>📈 {selectedTotalVolume.toLocaleString('tr-TR')} arama (Seçili)</span>
-                        <span>Seçili: <strong style={{ color: 'var(--brand-primary)' }}>{selectedKeywordIds.size}</strong>/{currentStep === 2 ? step2WorkingKeywords.length : keywords.length}</span>
+                        <span>Seçili: <strong style={{ color: 'var(--brand-primary)' }}>{currentStep === 2 ? step2WorkingKeywords.length : selectedKeywordIds.size}</strong>/{currentStep === 2 ? step2WorkingKeywords.length : keywords.length}</span>
                       </div>
 
                       {/* Mini Selection Bar */}
                       <div style={{ height: '3px', width: '100%', backgroundColor: 'rgba(0,0,0,0.06)', borderRadius: '2px', overflow: 'hidden' }}>
-                        <div style={{ height: '100%', width: `${((selectedKeywordIds.size / ((currentStep === 2 ? step2WorkingKeywords.length : keywords.length) || 1)) * 100)}%`, backgroundColor: 'var(--brand-primary)', transition: 'width 0.2s ease' }} />
+                        <div style={{ height: '100%', width: `${(((currentStep === 2 ? step2WorkingKeywords.length : selectedKeywordIds.size) / ((currentStep === 2 ? step2WorkingKeywords.length : keywords.length) || 1)) * 100)}%`, backgroundColor: 'var(--brand-primary)', transition: 'width 0.2s ease' }} />
                       </div>
                     </div>
 
@@ -5711,12 +5714,12 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', maxHeight: '560px', overflowY: 'auto', paddingRight: '0.2rem' }}>
                       {keywordClusters.filter(cluster => currentStep !== 2 || cluster.keywords.some(k => selectedKeywordIds.has(k.id))).map(cluster => {
                         const isActive = activeClusterId === cluster.id;
-                        const clusterSelectedKws = cluster.keywords.filter(k => selectedKeywordIds.has(k.id));
+                        const clusterSelectedKws = cluster.keywords;
                         const clusterSelectedCount = clusterSelectedKws.length;
-                        const clusterSelectedVol = clusterSelectedKws.reduce((s, k) => s + k.monthlyVolume, 0);
-                        const clusterSelectedAvgCpc = clusterSelectedKws.length > 0 
-                          ? clusterSelectedKws.reduce((s, k) => s + ((k.lowCpc + k.highCpc) / 2), 0) / clusterSelectedKws.length 
-                          : 0;
+                        const clusterSelectedVol = cluster.totalVolume !== undefined ? cluster.totalVolume : clusterSelectedKws.reduce((s, k) => s + (k.monthlyVolume || 0), 0);
+                        const clusterSelectedAvgCpc = cluster.avgCpc !== undefined ? cluster.avgCpc : (clusterSelectedKws.length > 0 
+                          ? clusterSelectedKws.reduce((s, k) => s + (((k.lowCpc || 0) + (k.highCpc || 0)) / 2), 0) / clusterSelectedKws.length 
+                          : 0);
                         const isAllClusterSelected = cluster.keywords.length > 0 && clusterSelectedCount === cluster.keywords.length;
                         const isPartialClusterSelected = clusterSelectedCount > 0 && !isAllClusterSelected;
                         const selectionPercent = Math.round((clusterSelectedCount / (cluster.keywords.length || 1)) * 100);
