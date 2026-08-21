@@ -3016,13 +3016,47 @@ if ($action === 'location_breakdown' && $method === 'POST') {
         exit;
     }
 
+    $kwCount = is_array($keywords) ? count($keywords) : 0;
+    $firstKws = is_array($keywords) && !empty($keywords) ? implode('|', array_slice(array_map(function($k) {
+        return is_array($k) ? ($k['keyword'] ?? '') : (string)$k;
+    }, $keywords), 0, 10)) : '';
+    $cacheKey = md5("loc_breakdown_v2_{$mode}_{$query}_{$language}_" . implode('_', (array)$geoTargetConstants) . "_{$kwCount}_{$firstKws}");
+
+    // Check Server-Side Cache
+    $stmtCache = $pdo->prepare("SELECT data, created_at FROM keyword_cache WHERE cache_key = ?");
+    $stmtCache->execute([$cacheKey]);
+    $cached = $stmtCache->fetch();
+
+    if ($cached && (time() - strtotime($cached['created_at']) < 86400)) { // 24-hour cache
+        $cachedData = json_decode($cached['data'], true);
+        echo json_encode([
+            'status' => 'success',
+            'source' => 'cache',
+            'locationBreakdown' => $cachedData['locationBreakdown'] ?? [],
+            'keywordGeoMap' => $cachedData['keywordGeoMap'] ?? []
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
     $locationsMeta = $input['locations'] ?? [];
     $breakdownResult = calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $keywords, $geoTargetConstants, $language, $locationsMeta);
     $locationList = is_array($breakdownResult) && isset($breakdownResult['breakdown']) ? $breakdownResult['breakdown'] : (is_array($breakdownResult) ? $breakdownResult : []);
+    $geoMap = $breakdownResult['keywordGeoMap'] ?? [];
+
+    // Save to Cache
+    if (!empty($locationList) || !empty($geoMap)) {
+        $dataToSave = json_encode([
+            'locationBreakdown' => $locationList,
+            'keywordGeoMap' => $geoMap
+        ], JSON_UNESCAPED_UNICODE);
+        $stmtSave = $pdo->prepare("INSERT OR REPLACE INTO keyword_cache (cache_key, query_text, mode, data, created_at) VALUES (?, ?, ?, ?, datetime('now'))");
+        $stmtSave->execute([$cacheKey, $query, $mode, $dataToSave]);
+    }
+
     echo json_encode([
         'status' => 'success',
         'locationBreakdown' => $locationList,
-        'keywordGeoMap' => $breakdownResult['keywordGeoMap'] ?? []
+        'keywordGeoMap' => $geoMap
     ], JSON_UNESCAPED_UNICODE);
     exit;
 }

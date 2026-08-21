@@ -2670,9 +2670,15 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     businessModel
   ]);
 
-  // Fetch real Google Ads Location Breakdown whenever selectedLocations or keywords change
+  // Fetch real Google Ads Location Breakdown only when locations genuinely change and data is missing
   useEffect(() => {
     if (!selectedLocations || selectedLocations.length < 2 || !keywords || keywords.length === 0) {
+      return;
+    }
+
+    // If keywords already have complete geoVolumes data (from saved plan or prior discover), skip re-fetching
+    const hasCompleteGeoVolumes = keywords.some(k => k.geoVolumes && Object.keys(k.geoVolumes).length >= selectedLocations.length);
+    if (hasCompleteGeoVolumes && officialLocationBreakdown && officialLocationBreakdown.length >= selectedLocations.length) {
       return;
     }
 
@@ -2733,7 +2739,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       isMounted = false;
       clearTimeout(timeout);
     };
-  }, [selectedLocations, detectedLanguage, mode, query, selectedKeywordIds.size, activeClusterId]);
+  }, [selectedLocations, detectedLanguage, mode, query]);
 
   // Location / Country Breakdown Metrics with Real Google Ads API data & Keyword GeoVolumes
   const countryBreakdown: CountryMetric[] = useMemo(() => {
