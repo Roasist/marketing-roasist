@@ -590,14 +590,16 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
   // Keywords normalized with exact multi-location summed volume if geoVolumes exists
   const normalizedKeywords = useMemo(() => {
-    const activeGeoCleanIds = new Set(selectedLocations.map(l => String(l.id).replace(/\D/g, '')).filter(Boolean));
     return keywords.map(k => {
       if (k.geoVolumes && Object.keys(k.geoVolumes).length > 0) {
         let sumGeo = 0;
         let hasMatchingGeo = false;
-        for (const [gId, vol] of Object.entries(k.geoVolumes)) {
-          const cleanGId = String(gId).replace(/\D/g, '');
-          if (activeGeoCleanIds.size === 0 || activeGeoCleanIds.has(cleanGId) || activeGeoCleanIds.has(String(gId))) {
+        for (const loc of selectedLocations) {
+          const cleanGId = String(loc.id).replace(/\D/g, '');
+          const vol = k.geoVolumes[cleanGId] !== undefined 
+            ? k.geoVolumes[cleanGId] 
+            : (k.geoVolumes[String(loc.id)] !== undefined ? k.geoVolumes[String(loc.id)] : k.geoVolumes[`geoTargetConstants/${cleanGId}`]);
+          if (vol !== undefined) {
             sumGeo += (Number(vol) || 0);
             hasMatchingGeo = true;
           }
@@ -3111,16 +3113,17 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
   // Scoped keywords adapted to chosen location (or aggregated if ALL), retaining full CPC imputation
   const scopedKeywords = useMemo(() => {
-    const activeGeoCleanIds = new Set(selectedLocations.map(l => String(l.id).replace(/\D/g, '')).filter(Boolean));
-
     if (activeLocationScope === 'ALL' || !activeScopeLocation) {
       return imputedKeywords.map(k => {
         if (k.geoVolumes && Object.keys(k.geoVolumes).length > 0) {
           let sumGeo = 0;
           let hasMatchingGeo = false;
-          for (const [gId, vol] of Object.entries(k.geoVolumes)) {
-            const cleanGId = String(gId).replace(/\D/g, '');
-            if (activeGeoCleanIds.size === 0 || activeGeoCleanIds.has(cleanGId) || activeGeoCleanIds.has(String(gId))) {
+          for (const loc of selectedLocations) {
+            const cleanGId = String(loc.id).replace(/\D/g, '');
+            const vol = k.geoVolumes[cleanGId] !== undefined 
+              ? k.geoVolumes[cleanGId] 
+              : (k.geoVolumes[String(loc.id)] !== undefined ? k.geoVolumes[String(loc.id)] : k.geoVolumes[`geoTargetConstants/${cleanGId}`]);
+            if (vol !== undefined) {
               sumGeo += (Number(vol) || 0);
               hasMatchingGeo = true;
             }
