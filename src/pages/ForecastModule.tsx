@@ -10710,7 +10710,12 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         masterMonthlyBudget={totalMasterMonthlyBudget || monthlyBudget}
         subCampaigns={subCampaigns}
         onOpenLanguageModal={() => setIsLanguageModalOpen(true)}
-        onOpenAddSubCampaignModal={() => setIsAddCampaignModalOpen(true)}
+        onOpenAddSubCampaignModal={(langCode) => {
+          if (langCode) {
+            setTargetLanguage(langCode);
+          }
+          setIsAddCampaignModalOpen(true);
+        }}
         onApplyAllocation={(_newMasterBudget, updatedSubCampaigns) => {
           setSubCampaigns(updatedSubCampaigns);
           if (activeSubCampaignId) {

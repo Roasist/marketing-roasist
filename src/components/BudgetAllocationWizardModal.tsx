@@ -21,7 +21,7 @@ interface BudgetAllocationWizardModalProps {
   onApplyAllocation: (newMasterBudget: number, updatedSubCampaigns: SubCampaignItem[]) => void;
   subCampaigns: SubCampaignItem[];
   onOpenLanguageModal?: () => void;
-  onOpenAddSubCampaignModal?: () => void;
+  onOpenAddSubCampaignModal?: (langCode?: string) => void;
 }
 
 const POPULAR_DRAFT_LANGUAGES = [
@@ -316,6 +316,48 @@ export const BudgetAllocationWizardModal: React.FC<BudgetAllocationWizardModalPr
     }));
   };
 
+  // Quick Add Sub-Campaign item for a specific language
+  const handleQuickAddSubCampaignForLanguage = (langCode: string, modelId: string) => {
+    const langObj = GOOGLE_ADS_LANGUAGES.find(l => l.code === langCode) || { code: langCode, name: langCode, flag: '🌐' };
+    const modelObj = POPULAR_DRAFT_MODELS.find(m => m.id === modelId) || POPULAR_DRAFT_MODELS[0];
+    const newId = `sub_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`;
+
+    const newSub: SubCampaignItem = {
+      id: newId,
+      name: `${langObj.name} - ${modelObj.label.replace(/^[^\s]+\s/, '')}`,
+      platform: modelObj.platform,
+      objective: modelObj.objective,
+      languageCode: langObj.code,
+      languageName: langObj.name,
+      languageFlag: langObj.flag,
+      targetLocations: DEFAULT_LOCATIONS,
+      monthlyBudget: 10000,
+      selectedKeywords: [],
+      discoveredKeywords: [],
+      negativeCategories: [],
+      businessModel: modelObj.objective.includes('SALES') ? 'ECOMMERCE' : 'LEAD_GEN',
+      parameters: {
+        targetImpressionShare: 70,
+        expectedCtr: 7.5,
+        searchLeadCr: 3.5,
+        searchHealthyLeadRate: 40,
+        searchCloseRate: 15,
+        searchEcommerceCr: 2.0,
+        searchAov: 1250,
+        avgDealValue: 15000,
+        metaCpm: 45,
+        metaCtr: 1.8,
+        metaLeadCr: 4.0,
+        metaHealthyLeadRate: 45,
+        metaCloseRate: 12,
+        youtubeCpv: 0.35,
+        youtubeVtr: 30
+      }
+    };
+
+    setDraftSubCampaigns(prev => [...prev, newSub]);
+  };
+
   // Apply Changes and Save
   const handleApply = () => {
     const finalSubCampaigns = draftSubCampaigns.map(sc => {
@@ -552,7 +594,7 @@ export const BudgetAllocationWizardModal: React.FC<BudgetAllocationWizardModalPr
                 {onOpenAddSubCampaignModal && (
                   <button
                     type="button"
-                    onClick={onOpenAddSubCampaignModal}
+                    onClick={() => onOpenAddSubCampaignModal()}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -608,26 +650,43 @@ export const BudgetAllocationWizardModal: React.FC<BudgetAllocationWizardModalPr
         )}
 
         {/* Level 1: Language Breakdown Tier */}
-        {languageGroups.length > 0 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
-              <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                <Globe size={16} color="var(--brand-primary)" />
-                <span>1. Seviye: Dil Bazlı Bütçe Dağılımı ({languageGroups.length} Hedef Dil)</span>
-              </div>
-
-              <button
-                type="button"
-                onClick={handleDistributeLanguagesEqually}
-                className="btn-ghost"
-                style={{ fontSize: '0.75rem', padding: '0.3rem 0.65rem', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-xs)', color: 'var(--brand-primary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.35rem' }}
-              >
-                <Scale size={13} />
-                <span>⚡ Dilleri Eşit Dağıt</span>
-              </button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+            <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+              <Globe size={16} color="var(--brand-primary)" />
+              <span>1. Seviye: Dil Bazlı Bütçe Dağılımı ({languageGroups.length} Hedef Dil)</span>
             </div>
 
-            {/* Languages Table / Cards */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              {onOpenLanguageModal && (
+                <button
+                  type="button"
+                  onClick={onOpenLanguageModal}
+                  className="btn-primary"
+                  style={{ fontSize: '0.78rem', padding: '0.35rem 0.85rem', display: 'flex', alignItems: 'center', gap: '0.35rem', fontWeight: 600 }}
+                  title="Arama modali ile tüm 45+ dil arasından ekleyin"
+                >
+                  <Globe size={14} />
+                  <span>🌐 + Dil Ekle</span>
+                </button>
+              )}
+
+              {languageGroups.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleDistributeLanguagesEqually}
+                  className="btn-ghost"
+                  style={{ fontSize: '0.75rem', padding: '0.3rem 0.65rem', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-xs)', color: 'var(--brand-primary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                >
+                  <Scale size={13} />
+                  <span>⚡ Dilleri Eşit Dağıt</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Languages Table / Cards */}
+          {languageGroups.length > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
               {languageGroups.map(grp => {
                 const alloc = langAllocations[grp.code] || { percentage: 0, budget: 0 };
@@ -698,8 +757,24 @@ export const BudgetAllocationWizardModal: React.FC<BudgetAllocationWizardModalPr
                 );
               })}
             </div>
+          ) : (
+            <div style={{ padding: '1rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-xs)', border: '1px dashed var(--border-default)', textAlign: 'center', fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
+              <span>Henüz kampanya için hedef reklam dili seçilmedi.</span>
+              {onOpenLanguageModal && (
+                <button
+                  type="button"
+                  onClick={onOpenLanguageModal}
+                  className="btn-primary"
+                  style={{ fontSize: '0.78rem', padding: '0.45rem 1rem' }}
+                >
+                  🌐 + Hedef Reklam Dili Ekle (45+ Dil)
+                </button>
+              )}
+            </div>
+          )}
 
-            {/* Language Unallocated / Over-allocated Guard Bar */}
+          {/* Language Unallocated / Over-allocated Guard Bar */}
+          {languageGroups.length > 0 && (
             <div style={{ padding: '0.65rem 0.85rem', borderRadius: 'var(--radius-xs)', backgroundColor: totalLangPercentage === 100 ? 'rgba(16, 185, 129, 0.1)' : (totalLangPercentage > 100 ? 'rgba(239, 68, 68, 0.1)' : 'rgba(245, 158, 11, 0.1)'), border: `1px solid ${totalLangPercentage === 100 ? '#10b981' : (totalLangPercentage > 100 ? '#ef4444' : '#f59e0b')}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem', fontSize: '0.78rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontWeight: 600, color: totalLangPercentage === 100 ? '#10b981' : (totalLangPercentage > 100 ? '#ef4444' : '#b45309') }}>
                 {totalLangPercentage === 100 ? <CheckCircle2 size={15} /> : <AlertCircle size={15} />}
@@ -721,8 +796,8 @@ export const BudgetAllocationWizardModal: React.FC<BudgetAllocationWizardModalPr
                 </button>
               )}
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Level 2: Sub-Campaigns Breakdown Tier per Language */}
         {languageGroups.length > 0 && (
@@ -737,74 +812,124 @@ export const BudgetAllocationWizardModal: React.FC<BudgetAllocationWizardModalPr
 
               return (
                 <div key={grp.code} className="card" style={{ padding: '1rem', backgroundColor: 'var(--bg-surface-elevated)', border: '1px solid var(--border-default)', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                       <span>{grp.flag} {grp.name} Bütçesi:</span>
                       <strong style={{ color: 'var(--brand-primary)' }}>₺{langBudget.toLocaleString('tr-TR')}</strong>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => handleDistributeSubCampaignsEqually(grp.code)}
-                      className="btn-ghost"
-                      style={{ fontSize: '0.72rem', padding: '2px 6px', color: 'var(--brand-primary)', fontWeight: 600 }}
-                    >
-                      ⚡ Kanallara Eşit Böl
-                    </button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                      {onOpenAddSubCampaignModal && (
+                        <button
+                          type="button"
+                          onClick={() => onOpenAddSubCampaignModal(grp.code)}
+                          className="btn-primary"
+                          style={{ fontSize: '0.74rem', padding: '0.3rem 0.65rem', display: 'flex', alignItems: 'center', gap: '0.3rem', fontWeight: 600 }}
+                          title={`${grp.name} dili için özel alt kampanya oluştur`}
+                        >
+                          <Plus size={12} />
+                          <span>➕ Alt Kampanya Ekle</span>
+                        </button>
+                      )}
+
+                      {grp.items.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => handleDistributeSubCampaignsEqually(grp.code)}
+                          className="btn-ghost"
+                          style={{ fontSize: '0.72rem', padding: '2px 6px', color: 'var(--brand-primary)', fontWeight: 600 }}
+                        >
+                          ⚡ Kanallara Eşit Böl
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Quick channel model buttons for this language */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>Hızlı Kanal Ekle:</span>
+                    {POPULAR_DRAFT_MODELS.map(m => (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => handleQuickAddSubCampaignForLanguage(grp.code, m.id)}
+                        className="btn-ghost"
+                        style={{ fontSize: '0.68rem', padding: '2px 6px', border: '1px dashed var(--brand-primary)', color: 'var(--brand-primary)', borderRadius: 'var(--radius-xs)' }}
+                        title={`${grp.name} diline ${m.label} ekle`}
+                      >
+                        + {m.label.split(' ')[1] || m.label}
+                      </button>
+                    ))}
                   </div>
 
                   {/* Sub-Campaign items list */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    {grp.items.map(sc => {
-                      const subPct = langBudget > 0 ? Math.round(((sc.monthlyBudget || 0) / langBudget) * 100) : 0;
-                      const subDaily = Math.round((sc.monthlyBudget || 0) / 30.4);
+                  {grp.items.length > 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      {grp.items.map(sc => {
+                        const subPct = langBudget > 0 ? Math.round(((sc.monthlyBudget || 0) / langBudget) * 100) : 0;
+                        const subDaily = Math.round((sc.monthlyBudget || 0) / 30.4);
 
-                      return (
-                        <div key={sc.id} style={{ padding: '0.6rem 0.75rem', backgroundColor: 'var(--bg-surface)', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-default)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.65rem' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flex: 1, minWidth: '160px' }}>
-                            <span className="badge badge-active" style={{ fontSize: '0.7rem' }}>
-                              {sc.platform}
-                            </span>
-                            <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                              {sc.name}
-                            </span>
-                          </div>
-
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-                              %{subPct}
-                            </span>
-                            <div style={{ textAlign: 'right' }}>
-                              <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
-                                ₺{subDaily.toLocaleString('tr-TR')}/gün
-                              </div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-                                <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--brand-primary)' }}>₺</span>
-                                <input
-                                  type="number"
-                                  min={0}
-                                  step={500}
-                                  value={sc.monthlyBudget || ''}
-                                  onChange={(e) => handleSubCampaignBudgetChange(sc.id, parseFloat(e.target.value) || 0)}
-                                  style={{ width: '95px', padding: '0.25rem 0.45rem', fontSize: '0.82rem', fontWeight: 700, textAlign: 'right', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-default)' }}
-                                />
-                              </div>
+                        return (
+                          <div key={sc.id} style={{ padding: '0.6rem 0.75rem', backgroundColor: 'var(--bg-surface)', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-default)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.65rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flex: 1, minWidth: '160px' }}>
+                              <span className="badge badge-active" style={{ fontSize: '0.7rem' }}>
+                                {sc.platform}
+                              </span>
+                              <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                                {sc.name}
+                              </span>
                             </div>
 
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteDraftSubCampaign(sc.id)}
-                              className="btn-ghost"
-                              style={{ padding: '3px', color: 'var(--text-muted)' }}
-                              title="Taslak Kampanyayı Sil"
-                            >
-                              <Trash2 size={13} />
-                            </button>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+                                %{subPct}
+                              </span>
+                              <div style={{ textAlign: 'right' }}>
+                                <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+                                  ₺{subDaily.toLocaleString('tr-TR')}/gün
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                                  <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--brand-primary)' }}>₺</span>
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    step={500}
+                                    value={sc.monthlyBudget || ''}
+                                    onChange={(e) => handleSubCampaignBudgetChange(sc.id, parseFloat(e.target.value) || 0)}
+                                    style={{ width: '95px', padding: '0.25rem 0.45rem', fontSize: '0.82rem', fontWeight: 700, textAlign: 'right', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-default)' }}
+                                  />
+                                </div>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteDraftSubCampaign(sc.id)}
+                                className="btn-ghost"
+                                style={{ padding: '3px', color: 'var(--text-muted)' }}
+                                title="Taslak Kampanyayı Sil"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div style={{ padding: '0.65rem', borderRadius: 'var(--radius-xs)', backgroundColor: 'var(--bg-surface)', border: '1px dashed var(--border-default)', fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span>Henüz {grp.flag} {grp.name} dili altında tanımlı bir alt kampanya yok.</span>
+                      {onOpenAddSubCampaignModal && (
+                        <button
+                          type="button"
+                          onClick={() => onOpenAddSubCampaignModal(grp.code)}
+                          className="btn-ghost"
+                          style={{ fontSize: '0.72rem', color: 'var(--brand-primary)', fontWeight: 600 }}
+                        >
+                          + Hemen Alt Kampanya Ekle
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
