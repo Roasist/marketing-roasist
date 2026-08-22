@@ -8001,52 +8001,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                   </div>
                 </div>
 
-                {/* Satış Kapanış Oranı (%) */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <label style={{ fontSize: '0.825rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
-                      Sağlıklı Lead'den Satışa Kapanış Oranı (%)
-                    </label>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-                      <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>%</span>
-                      <input
-                        type="number"
-                        min={1}
-                        max={100}
-                        step={1}
-                        value={metaCloseRate}
-                        onChange={(e) => setMetaCloseRate(Math.max(1, Math.min(100, Number(e.target.value))))}
-                        style={{
-                          width: '64px',
-                          padding: '2px 6px',
-                          fontSize: '0.85rem',
-                          fontWeight: 700,
-                          textAlign: 'right',
-                          borderRadius: 'var(--radius-xs)',
-                          border: '1px solid var(--border-default)',
-                          backgroundColor: 'var(--bg-surface)',
-                          color: 'var(--text-primary)'
-                        }}
-                      />
-                    </div>
-                  </div>
-                  <input
-                    type="range"
-                    min={1}
-                    max={100}
-                    step={1}
-                    value={metaCloseRate}
-                    onChange={(e) => setMetaCloseRate(Number(e.target.value))}
-                    style={{
-                      width: '100%',
-                      accentColor: '#2563eb',
-                      cursor: 'pointer',
-                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.min(100, Math.max(0, Math.round(((metaCloseRate - 1) / 99) * 100)))}%, var(--border-default) ${Math.min(100, Math.max(0, Math.round(((metaCloseRate - 1) / 99) * 100)))}%, var(--border-default) 100%)`,
-                      height: '6px',
-                      borderRadius: 'var(--radius-full)'
-                    }}
-                  />
-                </div>
+
 
               </div>
 
