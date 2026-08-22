@@ -39,7 +39,13 @@ import {
   ChevronDown,
   ShieldCheck,
   Loader2,
-  PieChart
+  PieChart,
+  Eye,
+  MousePointerClick,
+  UserCheck,
+  Target,
+  TrendingUp,
+  Sliders
 } from 'lucide-react';
 import { ExportCustomizationModal } from '../components/ExportCustomizationModal';
 import { BudgetAllocationWizardModal } from '../components/BudgetAllocationWizardModal';
@@ -1670,23 +1676,21 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         monthlyBudget: (c.monthlyBudget !== undefined && c.monthlyBudget !== null) ? Number(c.monthlyBudget) : (plan.monthlyBudget || 0)
       })));
       setSubCampaigns(sanitizedSubs);
-      if (sanitizedSubs.length > 0) {
-        const chosenSub = targetSubId 
-          ? (sanitizedSubs.find(c => c.id === targetSubId) || sanitizedSubs[0])
-          : sanitizedSubs[0];
-        
-        applySubCampaignToState(chosenSub);
+      if (targetSubId) {
+        const chosenSub = sanitizedSubs.find(c => c.id === targetSubId);
+        if (chosenSub) {
+          applySubCampaignToState(chosenSub);
+        } else if (sanitizedSubs.length > 0) {
+          applySubCampaignToState(sanitizedSubs[0]);
+        }
       } else {
-        // Plan has 0 sub-campaigns: keep clean empty state!
+        // OPEN MASTER CAMPAIGN DASHBOARD!
         setActiveSubCampaignId(null);
-        setKeywords([]);
-        setSelectedKeywordIds(new Set());
-        setNegativeCategories([]);
-        setMonthlyBudget(0);
-        setQuery('');
         setActiveChannelTab('OMNICHANNEL');
-        setIsStep1Completed(false);
-        setIsStep2Completed(false);
+        setCurrentStep(3);
+        try {
+          localStorage.removeItem('roasist_active_studio_sub_id');
+        } catch (e) {}
       }
     } else {
       // Legacy single plan (only if subCampaigns property was never an array)
@@ -2998,6 +3002,141 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     avgOrderValue,
     businessModel
   ]);
+
+  // Master Campaign Aggregated Projections across all sub-campaigns
+  const masterAggregatedMetrics = useMemo(() => {
+    const activeSubs = subCampaigns.filter(s => s.status !== 'PAUSED');
+    let totalBudget = 0;
+    let totalImpressions = 0;
+    let totalClicks = 0;
+    let totalGrossLeads = 0;
+    let totalHealthyLeads = 0;
+    let totalRevenue = 0;
+    let totalSearchVolume = 0;
+
+    // Platform Breakdown
+    const platformBreakdown: Record<string, { budget: number; count: number; label: string; icon: string }> = {
+      GOOGLE_SEARCH: { budget: 0, count: 0, label: 'Google Search', icon: '🔍' },
+      META: { budget: 0, count: 0, label: 'Meta Ads', icon: '📱' },
+      YOUTUBE: { budget: 0, count: 0, label: 'YouTube Video', icon: '🎬' },
+      GDN: { budget: 0, count: 0, label: 'Google GDN', icon: '🌐' }
+    };
+
+    // Language Breakdown
+    const languageBreakdown: Record<string, { budget: number; count: number; name: string; flag: string }> = {};
+
+    activeSubs.forEach(sc => {
+      const b = Number(sc.monthlyBudget || 0);
+      totalBudget += b;
+
+      // Language aggregation
+      const lCode = sc.languageCode || 'tr';
+      const lName = sc.languageName || 'Türkçe';
+      const lFlag = sc.languageFlag || '🌐';
+      if (!languageBreakdown[lCode]) {
+        languageBreakdown[lCode] = { budget: 0, count: 0, name: lName, flag: lFlag };
+      }
+      languageBreakdown[lCode].budget += b;
+      languageBreakdown[lCode].count += 1;
+
+      // Platform aggregation
+      if (sc.platform === 'META') {
+        platformBreakdown.META.budget += b;
+        platformBreakdown.META.count += 1;
+        const cpm = sc.parameters?.metaCpm || 28;
+        const ctr = sc.parameters?.metaCtr || 1.6;
+        const leadCr = sc.parameters?.metaLeadCr || 4.5;
+        const hLeadRate = sc.parameters?.metaHealthyLeadRate || 50;
+        const imps = cpm > 0 ? Math.round((b / cpm) * 1000) : 0;
+        const clks = Math.round(imps * (ctr / 100));
+        const gLeads = Math.round(clks * (leadCr / 100));
+        const hLeads = Math.round(gLeads * (hLeadRate / 100));
+        totalImpressions += imps;
+        totalClicks += clks;
+        totalGrossLeads += gLeads;
+        totalHealthyLeads += hLeads;
+        const rev = (hLeads * 0.15) * (sc.parameters?.avgDealValue || 25000);
+        totalRevenue += rev;
+      } else if (sc.platform === 'YOUTUBE') {
+        platformBreakdown.YOUTUBE.budget += b;
+        platformBreakdown.YOUTUBE.count += 1;
+        const cpv = sc.parameters?.youtubeCpv || 0.45;
+        const vtr = sc.parameters?.youtubeVtr || 32;
+        const actionRate = sc.parameters?.youtubeActionRate || 1.2;
+        const views = cpv > 0 ? Math.round(b / cpv) : 0;
+        const imps = vtr > 0 ? Math.round(views / (vtr / 100)) : views * 3;
+        const actions = Math.round(views * (actionRate / 100));
+        totalImpressions += imps;
+        totalClicks += actions;
+        totalGrossLeads += actions;
+        totalHealthyLeads += Math.round(actions * 0.4);
+      } else if (sc.platform === 'GOOGLE' && sc.objective === 'GOOGLE_GDN') {
+        platformBreakdown.GDN.budget += b;
+        platformBreakdown.GDN.count += 1;
+        const cpm = sc.parameters?.gdnCpm || 18;
+        const ctr = sc.parameters?.gdnCtr || 0.6;
+        const assistedCr = sc.parameters?.gdnAssistedCr || 1.2;
+        const imps = cpm > 0 ? Math.round((b / cpm) * 1000) : 0;
+        const clks = Math.round(imps * (ctr / 100));
+        const conversions = Math.round(clks * (assistedCr / 100));
+        totalImpressions += imps;
+        totalClicks += clks;
+        totalGrossLeads += conversions;
+        totalHealthyLeads += Math.round(conversions * 0.5);
+      } else {
+        // Google Search & default
+        platformBreakdown.GOOGLE_SEARCH.budget += b;
+        platformBreakdown.GOOGLE_SEARCH.count += 1;
+        const kws = (sc.selectedKeywords && sc.selectedKeywords.length > 0) 
+          ? sc.selectedKeywords 
+          : (sc.discoveredKeywords || []);
+        const kwVol = kws.reduce((sum, k) => sum + (k.monthlyVolume || 0), 0);
+        totalSearchVolume += kwVol;
+        const avgCpc = kws.length > 0 ? (kws.reduce((s, k) => s + ((k.lowCpc + k.highCpc) / 2 || 15), 0) / kws.length) : 15;
+        const targetShare = (sc.parameters?.targetImpressionShare || 70) / 100;
+        const expectedCtr = (sc.parameters?.expectedCtr || 7.5) / 100;
+        const leadCr = (sc.parameters?.searchLeadCr || 3.5) / 100;
+        const closeRate = (sc.parameters?.searchHealthyLeadRate || 50) / 100;
+        
+        const maxEligibleClicks = Math.round(kwVol * targetShare * expectedCtr);
+        const affordableClicks = avgCpc > 0 ? Math.round(b / avgCpc) : maxEligibleClicks;
+        const estClicks = maxEligibleClicks > 0 ? Math.min(maxEligibleClicks, affordableClicks) : affordableClicks;
+        const estImpressions = expectedCtr > 0 ? Math.round(estClicks / expectedCtr) : Math.round(kwVol * targetShare);
+        const estLeads = Math.round(estClicks * leadCr);
+        const estHealthy = Math.round(estLeads * closeRate);
+        const estDeals = Math.round(estHealthy * 0.15);
+        const estRevenue = estDeals * (sc.parameters?.avgDealValue || 25000);
+
+        totalImpressions += estImpressions;
+        totalClicks += estClicks;
+        totalGrossLeads += estLeads;
+        totalHealthyLeads += estHealthy;
+        totalRevenue += estRevenue;
+      }
+    });
+
+    const blendedCtr = totalImpressions > 0 ? Math.round((totalClicks / totalImpressions) * 10000) / 100 : 0;
+    const blendedCpa = totalHealthyLeads > 0 ? Math.round(totalBudget / totalHealthyLeads) : 0;
+    const blendedRoas = totalBudget > 0 && totalRevenue > 0 ? Math.round((totalRevenue / totalBudget) * 10) / 10 : 0;
+
+    return {
+      totalBudget,
+      dailyBudget: Math.round(totalBudget / 30.4),
+      totalImpressions,
+      totalClicks,
+      blendedCtr,
+      totalGrossLeads,
+      totalHealthyLeads,
+      blendedCpa,
+      totalRevenue,
+      blendedRoas,
+      totalSearchVolume,
+      activeSubCount: activeSubs.length,
+      totalSubCount: subCampaigns.length,
+      platformBreakdown,
+      languageBreakdown
+    };
+  }, [subCampaigns]);
 
   // Fetch real Google Ads Location Breakdown only when locations genuinely change and data is missing
   useEffect(() => {
@@ -4418,9 +4557,49 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', overflowX: 'auto', flex: 1, paddingBottom: '2px' }}>
-          <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', marginRight: '0.35rem', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-            <Layers size={14} color="var(--brand-primary)" /> Alt Kampanyalar ({subCampaigns.length}):
-          </span>
+          {/* 👑 Çatı Dashboard Tab Button */}
+          <button
+            type="button"
+            onClick={() => {
+              syncActiveSubCampaign();
+              setActiveSubCampaignId(null);
+              setActiveChannelTab('OMNICHANNEL');
+              setCurrentStep(3);
+              try {
+                localStorage.removeItem('roasist_active_studio_sub_id');
+              } catch (e) {}
+            }}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.45rem',
+              padding: '0.4rem 0.85rem',
+              borderRadius: 'var(--radius-xs)',
+              border: activeSubCampaignId === null ? '1.5px solid var(--brand-primary)' : '1px solid var(--border-default)',
+              backgroundColor: activeSubCampaignId === null ? 'rgba(37, 99, 235, 0.12)' : 'var(--bg-surface)',
+              color: activeSubCampaignId === null ? 'var(--brand-primary)' : 'var(--text-primary)',
+              fontWeight: activeSubCampaignId === null ? 700 : 500,
+              fontSize: '0.8rem',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <span>👑</span>
+            <span>Çatı Dashboard</span>
+            <span style={{ 
+              fontSize: '0.7rem', 
+              padding: '1px 6px', 
+              borderRadius: 'var(--radius-xs)', 
+              backgroundColor: activeSubCampaignId === null ? 'var(--brand-primary)' : 'var(--bg-surface-elevated)',
+              color: activeSubCampaignId === null ? '#ffffff' : 'var(--text-secondary)',
+              fontWeight: 700 
+            }}>
+              ₺{totalMasterMonthlyBudget.toLocaleString('tr-TR')}
+            </span>
+          </button>
+
+          <div style={{ width: '1px', height: '18px', backgroundColor: 'var(--border-default)', margin: '0 2px' }} />
 
           {subCampaigns.length === 0 && (
             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic', marginRight: '0.4rem' }}>
@@ -4880,8 +5059,371 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         </div>
       )}
 
+      {/* CASE 1: MASTER CAMPAIGN EXECUTIVE DASHBOARD (ÇATI KAMPANYA DASHBOARD) */}
+      {activeSubCampaignId === null && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          
+          {/* 1. Master KPI Cards Grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+            
+            {/* Total Budget Card */}
+            <div className="card" style={{ padding: '1.15rem', display: 'flex', alignItems: 'center', gap: '0.85rem', background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.08) 0%, rgba(37, 99, 235, 0.02) 100%)', border: '1px solid rgba(37, 99, 235, 0.2)' }}>
+              <div style={{ width: '42px', height: '42px', borderRadius: '10px', backgroundColor: 'rgba(37, 99, 235, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--brand-primary)' }}>
+                <DollarSign size={22} />
+              </div>
+              <div>
+                <div style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Toplam Çatı Bütçesi
+                </div>
+                <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--brand-primary)', marginTop: '0.1rem' }}>
+                  ₺{masterAggregatedMetrics.totalBudget.toLocaleString('tr-TR')}
+                </div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                  ₺{masterAggregatedMetrics.dailyBudget.toLocaleString('tr-TR')} / gün • {masterAggregatedMetrics.activeSubCount} Aktif Kampanya
+                </div>
+              </div>
+            </div>
+
+            {/* Total Impressions Card */}
+            <div className="card" style={{ padding: '1.15rem', display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+              <div style={{ width: '42px', height: '42px', borderRadius: '10px', backgroundColor: 'rgba(147, 51, 234, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9333ea' }}>
+                <Eye size={22} />
+              </div>
+              <div>
+                <div style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Konsolide Gösterim
+                </div>
+                <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '0.1rem' }}>
+                  {masterAggregatedMetrics.totalImpressions.toLocaleString('tr-TR')}
+                </div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                  Beklenen Toplam Erişim
+                </div>
+              </div>
+            </div>
+
+            {/* Total Traffic / Clicks Card */}
+            <div className="card" style={{ padding: '1.15rem', display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+              <div style={{ width: '42px', height: '42px', borderRadius: '10px', backgroundColor: 'rgba(6, 182, 212, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#06b6d4' }}>
+                <MousePointerClick size={22} />
+              </div>
+              <div>
+                <div style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Konsolide Tıklama / Trafik
+                </div>
+                <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '0.1rem' }}>
+                  {masterAggregatedMetrics.totalClicks.toLocaleString('tr-TR')}
+                </div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                  Ortalama CTR: %{masterAggregatedMetrics.blendedCtr}
+                </div>
+              </div>
+            </div>
+
+            {/* Total Healthy Leads Card */}
+            <div className="card" style={{ padding: '1.15rem', display: 'flex', alignItems: 'center', gap: '0.85rem', background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(16, 185, 129, 0.02) 100%)', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+              <div style={{ width: '42px', height: '42px', borderRadius: '10px', backgroundColor: 'rgba(16, 185, 129, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10b981' }}>
+                <UserCheck size={22} />
+              </div>
+              <div>
+                <div style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Sağlıklı Talep / Lead
+                </div>
+                <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#10b981', marginTop: '0.1rem' }}>
+                  {masterAggregatedMetrics.totalHealthyLeads.toLocaleString('tr-TR')} <span style={{ fontSize: '0.75rem', fontWeight: 500 }}>Lead</span>
+                </div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                  Toplam Talep: {masterAggregatedMetrics.totalGrossLeads}
+                </div>
+              </div>
+            </div>
+
+            {/* Blended CPA Card */}
+            <div className="card" style={{ padding: '1.15rem', display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+              <div style={{ width: '42px', height: '42px', borderRadius: '10px', backgroundColor: 'rgba(245, 158, 11, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#f59e0b' }}>
+                <Target size={22} />
+              </div>
+              <div>
+                <div style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Ortalama Lead Maliyeti (CPA)
+                </div>
+                <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '0.1rem' }}>
+                  ₺{masterAggregatedMetrics.blendedCpa.toLocaleString('tr-TR')}
+                </div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                  Lead Başı Net Maliyet
+                </div>
+              </div>
+            </div>
+
+            {/* Revenue & ROAS Card */}
+            <div className="card" style={{ padding: '1.15rem', display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+              <div style={{ width: '42px', height: '42px', borderRadius: '10px', backgroundColor: 'rgba(236, 72, 153, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ec4899' }}>
+                <TrendingUp size={22} />
+              </div>
+              <div>
+                <div style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Beklenen Ciro & ROAS
+                </div>
+                <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '0.1rem' }}>
+                  ₺{masterAggregatedMetrics.totalRevenue.toLocaleString('tr-TR')}
+                </div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                  Beklenen ROAS: {masterAggregatedMetrics.blendedRoas}x
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          {/* 2. Middle Row: Language Distribution & Platform Mix Visuals */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '1.25rem' }}>
+            
+            {/* Languages Breakdown Card */}
+            <div className="card" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                  <Globe size={18} color="var(--brand-primary)" />
+                  <span style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    🌐 Dillere Göre Bütçe & Kampanya Dağılımı
+                  </span>
+                </div>
+                <span className="badge badge-neutral" style={{ fontSize: '0.7rem' }}>
+                  {Object.keys(masterAggregatedMetrics.languageBreakdown).length} Farklı Dil
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {Object.entries(masterAggregatedMetrics.languageBreakdown).map(([code, item]) => {
+                  const share = masterAggregatedMetrics.totalBudget > 0 ? Math.round((item.budget / masterAggregatedMetrics.totalBudget) * 1000) / 10 : 0;
+                  return (
+                    <div key={code} style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', padding: '0.65rem 0.75rem', borderRadius: 'var(--radius-xs)', backgroundColor: 'var(--bg-surface-elevated)', border: '1px solid var(--border-default)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                          <span style={{ fontSize: '1rem' }}>{item.flag}</span>
+                          <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                            {item.name}
+                          </span>
+                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                            ({item.count} Alt Kampanya)
+                          </span>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--brand-primary)' }}>
+                            ₺{item.budget.toLocaleString('tr-TR')}
+                          </span>
+                          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginLeft: '6px' }}>
+                            (%{share})
+                          </span>
+                        </div>
+                      </div>
+                      <div style={{ height: '6px', width: '100%', backgroundColor: 'var(--border-subtle)', borderRadius: '3px', overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: `${share}%`, backgroundColor: 'var(--brand-primary)', borderRadius: '3px', transition: 'width 0.3s ease' }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Platform Mix Card */}
+            <div className="card" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                  <PieChart size={18} color="var(--brand-primary)" />
+                  <span style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    📊 Platform & Kanal Karması Dağılımı
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsBudgetAllocationModalOpen(true)}
+                  className="btn-ghost"
+                  style={{ fontSize: '0.72rem', color: 'var(--brand-primary)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px' }}
+                >
+                  <Sliders size={12} /> Dağılımı Düzenle
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {[
+                  { key: 'GOOGLE_SEARCH', label: 'Google Search (Arama Ağı)', icon: <GoogleIcon size={14} />, color: '#2563eb' },
+                  { key: 'META', label: 'Meta Ads (Facebook & Instagram)', icon: <MetaIcon size={14} />, color: '#0666eb' },
+                  { key: 'YOUTUBE', label: 'YouTube Video & Shorts', icon: <YouTubeIcon size={14} />, color: '#ef4444' },
+                  { key: 'GDN', label: 'Google GDN (Görüntülü Reklam)', icon: <Globe size={14} />, color: '#10b981' }
+                ].map(p => {
+                  const item = masterAggregatedMetrics.platformBreakdown[p.key] || { budget: 0, count: 0 };
+                  const share = masterAggregatedMetrics.totalBudget > 0 ? Math.round((item.budget / masterAggregatedMetrics.totalBudget) * 1000) / 10 : 0;
+                  return (
+                    <div key={p.key} style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', padding: '0.65rem 0.75rem', borderRadius: 'var(--radius-xs)', backgroundColor: 'var(--bg-surface-elevated)', border: '1px solid var(--border-default)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                          {p.icon}
+                          <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                            {p.label}
+                          </span>
+                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                            ({item.count} Kampanya)
+                          </span>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <span style={{ fontSize: '0.85rem', fontWeight: 800, color: p.color }}>
+                            ₺{item.budget.toLocaleString('tr-TR')}
+                          </span>
+                          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginLeft: '6px' }}>
+                            (%{share})
+                          </span>
+                        </div>
+                      </div>
+                      <div style={{ height: '6px', width: '100%', backgroundColor: 'var(--border-subtle)', borderRadius: '3px', overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: `${share}%`, backgroundColor: p.color, borderRadius: '3px', transition: 'width 0.3s ease' }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+          </div>
+
+          {/* 3. Sub-Campaigns Management & Quick Access Grid Table */}
+          <div className="card" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+              <div>
+                <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Layers size={18} color="var(--brand-primary)" />
+                  <span>Çatı Kampanyaya Bağlı Alt Kampanyalar ({subCampaigns.length})</span>
+                </div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
+                  Alt kampanyaların detaylarını incelemek, kelime havuzlarını keşfetmek veya simülasyonları yönetmek için ilgili kampanyaya tıklayın.
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setIsBudgetAllocationModalOpen(true)}
+                  className="btn-secondary"
+                  style={{ fontSize: '0.78rem', padding: '0.45rem 0.85rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                >
+                  <Sliders size={13} />
+                  <span>⚡ Bütçe Dağıtım Stüdyosu</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNewCampName(`Kampanya ${subCampaigns.length + 1}`);
+                    setIsAddCampaignModalOpen(true);
+                  }}
+                  className="btn-primary"
+                  style={{ fontSize: '0.78rem', padding: '0.45rem 0.85rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                >
+                  <Plus size={13} />
+                  <span>Yeni Alt Kampanya Ekle</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Sub-Campaigns Cards Table */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '0.85rem' }}>
+              {subCampaigns.map((sc) => {
+                const isPaused = sc.status === 'PAUSED';
+                const budgetShare = masterAggregatedMetrics.totalBudget > 0 ? Math.round(((sc.monthlyBudget || 0) / masterAggregatedMetrics.totalBudget) * 1000) / 10 : 0;
+                return (
+                  <div
+                    key={sc.id}
+                    onClick={() => handleSelectSubCampaign(sc.id)}
+                    className="card"
+                    style={{
+                      padding: '1rem',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.75rem',
+                      backgroundColor: isPaused ? 'rgba(0,0,0,0.02)' : 'var(--bg-surface-elevated)',
+                      border: isPaused ? '1px dashed var(--border-default)' : '1px solid var(--border-default)',
+                      borderRadius: 'var(--radius-sm)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--brand-primary)'}
+                    onMouseLeave={(e) => e.currentTarget.style.borderColor = isPaused ? 'var(--border-default)' : 'var(--border-default)'}
+                  >
+                    {/* Top: Icon, Name, Language & Status */}
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                        <div style={{ width: '28px', height: '28px', borderRadius: '6px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          {getPlatformIcon(sc.platform, 15)}
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                            {sc.name}
+                          </div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <span>{sc.languageFlag || '🌐'} {sc.languageName || 'Türkçe'}</span>
+                            <span>•</span>
+                            <span>{sc.platform}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <span 
+                        className={`badge ${isPaused ? 'badge-neutral' : 'badge-active'}`} 
+                        style={{ fontSize: '0.68rem', padding: '2px 6px' }}
+                      >
+                        {isPaused ? '⏸️ Pasif' : '🟢 Aktif'}
+                      </span>
+                    </div>
+
+                    {/* Middle: Budget & Target Locations */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.45rem 0.65rem', borderRadius: 'var(--radius-xs)', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}>
+                      <div>
+                        <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                          Aylık Bütçe:
+                        </div>
+                        <div style={{ fontSize: '0.95rem', fontWeight: 800, color: isPaused ? 'var(--text-muted)' : 'var(--brand-primary)' }}>
+                          ₺{(sc.monthlyBudget || 0).toLocaleString('tr-TR')}
+                        </div>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                          Bütçe Payı:
+                        </div>
+                        <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                          %{budgetShare}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Bottom: Locations & Go to Sub-Campaign button */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '0.35rem', borderTop: '1px solid var(--border-subtle)' }}>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        📍 {(sc.targetLocations || []).map(l => l.flag || l.name).join(' ')}
+                      </span>
+
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSelectSubCampaign(sc.id);
+                        }}
+                        className="btn-primary"
+                        style={{ fontSize: '0.72rem', padding: '3px 8px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
+                      >
+                        <span>Detaya Git</span>
+                        <ChevronRight size={12} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+        </div>
+      )}
+
       {/* CASE 2: GOOGLE SEARCH SUB-CAMPAIGN ACTIVE -> SHOW SEM SEARCH & 2-STEP WIZARD */}
-      {subCampaigns.length > 0 && isGoogleSearchActive && activeChannelTab === 'GOOGLE_SEARCH' && (
+      {subCampaigns.length > 0 && activeSubCampaignId !== null && isGoogleSearchActive && activeChannelTab === 'GOOGLE_SEARCH' && (
         <>
           {/* 2. Unified Smart Search & Discovery Control Card */}
           <div className="card" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
@@ -6683,7 +7225,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           {/* ========================================================================= */}
           {/* STEP 3 VIEW: Omnichannel & Platform Dedicated Studios                     */}
           {/* ========================================================================= */}
-          {subCampaigns.length > 0 && (currentStep === 3 || !isGoogleSearchActive) && (
+          {subCampaigns.length > 0 && activeSubCampaignId !== null && (currentStep === 3 || !isGoogleSearchActive) && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
               
               {/* Step 2 Quick Context & Strategic Growth Scenario Selector Bar */}
