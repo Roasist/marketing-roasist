@@ -1148,8 +1148,18 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   const [negativeCategories, setNegativeCategories] = useState<NegativeCategory[]>([]);
   const [copiedCategory, setCopiedCategory] = useState<string | null>(null);
 
-  // Saved Plans State
-  const [savedPlans, setSavedPlans] = useState<ForecastPlan[]>([]);
+  // Saved Plans State with Instant LocalStorage Cache
+  const [savedPlans, setSavedPlans] = useState<ForecastPlan[]>(() => {
+    try {
+      const cached = localStorage.getItem('roasist_saved_plans_cache');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return [];
+  });
+  const [isLoadingSavedPlans, setIsLoadingSavedPlans] = useState<boolean>(true);
   const [planSaveSuccess, setPlanSaveSuccess] = useState(false);
 
   // Total Master Monthly Budget
@@ -1737,23 +1747,30 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
   // Load Saved Plans on Workspace change
   const loadSavedPlans = async () => {
+    setIsLoadingSavedPlans(true);
     try {
       const plans = await ApiService.getForecastPlans(workspaceId);
-      setSavedPlans(plans || []);
+      const finalPlans = plans || [];
+      setSavedPlans(finalPlans);
+      try {
+        localStorage.setItem('roasist_saved_plans_cache', JSON.stringify(finalPlans));
+      } catch (e) {}
 
-      if (!isInitialPlansLoadedRef.current && plans && plans.length > 0) {
+      if (!isInitialPlansLoadedRef.current && finalPlans.length > 0) {
         isInitialPlansLoadedRef.current = true;
         const savedPlanId = localStorage.getItem('roasist_active_studio_plan_id');
         const savedSubId = localStorage.getItem('roasist_active_studio_sub_id');
         if (savedPlanId) {
-          const match = plans.find(p => p.id === savedPlanId);
+          const match = finalPlans.find(p => p.id === savedPlanId);
           if (match) {
             handleOpenMasterPlanStudio(match, savedSubId || undefined);
           }
         }
       }
-    } catch {
-      setSavedPlans([]);
+    } catch (err) {
+      console.error('Failed to load forecast plans from API:', err);
+    } finally {
+      setIsLoadingSavedPlans(false);
     }
   };
 
@@ -3907,7 +3924,19 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           </div>
 
           {/* Cards Grid */}
-          {filteredSavedPlans.length === 0 ? (
+          {isLoadingSavedPlans && savedPlans.length === 0 ? (
+            <div className="card" style={{ padding: '4rem 1.5rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1rem', backgroundColor: 'var(--bg-surface)' }}>
+              <Loader2 size={36} className="animate-spin" color="var(--brand-primary)" />
+              <div>
+                <div style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                  Kayıtlı Çatı Kampanyalarınız Yükleniyor...
+                </div>
+                <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', marginTop: '0.35rem' }}>
+                  Portföy planlarınız getiriliyor, lütfen bekleyin.
+                </p>
+              </div>
+            </div>
+          ) : filteredSavedPlans.length === 0 ? (
             <div className="card" style={{ padding: '4rem 1.5rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1.25rem' }}>
               <div style={{ width: '64px', height: '64px', borderRadius: '50%', backgroundColor: 'rgba(37, 99, 235, 0.1)', color: 'var(--brand-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.8rem' }}>
                 👑
