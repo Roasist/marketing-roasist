@@ -7746,9 +7746,14 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                 {/* Aylık Meta Reklam Bütçesi Input & Slider */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', backgroundColor: 'rgba(37, 99, 235, 0.05)', padding: '0.85rem', borderRadius: 'var(--radius-xs)', border: '1px solid rgba(37, 99, 235, 0.2)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <label style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--brand-primary)' }}>
-                      Aylık Meta Reklam Bütçesi (₺)
-                    </label>
+                    <div>
+                      <label style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--brand-primary)', display: 'block' }}>
+                        Meta Ads Aylık Bütçesi
+                      </label>
+                      <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                        Günlük ortalama: <strong>₺{Math.round((monthlyBudget || 0) / 30.4).toLocaleString('tr-TR')}/gün</strong>
+                      </div>
+                    </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
                       <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--brand-primary)' }}>₺</span>
                       <input
