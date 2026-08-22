@@ -11176,10 +11176,11 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         }}
         onApplyAllocation={(newMasterBudget, updatedSubCampaigns) => {
           isApplyingSubCampaignRef.current = true;
-          setSubCampaigns(updatedSubCampaigns);
+          const sortedSubs = sortSubCampaignsByLanguage(updatedSubCampaigns);
+          setSubCampaigns(sortedSubs);
 
           if (activeSubCampaignId) {
-            const activeSub = updatedSubCampaigns.find(c => c.id === activeSubCampaignId);
+            const activeSub = sortedSubs.find(c => c.id === activeSubCampaignId);
             if (activeSub && activeSub.monthlyBudget !== undefined) {
               setMonthlyBudget(activeSub.monthlyBudget);
             }
@@ -11208,7 +11209,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
               negativeKeywords: negativeCategories,
               targetCountries: activeCountries.map(c => c.name),
               countryBreakdown,
-              subCampaigns: updatedSubCampaigns
+              subCampaigns: sortedSubs
+            }).then(() => {
+              loadSavedPlans();
             }).catch(() => {});
           }
 

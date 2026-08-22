@@ -101,7 +101,7 @@ export const BudgetAllocationWizardModal: React.FC<BudgetAllocationWizardModalPr
   // Language Tier Allocations State: { [langCode]: { percentage: number, budget: number } }
   const [langAllocations, setLangAllocations] = useState<Record<string, { percentage: number; budget: number }>>({});
 
-  // Initialize & Preserve Language Allocations state
+  // Initialize & Preserve Language Allocations state from real sub-campaign budgets
   useEffect(() => {
     if (languageGroups.length === 0) {
       setLangAllocations({});
@@ -116,19 +116,31 @@ export const BudgetAllocationWizardModal: React.FC<BudgetAllocationWizardModalPr
       const equalPct = Number((100 / languageGroups.length).toFixed(1));
       const equalBgt = Math.round(masterBudget / languageGroups.length);
 
+      // Check if sub-campaigns under language groups have real budgets configured
+      const totalConfiguredBudget = languageGroups.reduce((total, grp) => {
+        return total + grp.items.reduce((s, i) => s + (Number(i.monthlyBudget) || 0), 0);
+      }, 0);
+
       languageGroups.forEach((grp, idx) => {
         if (!isFresh && prev[grp.code]) {
           // Keep existing custom allocation completely intact!
           nextAlloc[grp.code] = prev[grp.code];
         } else {
-          // New language group added or fresh initialization
-          if (idx === languageGroups.length - 1 && isFresh) {
-            const usedPct = (languageGroups.length - 1) * equalPct;
-            const remPct = Number((100 - usedPct).toFixed(1));
-            const remBgt = masterBudget - ((languageGroups.length - 1) * equalBgt);
-            nextAlloc[grp.code] = { percentage: remPct, budget: remBgt };
+          // Calculate from real sub-campaigns if they have budgets configured
+          const realLangBudget = grp.items.reduce((sum, item) => sum + (Number(item.monthlyBudget) || 0), 0);
+          if (totalConfiguredBudget > 0 && realLangBudget > 0) {
+            const realPct = masterBudget > 0 ? Number(((realLangBudget / masterBudget) * 100).toFixed(1)) : equalPct;
+            nextAlloc[grp.code] = { percentage: realPct, budget: realLangBudget };
           } else {
-            nextAlloc[grp.code] = { percentage: isFresh ? equalPct : 0, budget: isFresh ? equalBgt : 0 };
+            // Fresh initialization with equal divide
+            if (idx === languageGroups.length - 1 && isFresh) {
+              const usedPct = (languageGroups.length - 1) * equalPct;
+              const remPct = Number((100 - usedPct).toFixed(1));
+              const remBgt = masterBudget - ((languageGroups.length - 1) * equalBgt);
+              nextAlloc[grp.code] = { percentage: remPct, budget: remBgt };
+            } else {
+              nextAlloc[grp.code] = { percentage: isFresh ? equalPct : 0, budget: isFresh ? equalBgt : 0 };
+            }
           }
         }
       });
@@ -244,7 +256,7 @@ export const BudgetAllocationWizardModal: React.FC<BudgetAllocationWizardModalPr
     });
   };
 
-  // Update Language Percentage (% -> ₺)
+  // Update Language Percentage (% -> ₺) and immediately sync sub-campaigns under this language
   const handleLangPercentageChange = (code: string, newPct: number) => {
     const pct = Math.min(100, Math.max(0, newPct));
     const newBgt = Math.round((masterBudget * pct) / 100);
@@ -252,9 +264,30 @@ export const BudgetAllocationWizardModal: React.FC<BudgetAllocationWizardModalPr
       ...prev,
       [code]: { percentage: pct, budget: newBgt }
     }));
+
+    // Synchronize sub-campaigns under this language group
+    setDraftSubCampaigns(prev => {
+      const langSubs = prev.filter(sc => (sc.languageCode || 'tr') === code);
+      const activeLangSubs = langSubs.filter(sc => sc.status !== 'PAUSED');
+      const targetSubs = activeLangSubs.length > 0 ? activeLangSubs : langSubs;
+      if (targetSubs.length === 0) return prev;
+
+      const currentLangSum = targetSubs.reduce((sum, sc) => sum + (Number(sc.monthlyBudget) || 0), 0);
+      return prev.map(sc => {
+        if ((sc.languageCode || 'tr') !== code) return sc;
+        if (sc.status === 'PAUSED') return sc;
+
+        if (currentLangSum > 0) {
+          const ratio = (Number(sc.monthlyBudget) || 0) / currentLangSum;
+          return { ...sc, monthlyBudget: Math.round(newBgt * ratio) };
+        } else {
+          return { ...sc, monthlyBudget: Math.round(newBgt / targetSubs.length) };
+        }
+      });
+    });
   };
 
-  // Update Language Budget Amount (₺ -> %)
+  // Update Language Budget Amount (₺ -> %) and immediately sync sub-campaigns under this language
   const handleLangBudgetChange = (code: string, newAmount: number) => {
     const bgt = Math.max(0, newAmount);
     const newPct = masterBudget > 0 ? Number(((bgt / masterBudget) * 100).toFixed(1)) : 0;
@@ -262,6 +295,27 @@ export const BudgetAllocationWizardModal: React.FC<BudgetAllocationWizardModalPr
       ...prev,
       [code]: { percentage: newPct, budget: bgt }
     }));
+
+    // Synchronize sub-campaigns under this language group
+    setDraftSubCampaigns(prev => {
+      const langSubs = prev.filter(sc => (sc.languageCode || 'tr') === code);
+      const activeLangSubs = langSubs.filter(sc => sc.status !== 'PAUSED');
+      const targetSubs = activeLangSubs.length > 0 ? activeLangSubs : langSubs;
+      if (targetSubs.length === 0) return prev;
+
+      const currentLangSum = targetSubs.reduce((sum, sc) => sum + (Number(sc.monthlyBudget) || 0), 0);
+      return prev.map(sc => {
+        if ((sc.languageCode || 'tr') !== code) return sc;
+        if (sc.status === 'PAUSED') return sc;
+
+        if (currentLangSum > 0) {
+          const ratio = (Number(sc.monthlyBudget) || 0) / currentLangSum;
+          return { ...sc, monthlyBudget: Math.round(bgt * ratio) };
+        } else {
+          return { ...sc, monthlyBudget: Math.round(bgt / targetSubs.length) };
+        }
+      });
+    });
   };
 
   // Distribute Language Budget Equally
@@ -282,6 +336,17 @@ export const BudgetAllocationWizardModal: React.FC<BudgetAllocationWizardModalPr
       }
     });
     setLangAllocations(updated);
+
+    // Sync all sub-campaigns across languages
+    setDraftSubCampaigns(prev => {
+      return prev.map(sc => {
+        const lCode = sc.languageCode || 'tr';
+        const langBgt = updated[lCode]?.budget || 0;
+        const langSubs = prev.filter(s => (s.languageCode || 'tr') === lCode && s.status !== 'PAUSED');
+        if (langSubs.length === 0 || sc.status === 'PAUSED') return sc;
+        return { ...sc, monthlyBudget: Math.round(langBgt / langSubs.length) };
+      });
+    });
   };
 
   // Auto-fill unallocated language budget remainder into last language
@@ -298,6 +363,16 @@ export const BudgetAllocationWizardModal: React.FC<BudgetAllocationWizardModalPr
       ...prev,
       [lastCode]: { percentage: remPct, budget: remBgt }
     }));
+
+    // Sync sub-campaigns in the last language
+    setDraftSubCampaigns(prev => {
+      const langSubs = prev.filter(sc => (sc.languageCode || 'tr') === lastCode && sc.status !== 'PAUSED');
+      if (langSubs.length === 0) return prev;
+      return prev.map(sc => {
+        if ((sc.languageCode || 'tr') !== lastCode || sc.status === 'PAUSED') return sc;
+        return { ...sc, monthlyBudget: Math.round(remBgt / langSubs.length) };
+      });
+    });
   };
 
   // Update Sub-Campaign Monthly Budget directly in draft
