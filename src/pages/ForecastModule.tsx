@@ -10716,14 +10716,47 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           }
           setIsAddCampaignModalOpen(true);
         }}
-        onApplyAllocation={(_newMasterBudget, updatedSubCampaigns) => {
+        onApplyAllocation={(newMasterBudget, updatedSubCampaigns) => {
+          isApplyingSubCampaignRef.current = true;
           setSubCampaigns(updatedSubCampaigns);
+
           if (activeSubCampaignId) {
             const activeSub = updatedSubCampaigns.find(c => c.id === activeSubCampaignId);
             if (activeSub && activeSub.monthlyBudget !== undefined) {
               setMonthlyBudget(activeSub.monthlyBudget);
             }
+          } else {
+            setMonthlyBudget(newMasterBudget);
           }
+
+          // Instantly persist updated sub-campaigns and master budget to Database
+          if (currentPlanId) {
+            ApiService.saveForecastPlan({
+              id: currentPlanId,
+              workspaceId,
+              name: planName.trim() || `${clientName} - Medya Planı`,
+              clientName: clientName.trim(),
+              startDate: planStartDate,
+              endDate: planEndDate,
+              period: formatCampaignDates(planStartDate, planEndDate, planPeriod),
+              tags: planTags,
+              targetUrl: mode === 'URL' ? query : '',
+              seedKeywords: mode === 'KEYWORDS' ? query : '',
+              detectedLanguage,
+              detectedLanguageName,
+              monthlyBudget: newMasterBudget,
+              selectedKeywords: selectedKeywordsPool,
+              simulationResult: simulation,
+              negativeKeywords: negativeCategories,
+              targetCountries: activeCountries.map(c => c.name),
+              countryBreakdown,
+              subCampaigns: updatedSubCampaigns
+            }).catch(() => {});
+          }
+
+          setTimeout(() => {
+            isApplyingSubCampaignRef.current = false;
+          }, 300);
         }}
       />
 

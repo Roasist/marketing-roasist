@@ -381,29 +381,7 @@ export const BudgetAllocationWizardModal: React.FC<BudgetAllocationWizardModalPr
 
   // Apply Changes and Save
   const handleApply = () => {
-    const finalSubCampaigns = draftSubCampaigns.map(sc => {
-      const code = sc.languageCode || 'tr';
-      const grp = languageGroups.find(g => g.code === code);
-      if (!grp || grp.items.length === 0) return sc;
-
-      const langBudget = langAllocations[code]?.budget || 0;
-      const grpTotalBgt = grp.items.reduce((s, item) => s + (item.monthlyBudget || 0), 0);
-      let calcSubBudget = sc.monthlyBudget;
-
-      if (grpTotalBgt > 0) {
-        const ratio = sc.monthlyBudget / grpTotalBgt;
-        calcSubBudget = Math.round(langBudget * ratio);
-      } else {
-        calcSubBudget = Math.round(langBudget / grp.items.length);
-      }
-
-      return {
-        ...sc,
-        monthlyBudget: calcSubBudget
-      };
-    });
-
-    onApplyAllocation(masterBudget, finalSubCampaigns);
+    onApplyAllocation(masterBudget, draftSubCampaigns);
     onClose();
   };
 
