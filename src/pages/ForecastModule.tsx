@@ -1035,6 +1035,15 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   const [newMasterTags, setNewMasterTags] = useState<string[]>(['#Temmuz2026']);
   const [newMasterTagInput, setNewMasterTagInput] = useState<string>('');
 
+  const sortSubCampaignsByLanguage = (subs: SubCampaignItem[]): SubCampaignItem[] => {
+  return [...subs].sort((a, b) => {
+    const langA = (a.languageName || a.languageCode || '').toLowerCase();
+    const langB = (b.languageName || b.languageCode || '').toLowerCase();
+    if (langA !== langB) return langA.localeCompare(langB, 'tr');
+    return (a.name || '').localeCompare(b.name || '', 'tr');
+  });
+};
+
   // Multi-Campaign Sub-Campaigns State
   const [subCampaigns, setSubCampaigns] = useState<SubCampaignItem[]>([]);
   const [activeSubCampaignId, setActiveSubCampaignId] = useState<string | null>(null);
@@ -1476,7 +1485,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       }
     };
 
-    const updatedSubs = [...subCampaigns, newCamp];
+    const updatedSubs = sortSubCampaignsByLanguage([...subCampaigns, newCamp]);
     setSubCampaigns(updatedSubs);
     setActiveSubCampaignId(newId);
     setKeywords([]);
@@ -1699,10 +1708,10 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     if (plan.tags) setPlanTags(plan.tags);
 
     if (Array.isArray(plan.subCampaigns)) {
-      const sanitizedSubs = plan.subCampaigns.map(c => ({
+      const sanitizedSubs = sortSubCampaignsByLanguage(plan.subCampaigns.map(c => ({
         ...c,
         monthlyBudget: (c.monthlyBudget !== undefined && c.monthlyBudget !== null) ? Number(c.monthlyBudget) : (plan.monthlyBudget || 0)
-      }));
+      })));
       setSubCampaigns(sanitizedSubs);
       if (sanitizedSubs.length > 0) {
         const chosenSub = targetSubId 
@@ -4027,7 +4036,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '1.25rem' }}>
               {filteredSavedPlans.map((plan) => {
-                const subs = Array.isArray(plan.subCampaigns) 
+                const rawSubs = Array.isArray(plan.subCampaigns) 
                   ? plan.subCampaigns 
                   : (plan.selectedKeywords && plan.selectedKeywords.length > 0 ? [{
                       id: 'legacy_' + plan.id,
@@ -4043,6 +4052,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       negativeCategories: plan.negativeKeywords || [],
                       parameters: {}
                     }] : []);
+                const subs = sortSubCampaignsByLanguage(rawSubs);
 
                 const planTotalBudget = Array.isArray(plan.subCampaigns) && plan.subCampaigns.length > 0
                   ? subs.filter(c => c.status !== 'PAUSED').reduce((s, c) => s + (c.monthlyBudget || 0), 0)
