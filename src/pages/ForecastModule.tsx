@@ -38,9 +38,11 @@ import {
   AlertCircle,
   ChevronDown,
   ShieldCheck,
-  Loader2
+  Loader2,
+  PieChart
 } from 'lucide-react';
 import { ExportCustomizationModal } from '../components/ExportCustomizationModal';
+import { BudgetAllocationWizardModal } from '../components/BudgetAllocationWizardModal';
 import { KeywordCluster, groupKeywordsSemantically, enrichKeywordsWithClusterCpc } from '../services/keywordClusteringService';
 import { 
   KeywordMetric, 
@@ -417,6 +419,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   const [targetLanguage, setTargetLanguage] = useState<string>('auto');
   const [isLocationModalOpen, setIsLocationModalOpen] = useState<boolean>(false);
   const [isLanguageModalOpen, setIsLanguageModalOpen] = useState<boolean>(false);
+  const [isBudgetAllocationModalOpen, setIsBudgetAllocationModalOpen] = useState<boolean>(false);
   const [languageSearchQuery, setLanguageSearchQuery] = useState<string>('');
 
   const filteredLanguages = useMemo(() => {
@@ -4370,6 +4373,17 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
                 <button
                   type="button"
+                  onClick={() => setIsBudgetAllocationModalOpen(true)}
+                  className="btn-ghost"
+                  style={{ fontSize: '0.78rem', padding: '0.45rem 0.75rem', border: '1px solid var(--brand-primary)', borderRadius: 'var(--radius-xs)', color: 'var(--brand-primary)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                  title="Hiyerarşik Çatı Bütçe Dağılımını Stüdyosunda Yönet"
+                >
+                  <PieChart size={14} />
+                  <span>Bütçeyi Hiyerarşik Dağıt</span>
+                </button>
+
+                <button
+                  type="button"
                   onClick={() => setIsAddMasterPlanModalOpen(true)}
                   className="btn-secondary"
                   style={{ fontSize: '0.78rem', padding: '0.45rem 0.75rem' }}
@@ -6790,7 +6804,16 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       <span>Dil: <strong style={{ color: 'var(--brand-primary)' }}>{effectiveLanguage.flag} {effectiveLanguage.name}</strong></span>
                     </button>
                     <span>•</span>
-                    <span>Aylık Bütçe: <strong>₺{monthlyBudget.toLocaleString('tr-TR')}</strong></span>
+                    <button
+                      type="button"
+                      onClick={() => setIsBudgetAllocationModalOpen(true)}
+                      className="btn-ghost"
+                      style={{ padding: '1px 6px', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-primary)', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
+                      title="Hiyerarşik Çatı Bütçe Dağılımını Stüdyoda Yönet"
+                    >
+                      <PieChart size={13} color="var(--brand-primary)" />
+                      <span>Aylık Bütçe: <strong style={{ color: 'var(--brand-primary)' }}>₺{(totalMasterMonthlyBudget || monthlyBudget).toLocaleString('tr-TR')}</strong> <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>(₺{Math.round((totalMasterMonthlyBudget || monthlyBudget) / 30.4).toLocaleString('tr-TR')}/gün)</span></span>
+                    </button>
                     <span>•</span>
                     <button
                       type="button"
@@ -10678,6 +10701,23 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           </div>
         </div>
       )}
+
+      {/* 📊 Hiyerarşik Çatı Bütçe Dağıtım Stüdyosu Modalı */}
+      <BudgetAllocationWizardModal
+        isOpen={isBudgetAllocationModalOpen}
+        onClose={() => setIsBudgetAllocationModalOpen(false)}
+        masterMonthlyBudget={totalMasterMonthlyBudget || monthlyBudget}
+        subCampaigns={subCampaigns}
+        onApplyAllocation={(_newMasterBudget, updatedSubCampaigns) => {
+          setSubCampaigns(updatedSubCampaigns);
+          if (activeSubCampaignId) {
+            const activeSub = updatedSubCampaigns.find(c => c.id === activeSubCampaignId);
+            if (activeSub && activeSub.monthlyBudget !== undefined) {
+              setMonthlyBudget(activeSub.monthlyBudget);
+            }
+          }
+        }}
+      />
 
       {/* ⚙️ CPC Imputation & Multiplier Settings Modal */}
       {showCpcSettingsModal && (
