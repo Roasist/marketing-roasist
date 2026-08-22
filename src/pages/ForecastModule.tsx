@@ -1299,10 +1299,10 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     setDetectedLanguage(lCode && lCode !== 'auto' ? lCode : 'tr');
     setDetectedLanguageName(lName);
 
-    if (target.monthlyBudget !== undefined && target.monthlyBudget > 0) {
+    if (target.monthlyBudget !== undefined && target.monthlyBudget !== null) {
       setMonthlyBudget(target.monthlyBudget);
     } else {
-      setMonthlyBudget(35000);
+      setMonthlyBudget(0);
     }
     if (target.businessModel) {
       setBusinessModel(target.businessModel);
@@ -4600,7 +4600,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     fontWeight: 600 
                   }}
                 >
-                  ₺{(isActive ? (monthlyBudget || camp.monthlyBudget || 0) : (camp.monthlyBudget || 0)).toLocaleString('tr-TR')}
+                  ₺{(isActive ? (monthlyBudget ?? camp.monthlyBudget ?? 0) : (camp.monthlyBudget ?? 0)).toLocaleString('tr-TR')}
                 </span>
 
                 <button
