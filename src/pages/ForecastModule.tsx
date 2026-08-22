@@ -6792,7 +6792,16 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     <span>•</span>
                     <span>Aylık Bütçe: <strong>₺{monthlyBudget.toLocaleString('tr-TR')}</strong></span>
                     <span>•</span>
-                    <span>Hedef Bölgeler: <strong>{selectedLocationsGrouped.map(l => (l.flag || '📍') + ' ' + (l.canonicalName || l.name)).join(', ')}</strong></span>
+                    <button
+                      type="button"
+                      onClick={() => setIsLocationModalOpen(true)}
+                      className="btn-ghost"
+                      style={{ padding: '1px 6px', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-primary)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                      title="Hedef Coğrafi Lokasyonları Yönet & Değiştir"
+                    >
+                      <Globe size={13} color="var(--brand-primary)" />
+                      <span>Hedef Bölgeler: <strong style={{ color: 'var(--brand-primary)' }}>{selectedLocationsGrouped.map(l => (l.flag || '📍') + ' ' + (l.canonicalName || l.name)).join(', ')}</strong></span>
+                    </button>
                   </div>
                 </div>
 
@@ -6900,26 +6909,6 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                   ))}
 
                   <div style={{ display: 'flex', gap: '0.45rem', marginLeft: '0.5rem', alignItems: 'center' }}>
-                    <button
-                      type="button"
-                      onClick={() => setIsLocationModalOpen(true)}
-                      className="btn-ghost"
-                      style={{ fontSize: '0.75rem', padding: '0.35rem 0.65rem', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-xs)', display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--brand-primary)', fontWeight: 600 }}
-                    >
-                      <Globe size={13} />
-                      <span>Lokasyon ({selectedLocations.length})</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setIsLanguageModalOpen(true)}
-                      className="btn-ghost"
-                      style={{ fontSize: '0.75rem', padding: '0.35rem 0.65rem', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-xs)', display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--brand-primary)', fontWeight: 600 }}
-                      title="Hedef Reklam Dili Seçin / Değiştirin"
-                    >
-                      <Languages size={13} />
-                      <span>Dil: {effectiveLanguage.flag} {effectiveLanguage.name}</span>
-                    </button>
 
 
                     <button
