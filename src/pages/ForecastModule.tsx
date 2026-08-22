@@ -7743,6 +7743,60 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                   </div>
                 </div>
 
+                {/* Aylık Meta Reklam Bütçesi Input & Slider */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', backgroundColor: 'rgba(37, 99, 235, 0.05)', padding: '0.85rem', borderRadius: 'var(--radius-xs)', border: '1px solid rgba(37, 99, 235, 0.2)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--brand-primary)' }}>
+                      Aylık Meta Reklam Bütçesi (₺)
+                    </label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                      <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--brand-primary)' }}>₺</span>
+                      <input
+                        type="number"
+                        min={500}
+                        max={1000000}
+                        step={500}
+                        value={monthlyBudget}
+                        onChange={(e) => setMonthlyBudget(Math.max(100, Number(e.target.value)))}
+                        style={{
+                          width: '96px',
+                          padding: '3px 8px',
+                          fontSize: '0.9rem',
+                          fontWeight: 700,
+                          textAlign: 'right',
+                          borderRadius: 'var(--radius-xs)',
+                          border: '1.5px solid var(--brand-primary)',
+                          backgroundColor: 'var(--bg-surface)',
+                          color: 'var(--brand-primary)'
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <input
+                    type="range"
+                    min={1000}
+                    max={250000}
+                    step={1000}
+                    value={monthlyBudget}
+                    onChange={(e) => setMonthlyBudget(Number(e.target.value))}
+                    style={{
+                      width: '100%',
+                      accentColor: '#2563eb',
+                      cursor: 'pointer',
+                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.min(100, Math.max(0, Math.round(((monthlyBudget - 1000) / 249000) * 100)))}%, var(--border-default) ${Math.min(100, Math.max(0, Math.round(((monthlyBudget - 1000) / 249000) * 100)))}%, var(--border-default) 100%)`,
+                      height: '6px',
+                      borderRadius: 'var(--radius-full)'
+                    }}
+                  />
+                  <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', marginTop: '0.2rem' }}>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Hızlı Bütçe Seçimi:</span>
+                    <button onClick={() => setMonthlyBudget(10000)} className="btn-ghost" style={{ padding: '1px 6px', fontSize: '0.7rem' }}>₺10.000</button>
+                    <button onClick={() => setMonthlyBudget(25000)} className="btn-ghost" style={{ padding: '1px 6px', fontSize: '0.7rem' }}>₺25.000</button>
+                    <button onClick={() => setMonthlyBudget(50000)} className="btn-ghost" style={{ padding: '1px 6px', fontSize: '0.7rem' }}>₺50.000</button>
+                    <button onClick={() => setMonthlyBudget(100000)} className="btn-ghost" style={{ padding: '1px 6px', fontSize: '0.7rem' }}>₺100.000</button>
+                  </div>
+                </div>
+
                 {/* Sektörel CPM Slider */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
