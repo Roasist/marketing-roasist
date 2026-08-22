@@ -301,6 +301,27 @@ export const BudgetAllocationWizardModal: React.FC<BudgetAllocationWizardModalPr
     setDraftSubCampaigns(prev => prev.map(sc => sc.id === subId ? { ...sc, monthlyBudget: val } : sc));
   };
 
+  // Update Sub-Campaign Percentage in Level 2 (% -> ₺)
+  const handleSubCampaignPercentageChange = (subId: string, langCode: string, newPct: number) => {
+    const pct = Math.min(100, Math.max(0, newPct));
+    const langBudget = langAllocations[langCode]?.budget || 0;
+    const calcBgt = Math.round((langBudget * pct) / 100);
+
+    setDraftSubCampaigns(prev => prev.map(sc => sc.id === subId ? { ...sc, monthlyBudget: calcBgt } : sc));
+  };
+
+  // Auto-fill unallocated sub-campaign budget remainder into the last sub-campaign of a language group
+  const handleAutoFillSubCampaignRemainder = (langCode: string) => {
+    const grp = languageGroups.find(g => g.code === langCode);
+    if (!grp || grp.items.length === 0) return;
+    const langBudget = langAllocations[langCode]?.budget || 0;
+    const lastSubId = grp.items[grp.items.length - 1].id;
+    const sumWithoutLast = grp.items.filter(i => i.id !== lastSubId).reduce((s, i) => s + (i.monthlyBudget || 0), 0);
+    const remBgt = Math.max(0, langBudget - sumWithoutLast);
+
+    setDraftSubCampaigns(prev => prev.map(sc => sc.id === lastSubId ? { ...sc, monthlyBudget: remBgt } : sc));
+  };
+
   // Distribute Sub-Campaigns Equally under a Language Group
   const handleDistributeSubCampaignsEqually = (langCode: string) => {
     const grp = languageGroups.find(g => g.code === langCode);
@@ -809,6 +830,9 @@ export const BudgetAllocationWizardModal: React.FC<BudgetAllocationWizardModalPr
 
             {languageGroups.map(grp => {
               const langBudget = langAllocations[grp.code]?.budget || 0;
+              const subBudgetSum = grp.items.reduce((s, i) => s + (i.monthlyBudget || 0), 0);
+              const subPctSum = langBudget > 0 ? Math.round((subBudgetSum / langBudget) * 100) : 0;
+              const unallocatedSubBudget = langBudget - subBudgetSum;
 
               return (
                 <div key={grp.code} className="card" style={{ padding: '1rem', backgroundColor: 'var(--bg-surface-elevated)', border: '1px solid var(--border-default)', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -870,8 +894,9 @@ export const BudgetAllocationWizardModal: React.FC<BudgetAllocationWizardModalPr
                         const subDaily = Math.round((sc.monthlyBudget || 0) / 30.4);
 
                         return (
-                          <div key={sc.id} style={{ padding: '0.6rem 0.75rem', backgroundColor: 'var(--bg-surface)', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-default)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.65rem' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flex: 1, minWidth: '160px' }}>
+                          <div key={sc.id} style={{ padding: '0.65rem 0.85rem', backgroundColor: 'var(--bg-surface)', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-default)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+                            {/* Platform & Name */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', minWidth: '160px' }}>
                               <span className="badge badge-active" style={{ fontSize: '0.7rem' }}>
                                 {sc.platform}
                               </span>
@@ -880,10 +905,33 @@ export const BudgetAllocationWizardModal: React.FC<BudgetAllocationWizardModalPr
                               </span>
                             </div>
 
+                            {/* Range Slider & % Input */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flex: 1, minWidth: '180px', maxWidth: '320px' }}>
+                              <input
+                                type="range"
+                                min={0}
+                                max={100}
+                                step={1}
+                                value={subPct}
+                                onChange={(e) => handleSubCampaignPercentageChange(sc.id, grp.code, parseFloat(e.target.value) || 0)}
+                                style={{ flex: 1, accentColor: 'var(--brand-primary)', cursor: 'pointer' }}
+                              />
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  max={100}
+                                  step={1}
+                                  value={subPct}
+                                  onChange={(e) => handleSubCampaignPercentageChange(sc.id, grp.code, parseFloat(e.target.value) || 0)}
+                                  style={{ width: '52px', padding: '0.25rem 0.4rem', fontSize: '0.82rem', fontWeight: 700, textAlign: 'right', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-default)' }}
+                                />
+                                <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)' }}>%</span>
+                              </div>
+                            </div>
+
+                            {/* Budget Amount ₺ & Daily Budget & Delete */}
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-                                %{subPct}
-                              </span>
                               <div style={{ textAlign: 'right' }}>
                                 <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
                                   ₺{subDaily.toLocaleString('tr-TR')}/gün
@@ -896,7 +944,7 @@ export const BudgetAllocationWizardModal: React.FC<BudgetAllocationWizardModalPr
                                     step={500}
                                     value={sc.monthlyBudget || ''}
                                     onChange={(e) => handleSubCampaignBudgetChange(sc.id, parseFloat(e.target.value) || 0)}
-                                    style={{ width: '95px', padding: '0.25rem 0.45rem', fontSize: '0.82rem', fontWeight: 700, textAlign: 'right', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-default)' }}
+                                    style={{ width: '100px', padding: '0.28rem 0.5rem', fontSize: '0.84rem', fontWeight: 700, textAlign: 'right', borderRadius: 'var(--radius-xs)', border: '1px solid var(--brand-primary)', backgroundColor: 'var(--bg-surface-elevated)' }}
                                   />
                                 </div>
                               </div>
@@ -905,10 +953,10 @@ export const BudgetAllocationWizardModal: React.FC<BudgetAllocationWizardModalPr
                                 type="button"
                                 onClick={() => handleDeleteDraftSubCampaign(sc.id)}
                                 className="btn-ghost"
-                                style={{ padding: '3px', color: 'var(--text-muted)' }}
+                                style={{ padding: '4px', color: 'var(--text-muted)' }}
                                 title="Taslak Kampanyayı Sil"
                               >
-                                <Trash2 size={13} />
+                                <Trash2 size={14} />
                               </button>
                             </div>
                           </div>
@@ -926,6 +974,43 @@ export const BudgetAllocationWizardModal: React.FC<BudgetAllocationWizardModalPr
                           style={{ fontSize: '0.72rem', color: 'var(--brand-primary)', fontWeight: 600 }}
                         >
                           + Hemen Alt Kampanya Ekle
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Sub-Campaign Unallocated / Over-allocated Guard Bar for this Language */}
+                  {grp.items.length > 0 && (
+                    <div style={{
+                      padding: '0.55rem 0.75rem',
+                      borderRadius: 'var(--radius-xs)',
+                      backgroundColor: subPctSum === 100 ? 'rgba(16, 185, 129, 0.1)' : (subPctSum > 100 ? 'rgba(239, 68, 68, 0.1)' : 'rgba(245, 158, 11, 0.1)'),
+                      border: `1px solid ${subPctSum === 100 ? '#10b981' : (subPctSum > 100 ? '#ef4444' : '#f59e0b')}`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      flexWrap: 'wrap',
+                      gap: '0.5rem',
+                      fontSize: '0.75rem',
+                      marginTop: '0.35rem'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600, color: subPctSum === 100 ? '#10b981' : (subPctSum > 100 ? '#ef4444' : '#b45309') }}>
+                        {subPctSum === 100 ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />}
+                        <span>
+                          {subPctSum === 100 && `✓ ${grp.name} bütçesi alt kampanyalar arasında %100 oranında tam dağıtıldı.`}
+                          {subPctSum > 100 && `⚠️ Bütçe aşımı! ${grp.name} kampanyaları toplamı %${subPctSum} (₺${subBudgetSum.toLocaleString('tr-TR')}) yapıyor.`}
+                          {subPctSum < 100 && `⚠️ Boşta kalan ${grp.name} bütçesi: ₺${unallocatedSubBudget.toLocaleString('tr-TR')} (%${(100 - subPctSum).toFixed(1)})`}
+                        </span>
+                      </div>
+
+                      {subPctSum !== 100 && (
+                        <button
+                          type="button"
+                          onClick={() => handleAutoFillSubCampaignRemainder(grp.code)}
+                          className="btn-ghost"
+                          style={{ fontSize: '0.7rem', padding: '2px 7px', fontWeight: 700, color: subPctSum > 100 ? '#ef4444' : '#b45309', border: '1px solid currentColor', borderRadius: 'var(--radius-xs)' }}
+                        >
+                          Kalanı Son Kampanyaya Ekle (%100 Tamamla)
                         </button>
                       )}
                     </div>
