@@ -1212,38 +1212,42 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   }, [monthlyBudget, activeSubCampaignId]);
 
   // Sync active sub-campaign snapshot
-  const syncActiveSubCampaign = () => {
-    setSubCampaigns(prev => prev.map(c => {
-      if (c.id !== activeSubCampaignId) return c;
-      const availablePool = scopedKeywords.length > 0 ? scopedKeywords : imputedKeywords;
-      const selectedKws = Array.from(selectedKeywordIds).map(id => availablePool.find(k => k.id === id)).filter(Boolean) as KeywordMetric[];
-      const effectiveSelectedKws = selectedKws.length > 0 ? selectedKws : (availablePool.length > 0 ? availablePool : (c.selectedKeywords || []));
-      const effectiveDiscoveredKws = availablePool.length > 0 ? availablePool : (keywords.length > 0 ? keywords : (c.discoveredKeywords || []));
-      const subBudget = (monthlyBudget !== undefined && monthlyBudget !== null && monthlyBudget > 0) ? monthlyBudget : 35000;
+  // Get updated sub-campaigns array with current active sub-campaign state merged
+  const getUpdatedSubCampaignsWithActiveState = (overrideActiveId?: string): SubCampaignItem[] => {
+    const targetId = overrideActiveId || activeSubCampaignId;
+    if (!targetId) return subCampaigns;
 
-      const rawTargetLang = targetLanguage || detectedLanguage || 'tr';
-      const isAutoLang = rawTargetLang === 'auto' || !rawTargetLang;
-      const finalLangCode = isAutoLang ? (detectedLanguage && detectedLanguage !== 'auto' ? detectedLanguage : 'tr') : rawTargetLang;
-      const finalLangObj = GOOGLE_ADS_LANGUAGES.find(l => l.code === finalLangCode);
-      const finalLangName = isAutoLang 
-        ? (detectedLanguageName && detectedLanguageName !== 'Otomatik' && detectedLanguageName !== 'Otomatik (Sayfa Dili)' ? detectedLanguageName : (finalLangObj?.name || 'Türkçe'))
-        : (GOOGLE_ADS_LANGUAGES.find(l => l.code === rawTargetLang)?.name || 'Türkçe');
-      const finalLangFlag = finalLangObj?.flag || (finalLangCode === 'tr' ? '🇹🇷' : (finalLangCode === 'en' ? '🇬🇧' : '🌐'));
+    const availablePool = scopedKeywords.length > 0 ? scopedKeywords : imputedKeywords;
+    const selectedKws = Array.from(selectedKeywordIds).map(id => availablePool.find(k => k.id === id)).filter(Boolean) as KeywordMetric[];
+    const effectiveSelectedKws = selectedKws.length > 0 ? selectedKws : (availablePool.length > 0 ? availablePool : []);
+    const effectiveDiscoveredKws = availablePool.length > 0 ? availablePool : (keywords.length > 0 ? keywords : []);
+    const subBudget = (monthlyBudget !== undefined && monthlyBudget !== null && monthlyBudget > 0) ? monthlyBudget : 35000;
 
+    const rawTargetLang = targetLanguage || detectedLanguage || 'tr';
+    const isAutoLang = rawTargetLang === 'auto' || !rawTargetLang;
+    const finalLangCode = isAutoLang ? (detectedLanguage && detectedLanguage !== 'auto' ? detectedLanguage : 'tr') : rawTargetLang;
+    const finalLangObj = GOOGLE_ADS_LANGUAGES.find(l => l.code === finalLangCode);
+    const finalLangName = isAutoLang 
+      ? (detectedLanguageName && detectedLanguageName !== 'Otomatik' && detectedLanguageName !== 'Otomatik (Sayfa Dili)' ? detectedLanguageName : (finalLangObj?.name || 'Türkçe'))
+      : (GOOGLE_ADS_LANGUAGES.find(l => l.code === rawTargetLang)?.name || 'Türkçe');
+    const finalLangFlag = finalLangObj?.flag || (finalLangCode === 'tr' ? '🇹🇷' : (finalLangCode === 'en' ? '🇬🇧' : '🌐'));
+
+    const updated = subCampaigns.map(c => {
+      if (c.id !== targetId) return c;
       return {
         ...c,
         targetUrl: mode === 'URL' ? query : '',
         seedKeywords: mode === 'KEYWORDS' ? query : '',
         monthlyBudget: subBudget,
-        discoveredKeywords: effectiveDiscoveredKws,
-        selectedKeywords: effectiveSelectedKws,
-        negativeCategories,
-        targetLocations: selectedLocations,
+        discoveredKeywords: effectiveDiscoveredKws.length > 0 ? effectiveDiscoveredKws : (c.discoveredKeywords || []),
+        selectedKeywords: effectiveSelectedKws.length > 0 ? effectiveSelectedKws : (c.selectedKeywords || []),
+        negativeCategories: negativeCategories.length > 0 ? negativeCategories : (c.negativeCategories || []),
+        targetLocations: selectedLocations.length > 0 ? selectedLocations : (c.targetLocations || DEFAULT_LOCATIONS),
         countryBreakdown: countryBreakdown.length > 0 ? countryBreakdown : c.countryBreakdown,
         businessModel,
-        isStep1Completed,
-        isStep2Completed,
-        isStep3Completed,
+        isStep1Completed: true,
+        isStep2Completed: true,
+        isStep3Completed: true,
         languageCode: finalLangCode,
         languageName: finalLangName,
         languageFlag: finalLangFlag,
@@ -1274,12 +1278,20 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           gdnCtr,
           gdnAssistedCr
         },
-        simulationResult: effectiveDiscoveredKws.length > 0 ? simulation : simulation,
+        simulationResult: simulation,
         metaSimulationResult: metaSimulation,
         youtubeSimulationResult: youtubeSimulation,
         gdnSimulationResult: gdnSimulation
       };
-    }));
+    });
+
+    return sortSubCampaignsByLanguage(updated);
+  };
+
+  const syncActiveSubCampaign = () => {
+    const updated = getUpdatedSubCampaignsWithActiveState();
+    setSubCampaigns(updated);
+    return updated;
   };
 
   // Apply a sub-campaign's state completely
@@ -1431,11 +1443,42 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   // Switch to another sub-campaign
   const handleSelectSubCampaign = (campId: string) => {
     if (campId === activeSubCampaignId) return;
+
+    // 1. Get updated sub-campaigns array with current active sub-campaign state merged
+    const updated = getUpdatedSubCampaignsWithActiveState();
+    setSubCampaigns(updated);
+
+    // 2. Auto-persist to database if currentPlanId exists
+    if (currentPlanId) {
+      const formattedPeriod = formatCampaignDates(planStartDate, planEndDate, planPeriod);
+      ApiService.saveForecastPlan({
+        id: currentPlanId,
+        workspaceId,
+        name: planName.trim() || `${clientName} - ${formattedPeriod} Medya Planı`,
+        clientName: clientName.trim(),
+        startDate: planStartDate,
+        endDate: planEndDate,
+        period: formattedPeriod,
+        tags: planTags,
+        targetUrl: mode === 'URL' ? query : '',
+        seedKeywords: mode === 'KEYWORDS' ? query : '',
+        detectedLanguage,
+        detectedLanguageName,
+        monthlyBudget: totalMasterMonthlyBudget || monthlyBudget,
+        selectedKeywords: selectedKeywordsPool,
+        simulationResult: simulation,
+        negativeKeywords: negativeCategories,
+        targetCountries: activeCountries.map(c => c.name),
+        countryBreakdown,
+        subCampaigns: updated
+      }).catch(err => console.error("Error auto-persisting sub-campaigns on tab switch:", err));
+    }
+
     try {
       localStorage.setItem('roasist_active_studio_sub_id', campId);
     } catch (e) {}
-    syncActiveSubCampaign();
-    const target = subCampaigns.find(c => c.id === campId);
+
+    const target = updated.find(c => c.id === campId);
     if (!target) return;
     applySubCampaignToState(target);
   };
