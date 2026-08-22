@@ -63,6 +63,11 @@ export const BudgetAllocationWizardModal: React.FC<BudgetAllocationWizardModalPr
     return subCampaigns.map(c => ({ ...c }));
   });
 
+  // Sync draftSubCampaigns whenever subCampaigns prop changes from parent ForecastModule
+  useEffect(() => {
+    setDraftSubCampaigns(subCampaigns.map(c => ({ ...c })));
+  }, [subCampaigns]);
+
   // Rapid Draft Generator State
   const [selectedDraftLangCodes, setSelectedDraftLangCodes] = useState<string[]>(['tr', 'en']);
   const [selectedDraftModelIds, setSelectedDraftModelIds] = useState<string[]>(['GOOGLE_SEARCH', 'META_LEADS']);
