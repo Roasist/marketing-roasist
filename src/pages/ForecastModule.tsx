@@ -5568,7 +5568,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
             }}>
               {isStep3Completed ? <Check size={14} /> : '3'}
             </div>
-            <span>3. Adım: 360° Medya Karması & Büyüme Simülatörü</span>
+            <span>3. Adım: Planlama</span>
           </button>
 
         </div>
