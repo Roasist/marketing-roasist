@@ -5922,12 +5922,12 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', maxHeight: '560px', overflowY: 'auto', paddingRight: '0.2rem' }}>
                       {keywordClusters.filter(cluster => currentStep !== 2 || cluster.keywords.some(k => selectedKeywordIds.has(k.id))).map(cluster => {
                         const isActive = activeClusterId === cluster.id;
-                        const clusterSelectedKws = cluster.keywords;
+                        const clusterSelectedKws = cluster.keywords.filter(k => selectedKeywordIds.has(k.id));
                         const clusterSelectedCount = clusterSelectedKws.length;
-                        const clusterSelectedVol = cluster.totalVolume !== undefined ? cluster.totalVolume : clusterSelectedKws.reduce((s, k) => s + (k.monthlyVolume || 0), 0);
-                        const clusterSelectedAvgCpc = cluster.avgCpc !== undefined ? cluster.avgCpc : (clusterSelectedKws.length > 0 
+                        const clusterSelectedVol = clusterSelectedKws.reduce((s, k) => s + (k.monthlyVolume || 0), 0);
+                        const clusterSelectedAvgCpc = clusterSelectedKws.length > 0 
                           ? clusterSelectedKws.reduce((s, k) => s + (((k.lowCpc || 0) + (k.highCpc || 0)) / 2), 0) / clusterSelectedKws.length 
-                          : 0);
+                          : 0;
                         const isAllClusterSelected = cluster.keywords.length > 0 && clusterSelectedCount === cluster.keywords.length;
                         const isPartialClusterSelected = clusterSelectedCount > 0 && !isAllClusterSelected;
                         const selectionPercent = Math.round((clusterSelectedCount / (cluster.keywords.length || 1)) * 100);
