@@ -10712,7 +10712,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         onOpenLanguageModal={() => setIsLanguageModalOpen(true)}
         onOpenAddSubCampaignModal={(langCode) => {
           if (langCode) {
-            setTargetLanguage(langCode);
+            setNewCampLanguage(langCode);
           }
           setIsAddCampaignModalOpen(true);
         }}
