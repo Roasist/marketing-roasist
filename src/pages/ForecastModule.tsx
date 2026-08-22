@@ -1697,7 +1697,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     if (Array.isArray(plan.subCampaigns)) {
       const sanitizedSubs = plan.subCampaigns.map(c => ({
         ...c,
-        monthlyBudget: (c.monthlyBudget && c.monthlyBudget > 0) ? c.monthlyBudget : (plan.monthlyBudget || 35000)
+        monthlyBudget: (c.monthlyBudget !== undefined && c.monthlyBudget !== null) ? Number(c.monthlyBudget) : (plan.monthlyBudget || 0)
       }));
       setSubCampaigns(sanitizedSubs);
       if (sanitizedSubs.length > 0) {
@@ -3786,7 +3786,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     if (target.id === activeSubCampaignId) {
       return {
         ...target,
-        monthlyBudget: monthlyBudget || target.monthlyBudget || 35000,
+        monthlyBudget: (target.id === activeSubCampaignId ? (monthlyBudget ?? target.monthlyBudget) : target.monthlyBudget) ?? 0,
         selectedKeywords: currentSelected.length > 0 ? currentSelected : target.selectedKeywords,
         discoveredKeywords: availablePool.length > 0 ? availablePool : (target.discoveredKeywords || []),
         negativeCategories,
@@ -4034,7 +4034,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       parameters: {}
                     }] : []);
 
-                const planTotalBudget = subs.reduce((s, c) => s + (c.monthlyBudget || 0), 0) || (Array.isArray(plan.subCampaigns) && plan.subCampaigns.length === 0 ? 0 : (plan.monthlyBudget || 0));
+                const planTotalBudget = Array.isArray(plan.subCampaigns) && plan.subCampaigns.length > 0
+                  ? subs.reduce((s, c) => s + (c.monthlyBudget || 0), 0)
+                  : (plan.monthlyBudget || 0);
 
                 return (
                   <div 
