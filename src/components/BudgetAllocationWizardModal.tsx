@@ -395,7 +395,7 @@ export const BudgetAllocationWizardModal: React.FC<BudgetAllocationWizardModalPr
       bottom: 0,
       backgroundColor: 'rgba(0, 0, 0, 0.7)',
       backdropFilter: 'blur(5px)',
-      zIndex: 9999,
+      zIndex: 9990,
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',

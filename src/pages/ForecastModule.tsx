@@ -4730,7 +4730,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 9999,
+            zIndex: 10050,
             padding: '1rem'
           }}
           onClick={() => setIsAddCampaignModalOpen(false)}
@@ -9884,7 +9884,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           bottom: 0,
           backgroundColor: 'rgba(0, 0, 0, 0.65)',
           backdropFilter: 'blur(4px)',
-          zIndex: 9999,
+          zIndex: 10050,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -10550,7 +10550,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           bottom: 0,
           backgroundColor: 'rgba(0, 0, 0, 0.65)',
           backdropFilter: 'blur(4px)',
-          zIndex: 9999,
+          zIndex: 10050,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
