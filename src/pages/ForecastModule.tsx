@@ -1640,6 +1640,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     setActiveChannelTab('OMNICHANNEL');
     setCurrentStep(2);
     setIsAddMasterPlanModalOpen(false);
+    setIsBudgetAllocationModalOpen(true);
     setViewMode('STUDIO');
     setNewMasterName('');
     setNewMasterClient('');
