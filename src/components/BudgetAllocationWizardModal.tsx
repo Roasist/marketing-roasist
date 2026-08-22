@@ -101,41 +101,41 @@ export const BudgetAllocationWizardModal: React.FC<BudgetAllocationWizardModalPr
   // Language Tier Allocations State: { [langCode]: { percentage: number, budget: number } }
   const [langAllocations, setLangAllocations] = useState<Record<string, { percentage: number; budget: number }>>({});
 
-  // Initialize Language Allocations on load or when language groups change
+  // Initialize & Preserve Language Allocations state
   useEffect(() => {
     if (languageGroups.length === 0) {
       setLangAllocations({});
       return;
     }
 
-    const currentLangSums: Record<string, number> = {};
-    let totalSum = 0;
-    languageGroups.forEach(grp => {
-      const sum = grp.items.reduce((s, item) => s + (item.monthlyBudget || 0), 0);
-      currentLangSums[grp.code] = sum;
-      totalSum += sum;
+    setLangAllocations(prev => {
+      const prevKeys = Object.keys(prev);
+      const isFresh = prevKeys.length === 0;
+
+      const nextAlloc: Record<string, { percentage: number; budget: number }> = {};
+      const equalPct = Number((100 / languageGroups.length).toFixed(1));
+      const equalBgt = Math.round(masterBudget / languageGroups.length);
+
+      languageGroups.forEach((grp, idx) => {
+        if (!isFresh && prev[grp.code]) {
+          // Keep existing custom allocation completely intact!
+          nextAlloc[grp.code] = prev[grp.code];
+        } else {
+          // New language group added or fresh initialization
+          if (idx === languageGroups.length - 1 && isFresh) {
+            const usedPct = (languageGroups.length - 1) * equalPct;
+            const remPct = Number((100 - usedPct).toFixed(1));
+            const remBgt = masterBudget - ((languageGroups.length - 1) * equalBgt);
+            nextAlloc[grp.code] = { percentage: remPct, budget: remBgt };
+          } else {
+            nextAlloc[grp.code] = { percentage: isFresh ? equalPct : 0, budget: isFresh ? equalBgt : 0 };
+          }
+        }
+      });
+
+      return nextAlloc;
     });
-
-    const activeMaster = masterBudget > 0 ? masterBudget : (totalSum > 0 ? totalSum : 100000);
-
-    const initialAlloc: Record<string, { percentage: number; budget: number }> = {};
-    languageGroups.forEach((grp, idx) => {
-      const currentSum = currentLangSums[grp.code] || 0;
-      let pct = totalSum > 0 ? Math.round((currentSum / totalSum) * 100) : Math.round(100 / languageGroups.length);
-      if (isNaN(pct)) pct = 0;
-
-      // Adjust last item to reach exactly 100%
-      if (idx === languageGroups.length - 1 && totalSum <= 0) {
-        const previousPctsSum = (languageGroups.length - 1) * Math.round(100 / languageGroups.length);
-        pct = Math.max(0, 100 - previousPctsSum);
-      }
-
-      const bgt = Math.round((activeMaster * pct) / 100);
-      initialAlloc[grp.code] = { percentage: pct, budget: bgt };
-    });
-
-    setLangAllocations(initialAlloc);
-  }, [languageGroups.length, draftSubCampaigns.length]);
+  }, [languageGroups, masterBudget]);
 
   // Total allocated percentage across languages
   const totalLangPercentage = useMemo(() => {

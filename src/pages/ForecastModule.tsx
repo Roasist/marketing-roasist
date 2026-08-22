@@ -1435,8 +1435,10 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
     const newId = 'sub_' + Date.now();
     const campTitle = newCampName.trim() || `${newCampPlatform} Kampanya ${subCampaigns.length + 1}`;
+    const selLang = GOOGLE_ADS_LANGUAGES.find(l => l.code === newCampLanguage)
+      || (newCampLanguage && newCampLanguage !== 'auto' ? { code: newCampLanguage, name: newCampLanguage, flag: '🌐' } : null)
+      || GOOGLE_ADS_LANGUAGES[1];
     const defaultBudget = (monthlyBudget && monthlyBudget > 0) ? monthlyBudget : 35000;
-    const selLang = GOOGLE_ADS_LANGUAGES.find(l => l.code === newCampLanguage) || GOOGLE_ADS_LANGUAGES.find(l => l.code === 'tr') || GOOGLE_ADS_LANGUAGES[1];
 
     const newCamp: SubCampaignItem = {
       id: newId,
@@ -1479,9 +1481,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     setSelectedKeywordIds(new Set());
     setNegativeCategories([]);
     setSelectedLocations(DEFAULT_LOCATIONS);
-    setTargetLanguage('auto');
-    setDetectedLanguage('auto');
-    setDetectedLanguageName('Otomatik (Sayfa Dili)');
+    setTargetLanguage(selLang.code);
+    setDetectedLanguage(selLang.code);
+    setDetectedLanguageName(selLang.name);
     setMonthlyBudget(defaultBudget);
     setQuery('');
     setIsAddCampaignModalOpen(false);
