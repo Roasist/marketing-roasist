@@ -416,6 +416,18 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   const [mode, setMode] = useState<'URL' | 'KEYWORDS'>('URL');
   const [targetLanguage, setTargetLanguage] = useState<string>('auto');
   const [isLocationModalOpen, setIsLocationModalOpen] = useState<boolean>(false);
+  const [isLanguageModalOpen, setIsLanguageModalOpen] = useState<boolean>(false);
+  const [languageSearchQuery, setLanguageSearchQuery] = useState<string>('');
+
+  const filteredLanguages = useMemo(() => {
+    const q = languageSearchQuery.toLowerCase().trim();
+    if (!q) return GOOGLE_ADS_LANGUAGES.slice(1);
+    return GOOGLE_ADS_LANGUAGES.slice(1).filter(l =>
+      l.name.toLowerCase().includes(q) ||
+      l.nativeName.toLowerCase().includes(q) ||
+      l.code.toLowerCase().includes(q)
+    );
+  }, [languageSearchQuery]);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingStage, setLoadingStage] = useState(0);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -6767,30 +6779,16 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     </span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '0.78rem', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
-                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
-                      <span>Dil:</span>
-                      <select
-                        value={targetLanguage}
-                        onChange={(e) => setTargetLanguage(e.target.value)}
-                        style={{
-                          padding: '1px 5px',
-                          fontSize: '0.78rem',
-                          fontWeight: 700,
-                          color: 'var(--brand-primary)',
-                          backgroundColor: 'var(--bg-surface-elevated)',
-                          border: '1px solid var(--border-default)',
-                          borderRadius: 'var(--radius-xs)',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        <option value="auto">🌐 Otomatik ({effectiveLanguage.name})</option>
-                        {GOOGLE_ADS_LANGUAGES.slice(1).map(l => (
-                          <option key={l.code} value={l.code}>
-                            {l.flag} {l.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsLanguageModalOpen(true)}
+                      className="btn-ghost"
+                      style={{ padding: '1px 6px', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-primary)', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
+                      title="Hedef Reklam Dili Seçin / Değiştirin"
+                    >
+                      <Languages size={13} color="var(--brand-primary)" />
+                      <span>Dil: <strong style={{ color: 'var(--brand-primary)' }}>{effectiveLanguage.flag} {effectiveLanguage.name}</strong></span>
+                    </button>
                     <span>•</span>
                     <span>Aylık Bütçe: <strong>₺{monthlyBudget.toLocaleString('tr-TR')}</strong></span>
                     <span>•</span>
@@ -6910,6 +6908,17 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     >
                       <Globe size={13} />
                       <span>Lokasyon ({selectedLocations.length})</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setIsLanguageModalOpen(true)}
+                      className="btn-ghost"
+                      style={{ fontSize: '0.75rem', padding: '0.35rem 0.65rem', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-xs)', display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--brand-primary)', fontWeight: 600 }}
+                      title="Hedef Reklam Dili Seçin / Değiştirin"
+                    >
+                      <Languages size={13} />
+                      <span>Dil: {effectiveLanguage.flag} {effectiveLanguage.name}</span>
                     </button>
 
 
@@ -10512,6 +10521,169 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                 style={{ padding: '0.5rem 1.25rem', fontSize: '0.85rem', fontWeight: 600 }}
               >
                 ✓ Lokasyonları Onayla ({selectedLocations.length} Bölge)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🗣️ Hedef Reklam Dili Seçimi Modalı */}
+      {isLanguageModalOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.65)',
+          backdropFilter: 'blur(4px)',
+          zIndex: 9999,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '1rem'
+        }}>
+          <div className="card" style={{
+            width: '100%',
+            maxWidth: '620px',
+            maxHeight: '85vh',
+            overflowY: 'auto',
+            padding: '1.5rem',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '1.25rem',
+            backgroundColor: 'var(--bg-surface)',
+            border: '1.5px solid var(--brand-primary)',
+            borderRadius: 'var(--radius-md)',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.4)'
+          }}>
+            {/* Modal Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-default)', paddingBottom: '0.75rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                <div style={{ padding: '8px', borderRadius: '50%', backgroundColor: 'rgba(37, 99, 235, 0.12)', color: 'var(--brand-primary)' }}>
+                  <Languages size={20} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                    <span>Hedef Reklam Dili Seçimi</span>
+                    <span className="badge badge-active" style={{ fontSize: '0.7rem' }}>
+                      {effectiveLanguage.flag} {effectiveLanguage.name}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                    Kampanyanızın hedef kitlesine özel resmi reklam dilini seçin.
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsLanguageModalOpen(false)}
+                className="btn-ghost"
+                style={{ padding: '4px', borderRadius: '50%', color: 'var(--text-muted)' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Language Search Input */}
+            <div style={{ position: 'relative' }}>
+              <Search size={16} color="var(--text-muted)" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+              <input
+                type="text"
+                placeholder="Dil adı, orijinal adı (English, Deutsch, Русский) veya kod ara..."
+                value={languageSearchQuery}
+                onChange={(e) => setLanguageSearchQuery(e.target.value)}
+                style={{ width: '100%', paddingLeft: '2.4rem', fontSize: '0.85rem' }}
+              />
+            </div>
+
+            {/* Popular Languages Shortcuts */}
+            <div>
+              <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.45rem' }}>
+                ⭐ Sık Kullanılan Popüler Diller
+              </div>
+              <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                {GOOGLE_ADS_LANGUAGES.slice(1, 10).map(lang => {
+                  const isSel = (targetLanguage === lang.code) || (targetLanguage === 'auto' && detectedLanguage === lang.code);
+                  return (
+                    <button
+                      key={lang.code}
+                      type="button"
+                      onClick={() => {
+                        setTargetLanguage(lang.code);
+                        setIsLanguageModalOpen(false);
+                      }}
+                      className="btn-ghost"
+                      style={{
+                        fontSize: '0.8rem',
+                        padding: '0.35rem 0.65rem',
+                        borderRadius: 'var(--radius-xs)',
+                        border: isSel ? '1.5px solid var(--brand-primary)' : '1px solid var(--border-default)',
+                        backgroundColor: isSel ? 'rgba(37, 99, 235, 0.12)' : 'var(--bg-surface-elevated)',
+                        color: isSel ? 'var(--brand-primary)' : 'var(--text-primary)',
+                        fontWeight: isSel ? 700 : 500
+                      }}
+                    >
+                      <span>{lang.flag} {lang.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* All Languages Grid List */}
+            <div>
+              <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.45rem' }}>
+                🌍 Tüm Desteklenen Reklam Dilleri ({filteredLanguages.length})
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: '0.45rem', maxHeight: '280px', overflowY: 'auto', paddingRight: '4px' }}>
+                {filteredLanguages.map(lang => {
+                  const isSel = (targetLanguage === lang.code) || (targetLanguage === 'auto' && detectedLanguage === lang.code);
+                  return (
+                    <button
+                      key={lang.code}
+                      type="button"
+                      onClick={() => {
+                        setTargetLanguage(lang.code);
+                        setIsLanguageModalOpen(false);
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.45rem',
+                        padding: '0.5rem 0.65rem',
+                        fontSize: '0.8rem',
+                        textAlign: 'left',
+                        borderRadius: 'var(--radius-xs)',
+                        border: isSel ? '1.5px solid var(--brand-primary)' : '1px solid var(--border-default)',
+                        backgroundColor: isSel ? 'rgba(37, 99, 235, 0.12)' : 'var(--bg-surface-elevated)',
+                        color: isSel ? 'var(--brand-primary)' : 'var(--text-primary)',
+                        fontWeight: isSel ? 700 : 500,
+                        cursor: 'pointer',
+                        transition: 'all 0.12s ease'
+                      }}
+                    >
+                      <span style={{ fontSize: '1rem' }}>{lang.flag}</span>
+                      <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
+                        <span style={{ fontSize: '0.8rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{lang.name}</span>
+                        <span style={{ fontSize: '0.68rem', color: isSel ? 'var(--brand-primary)' : 'var(--text-muted)' }}>{lang.nativeName}</span>
+                      </div>
+                      {isSel && <Check size={14} color="var(--brand-primary)" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--border-default)', paddingTop: '0.75rem' }}>
+              <button
+                type="button"
+                onClick={() => setIsLanguageModalOpen(false)}
+                className="btn-primary"
+                style={{ fontSize: '0.85rem', padding: '0.5rem 1.25rem' }}
+              >
+                Tamam
               </button>
             </div>
           </div>
