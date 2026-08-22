@@ -1276,8 +1276,10 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   // Apply a sub-campaign's state completely
   const applySubCampaignToState = (target: SubCampaignItem) => {
     isApplyingSubCampaignRef.current = true;
-    setActiveSubCampaignId(target.id);
-    setKeywords(target.discoveredKeywords || []);
+    const poolKws = (target.discoveredKeywords && target.discoveredKeywords.length > 0) 
+      ? target.discoveredKeywords 
+      : (target.selectedKeywords || []);
+    setKeywords(poolKws);
     const loadedSelIds = new Set((target.selectedKeywords || []).map(k => k.id));
     setSelectedKeywordIds(loadedSelIds);
     setStep2ApprovedKeywordIds(loadedSelIds);
@@ -3446,11 +3448,17 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   // In Step 2, the pool of keywords is strictly the approved keywords carried over from Step 1
   const step2WorkingKeywords = useMemo(() => {
     if (currentStep === 2) {
-      const approvedSet = step2ApprovedKeywordIds.size > 0 ? step2ApprovedKeywordIds : selectedKeywordIds;
-      return scopedKeywords.filter(k => approvedSet.has(k.id));
+      const pool = scopedKeywords.length > 0 ? scopedKeywords : imputedKeywords;
+      const approvedSet = selectedKeywordIds.size > 0 
+        ? selectedKeywordIds 
+        : (step2ApprovedKeywordIds.size > 0 ? step2ApprovedKeywordIds : new Set());
+      
+      const filtered = pool.filter(k => approvedSet.has(k.id));
+      if (filtered.length > 0) return filtered;
+      if (pool.length > 0) return pool;
     }
-    return scopedKeywords;
-  }, [currentStep, scopedKeywords, step2ApprovedKeywordIds, selectedKeywordIds]);
+    return scopedKeywords.length > 0 ? scopedKeywords : imputedKeywords;
+  }, [currentStep, scopedKeywords, imputedKeywords, step2ApprovedKeywordIds, selectedKeywordIds]);
 
   // Auto-fetch per-location Google Ads API volumes when entering Step 2 or changing selected locations
   const hasAutoFetchedStep2GeoRef = useRef<string>('');
@@ -5807,7 +5815,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                         {activeLocationScope !== 'ALL' && activeScopeLocation ? `${activeScopeLocation.name.toUpperCase()} SEÇİLİ ARAMA HAVUZU` : 'SEÇİLİ TOPLAM ARAMA HAVUZU'}
                       </div>
                       <div style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                        {selectedTotalVolume.toLocaleString('tr-TR')} <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-muted)' }}>/ay</span>
+                        {selectedTotalVolume.toLocaleString('tr-TR')} <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-muted)' }}>arama/ay</span>
                       </div>
                     </div>
                   </div>
