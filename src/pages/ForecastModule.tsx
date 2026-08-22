@@ -4571,27 +4571,6 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         {/* Sub-Campaign Fast Export Actions */}
         {activeSubCampaign && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-            <button
-              type="button"
-              onClick={() => handleOpenExportModal(activeSubCampaign, 'PDF')}
-              className="btn-secondary"
-              style={{
-                padding: '0.4rem 0.75rem',
-                fontSize: '0.78rem',
-                fontWeight: 600,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.35rem',
-                whiteSpace: 'nowrap',
-                color: 'var(--brand-primary)',
-                backgroundColor: 'rgba(37, 99, 235, 0.08)',
-                borderColor: 'rgba(37, 99, 235, 0.25)'
-              }}
-              title="Rapor Özelleştirme ve PDF / Baskı Raporunu Aç"
-            >
-              <SlidersHorizontal size={13} />
-              <span>Rapor Özelleştir</span>
-            </button>
 
             <button
               type="button"
@@ -6785,26 +6764,6 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       <span>Lokasyon ({selectedLocations.length})</span>
                     </button>
 
-                    <button
-                      type="button"
-                      onClick={() => handleOpenExportModal(activeSubCampaign, 'PDF')}
-                      className="btn-secondary"
-                      style={{ 
-                        fontSize: '0.75rem', 
-                        padding: '0.35rem 0.75rem', 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        gap: '0.35rem', 
-                        fontWeight: 600,
-                        backgroundColor: 'rgba(37, 99, 235, 0.08)',
-                        borderColor: 'rgba(37, 99, 235, 0.25)',
-                        color: 'var(--brand-primary)'
-                      }}
-                      title="Raporu Özelleştir ve PDF / CSV formatında dışa aktar"
-                    >
-                      <SlidersHorizontal size={13} />
-                      <span>Rapor Özelleştir</span>
-                    </button>
 
                     <button
                       type="button"
