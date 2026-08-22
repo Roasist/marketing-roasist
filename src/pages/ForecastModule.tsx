@@ -10709,6 +10709,8 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         onClose={() => setIsBudgetAllocationModalOpen(false)}
         masterMonthlyBudget={totalMasterMonthlyBudget || monthlyBudget}
         subCampaigns={subCampaigns}
+        onOpenLanguageModal={() => setIsLanguageModalOpen(true)}
+        onOpenAddSubCampaignModal={() => setIsAddCampaignModalOpen(true)}
         onApplyAllocation={(_newMasterBudget, updatedSubCampaigns) => {
           setSubCampaigns(updatedSubCampaigns);
           if (activeSubCampaignId) {

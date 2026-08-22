@@ -20,6 +20,8 @@ interface BudgetAllocationWizardModalProps {
   masterMonthlyBudget: number;
   onApplyAllocation: (newMasterBudget: number, updatedSubCampaigns: SubCampaignItem[]) => void;
   subCampaigns: SubCampaignItem[];
+  onOpenLanguageModal?: () => void;
+  onOpenAddSubCampaignModal?: () => void;
 }
 
 const POPULAR_DRAFT_LANGUAGES = [
@@ -46,7 +48,9 @@ export const BudgetAllocationWizardModal: React.FC<BudgetAllocationWizardModalPr
   onClose,
   masterMonthlyBudget: initialMasterBudget,
   onApplyAllocation,
-  subCampaigns
+  subCampaigns,
+  onOpenLanguageModal,
+  onOpenAddSubCampaignModal
 }) => {
   if (!isOpen) return null;
 
@@ -481,6 +485,30 @@ export const BudgetAllocationWizardModal: React.FC<BudgetAllocationWizardModalPr
                     </button>
                   );
                 })}
+
+                {onOpenLanguageModal && (
+                  <button
+                    type="button"
+                    onClick={onOpenLanguageModal}
+                    style={{
+                      fontSize: '0.8rem',
+                      padding: '0.4rem 0.75rem',
+                      borderRadius: 'var(--radius-xs)',
+                      border: '1.5px solid var(--brand-primary)',
+                      backgroundColor: 'rgba(37, 99, 235, 0.08)',
+                      color: 'var(--brand-primary)',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.35rem'
+                    }}
+                    title="45+ Dil arasından arayarak seçin"
+                  >
+                    <Globe size={13} />
+                    <span>🌐 Dil Seç (Arama Modalı)</span>
+                  </button>
+                )}
               </div>
             </div>
 
@@ -520,6 +548,31 @@ export const BudgetAllocationWizardModal: React.FC<BudgetAllocationWizardModalPr
                     </label>
                   );
                 })}
+
+                {onOpenAddSubCampaignModal && (
+                  <button
+                    type="button"
+                    onClick={onOpenAddSubCampaignModal}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.45rem',
+                      padding: '0.5rem 0.7rem',
+                      fontSize: '0.8rem',
+                      fontWeight: 700,
+                      color: 'var(--brand-primary)',
+                      backgroundColor: 'rgba(37, 99, 235, 0.08)',
+                      border: '1.5px dashed var(--brand-primary)',
+                      borderRadius: 'var(--radius-xs)',
+                      cursor: 'pointer'
+                    }}
+                    title="Özel platform ve model seçerek alt kampanya oluşturun"
+                  >
+                    <Plus size={14} />
+                    <span>➕ Detaylı Alt Kampanya Ekle</span>
+                  </button>
+                )}
               </div>
             </div>
 
