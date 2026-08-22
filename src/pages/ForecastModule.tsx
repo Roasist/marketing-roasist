@@ -1202,6 +1202,11 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   // Apply a sub-campaign's state completely
   const applySubCampaignToState = (target: SubCampaignItem) => {
     isApplyingSubCampaignRef.current = true;
+    setActiveSubCampaignId(target.id);
+    try {
+      localStorage.setItem('roasist_active_studio_sub_id', target.id);
+    } catch (e) {}
+
     const poolKws = (target.discoveredKeywords && target.discoveredKeywords.length > 0) 
       ? target.discoveredKeywords 
       : (target.selectedKeywords || []);
@@ -1294,13 +1299,17 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     }
 
     const hasKeywords = (target.discoveredKeywords && target.discoveredKeywords.length > 0) || (target.selectedKeywords && target.selectedKeywords.length > 0);
-    const step1Done = target.isStep1Completed !== undefined ? target.isStep1Completed : true;
-    const step2Done = target.isStep2Completed !== undefined ? target.isStep2Completed : true;
-    const step3Done = target.isStep3Completed !== undefined ? target.isStep3Completed : true;
+    const hasSelected = (target.selectedKeywords && target.selectedKeywords.length > 0) || loadedSelIds.size > 0;
+    const isNonSearch = target.platform === 'META' || target.platform === 'YOUTUBE' || (target.platform === 'GOOGLE' && target.objective === 'GOOGLE_GDN');
 
-    setIsStep1Completed(step1Done);
-    setIsStep2Completed(step2Done);
-    setIsStep3Completed(step3Done);
+    const step1Done = isNonSearch ? true : (target.isStep1Completed ?? hasKeywords);
+    const step2Done = isNonSearch ? true : (target.isStep2Completed ?? hasSelected);
+    const step3Done = target.isStep3Completed ?? (step1Done && step2Done);
+
+    setIsStep1Completed(Boolean(step1Done));
+    setIsStep2Completed(Boolean(step2Done));
+    setIsStep3Completed(Boolean(step3Done));
+
     if (!hasKeywords && target.platform === 'GOOGLE' && (target.objective === 'GOOGLE_SEARCH' || !target.objective)) {
       setCurrentStep(1);
     }
@@ -3605,73 +3614,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     setIsSavingPlan(true);
     try {
       isApplyingSubCampaignRef.current = true;
-      // First sync current active sub campaign
-      const availablePool = scopedKeywords.length > 0 ? scopedKeywords : imputedKeywords;
-      const selectedKws = Array.from(selectedKeywordIds).map(id => availablePool.find(k => k.id === id)).filter(Boolean) as KeywordMetric[];
-      const effectiveSelectedKws = selectedKws.length > 0 ? selectedKws : (availablePool.length > 0 ? availablePool : []);
-      const effectiveDiscoveredKws = availablePool.length > 0 ? availablePool : (keywords.length > 0 ? keywords : []);
-
-      const updatedSubCampaigns = subCampaigns.map(c => {
-        if (c.id !== activeSubCampaignId) return c;
-        const rawTargetLang = targetLanguage || detectedLanguage || 'tr';
-        const isAutoLang = rawTargetLang === 'auto' || !rawTargetLang;
-        const finalLangCode = isAutoLang ? (detectedLanguage && detectedLanguage !== 'auto' ? detectedLanguage : 'tr') : rawTargetLang;
-        const finalLangObj = GOOGLE_ADS_LANGUAGES.find(l => l.code === finalLangCode);
-        const finalLangName = isAutoLang 
-          ? (detectedLanguageName && detectedLanguageName !== 'Otomatik' && detectedLanguageName !== 'Otomatik (Sayfa Dili)' ? detectedLanguageName : (finalLangObj?.name || 'Türkçe'))
-          : (GOOGLE_ADS_LANGUAGES.find(l => l.code === rawTargetLang)?.name || 'Türkçe');
-        const finalLangFlag = finalLangObj?.flag || (finalLangCode === 'tr' ? '🇹🇷' : (finalLangCode === 'en' ? '🇬🇧' : '🌐'));
-
-        return {
-          ...c,
-          targetUrl: mode === 'URL' ? query : '',
-          seedKeywords: mode === 'KEYWORDS' ? query : '',
-          monthlyBudget,
-          discoveredKeywords: effectiveDiscoveredKws,
-          selectedKeywords: effectiveSelectedKws,
-          negativeCategories,
-          targetLocations: selectedLocations,
-          countryBreakdown: countryBreakdown.length > 0 ? countryBreakdown : c.countryBreakdown,
-          businessModel,
-          isStep1Completed: true,
-          isStep2Completed: true,
-          isStep3Completed: true,
-          languageCode: finalLangCode,
-          languageName: finalLangName,
-          languageFlag: finalLangFlag,
-          cpcImputationSettings,
-          parameters: {
-            growthScenario,
-            budgetMode,
-            avgDealValue,
-            allocGoogleSearch,
-            allocMetaAds,
-            allocYouTube,
-            allocGdn,
-            targetImpressionShare,
-            expectedCtr,
-            searchLeadCr: leadConversionRate,
-            searchHealthyLeadRate: leadCloseRate,
-            searchEcommerceCr: ecommerceConversionRate,
-            searchAov: avgOrderValue,
-            metaCpm,
-            metaCtr,
-            metaLeadCr,
-            metaHealthyLeadRate,
-            metaCloseRate,
-            youtubeCpv,
-            youtubeVtr,
-            youtubeActionRate,
-            gdnCpm,
-            gdnCtr,
-            gdnAssistedCr
-          },
-          simulationResult: simulation,
-          metaSimulationResult: metaSimulation,
-          youtubeSimulationResult: youtubeSimulation,
-          gdnSimulationResult: gdnSimulation
-        };
-      });
+      const updatedSubCampaigns = getUpdatedSubCampaignsWithActiveState();
 
       const formattedPeriod = formatCampaignDates(planStartDate, planEndDate, planPeriod);
       const res = await ApiService.saveForecastPlan({
@@ -6704,11 +6647,11 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                           b = Math.max(25000, Math.round((selVol > 0 ? selVol : 1000) * 0.15 * avgCpc * 2));
                           setMonthlyBudget(b);
                         }
+                        setIsStep1Completed(true);
                         setIsStep2Completed(true);
                         setCurrentStep(3);
-                        // sync after state update or pass explicit update
                         setTimeout(() => {
-                          syncActiveSubCampaign();
+                          handleSavePlan();
                         }, 50);
                       }}
                       disabled={selectedKeywordIds.size === 0}
