@@ -1160,6 +1160,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     return [];
   });
   const [isLoadingSavedPlans, setIsLoadingSavedPlans] = useState<boolean>(true);
+  const [isSavingPlan, setIsSavingPlan] = useState<boolean>(false);
   const [planSaveSuccess, setPlanSaveSuccess] = useState(false);
 
   // Total Master Monthly Budget
@@ -3594,6 +3595,8 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
   // Save Plan Action
   const handleSavePlan = async () => {
+    if (isSavingPlan) return;
+    setIsSavingPlan(true);
     try {
       isApplyingSubCampaignRef.current = true;
       // First sync current active sub campaign
@@ -3699,6 +3702,8 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     } catch (err: any) {
       isApplyingSubCampaignRef.current = false;
       alert('Plan kaydedilirken hata: ' + err.message);
+    } finally {
+      setIsSavingPlan(false);
     }
   };
 
@@ -4351,11 +4356,16 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                 <button
                   type="button"
                   onClick={handleSavePlan}
+                  disabled={isSavingPlan}
                   className="btn-primary"
-                  style={{ fontSize: '0.78rem', padding: '0.45rem 0.95rem' }}
+                  style={{
+                    fontSize: '0.78rem',
+                    padding: '0.45rem 0.95rem',
+                    backgroundColor: isSavingPlan ? '#f59e0b' : (planSaveSuccess ? '#10b981' : undefined)
+                  }}
                 >
-                  {planSaveSuccess ? <Check size={14} /> : <Save size={14} />}
-                  {planSaveSuccess ? 'Plan Kaydedildi!' : 'Master Planı Kaydet'}
+                  {isSavingPlan ? <Loader2 size={14} className="animate-spin" /> : (planSaveSuccess ? <Check size={14} /> : <Save size={14} />)}
+                  <span>{isSavingPlan ? 'Kaydediliyor...' : (planSaveSuccess ? 'Plan Kaydedildi!' : 'Master Planı Kaydet')}</span>
                 </button>
               </div>
 
@@ -6880,6 +6890,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     <button
                       type="button"
                       onClick={handleSavePlan}
+                      disabled={isSavingPlan}
                       className="btn-primary"
                       style={{ 
                         fontSize: '0.75rem', 
@@ -6888,11 +6899,11 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                         alignItems: 'center', 
                         gap: '0.35rem', 
                         fontWeight: 600,
-                        backgroundColor: (planSaveSuccess || isStep3Completed) ? '#10b981' : undefined
+                        backgroundColor: isSavingPlan ? '#f59e0b' : ((planSaveSuccess || isStep3Completed) ? '#10b981' : undefined)
                       }}
                     >
-                      {planSaveSuccess || isStep3Completed ? <Check size={13} /> : <Save size={13} />}
-                      <span>{planSaveSuccess ? 'Alt Kampanya Kaydedildi!' : (isStep3Completed ? 'Alt Kampanya Kayıtlı' : 'Alt Kampanyayı Kaydet')}</span>
+                      {isSavingPlan ? <Loader2 size={13} className="animate-spin" /> : ((planSaveSuccess || isStep3Completed) ? <Check size={13} /> : <Save size={13} />)}
+                      <span>{isSavingPlan ? 'Kaydediliyor...' : (planSaveSuccess ? 'Alt Kampanya Kaydedildi!' : (isStep3Completed ? 'Alt Kampanya Kayıtlı' : 'Alt Kampanyayı Kaydet'))}</span>
                     </button>
                   </div>
                 </div>
@@ -7408,17 +7419,20 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                 </div>
 
                 <button
+                  type="button"
                   onClick={handleSavePlan}
+                  disabled={isSavingPlan}
                   className="btn-primary"
                   style={{
                     width: '100%',
                     justifyContent: 'center',
                     padding: '0.65rem',
-                    fontSize: '0.85rem'
+                    fontSize: '0.85rem',
+                    backgroundColor: isSavingPlan ? '#f59e0b' : (planSaveSuccess ? '#10b981' : undefined)
                   }}
                 >
-                  {planSaveSuccess ? <Check size={16} /> : <Save size={16} />}
-                  {planSaveSuccess ? '360° Medya Planı Kaydedildi!' : '360° Medya Planını Çalışma Alanına Kaydet'}
+                  {isSavingPlan ? <Loader2 size={16} className="animate-spin" /> : (planSaveSuccess ? <Check size={16} /> : <Save size={16} />)}
+                  <span>{isSavingPlan ? 'Kaydediliyor...' : (planSaveSuccess ? '360° Medya Planı Kaydedildi!' : '360° Medya Planını Çalışma Alanına Kaydet')}</span>
                 </button>
 
               </div>
@@ -9516,6 +9530,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                   <button
                     type="button"
                     onClick={handleSavePlan}
+                    disabled={isSavingPlan}
                     className="btn-primary"
                     style={{ 
                       fontSize: '0.85rem', 
@@ -9524,12 +9539,12 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       alignItems: 'center', 
                       gap: '0.45rem', 
                       fontWeight: 600,
-                      backgroundColor: (planSaveSuccess || isStep3Completed) ? '#10b981' : undefined
+                      backgroundColor: isSavingPlan ? '#f59e0b' : ((planSaveSuccess || isStep3Completed) ? '#10b981' : undefined)
                     }}
                   >
-                    {planSaveSuccess || isStep3Completed ? <Check size={16} /> : <Save size={16} />}
-                    <span>{planSaveSuccess ? 'Alt Kampanya Çatı Plana Kaydedildi!' : (isStep3Completed ? 'Alt Kampanya Çatı Plana Kayıtlı' : 'Alt Kampanyayı Çatı Plana Kaydet')}</span>
-                    {!planSaveSuccess && !isStep3Completed && <ArrowRight size={15} />}
+                    {isSavingPlan ? <Loader2 size={16} className="animate-spin" /> : ((planSaveSuccess || isStep3Completed) ? <Check size={16} /> : <Save size={16} />)}
+                    <span>{isSavingPlan ? 'Kaydediliyor...' : (planSaveSuccess ? 'Alt Kampanya Çatı Plana Kaydedildi!' : (isStep3Completed ? 'Alt Kampanya Çatı Plana Kayıtlı' : 'Alt Kampanyayı Çatı Plana Kaydet'))}</span>
+                    {!isSavingPlan && !planSaveSuccess && !isStep3Completed && <ArrowRight size={15} />}
                   </button>
                 </div>
               </div>
