@@ -1377,9 +1377,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     }
 
     const hasKeywords = (target.discoveredKeywords && target.discoveredKeywords.length > 0) || (target.selectedKeywords && target.selectedKeywords.length > 0);
-    const step1Done = target.isStep1Completed !== undefined ? target.isStep1Completed : hasKeywords;
-    const step2Done = target.isStep2Completed !== undefined ? target.isStep2Completed : (target.selectedKeywords && target.selectedKeywords.length > 0);
-    const step3Done = target.isStep3Completed !== undefined ? target.isStep3Completed : (step1Done && step2Done && hasKeywords);
+    const step1Done = target.isStep1Completed !== undefined ? target.isStep1Completed : true;
+    const step2Done = target.isStep2Completed !== undefined ? target.isStep2Completed : true;
+    const step3Done = target.isStep3Completed !== undefined ? target.isStep3Completed : true;
 
     setIsStep1Completed(step1Done);
     setIsStep2Completed(step2Done);
@@ -3685,6 +3685,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           targetLocations: selectedLocations,
           countryBreakdown: countryBreakdown.length > 0 ? countryBreakdown : c.countryBreakdown,
           businessModel,
+          isStep1Completed: true,
+          isStep2Completed: true,
+          isStep3Completed: true,
           languageCode: finalLangCode,
           languageName: finalLangName,
           languageFlag: finalLangFlag,
