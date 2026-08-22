@@ -1143,6 +1143,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   const [newCampName, setNewCampName] = useState<string>('');
   const [newCampPlatform, setNewCampPlatform] = useState<CampaignPlatform>('GOOGLE');
   const [newCampObjective, setNewCampObjective] = useState<CampaignObjective>('GOOGLE_SEARCH');
+  const [newCampLanguage, setNewCampLanguage] = useState<string>('tr');
 
   // Negative Keywords State
   const [negativeCategories, setNegativeCategories] = useState<NegativeCategory[]>([]);
@@ -1381,6 +1382,26 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     }
   }, [selectedLocations, activeSubCampaignId]);
 
+  // Keep active sub-campaign language synced with targetLanguage
+  useEffect(() => {
+    if (!isApplyingSubCampaignRef.current && activeSubCampaignId && targetLanguage) {
+      const lCode = targetLanguage === 'auto' ? (detectedLanguage || 'tr') : targetLanguage;
+      const lObj = GOOGLE_ADS_LANGUAGES.find(l => l.code === lCode) || GOOGLE_ADS_LANGUAGES[1];
+
+      setSubCampaigns(prev => prev.map(sc => {
+        if (sc.id === activeSubCampaignId) {
+          return {
+            ...sc,
+            languageCode: lCode,
+            languageName: lObj.name,
+            languageFlag: lObj.flag
+          };
+        }
+        return sc;
+      }));
+    }
+  }, [targetLanguage, activeSubCampaignId, detectedLanguage]);
+
   // Switch to another sub-campaign
   const handleSelectSubCampaign = (campId: string) => {
     if (campId === activeSubCampaignId) return;
@@ -1400,14 +1421,16 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     const newId = 'sub_' + Date.now();
     const campTitle = newCampName.trim() || `${newCampPlatform} Kampanya ${subCampaigns.length + 1}`;
     const defaultBudget = (monthlyBudget && monthlyBudget > 0) ? monthlyBudget : 35000;
+    const selLang = GOOGLE_ADS_LANGUAGES.find(l => l.code === newCampLanguage) || GOOGLE_ADS_LANGUAGES.find(l => l.code === 'tr') || GOOGLE_ADS_LANGUAGES[1];
+
     const newCamp: SubCampaignItem = {
       id: newId,
       name: campTitle,
       platform: newCampPlatform,
       objective: newCampObjective,
-      languageCode: 'auto',
-      languageName: 'Otomatik (Sayfa Dili)',
-      languageFlag: '🌐',
+      languageCode: selLang.code,
+      languageName: selLang.name,
+      languageFlag: selLang.flag,
       targetLocations: (selectedLocations && selectedLocations.length > 0) ? selectedLocations : DEFAULT_LOCATIONS,
       monthlyBudget: defaultBudget,
       selectedKeywords: [],
@@ -4843,6 +4866,24 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
               </select>
             </div>
 
+            {/* Target Language for Sub-Campaign */}
+            <div>
+              <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)', display: 'block', marginBottom: '0.35rem' }}>
+                Hedef Reklam Dili:
+              </label>
+              <select
+                value={newCampLanguage}
+                onChange={(e) => setNewCampLanguage(e.target.value)}
+                style={{ width: '100%', fontSize: '0.85rem', padding: '0.5rem' }}
+              >
+                {GOOGLE_ADS_LANGUAGES.slice(1).map(lang => (
+                  <option key={lang.code} value={lang.code}>
+                    {lang.flag} {lang.name} ({lang.nativeName})
+                  </option>
+                ))}
+              </select>
+            </div>
+
             {/* Target Locations for Sub-Campaign */}
             <div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
@@ -6726,7 +6767,30 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     </span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '0.78rem', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
-                    <span>Dil: <strong>{effectiveLanguage.name}</strong></span>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                      <span>Dil:</span>
+                      <select
+                        value={targetLanguage}
+                        onChange={(e) => setTargetLanguage(e.target.value)}
+                        style={{
+                          padding: '1px 5px',
+                          fontSize: '0.78rem',
+                          fontWeight: 700,
+                          color: 'var(--brand-primary)',
+                          backgroundColor: 'var(--bg-surface-elevated)',
+                          border: '1px solid var(--border-default)',
+                          borderRadius: 'var(--radius-xs)',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <option value="auto">🌐 Otomatik ({effectiveLanguage.name})</option>
+                        {GOOGLE_ADS_LANGUAGES.slice(1).map(l => (
+                          <option key={l.code} value={l.code}>
+                            {l.flag} {l.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                     <span>•</span>
                     <span>Aylık Bütçe: <strong>₺{monthlyBudget.toLocaleString('tr-TR')}</strong></span>
                     <span>•</span>
