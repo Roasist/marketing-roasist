@@ -156,6 +156,7 @@ export interface SubCampaignItem {
   languageFlag: string; // e.g. "🇬🇧", "🇷🇺"
   targetLocations: GeoTargetLocation[];
   monthlyBudget: number;
+  status?: 'ACTIVE' | 'PAUSED'; // Default 'ACTIVE'
   
   // Keyword and Negative data
   targetUrl?: string;

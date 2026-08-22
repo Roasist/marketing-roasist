@@ -1182,7 +1182,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   // Total Master Monthly Budget
   const totalMasterMonthlyBudget = useMemo(() => {
     if (subCampaigns.length === 0) return monthlyBudget || 0;
-    return subCampaigns.reduce((sum, c) => sum + (c.monthlyBudget || 0), 0);
+    return subCampaigns.reduce((sum, c) => sum + (c.status !== 'PAUSED' ? (c.monthlyBudget || 0) : 0), 0);
   }, [subCampaigns, monthlyBudget]);
 
   // Whenever monthlyBudget changes in any step/tab, keep active sub-campaign's monthlyBudget synchronized in real time
@@ -4035,7 +4035,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     }] : []);
 
                 const planTotalBudget = Array.isArray(plan.subCampaigns) && plan.subCampaigns.length > 0
-                  ? subs.reduce((s, c) => s + (c.monthlyBudget || 0), 0)
+                  ? subs.filter(c => c.status !== 'PAUSED').reduce((s, c) => s + (c.monthlyBudget || 0), 0)
                   : (plan.monthlyBudget || 0);
 
                 return (
@@ -4179,8 +4179,8 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                                 >
                                   <Download size={13} />
                                 </button>
-                                <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--brand-primary)', marginLeft: '2px' }}>
-                                  ₺{(sc.monthlyBudget || 0).toLocaleString('tr-TR')}
+                                <span style={{ fontSize: '0.72rem', fontWeight: 700, color: sc.status === 'PAUSED' ? 'var(--text-muted)' : 'var(--brand-primary)', marginLeft: '2px' }}>
+                                  {sc.status === 'PAUSED' ? '⏸️ Pasif' : `₺${(sc.monthlyBudget || 0).toLocaleString('tr-TR')}`}
                                 </span>
                                 <ChevronRight size={12} color="var(--text-muted)" />
                               </div>

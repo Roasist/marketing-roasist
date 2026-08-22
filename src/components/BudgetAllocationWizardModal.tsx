@@ -310,27 +310,42 @@ export const BudgetAllocationWizardModal: React.FC<BudgetAllocationWizardModalPr
     setDraftSubCampaigns(prev => prev.map(sc => sc.id === subId ? { ...sc, monthlyBudget: calcBgt } : sc));
   };
 
-  // Auto-fill unallocated sub-campaign budget remainder into the last sub-campaign of a language group
+  // Toggle Sub-Campaign Active/Paused Status
+  const handleToggleSubCampaignStatus = (subId: string) => {
+    setDraftSubCampaigns(prev => prev.map(sc => {
+      if (sc.id === subId) {
+        const nextStatus = sc.status === 'PAUSED' ? 'ACTIVE' : 'PAUSED';
+        return { ...sc, status: nextStatus };
+      }
+      return sc;
+    }));
+  };
+
+  // Auto-fill unallocated sub-campaign budget remainder into the last ACTIVE sub-campaign of a language group
   const handleAutoFillSubCampaignRemainder = (langCode: string) => {
     const grp = languageGroups.find(g => g.code === langCode);
     if (!grp || grp.items.length === 0) return;
+    const activeItems = grp.items.filter(i => i.status !== 'PAUSED');
+    if (activeItems.length === 0) return;
     const langBudget = langAllocations[langCode]?.budget || 0;
-    const lastSubId = grp.items[grp.items.length - 1].id;
-    const sumWithoutLast = grp.items.filter(i => i.id !== lastSubId).reduce((s, i) => s + (i.monthlyBudget || 0), 0);
+    const lastSubId = activeItems[activeItems.length - 1].id;
+    const sumWithoutLast = activeItems.filter(i => i.id !== lastSubId).reduce((s, i) => s + (i.monthlyBudget || 0), 0);
     const remBgt = Math.max(0, langBudget - sumWithoutLast);
 
     setDraftSubCampaigns(prev => prev.map(sc => sc.id === lastSubId ? { ...sc, monthlyBudget: remBgt } : sc));
   };
 
-  // Distribute Sub-Campaigns Equally under a Language Group
+  // Distribute Sub-Campaigns Equally under a Language Group (among ACTIVE sub-campaigns)
   const handleDistributeSubCampaignsEqually = (langCode: string) => {
     const grp = languageGroups.find(g => g.code === langCode);
     if (!grp || grp.items.length === 0) return;
+    const activeItems = grp.items.filter(i => i.status !== 'PAUSED');
+    if (activeItems.length === 0) return;
     const langBudget = langAllocations[langCode]?.budget || 0;
-    const equalSubBudget = Math.round(langBudget / grp.items.length);
+    const equalSubBudget = Math.round(langBudget / activeItems.length);
 
     setDraftSubCampaigns(prev => prev.map(sc => {
-      if ((sc.languageCode || 'tr') === langCode) {
+      if ((sc.languageCode || 'tr') === langCode && sc.status !== 'PAUSED') {
         return { ...sc, monthlyBudget: equalSubBudget };
       }
       return sc;
@@ -808,7 +823,8 @@ export const BudgetAllocationWizardModal: React.FC<BudgetAllocationWizardModalPr
 
             {languageGroups.map(grp => {
               const langBudget = langAllocations[grp.code]?.budget || 0;
-              const subBudgetSum = grp.items.reduce((s, i) => s + (i.monthlyBudget || 0), 0);
+              const activeSubItems = grp.items.filter(i => i.status !== 'PAUSED');
+              const subBudgetSum = activeSubItems.reduce((s, i) => s + (i.monthlyBudget || 0), 0);
               const subPctSum = langBudget > 0 ? Math.round((subBudgetSum / langBudget) * 100) : 0;
               const unallocatedSubBudget = langBudget - subBudgetSum;
 
@@ -868,31 +884,60 @@ export const BudgetAllocationWizardModal: React.FC<BudgetAllocationWizardModalPr
                   {grp.items.length > 0 ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                       {grp.items.map(sc => {
+                        const isPaused = sc.status === 'PAUSED';
                         const subPct = langBudget > 0 ? Math.round(((sc.monthlyBudget || 0) / langBudget) * 100) : 0;
                         const subDaily = Math.round((sc.monthlyBudget || 0) / 30.4);
 
                         return (
-                          <div key={sc.id} style={{ padding: '0.65rem 0.85rem', backgroundColor: 'var(--bg-surface)', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-default)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
-                            {/* Platform & Name */}
+                          <div key={sc.id} style={{ padding: '0.65rem 0.85rem', backgroundColor: isPaused ? 'var(--bg-surface-elevated)' : 'var(--bg-surface)', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-default)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem', opacity: isPaused ? 0.55 : 1, transition: 'all 0.15s ease' }}>
+                            {/* Platform & Name & Status */}
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', minWidth: '160px' }}>
-                              <span className="badge badge-active" style={{ fontSize: '0.7rem' }}>
+                              <span className="badge badge-active" style={{ fontSize: '0.7rem', backgroundColor: isPaused ? 'var(--bg-surface-elevated)' : undefined, color: isPaused ? 'var(--text-muted)' : undefined }}>
                                 {sc.platform}
                               </span>
-                              <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                              {isPaused && (
+                                <span style={{ fontSize: '0.65rem', padding: '1px 5px', borderRadius: 'var(--radius-xs)', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', fontWeight: 700 }}>
+                                  PASİF
+                                </span>
+                              )}
+                              <span style={{ fontSize: '0.82rem', fontWeight: 600, color: isPaused ? 'var(--text-muted)' : 'var(--text-primary)', textDecoration: isPaused ? 'line-through' : 'none' }}>
                                 {sc.name}
                               </span>
                             </div>
 
+                            {/* Active / Passive Toggle Switch Button */}
+                            <button
+                              type="button"
+                              onClick={() => handleToggleSubCampaignStatus(sc.id)}
+                              style={{
+                                fontSize: '0.72rem',
+                                padding: '2px 8px',
+                                borderRadius: 'var(--radius-full)',
+                                border: isPaused ? '1px solid var(--border-default)' : '1px solid #10b981',
+                                backgroundColor: isPaused ? 'rgba(107, 114, 128, 0.1)' : 'rgba(16, 185, 129, 0.12)',
+                                color: isPaused ? 'var(--text-muted)' : '#10b981',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}
+                              title={isPaused ? "Kampanyayı Aktife Al (Bütçeyi Kullan)" : "Kampanyayı Pasife Al (Bütçeyi Serbest Bırak)"}
+                            >
+                              {isPaused ? '⏸️ Pasif' : '🟢 Aktif'}
+                            </button>
+
                             {/* Range Slider & % Input */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flex: 1, minWidth: '180px', maxWidth: '320px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flex: 1, minWidth: '170px', maxWidth: '280px' }}>
                               <input
                                 type="range"
                                 min={0}
                                 max={100}
                                 step={1}
-                                value={subPct}
+                                disabled={isPaused}
+                                value={isPaused ? 0 : subPct}
                                 onChange={(e) => handleSubCampaignPercentageChange(sc.id, grp.code, parseFloat(e.target.value) || 0)}
-                                style={{ flex: 1, accentColor: 'var(--brand-primary)', cursor: 'pointer' }}
+                                style={{ flex: 1, accentColor: 'var(--brand-primary)', cursor: isPaused ? 'not-allowed' : 'pointer' }}
                               />
                               <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
                                 <input
@@ -900,9 +945,10 @@ export const BudgetAllocationWizardModal: React.FC<BudgetAllocationWizardModalPr
                                   min={0}
                                   max={100}
                                   step={1}
-                                  value={subPct}
+                                  disabled={isPaused}
+                                  value={isPaused ? 0 : subPct}
                                   onChange={(e) => handleSubCampaignPercentageChange(sc.id, grp.code, parseFloat(e.target.value) || 0)}
-                                  style={{ width: '52px', padding: '0.25rem 0.4rem', fontSize: '0.82rem', fontWeight: 700, textAlign: 'right', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-default)' }}
+                                  style={{ width: '52px', padding: '0.25rem 0.4rem', fontSize: '0.82rem', fontWeight: 700, textAlign: 'right', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-default)', opacity: isPaused ? 0.6 : 1 }}
                                 />
                                 <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)' }}>%</span>
                               </div>
@@ -912,7 +958,7 @@ export const BudgetAllocationWizardModal: React.FC<BudgetAllocationWizardModalPr
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
                               <div style={{ textAlign: 'right' }}>
                                 <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
-                                  ₺{subDaily.toLocaleString('tr-TR')}/gün
+                                  ₺{isPaused ? 0 : subDaily.toLocaleString('tr-TR')}/gün
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
                                   <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--brand-primary)' }}>₺</span>
