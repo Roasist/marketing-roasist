@@ -129,6 +129,7 @@ export type CampaignObjective =
   | 'META_TRAFFIC' 
   | 'META_AWARENESS' 
   | 'META_APP'
+  | 'META_ENGAGEMENT'
   // Google
   | 'GOOGLE_SEARCH' 
   | 'GOOGLE_PMAX' 

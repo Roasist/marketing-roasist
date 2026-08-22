@@ -1355,6 +1355,21 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     }, 200);
   };
 
+  // Keep active sub-campaign targetLocations synced with selectedLocations
+  useEffect(() => {
+    if (!isApplyingSubCampaignRef.current && activeSubCampaignId && selectedLocations && selectedLocations.length > 0) {
+      setSubCampaigns(prev => prev.map(sc => {
+        if (sc.id === activeSubCampaignId) {
+          return {
+            ...sc,
+            targetLocations: selectedLocations
+          };
+        }
+        return sc;
+      }));
+    }
+  }, [selectedLocations, activeSubCampaignId]);
+
   // Switch to another sub-campaign
   const handleSelectSubCampaign = (campId: string) => {
     if (campId === activeSubCampaignId) return;
@@ -1382,7 +1397,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       languageCode: 'auto',
       languageName: 'Otomatik (Sayfa Dili)',
       languageFlag: '🌐',
-      targetLocations: DEFAULT_LOCATIONS,
+      targetLocations: (selectedLocations && selectedLocations.length > 0) ? selectedLocations : DEFAULT_LOCATIONS,
       monthlyBudget: defaultBudget,
       selectedKeywords: [],
       discoveredKeywords: [],
@@ -4755,11 +4770,12 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                 )}
                 {newCampPlatform === 'META' && (
                   <>
-                    <option value="META_LEADS">🎯 Meta Lead Ads (Anlık Form & Potansiyel Müşteri)</option>
-                    <option value="META_SALES">🛒 Meta Satış & E-Ticaret (Katalog / Satın Alma)</option>
-                    <option value="META_TRAFFIC">🚀 Meta Web Sitesi Trafiği & Tıklama</option>
-                    <option value="META_AWARENESS">👁️ Meta Marka Bilinirliği & Erişim</option>
-                    <option value="META_APP">📱 Meta Uygulama Yükleme (App Promotion)</option>
+                    <option value="META_LEADS">Leads (Potansiyel Müşteriler)</option>
+                    <option value="META_SALES">Sales (Satışlar)</option>
+                    <option value="META_TRAFFIC">Traffic (Trafik)</option>
+                    <option value="META_AWARENESS">Awareness (Bilinirlik & Erişim)</option>
+                    <option value="META_APP">App promotion (Uygulama Tanıtımı)</option>
+                    <option value="META_ENGAGEMENT">Engagement (Etkileşim)</option>
                   </>
                 )}
                 {newCampPlatform === 'TIKTOK' && (
@@ -4786,6 +4802,35 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                   </>
                 )}
               </select>
+            </div>
+
+            {/* Target Locations for Sub-Campaign */}
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                  Hedef Ülke / Lokasyonlar:
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setIsLocationModalOpen(true)}
+                  className="btn-ghost"
+                  style={{ fontSize: '0.75rem', color: 'var(--brand-primary)', display: 'inline-flex', alignItems: 'center', gap: '3px', fontWeight: 600 }}
+                >
+                  <Globe size={13} /> Lokasyon Ekle / Değiştir
+                </button>
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', padding: '0.6rem 0.75rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-default)', minHeight: '38px', alignItems: 'center' }}>
+                {selectedLocations.length === 0 ? (
+                  <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Lokasyon seçilmedi (Varsayılan Türkiye).</span>
+                ) : (
+                  selectedLocations.map(loc => (
+                    <span key={loc.id} className="badge badge-neutral" style={{ fontSize: '0.72rem', padding: '2px 8px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      <span>{loc.flag || '📍'}</span>
+                      <span>{loc.name || loc.canonicalName}</span>
+                    </span>
+                  ))
+                )}
+              </div>
             </div>
 
             {/* Modal Actions */}
