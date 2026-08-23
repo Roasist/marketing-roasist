@@ -1482,7 +1482,13 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         youtubeActionRate: 1.2,
         gdnCpm: 18,
         gdnCtr: 0.60,
-        gdnAssistedCr: 1.2
+        gdnAssistedCr: 1.2,
+        demandGenCpm: 45,
+        demandGenCtr: 1.8,
+        demandGenVtr: 38,
+        demandGenLeadCr: 3.5,
+        demandGenHealthyLeadRate: 50,
+        demandGenCloseRate: 12
       }
     };
 
@@ -1500,22 +1506,43 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     setQuery('');
     setIsAddCampaignModalOpen(false);
     setNewCampName('');
-    setIsStep1Completed(false);
-    setIsStep2Completed(false);
-    setCurrentStep(1);
     
     // Switch channel sub tab to match objective
     if (newCampPlatform === 'META') {
       setActiveChannelTab('META_ADS');
+      setIsStep1Completed(true);
+      setIsStep2Completed(true);
+      setIsStep3Completed(true);
       setCurrentStep(3);
-    } else if (newCampPlatform === 'YOUTUBE') {
+    } else if (newCampPlatform === 'YOUTUBE' || newCampObjective === 'GOOGLE_YOUTUBE') {
       setActiveChannelTab('YOUTUBE');
+      setIsStep1Completed(true);
+      setIsStep2Completed(true);
+      setIsStep3Completed(true);
       setCurrentStep(3);
     } else if (newCampPlatform === 'GOOGLE' && newCampObjective === 'GOOGLE_GDN') {
       setActiveChannelTab('GDN');
+      setIsStep1Completed(true);
+      setIsStep2Completed(true);
+      setIsStep3Completed(true);
+      setCurrentStep(3);
+    } else if (newCampPlatform === 'GOOGLE' && newCampObjective === 'GOOGLE_DEMAND_GEN') {
+      setActiveChannelTab('DEMAND_GEN');
+      setIsStep1Completed(true);
+      setIsStep2Completed(true);
+      setIsStep3Completed(true);
       setCurrentStep(3);
     } else if (newCampPlatform === 'GOOGLE' && newCampObjective === 'GOOGLE_SEARCH') {
       setActiveChannelTab('GOOGLE_SEARCH');
+      setIsStep1Completed(false);
+      setIsStep2Completed(false);
+      setIsStep3Completed(false);
+      setCurrentStep(1);
+    } else {
+      setActiveChannelTab('GOOGLE_SEARCH');
+      setIsStep1Completed(false);
+      setIsStep2Completed(false);
+      setIsStep3Completed(false);
       setCurrentStep(1);
     }
 
