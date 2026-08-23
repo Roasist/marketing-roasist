@@ -8573,11 +8573,11 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--brand-primary)' }}>₺</span>
                       <input
                         type="number"
-                        min={500}
+                        min={100}
                         max={1000000}
-                        step={500}
+                        step={50}
                         value={monthlyBudget}
-                        onChange={(e) => setMonthlyBudget(Math.max(100, Number(e.target.value)))}
+                        onChange={(e) => setMonthlyBudget(Math.max(0, Number(e.target.value)))}
                         style={{
                           width: '96px',
                           padding: '3px 8px',
@@ -8594,16 +8594,16 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                   </div>
                   <input
                     type="range"
-                    min={1000}
+                    min={100}
                     max={250000}
-                    step={1000}
+                    step={50}
                     value={monthlyBudget}
                     onChange={(e) => setMonthlyBudget(Number(e.target.value))}
                     style={{
                       width: '100%',
                       accentColor: '#2563eb',
                       cursor: 'pointer',
-                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.min(100, Math.max(0, Math.round(((monthlyBudget - 1000) / 249000) * 100)))}%, var(--border-default) ${Math.min(100, Math.max(0, Math.round(((monthlyBudget - 1000) / 249000) * 100)))}%, var(--border-default) 100%)`,
+                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.min(100, Math.max(0, Math.round(((monthlyBudget - 100) / 249900) * 100)))}%, var(--border-default) ${Math.min(100, Math.max(0, Math.round(((monthlyBudget - 100) / 249900) * 100)))}%, var(--border-default) 100%)`,
                       height: '6px',
                       borderRadius: 'var(--radius-full)'
                     }}
@@ -10097,11 +10097,11 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--brand-primary)' }}>₺</span>
                       <input
                         type="number"
-                        min={500}
+                        min={100}
                         max={1000000}
-                        step={500}
+                        step={50}
                         value={monthlyBudget}
-                        onChange={(e) => setMonthlyBudget(Math.max(100, Number(e.target.value)))}
+                        onChange={(e) => setMonthlyBudget(Math.max(0, Number(e.target.value)))}
                         style={{
                           width: '96px',
                           padding: '3px 8px',
@@ -10118,16 +10118,16 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                   </div>
                   <input
                     type="range"
-                    min={1000}
+                    min={100}
                     max={250000}
-                    step={1000}
+                    step={50}
                     value={monthlyBudget}
                     onChange={(e) => setMonthlyBudget(Number(e.target.value))}
                     style={{
                       width: '100%',
                       accentColor: '#2563eb',
                       cursor: 'pointer',
-                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.min(100, Math.max(0, Math.round(((monthlyBudget - 1000) / 249000) * 100)))}%, var(--border-default) ${Math.min(100, Math.max(0, Math.round(((monthlyBudget - 1000) / 249000) * 100)))}%, var(--border-default) 100%)`,
+                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.min(100, Math.max(0, Math.round(((monthlyBudget - 100) / 249900) * 100)))}%, var(--border-default) ${Math.min(100, Math.max(0, Math.round(((monthlyBudget - 100) / 249900) * 100)))}%, var(--border-default) 100%)`,
                       height: '6px',
                       borderRadius: 'var(--radius-full)'
                     }}
