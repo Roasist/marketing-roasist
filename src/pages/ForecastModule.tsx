@@ -2959,7 +2959,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     const effectiveLeadCr = Number((metaLeadCr * scenarioMultiplier.crMult).toFixed(2));
     const grossLeads = Math.round(clicks * (effectiveLeadCr / 100));
     const cpl = grossLeads > 0 ? Math.round(budget / grossLeads) : 0;
-    const effectiveHealthyRate = Number(Math.min(100, Math.max(10, metaHealthyLeadRate * scenarioMultiplier.healthyLeadMult)).toFixed(1));
+    const effectiveHealthyRate = Number(Math.min(100, Math.max(0.1, metaHealthyLeadRate * scenarioMultiplier.healthyLeadMult)).toFixed(1));
     const healthyLeads = Math.round(grossLeads * (effectiveHealthyRate / 100));
     const cpql = healthyLeads > 0 ? Math.round(budget / healthyLeads) : 0;
     const effectiveCloseRate = Number((metaCloseRate * scenarioMultiplier.crMult).toFixed(2));
@@ -8781,11 +8781,11 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>%</span>
                       <input
                         type="number"
-                        min={1}
+                        min={0.1}
                         max={100}
-                        step={1}
+                        step={0.1}
                         value={metaHealthyLeadRate}
-                        onChange={(e) => setMetaHealthyLeadRate(Math.max(1, Math.min(100, Number(e.target.value))))}
+                        onChange={(e) => setMetaHealthyLeadRate(Math.max(0.1, Math.min(100, Number(e.target.value))))}
                         style={{
                           width: '64px',
                           padding: '2px 6px',
@@ -8802,16 +8802,16 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                   </div>
                   <input
                     type="range"
-                    min={5}
+                    min={0.1}
                     max={100}
-                    step={1}
+                    step={0.1}
                     value={metaHealthyLeadRate}
                     onChange={(e) => setMetaHealthyLeadRate(Number(e.target.value))}
                     style={{
                       width: '100%',
                       accentColor: '#2563eb',
                       cursor: 'pointer',
-                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.min(100, Math.max(0, Math.round(((metaHealthyLeadRate - 5) / 95) * 100)))}%, var(--border-default) ${Math.min(100, Math.max(0, Math.round(((metaHealthyLeadRate - 5) / 95) * 100)))}%, var(--border-default) 100%)`,
+                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.min(100, Math.max(0, Math.round(((metaHealthyLeadRate - 0.1) / 99.9) * 100)))}%, var(--border-default) ${Math.min(100, Math.max(0, Math.round(((metaHealthyLeadRate - 0.1) / 99.9) * 100)))}%, var(--border-default) 100%)`,
                       height: '6px',
                       borderRadius: 'var(--radius-full)'
                     }}
@@ -9385,14 +9385,14 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                           <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>%</span>
                           <input
                             type="number"
-                            min={1}
+                            min={0.1}
                             max={100}
-                            step={1}
+                            step={0.1}
                             value={leadCloseRate}
                             onChange={(e) => {
                               const raw = e.target.value;
                               const num = raw === '' ? 50 : Number(raw);
-                              setLeadCloseRate(isNaN(num) ? 50 : Math.max(1, Math.min(100, num)));
+                              setLeadCloseRate(isNaN(num) ? 50 : Math.max(0.1, Math.min(100, num)));
                             }}
                             style={{
                               width: '64px',
@@ -9410,9 +9410,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       </div>
                       <input
                         type="range"
-                        min={1}
+                        min={0.1}
                         max={100}
-                        step={1}
+                        step={0.1}
                         value={leadCloseRate}
                         onChange={(e) => {
                           const num = Number(e.target.value);
@@ -9422,7 +9422,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                           width: '100%',
                           accentColor: '#2563eb',
                           cursor: 'pointer',
-                          background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.min(100, Math.max(0, Math.round((( (Number(leadCloseRate) || 50) - 1) / 99) * 100)))}%, var(--border-default) ${Math.min(100, Math.max(0, Math.round((( (Number(leadCloseRate) || 50) - 1) / 99) * 100)))}%, var(--border-default) 100%)`,
+                          background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.min(100, Math.max(0, Math.round((( (Number(leadCloseRate) || 50) - 0.1) / 99.9) * 100)))}%, var(--border-default) ${Math.min(100, Math.max(0, Math.round((( (Number(leadCloseRate) || 50) - 0.1) / 99.9) * 100)))}%, var(--border-default) 100%)`,
                           height: '6px',
                           borderRadius: 'var(--radius-full)'
                         }}
@@ -10291,11 +10291,11 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
                       <input
                         type="number"
-                        min={5}
-                        max={95}
-                        step={1}
+                        min={0.1}
+                        max={100.0}
+                        step={0.1}
                         value={demandGenHealthyLeadRate}
-                        onChange={(e) => setDemandGenHealthyLeadRate(Math.max(5, Number(e.target.value)))}
+                        onChange={(e) => setDemandGenHealthyLeadRate(Math.max(0.1, Math.min(100, Number(e.target.value))))}
                         style={{
                           width: '64px',
                           padding: '2px 6px',
@@ -10313,16 +10313,16 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                   </div>
                   <input
                     type="range"
-                    min={10}
-                    max={90}
-                    step={5}
+                    min={0.1}
+                    max={100.0}
+                    step={0.1}
                     value={demandGenHealthyLeadRate}
                     onChange={(e) => setDemandGenHealthyLeadRate(Number(e.target.value))}
                     style={{
                       width: '100%',
                       accentColor: '#2563eb',
                       cursor: 'pointer',
-                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.min(100, Math.max(0, Math.round(((demandGenHealthyLeadRate - 10) / 80) * 100)))}%, var(--border-default) ${Math.min(100, Math.max(0, Math.round(((demandGenHealthyLeadRate - 10) / 80) * 100)))}%, var(--border-default) 100%)`,
+                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.min(100, Math.max(0, Math.round(((demandGenHealthyLeadRate - 0.1) / 99.9) * 100)))}%, var(--border-default) ${Math.min(100, Math.max(0, Math.round(((demandGenHealthyLeadRate - 0.1) / 99.9) * 100)))}%, var(--border-default) 100%)`,
                       height: '6px',
                       borderRadius: 'var(--radius-full)'
                     }}
