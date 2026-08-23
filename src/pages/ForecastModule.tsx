@@ -61,6 +61,7 @@ import {
   MetaSimulation,
   GdnSimulation,
   YouTubeSimulation,
+  DemandGenSimulation,
   OmnichannelMediaMix,
   GeoTargetLocation,
   SavedLocationPreset,
@@ -807,6 +808,14 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   const [youtubeVtr, setYoutubeVtr] = useState<number>(32);
   const [youtubeActionRate, setYoutubeActionRate] = useState<number>(1.2);
 
+  // Google Demand Gen Simulation State
+  const [demandGenCpm, setDemandGenCpm] = useState<number>(45);
+  const [demandGenCtr, setDemandGenCtr] = useState<number>(1.8);
+  const [demandGenVtr, setDemandGenVtr] = useState<number>(38);
+  const [demandGenLeadCr, setDemandGenLeadCr] = useState<number>(3.5);
+  const [demandGenHealthyLeadRate, setDemandGenHealthyLeadRate] = useState<number>(50);
+  const [demandGenCloseRate, setDemandGenCloseRate] = useState<number>(12);
+
   // Omnichannel Budget Allocations (%)
   const [allocGoogleSearch, setAllocGoogleSearch] = useState<number>(50);
   const [allocMetaAds, setAllocMetaAds] = useState<number>(30);
@@ -1198,12 +1207,19 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           youtubeActionRate,
           gdnCpm,
           gdnCtr,
-          gdnAssistedCr
+          gdnAssistedCr,
+          demandGenCpm,
+          demandGenCtr,
+          demandGenVtr,
+          demandGenLeadCr,
+          demandGenHealthyLeadRate,
+          demandGenCloseRate
         },
         simulationResult: simulation,
         metaSimulationResult: metaSimulation,
         youtubeSimulationResult: youtubeSimulation,
-        gdnSimulationResult: gdnSimulation
+        gdnSimulationResult: gdnSimulation,
+        demandGenSimulationResult: demandGenSimulation
       };
     });
 
@@ -1288,6 +1304,12 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       if (target.parameters.gdnCpm !== undefined) setGdnCpm(target.parameters.gdnCpm);
       if (target.parameters.gdnCtr !== undefined) setGdnCtr(target.parameters.gdnCtr);
       if (target.parameters.gdnAssistedCr !== undefined) setGdnAssistedCr(target.parameters.gdnAssistedCr);
+      if (target.parameters.demandGenCpm !== undefined) setDemandGenCpm(target.parameters.demandGenCpm);
+      if (target.parameters.demandGenCtr !== undefined) setDemandGenCtr(target.parameters.demandGenCtr);
+      if (target.parameters.demandGenVtr !== undefined) setDemandGenVtr(target.parameters.demandGenVtr);
+      if (target.parameters.demandGenLeadCr !== undefined) setDemandGenLeadCr(target.parameters.demandGenLeadCr);
+      if (target.parameters.demandGenHealthyLeadRate !== undefined) setDemandGenHealthyLeadRate(target.parameters.demandGenHealthyLeadRate);
+      if (target.parameters.demandGenCloseRate !== undefined) setDemandGenCloseRate(target.parameters.demandGenCloseRate);
     }
 
     const targetCpcSettings = target.cpcImputationSettings || (target.parameters as any)?.cpcImputationSettings;
@@ -1305,19 +1327,24 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     if (target.platform === 'META') {
       setActiveChannelTab('META_ADS');
       setCurrentStep(3);
-    } else if (target.platform === 'YOUTUBE') {
+    } else if (target.platform === 'YOUTUBE' || target.objective === 'GOOGLE_YOUTUBE') {
       setActiveChannelTab('YOUTUBE');
       setCurrentStep(3);
     } else if (target.platform === 'GOOGLE' && target.objective === 'GOOGLE_GDN') {
       setActiveChannelTab('GDN');
       setCurrentStep(3);
-    } else if (target.platform === 'GOOGLE' && target.objective === 'GOOGLE_SEARCH') {
+    } else if (target.platform === 'GOOGLE' && target.objective === 'GOOGLE_DEMAND_GEN') {
+      setActiveChannelTab('DEMAND_GEN');
+      setCurrentStep(3);
+    } else if (target.platform === 'GOOGLE' && (target.objective === 'GOOGLE_SEARCH' || !target.objective)) {
+      setActiveChannelTab('GOOGLE_SEARCH');
+    } else {
       setActiveChannelTab('GOOGLE_SEARCH');
     }
 
     const hasKeywords = (target.discoveredKeywords && target.discoveredKeywords.length > 0) || (target.selectedKeywords && target.selectedKeywords.length > 0);
     const hasSelected = (target.selectedKeywords && target.selectedKeywords.length > 0) || loadedSelIds.size > 0;
-    const isNonSearch = target.platform === 'META' || target.platform === 'YOUTUBE' || (target.platform === 'GOOGLE' && target.objective === 'GOOGLE_GDN');
+    const isNonSearch = target.platform === 'META' || target.platform === 'YOUTUBE' || (target.platform === 'GOOGLE' && (target.objective === 'GOOGLE_GDN' || target.objective === 'GOOGLE_DEMAND_GEN' || target.objective === 'GOOGLE_YOUTUBE'));
 
     const step1Done = isNonSearch ? true : (target.isStep1Completed ?? hasKeywords);
     const step2Done = isNonSearch ? true : (target.isStep2Completed ?? hasSelected);
@@ -2974,6 +3001,64 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       actions
     };
   }, [monthlyBudget, allocYouTube, youtubeCpv, youtubeVtr, youtubeActionRate, scenarioMultiplier]);
+
+  // ✨ Google Demand Gen Simulation Calculation
+  const demandGenSimulation: DemandGenSimulation = useMemo(() => {
+    const budget = activeSubCampaign?.monthlyBudget !== undefined 
+      ? activeSubCampaign.monthlyBudget 
+      : (activeSubCampaignId ? monthlyBudget : ((monthlyBudget * allocGdn) / 100));
+    const effectiveCpm = Math.max(1, demandGenCpm * scenarioMultiplier.cpcMult);
+    const impressions = effectiveCpm > 0 ? Math.round((budget / effectiveCpm) * 1000) : 0;
+    const clicks = Math.round(impressions * (demandGenCtr / 100));
+    const cpc = clicks > 0 ? Math.round((budget / clicks) * 100) / 100 : 0;
+    const videoViews = Math.round(impressions * (demandGenVtr / 100));
+    const effectiveLeadCr = Number((demandGenLeadCr * scenarioMultiplier.crMult).toFixed(2));
+    const grossLeads = Math.round(clicks * (effectiveLeadCr / 100));
+    const cpl = grossLeads > 0 ? Math.round(budget / grossLeads) : 0;
+    const healthyLeads = Math.round(grossLeads * (demandGenHealthyLeadRate / 100));
+    const cpql = healthyLeads > 0 ? Math.round(budget / healthyLeads) : 0;
+    const deals = Math.round(healthyLeads * (demandGenCloseRate / 100));
+    const cac = deals > 0 ? Math.round(budget / deals) : 0;
+    const revenue = deals * (avgDealValue > 0 ? avgDealValue : (businessModel === 'ECOMMERCE' ? avgOrderValue : 0));
+    const roas = budget > 0 ? Math.round((revenue / budget) * 10) / 10 : 0;
+
+    return {
+      budget,
+      cpm: effectiveCpm,
+      impressions,
+      ctr: demandGenCtr,
+      clicks,
+      cpc,
+      videoViews,
+      vtr: demandGenVtr,
+      leadCr: effectiveLeadCr,
+      grossLeads,
+      cpl,
+      healthyLeadRate: demandGenHealthyLeadRate,
+      healthyLeads,
+      cpql,
+      closeRate: demandGenCloseRate,
+      deals,
+      cac,
+      revenue,
+      roas
+    };
+  }, [
+    activeSubCampaign,
+    activeSubCampaignId,
+    monthlyBudget,
+    allocGdn,
+    demandGenCpm,
+    demandGenCtr,
+    demandGenVtr,
+    demandGenLeadCr,
+    demandGenHealthyLeadRate,
+    demandGenCloseRate,
+    avgDealValue,
+    avgOrderValue,
+    businessModel,
+    scenarioMultiplier
+  ]);
 
   // 🌐 360° Omnichannel Media Mix Consolidated Simulation
   const omnichannelMix: OmnichannelMediaMix = useMemo(() => {
@@ -7354,6 +7439,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       {activeChannelTab === 'META_ADS' && 'Meta Ads (Facebook & Instagram) Performans Projeksiyonu'}
                       {activeChannelTab === 'YOUTUBE' && 'YouTube Video & Shorts Performans Projeksiyonu'}
                       {activeChannelTab === 'GDN' && 'Google GDN (Görüntülü Reklam) Performans Projeksiyonu'}
+                      {activeChannelTab === 'DEMAND_GEN' && 'Google Demand Gen (YouTube Shorts & Discover) Projeksiyonu'}
                       {activeChannelTab === 'NEGATIVES' && 'AI Negatif Kelime Kalkanı'}
                     </span>
                     <span className="badge badge-active" style={{ fontSize: '0.72rem' }}>
@@ -7362,6 +7448,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       {activeChannelTab === 'META_ADS' && '📱 Meta Ads'}
                       {activeChannelTab === 'YOUTUBE' && '🎬 YouTube Video'}
                       {activeChannelTab === 'GDN' && '🌐 Google GDN'}
+                      {activeChannelTab === 'DEMAND_GEN' && '✨ Google Demand Gen'}
                       {activeChannelTab === 'NEGATIVES' && '🛡️ Negatif Koruma'}
                     </span>
                   </div>
@@ -7385,7 +7472,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       title="Hiyerarşik Çatı Bütçe Dağılımını Stüdyoda Yönet"
                     >
                       <PieChart size={13} color="var(--brand-primary)" />
-                      <span>Aylık Bütçe: <strong style={{ color: 'var(--brand-primary)' }}>₺{(totalMasterMonthlyBudget || monthlyBudget).toLocaleString('tr-TR')}</strong> <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>(₺{Math.round((totalMasterMonthlyBudget || monthlyBudget) / 30.4).toLocaleString('tr-TR')}/gün)</span></span>
+                      <span>Aylık Bütçe: <strong style={{ color: 'var(--brand-primary)' }}>₺{((activeSubCampaign?.monthlyBudget !== undefined && activeSubCampaign.monthlyBudget !== null) ? activeSubCampaign.monthlyBudget : (totalMasterMonthlyBudget || monthlyBudget)).toLocaleString('tr-TR')}</strong> <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>(₺{Math.round(((activeSubCampaign?.monthlyBudget !== undefined && activeSubCampaign.monthlyBudget !== null) ? activeSubCampaign.monthlyBudget : (totalMasterMonthlyBudget || monthlyBudget)) / 30.4).toLocaleString('tr-TR')}/gün)</span></span>
                     </button>
                     <span>•</span>
                     <button
@@ -9948,6 +10035,397 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                   </div>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* CHANNEL: GOOGLE DEMAND GEN (YOUTUBE SHORTS, DISCOVER & GMAIL)             */}
+          {/* ========================================================================= */}
+          {activeChannelTab === 'DEMAND_GEN' && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '1.25rem' }}>
+              
+              {/* Left Column: Demand Gen Controls */}
+              <div className="card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                <div>
+                  <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                    <Sparkles size={18} color="#f59e0b" /> Google Demand Gen (Shorts, Discover & Gmail)
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                    Yapay zeka hedefleme ile dikey video (Shorts), görsel beslemeler ve Gmail'de talep oluşturma simülatörü.
+                  </div>
+                </div>
+
+                {/* Placement Mix Indicator */}
+                <div style={{ padding: '0.75rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.5rem', display: 'flex', justifyContent: 'space-between' }}>
+                    <span>🎯 Akıllı Yerleşim Dağılımı (Placement Mix)</span>
+                    <span style={{ color: 'var(--brand-primary)' }}>Google AI Optimizasyonlu</span>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.35rem', textAlign: 'center', fontSize: '0.72rem' }}>
+                    <div style={{ padding: '0.35rem', backgroundColor: 'rgba(239, 68, 68, 0.1)', borderRadius: '4px', color: '#ef4444', fontWeight: 600 }}>
+                      📱 Shorts (%40)
+                    </div>
+                    <div style={{ padding: '0.35rem', backgroundColor: 'rgba(59, 130, 246, 0.1)', borderRadius: '4px', color: '#3b82f6', fontWeight: 600 }}>
+                      📰 Discover (%35)
+                    </div>
+                    <div style={{ padding: '0.35rem', backgroundColor: 'rgba(245, 158, 11, 0.1)', borderRadius: '4px', color: '#f59e0b', fontWeight: 600 }}>
+                      🎬 YouTube (%15)
+                    </div>
+                    <div style={{ padding: '0.35rem', backgroundColor: 'rgba(16, 185, 129, 0.1)', borderRadius: '4px', color: '#10b981', fontWeight: 600 }}>
+                      ✉️ Gmail (%10)
+                    </div>
+                  </div>
+                </div>
+
+                {/* Demand Gen CPM Slider */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label style={{ fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                      Demand Gen Ortalama CPM (1.000 Gösterim ₺)
+                    </label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>₺</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={1000}
+                        step={1}
+                        value={demandGenCpm}
+                        onChange={(e) => setDemandGenCpm(Math.max(1, Number(e.target.value)))}
+                        style={{
+                          width: '74px',
+                          padding: '2px 6px',
+                          fontSize: '0.85rem',
+                          fontWeight: 700,
+                          textAlign: 'right',
+                          borderRadius: 'var(--radius-xs)',
+                          border: '1px solid var(--border-default)',
+                          backgroundColor: 'var(--bg-surface)',
+                          color: 'var(--text-primary)'
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <input
+                    type="range"
+                    min={10}
+                    max={200}
+                    step={1}
+                    value={demandGenCpm}
+                    onChange={(e) => setDemandGenCpm(Number(e.target.value))}
+                    style={{
+                      width: '100%',
+                      accentColor: '#f59e0b',
+                      cursor: 'pointer',
+                      background: `linear-gradient(90deg, #f59e0b 0%, #d97706 ${Math.min(100, Math.max(0, Math.round(((demandGenCpm - 10) / 190) * 100)))}%, var(--border-default) ${Math.min(100, Math.max(0, Math.round(((demandGenCpm - 10) / 190) * 100)))}%, var(--border-default) 100%)`,
+                      height: '6px',
+                      borderRadius: 'var(--radius-full)'
+                    }}
+                  />
+                </div>
+
+                {/* Demand Gen CTR Slider */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label style={{ fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                      Tıklama & Etkileşim Oranı (CTR %)
+                    </label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                      <input
+                        type="number"
+                        min={0.1}
+                        max={20.0}
+                        step={0.1}
+                        value={demandGenCtr}
+                        onChange={(e) => setDemandGenCtr(Math.max(0.1, Number(e.target.value)))}
+                        style={{
+                          width: '64px',
+                          padding: '2px 6px',
+                          fontSize: '0.85rem',
+                          fontWeight: 700,
+                          textAlign: 'right',
+                          borderRadius: 'var(--radius-xs)',
+                          border: '1px solid var(--border-default)',
+                          backgroundColor: 'var(--bg-surface)',
+                          color: 'var(--text-primary)'
+                        }}
+                      />
+                      <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>%</span>
+                    </div>
+                  </div>
+                  <input
+                    type="range"
+                    min={0.5}
+                    max={8.0}
+                    step={0.1}
+                    value={demandGenCtr}
+                    onChange={(e) => setDemandGenCtr(Number(e.target.value))}
+                    style={{
+                      width: '100%',
+                      accentColor: '#f59e0b',
+                      cursor: 'pointer',
+                      background: `linear-gradient(90deg, #f59e0b 0%, #d97706 ${Math.min(100, Math.max(0, Math.round(((demandGenCtr - 0.5) / 7.5) * 100)))}%, var(--border-default) ${Math.min(100, Math.max(0, Math.round(((demandGenCtr - 0.5) / 7.5) * 100)))}%, var(--border-default) 100%)`,
+                      height: '6px',
+                      borderRadius: 'var(--radius-full)'
+                    }}
+                  />
+                </div>
+
+                {/* Demand Gen Video VTR Slider */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label style={{ fontSize: '0.825rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
+                      Video İzlenme Oranı (VTR %)
+                    </label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                      <input
+                        type="number"
+                        min={5}
+                        max={90}
+                        step={1}
+                        value={demandGenVtr}
+                        onChange={(e) => setDemandGenVtr(Math.max(5, Number(e.target.value)))}
+                        style={{
+                          width: '64px',
+                          padding: '2px 6px',
+                          fontSize: '0.85rem',
+                          fontWeight: 700,
+                          textAlign: 'right',
+                          borderRadius: 'var(--radius-xs)',
+                          border: '1px solid var(--border-default)',
+                          backgroundColor: 'var(--bg-surface)',
+                          color: 'var(--text-primary)'
+                        }}
+                      />
+                      <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>%</span>
+                    </div>
+                  </div>
+                  <input
+                    type="range"
+                    min={10}
+                    max={80}
+                    step={1}
+                    value={demandGenVtr}
+                    onChange={(e) => setDemandGenVtr(Number(e.target.value))}
+                    style={{
+                      width: '100%',
+                      accentColor: '#f59e0b',
+                      cursor: 'pointer',
+                      background: `linear-gradient(90deg, #f59e0b 0%, #d97706 ${Math.min(100, Math.max(0, Math.round(((demandGenVtr - 10) / 70) * 100)))}%, var(--border-default) ${Math.min(100, Math.max(0, Math.round(((demandGenVtr - 10) / 70) * 100)))}%, var(--border-default) 100%)`,
+                      height: '6px',
+                      borderRadius: 'var(--radius-full)'
+                    }}
+                  />
+                </div>
+
+                {/* Demand Gen Lead CR Slider */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label style={{ fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                      Dönüşüm / Form Oranı (CR %)
+                    </label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                      <input
+                        type="number"
+                        min={0.1}
+                        max={30.0}
+                        step={0.1}
+                        value={demandGenLeadCr}
+                        onChange={(e) => setDemandGenLeadCr(Math.max(0.1, Number(e.target.value)))}
+                        style={{
+                          width: '64px',
+                          padding: '2px 6px',
+                          fontSize: '0.85rem',
+                          fontWeight: 700,
+                          textAlign: 'right',
+                          borderRadius: 'var(--radius-xs)',
+                          border: '1px solid var(--border-default)',
+                          backgroundColor: 'var(--bg-surface)',
+                          color: 'var(--text-primary)'
+                        }}
+                      />
+                      <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>%</span>
+                    </div>
+                  </div>
+                  <input
+                    type="range"
+                    min={0.5}
+                    max={15.0}
+                    step={0.1}
+                    value={demandGenLeadCr}
+                    onChange={(e) => setDemandGenLeadCr(Number(e.target.value))}
+                    style={{
+                      width: '100%',
+                      accentColor: '#10b981',
+                      cursor: 'pointer',
+                      background: `linear-gradient(90deg, #34d399 0%, #10b981 ${Math.min(100, Math.max(0, Math.round(((demandGenLeadCr - 0.5) / 14.5) * 100)))}%, var(--border-default) ${Math.min(100, Math.max(0, Math.round(((demandGenLeadCr - 0.5) / 14.5) * 100)))}%, var(--border-default) 100%)`,
+                      height: '6px',
+                      borderRadius: 'var(--radius-full)'
+                    }}
+                  />
+                </div>
+
+                {/* Healthy Lead Rate & Close Rate */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <label style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-secondary)' }}>Nitelikli Lead %</label>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>%{demandGenHealthyLeadRate}</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={10}
+                      max={90}
+                      step={5}
+                      value={demandGenHealthyLeadRate}
+                      onChange={(e) => setDemandGenHealthyLeadRate(Number(e.target.value))}
+                      style={{ width: '100%', accentColor: 'var(--brand-primary)', cursor: 'pointer', height: '5px' }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <label style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-secondary)' }}>Satış Kapanış %</label>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>%{demandGenCloseRate}</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={1}
+                      max={50}
+                      step={1}
+                      value={demandGenCloseRate}
+                      onChange={(e) => setDemandGenCloseRate(Number(e.target.value))}
+                      style={{ width: '100%', accentColor: 'var(--brand-primary)', cursor: 'pointer', height: '5px' }}
+                    />
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Right Column: Demand Gen Output KPI Cards & Placement Matrix */}
+              <div className="card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                    <Sparkles size={18} color="#f59e0b" /> Demand Gen Performans Çıktıları
+                  </div>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--brand-primary)', padding: '3px 8px', backgroundColor: 'rgba(37, 99, 235, 0.1)', borderRadius: 'var(--radius-xs)' }}>
+                    Bütçe: ₺{demandGenSimulation.budget.toLocaleString('tr-TR')}
+                  </div>
+                </div>
+
+                {/* 6 KPI Cards Grid */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem' }}>
+                  
+                  <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Toplam Gösterim & Erişim</div>
+                    <div style={{ fontSize: '1.35rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
+                      {demandGenSimulation.impressions.toLocaleString('tr-TR')}
+                    </div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '2px' }}>CPM: ₺{demandGenSimulation.cpm}</div>
+                  </div>
+
+                  <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Tıklama & Ziyaret</div>
+                    <div style={{ fontSize: '1.35rem', fontWeight: 700, color: '#3b82f6', marginTop: '2px' }}>
+                      {demandGenSimulation.clicks.toLocaleString('tr-TR')}
+                    </div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '2px' }}>Ort. TBM: ₺{demandGenSimulation.cpc}</div>
+                  </div>
+
+                  <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Video İzlenmesi</div>
+                    <div style={{ fontSize: '1.35rem', fontWeight: 700, color: '#8b5cf6', marginTop: '2px' }}>
+                      {demandGenSimulation.videoViews.toLocaleString('tr-TR')}
+                    </div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '2px' }}>VTR: %{demandGenSimulation.vtr}</div>
+                  </div>
+
+                  <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Toplam Talep / Lead</div>
+                    <div style={{ fontSize: '1.35rem', fontWeight: 700, color: '#f59e0b', marginTop: '2px' }}>
+                      {demandGenSimulation.grossLeads.toLocaleString('tr-TR')}
+                    </div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '2px' }}>CPL: ₺{demandGenSimulation.cpl}</div>
+                  </div>
+
+                  <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Nitelikli Lead (MQL)</div>
+                    <div style={{ fontSize: '1.35rem', fontWeight: 700, color: '#10b981', marginTop: '2px' }}>
+                      {demandGenSimulation.healthyLeads.toLocaleString('tr-TR')}
+                    </div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '2px' }}>CPQL: ₺{demandGenSimulation.cpql}</div>
+                  </div>
+
+                  <div style={{ padding: '0.85rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Ciro / Gelir (ROAS)</div>
+                    <div style={{ fontSize: '1.35rem', fontWeight: 700, color: '#16a34a', marginTop: '2px' }}>
+                      ₺{demandGenSimulation.revenue.toLocaleString('tr-TR')}
+                    </div>
+                    <div style={{ fontSize: '0.7rem', color: '#16a34a', fontWeight: 600, marginTop: '2px' }}>ROAS: {demandGenSimulation.roas}x</div>
+                  </div>
+
+                </div>
+
+                {/* Placement Breakdown Table */}
+                <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    📊 Yerleşim Bazlı Tahmini Performans Dağılımı
+                  </div>
+                  <div style={{ overflowX: 'auto', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)' }}>
+                    <table style={{ width: '100%', fontSize: '0.75rem', borderCollapse: 'collapse', textAlign: 'left' }}>
+                      <thead>
+                        <tr style={{ backgroundColor: 'var(--bg-surface-elevated)', borderBottom: '1px solid var(--border-default)' }}>
+                          <th style={{ padding: '6px 10px' }}>Yerleşim Kanalı</th>
+                          <th style={{ padding: '6px 10px', textAlign: 'right' }}>Bütçe Payı</th>
+                          <th style={{ padding: '6px 10px', textAlign: 'right' }}>Tahmini Erişim</th>
+                          <th style={{ padding: '6px 10px', textAlign: 'right' }}>Tıklama</th>
+                          <th style={{ padding: '6px 10px', textAlign: 'right' }}>Talep</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr style={{ borderBottom: '1px solid var(--border-default)' }}>
+                          <td style={{ padding: '6px 10px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <span>📱 YouTube Shorts</span>
+                          </td>
+                          <td style={{ padding: '6px 10px', textAlign: 'right' }}>%40 (₺{Math.round(demandGenSimulation.budget * 0.40).toLocaleString('tr-TR')})</td>
+                          <td style={{ padding: '6px 10px', textAlign: 'right' }}>{Math.round(demandGenSimulation.impressions * 0.45).toLocaleString('tr-TR')}</td>
+                          <td style={{ padding: '6px 10px', textAlign: 'right' }}>{Math.round(demandGenSimulation.clicks * 0.38).toLocaleString('tr-TR')}</td>
+                          <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 600, color: '#10b981' }}>{Math.round(demandGenSimulation.grossLeads * 0.35)}</td>
+                        </tr>
+                        <tr style={{ borderBottom: '1px solid var(--border-default)' }}>
+                          <td style={{ padding: '6px 10px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <span>📰 Google Discover Feed</span>
+                          </td>
+                          <td style={{ padding: '6px 10px', textAlign: 'right' }}>%35 (₺{Math.round(demandGenSimulation.budget * 0.35).toLocaleString('tr-TR')})</td>
+                          <td style={{ padding: '6px 10px', textAlign: 'right' }}>{Math.round(demandGenSimulation.impressions * 0.35).toLocaleString('tr-TR')}</td>
+                          <td style={{ padding: '6px 10px', textAlign: 'right' }}>{Math.round(demandGenSimulation.clicks * 0.42).toLocaleString('tr-TR')}</td>
+                          <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 600, color: '#10b981' }}>{Math.round(demandGenSimulation.grossLeads * 0.45)}</td>
+                        </tr>
+                        <tr style={{ borderBottom: '1px solid var(--border-default)' }}>
+                          <td style={{ padding: '6px 10px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <span>🎬 YouTube In-Stream</span>
+                          </td>
+                          <td style={{ padding: '6px 10px', textAlign: 'right' }}>%15 (₺{Math.round(demandGenSimulation.budget * 0.15).toLocaleString('tr-TR')})</td>
+                          <td style={{ padding: '6px 10px', textAlign: 'right' }}>{Math.round(demandGenSimulation.impressions * 0.12).toLocaleString('tr-TR')}</td>
+                          <td style={{ padding: '6px 10px', textAlign: 'right' }}>{Math.round(demandGenSimulation.clicks * 0.12).toLocaleString('tr-TR')}</td>
+                          <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 600, color: '#10b981' }}>{Math.round(demandGenSimulation.grossLeads * 0.12)}</td>
+                        </tr>
+                        <tr>
+                          <td style={{ padding: '6px 10px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <span>✉️ Gmail Promosyonlar</span>
+                          </td>
+                          <td style={{ padding: '6px 10px', textAlign: 'right' }}>%10 (₺{Math.round(demandGenSimulation.budget * 0.10).toLocaleString('tr-TR')})</td>
+                          <td style={{ padding: '6px 10px', textAlign: 'right' }}>{Math.round(demandGenSimulation.impressions * 0.08).toLocaleString('tr-TR')}</td>
+                          <td style={{ padding: '6px 10px', textAlign: 'right' }}>{Math.round(demandGenSimulation.clicks * 0.08).toLocaleString('tr-TR')}</td>
+                          <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 600, color: '#10b981' }}>{Math.round(demandGenSimulation.grossLeads * 0.08)}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+              </div>
+
             </div>
           )}
 

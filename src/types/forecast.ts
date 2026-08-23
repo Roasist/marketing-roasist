@@ -218,6 +218,14 @@ export interface SubCampaignItem {
     tiktokCtr?: number;
     tiktokLeadCr?: number;
 
+    // Demand Gen specific
+    demandGenCpm?: number;
+    demandGenCtr?: number;
+    demandGenVtr?: number;
+    demandGenLeadCr?: number;
+    demandGenHealthyLeadRate?: number;
+    demandGenCloseRate?: number;
+
     // Yandex specific
     yandexCpc?: number;
     yandexCtr?: number;
@@ -229,6 +237,7 @@ export interface SubCampaignItem {
   metaSimulationResult?: MetaSimulation;
   youtubeSimulationResult?: YouTubeSimulation;
   gdnSimulationResult?: GdnSimulation;
+  demandGenSimulationResult?: DemandGenSimulation;
   createdAt?: string;
 }
 
@@ -272,7 +281,7 @@ export interface ForecastPlan {
   createdAt?: string;
 }
 
-export type ChannelType = 'OMNICHANNEL' | 'GOOGLE_SEARCH' | 'META_ADS' | 'YOUTUBE' | 'GDN' | 'NEGATIVES' | 'SAVED_PLANS';
+export type ChannelType = 'OMNICHANNEL' | 'GOOGLE_SEARCH' | 'META_ADS' | 'YOUTUBE' | 'GDN' | 'DEMAND_GEN' | 'NEGATIVES' | 'SAVED_PLANS';
 
 export interface MetaSimulation {
   budget: number;
@@ -303,6 +312,28 @@ export interface GdnSimulation {
   cpc: number;
   assistedConversionRate: number; // %
   assistedConversions: number;
+}
+
+export interface DemandGenSimulation {
+  budget: number;
+  cpm: number;
+  impressions: number;
+  ctr: number;
+  clicks: number;
+  cpc: number;
+  videoViews: number;
+  vtr: number;
+  leadCr: number;
+  grossLeads: number;
+  cpl: number;
+  healthyLeadRate: number;
+  healthyLeads: number;
+  cpql: number;
+  closeRate: number;
+  deals: number;
+  cac: number;
+  revenue: number;
+  roas: number;
 }
 
 export interface YouTubeSimulation {
