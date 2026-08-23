@@ -9,7 +9,8 @@ import {
   Layers,
   Sparkles,
   Plus,
-  Trash2
+  Trash2,
+  Loader2
 } from 'lucide-react';
 import { SubCampaignItem, CampaignPlatform, CampaignObjective } from '../types/forecast';
 import { GOOGLE_ADS_LANGUAGES, DEFAULT_LOCATIONS } from '../pages/ForecastModule';
@@ -18,7 +19,7 @@ interface BudgetAllocationWizardModalProps {
   isOpen: boolean;
   onClose: () => void;
   masterMonthlyBudget: number;
-  onApplyAllocation: (newMasterBudget: number, updatedSubCampaigns: SubCampaignItem[], languageAllocations?: Record<string, { percentage: number; budget: number }>) => void;
+  onApplyAllocation: (newMasterBudget: number, updatedSubCampaigns: SubCampaignItem[], languageAllocations?: Record<string, { percentage: number; budget: number }>) => Promise<void> | void;
   subCampaigns: SubCampaignItem[];
   savedLanguageAllocations?: Record<string, { percentage: number; budget: number }>;
   onOpenLanguageModal?: () => void;
@@ -478,18 +479,35 @@ export const BudgetAllocationWizardModal: React.FC<BudgetAllocationWizardModalPr
     setDraftSubCampaigns(prev => [...prev, newSub]);
   };
 
-  // Apply Changes and Save
-  const handleApply = () => {
-    // Ensure paused sub-campaigns have 0 budget so they do not inflate the total language sums
-    const finalizedSubs = draftSubCampaigns.map(sc => {
-      if (sc.status === 'PAUSED') {
-        return { ...sc, monthlyBudget: 0 };
-      }
-      return sc;
-    });
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
 
-    onApplyAllocation(masterBudget, finalizedSubs, langAllocations);
-    onClose();
+  // Apply Changes and Save
+  const handleApply = async () => {
+    if (isSaving) return;
+    setIsSaving(true);
+    setSaveSuccess(false);
+
+    try {
+      // Ensure paused sub-campaigns have 0 budget so they do not inflate the total language sums
+      const finalizedSubs = draftSubCampaigns.map(sc => {
+        if (sc.status === 'PAUSED') {
+          return { ...sc, monthlyBudget: 0 };
+        }
+        return sc;
+      });
+
+      await onApplyAllocation(masterBudget, finalizedSubs, langAllocations);
+      setSaveSuccess(true);
+      setTimeout(() => {
+        setIsSaving(false);
+        setSaveSuccess(false);
+        onClose();
+      }, 400);
+    } catch (e) {
+      console.error('Error applying budget allocation:', e);
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -1147,6 +1165,7 @@ export const BudgetAllocationWizardModal: React.FC<BudgetAllocationWizardModalPr
             <button
               type="button"
               onClick={onClose}
+              disabled={isSaving}
               className="btn-secondary"
               style={{ fontSize: '0.85rem', padding: '0.55rem 1.15rem' }}
             >
@@ -1155,12 +1174,26 @@ export const BudgetAllocationWizardModal: React.FC<BudgetAllocationWizardModalPr
             <button
               type="button"
               onClick={handleApply}
-              disabled={draftSubCampaigns.length === 0}
+              disabled={draftSubCampaigns.length === 0 || isSaving}
               className="btn-primary"
               style={{ fontSize: '0.85rem', padding: '0.55rem 1.45rem', display: 'flex', alignItems: 'center', gap: '0.45rem', fontWeight: 600 }}
             >
-              <CheckCircle2 size={16} />
-              <span>Hiyerarşik Dağılımı Uygula & {draftSubCampaigns.length} Kampanyayı Senkronize Et</span>
+              {isSaving ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  <span>Veritabanına Kaydediliyor...</span>
+                </>
+              ) : saveSuccess ? (
+                <>
+                  <CheckCircle2 size={16} />
+                  <span>Başarıyla Kaydedildi!</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 size={16} />
+                  <span>Hiyerarşik Dağılımı Uygula & {draftSubCampaigns.length} Kampanyayı Senkronize Et</span>
+                </>
+              )}
             </button>
           </div>
         </div>

@@ -3960,6 +3960,7 @@ if ($action === 'plans') {
                 'negativeKeywords' => json_decode($r['negative_keywords'] ?? '[]', true),
                 'subCampaigns' => $planData['subCampaigns'] ?? [],
                 'consolidatedMix' => $planData['consolidatedMix'] ?? null,
+                'languageAllocations' => $planData['languageAllocations'] ?? null,
                 'createdAt' => $r['created_at'],
             ];
         }
@@ -3993,6 +3994,7 @@ if ($action === 'plans') {
             'tags' => $input['tags'] ?? [],
             'subCampaigns' => $input['subCampaigns'] ?? [],
             'consolidatedMix' => $input['consolidatedMix'] ?? null,
+            'languageAllocations' => $input['languageAllocations'] ?? null,
         ], JSON_UNESCAPED_UNICODE);
 
         $stmt = $pdo->prepare("

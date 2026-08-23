@@ -11182,7 +11182,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           }
           setIsAddCampaignModalOpen(true);
         }}
-        onApplyAllocation={(newMasterBudget, updatedSubCampaigns, newLangAllocations) => {
+        onApplyAllocation={async (newMasterBudget, updatedSubCampaigns, newLangAllocations) => {
           isApplyingSubCampaignRef.current = true;
           if (newLangAllocations) {
             setLanguageAllocations(newLangAllocations);
@@ -11201,30 +11201,33 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
           // Instantly persist updated sub-campaigns, language allocations, and master budget to Database
           if (currentPlanId) {
-            ApiService.saveForecastPlan({
-              id: currentPlanId,
-              workspaceId,
-              name: planName.trim() || `${clientName} - Medya Planı`,
-              clientName: clientName.trim(),
-              startDate: planStartDate,
-              endDate: planEndDate,
-              period: formatCampaignDates(planStartDate, planEndDate, planPeriod),
-              tags: planTags,
-              targetUrl: mode === 'URL' ? query : '',
-              seedKeywords: mode === 'KEYWORDS' ? query : '',
-              detectedLanguage,
-              detectedLanguageName,
-              monthlyBudget: newMasterBudget,
-              selectedKeywords: selectedKeywordsPool,
-              simulationResult: simulation,
-              negativeKeywords: negativeCategories,
-              targetCountries: activeCountries.map(c => c.name),
-              countryBreakdown,
-              subCampaigns: sortedSubs,
-              languageAllocations: newLangAllocations || languageAllocations
-            }).then(() => {
+            try {
+              await ApiService.saveForecastPlan({
+                id: currentPlanId,
+                workspaceId,
+                name: planName.trim() || `${clientName} - Medya Planı`,
+                clientName: clientName.trim(),
+                startDate: planStartDate,
+                endDate: planEndDate,
+                period: formatCampaignDates(planStartDate, planEndDate, planPeriod),
+                tags: planTags,
+                targetUrl: mode === 'URL' ? query : '',
+                seedKeywords: mode === 'KEYWORDS' ? query : '',
+                detectedLanguage,
+                detectedLanguageName,
+                monthlyBudget: newMasterBudget,
+                selectedKeywords: selectedKeywordsPool,
+                simulationResult: simulation,
+                negativeKeywords: negativeCategories,
+                targetCountries: activeCountries.map(c => c.name),
+                countryBreakdown,
+                subCampaigns: sortedSubs,
+                languageAllocations: newLangAllocations || languageAllocations
+              });
               loadSavedPlans();
-            }).catch(() => {});
+            } catch (err) {
+              console.error('Save error during allocation apply:', err);
+            }
           }
 
           setTimeout(() => {
