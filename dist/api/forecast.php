@@ -3136,7 +3136,9 @@ if ($action === 'discover' && $method === 'POST') {
     $stmtCache->execute([$cacheKey]);
     $cached = $stmtCache->fetch();
 
-    if ($cached && (time() - strtotime($cached['created_at']) < 86400)) { // 24-hour cache
+    $bypassCache = !empty($input['bypassCache']);
+
+    if (!$bypassCache && $cached && (time() - strtotime($cached['created_at']) < 86400)) { // 24-hour cache
         $cachedData = json_decode($cached['data'], true);
         echo json_encode([
             'status' => 'success',
@@ -3930,20 +3932,21 @@ if ($action === 'location_presets') {
 // -------------------------------------------------------------
 if ($action === 'plans') {
     $workspaceId = $_GET['workspace_id'] ?? '';
+    $singleId = $_GET['id'] ?? '';
 
     if ($method === 'GET') {
-        $stmt = $pdo->prepare("
-            SELECT * FROM forecast_plans 
-            WHERE workspace_id = ? OR workspace_id IS NULL 
-            ORDER BY id DESC
-        ");
-        $stmt->execute([$workspaceId]);
-        $rows = $stmt->fetchAll();
-
-        $plans = [];
-        foreach ($rows as $r) {
+        if (!empty($singleId)) {
+            // Fetch complete single plan details
+            $stmt = $pdo->prepare("SELECT * FROM forecast_plans WHERE id = ?");
+            $stmt->execute([$singleId]);
+            $r = $stmt->fetch();
+            if (!$r) {
+                http_response_code(404);
+                echo json_encode(['status' => 'error', 'message' => 'Plan bulunamadı.']);
+                exit;
+            }
             $planData = json_decode($r['plan_data'] ?? '{}', true) ?: [];
-            $plans[] = [
+            $plan = [
                 'id' => $r['id'],
                 'workspaceId' => $r['workspace_id'],
                 'name' => $r['name'],
@@ -3959,6 +3962,66 @@ if ($action === 'plans') {
                 'simulationResult' => json_decode($r['simulation_result'] ?? '{}', true),
                 'negativeKeywords' => json_decode($r['negative_keywords'] ?? '[]', true),
                 'subCampaigns' => $planData['subCampaigns'] ?? [],
+                'consolidatedMix' => $planData['consolidatedMix'] ?? null,
+                'languageAllocations' => $planData['languageAllocations'] ?? null,
+                'createdAt' => $r['created_at'],
+            ];
+            echo json_encode(['status' => 'success', 'plan' => $plan]);
+            exit;
+        }
+
+        // List all plans for portfolio overview
+        $stmt = $pdo->prepare("
+            SELECT * FROM forecast_plans 
+            WHERE workspace_id = ? OR workspace_id IS NULL 
+            ORDER BY id DESC
+        ");
+        $stmt->execute([$workspaceId]);
+        $rows = $stmt->fetchAll();
+
+        $plans = [];
+        foreach ($rows as $r) {
+            $planData = json_decode($r['plan_data'] ?? '{}', true) ?: [];
+            $rawSubs = $planData['subCampaigns'] ?? [];
+            
+            // Generate clean lightweight subCampaigns for portfolio display
+            $lightweightSubs = array_map(function($sc) {
+                return [
+                    'id' => $sc['id'] ?? '',
+                    'name' => $sc['name'] ?? '',
+                    'platform' => $sc['platform'] ?? 'GOOGLE',
+                    'objective' => $sc['objective'] ?? 'GOOGLE_SEARCH',
+                    'languageCode' => $sc['languageCode'] ?? 'tr',
+                    'languageName' => $sc['languageName'] ?? 'Türkçe',
+                    'languageFlag' => $sc['languageFlag'] ?? '🌐',
+                    'targetLocations' => $sc['targetLocations'] ?? [],
+                    'monthlyBudget' => (float)($sc['monthlyBudget'] ?? 0),
+                    'status' => $sc['status'] ?? 'ACTIVE',
+                    'isStep1Completed' => $sc['isStep1Completed'] ?? true,
+                    'isStep2Completed' => $sc['isStep2Completed'] ?? true,
+                    'isStep3Completed' => $sc['isStep3Completed'] ?? true,
+                    'selectedKeywords' => $sc['selectedKeywords'] ?? [],
+                    'discoveredKeywords' => $sc['discoveredKeywords'] ?? [],
+                    'parameters' => $sc['parameters'] ?? null
+                ];
+            }, $rawSubs);
+
+            $plans[] = [
+                'id' => $r['id'],
+                'workspaceId' => $r['workspace_id'],
+                'name' => $r['name'],
+                'clientName' => $r['client_name'] ?? ($planData['clientName'] ?? ''),
+                'startDate' => $r['start_date'] ?? ($planData['startDate'] ?? ''),
+                'endDate' => $r['end_date'] ?? ($planData['endDate'] ?? ''),
+                'period' => $r['period'] ?? ($planData['period'] ?? ''),
+                'tags' => json_decode($r['tags'] ?? '[]', true) ?: ($planData['tags'] ?? []),
+                'targetUrl' => $r['target_url'],
+                'seedKeywords' => $r['seed_keywords'],
+                'monthlyBudget' => (float)$r['monthly_budget'],
+                'selectedKeywords' => json_decode($r['selected_keywords'] ?? '[]', true),
+                'simulationResult' => json_decode($r['simulation_result'] ?? '{}', true),
+                'negativeKeywords' => json_decode($r['negative_keywords'] ?? '[]', true),
+                'subCampaigns' => $lightweightSubs,
                 'consolidatedMix' => $planData['consolidatedMix'] ?? null,
                 'languageAllocations' => $planData['languageAllocations'] ?? null,
                 'createdAt' => $r['created_at'],

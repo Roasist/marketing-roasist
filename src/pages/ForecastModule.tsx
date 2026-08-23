@@ -1820,7 +1820,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   }, [savedPlans]);
 
   // Execute Keyword Discovery (Step 1)
-  const handleDiscover = async (customQuery?: string, customMode?: 'URL' | 'KEYWORDS') => {
+  const handleDiscover = async (customQuery?: string, customMode?: 'URL' | 'KEYWORDS', bypassCache: boolean = false) => {
     const q = customQuery || query;
     const m = customMode || mode;
     if (!q.trim()) return;
@@ -1851,6 +1851,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         locations: selectedLocations,
         includeSuggestions: includeSuggestions,
         seedKeywords: seeds.length > 0 ? seeds : undefined,
+        bypassCache
       });
 
       clearTimeout(timer1);
@@ -3753,6 +3754,30 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     setTimeout(() => setCopiedCategory(null), 2000);
   };
 
+  // Lightweight Keyword Sanitizer for Ultra-Fast Database Writes
+  const sanitizeKeywordForSave = (k: any) => {
+    if (!k) return null;
+    return {
+      id: k.id,
+      keyword: k.keyword,
+      monthlyVolume: Number(k.monthlyVolume) || 0,
+      lowCpc: Number(k.lowCpc) || 0,
+      highCpc: Number(k.highCpc) || 0,
+      cpc: Number(k.cpc) || 0,
+      competition: k.competition || 'MEDIUM',
+      competitionIndex: Number(k.competitionIndex) || 0,
+      intent: k.intent || 'INFORMATIONAL',
+      category: k.category,
+      opportunityScore: k.opportunityScore,
+      threeMonthChange: k.threeMonthChange,
+      yoyChange: k.yoyChange,
+      geoVolumes: k.geoVolumes || {},
+      geoCpc: k.geoCpc || {},
+      isApproved: k.isApproved,
+      tag: k.tag
+    };
+  };
+
   // Save Plan Action
   const handleSavePlan = async () => {
     if (isSavingPlan) return;
@@ -3760,6 +3785,29 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     try {
       isApplyingSubCampaignRef.current = true;
       const updatedSubCampaigns = getUpdatedSubCampaignsWithActiveState();
+
+      // Compact/sanitize sub-campaigns and selected keywords to ensure ultra-fast sub-200ms save
+      const compactSubs = updatedSubCampaigns.map(s => ({
+        id: s.id,
+        name: s.name,
+        platform: s.platform,
+        objective: s.objective,
+        languageCode: s.languageCode,
+        languageName: s.languageName,
+        languageFlag: s.languageFlag,
+        targetLocations: s.targetLocations || [],
+        monthlyBudget: s.monthlyBudget,
+        status: s.status,
+        businessModel: s.businessModel,
+        isStep1Completed: s.isStep1Completed,
+        isStep2Completed: s.isStep2Completed,
+        isStep3Completed: s.isStep3Completed,
+        selectedKeywords: (s.selectedKeywords || []).map(sanitizeKeywordForSave).filter(Boolean),
+        discoveredKeywords: (s.discoveredKeywords || []).map(sanitizeKeywordForSave).filter(Boolean),
+        negativeCategories: s.negativeCategories || [],
+        parameters: s.parameters,
+        cpcImputationSettings: s.cpcImputationSettings
+      }));
 
       const formattedPeriod = formatCampaignDates(planStartDate, planEndDate, planPeriod);
       const res = await ApiService.saveForecastPlan({
@@ -3776,12 +3824,12 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         detectedLanguage,
         detectedLanguageName,
         monthlyBudget: totalMasterMonthlyBudget || monthlyBudget,
-        selectedKeywords: selectedKeywordsPool,
+        selectedKeywords: selectedKeywordsPool.map(sanitizeKeywordForSave).filter(Boolean),
         simulationResult: simulation,
         negativeKeywords: negativeCategories,
         targetCountries: activeCountries.map(c => c.name),
         countryBreakdown,
-        subCampaigns: updatedSubCampaigns,
+        subCampaigns: compactSubs,
         languageAllocations
       });
       if (res && res.planId && !currentPlanId) {
@@ -11202,6 +11250,28 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           // Instantly persist updated sub-campaigns, language allocations, and master budget to Database
           if (currentPlanId) {
             try {
+              const compactSubs = sortedSubs.map(s => ({
+                id: s.id,
+                name: s.name,
+                platform: s.platform,
+                objective: s.objective,
+                languageCode: s.languageCode,
+                languageName: s.languageName,
+                languageFlag: s.languageFlag,
+                targetLocations: s.targetLocations || [],
+                monthlyBudget: s.monthlyBudget,
+                status: s.status,
+                businessModel: s.businessModel,
+                isStep1Completed: s.isStep1Completed,
+                isStep2Completed: s.isStep2Completed,
+                isStep3Completed: s.isStep3Completed,
+                selectedKeywords: (s.selectedKeywords || []).map(sanitizeKeywordForSave).filter(Boolean),
+                discoveredKeywords: (s.discoveredKeywords || []).map(sanitizeKeywordForSave).filter(Boolean),
+                negativeCategories: s.negativeCategories || [],
+                parameters: s.parameters,
+                cpcImputationSettings: s.cpcImputationSettings
+              }));
+
               await ApiService.saveForecastPlan({
                 id: currentPlanId,
                 workspaceId,
@@ -11216,12 +11286,12 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                 detectedLanguage,
                 detectedLanguageName,
                 monthlyBudget: newMasterBudget,
-                selectedKeywords: selectedKeywordsPool,
+                selectedKeywords: selectedKeywordsPool.map(sanitizeKeywordForSave).filter(Boolean),
                 simulationResult: simulation,
                 negativeKeywords: negativeCategories,
                 targetCountries: activeCountries.map(c => c.name),
                 countryBreakdown,
-                subCampaigns: sortedSubs,
+                subCampaigns: compactSubs,
                 languageAllocations: newLangAllocations || languageAllocations
               });
               loadSavedPlans();

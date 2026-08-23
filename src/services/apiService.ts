@@ -262,6 +262,7 @@ export class ApiService {
     locations?: any[];
     includeSuggestions?: boolean;
     seedKeywords?: string[];
+    bypassCache?: boolean;
   }): Promise<any> {
     const res = await this.request<{ status: string; data?: any; message?: string }>('/forecast.php?action=discover', {
       method: 'POST',
@@ -339,6 +340,16 @@ export class ApiService {
   public static async getForecastPlans(workspaceId?: string): Promise<any[]> {
     const res = await this.request<{ status: string; plans: any[] }>(`/forecast.php?action=plans&workspace_id=${encodeURIComponent(workspaceId || '')}`);
     return res.plans || [];
+  }
+
+  public static async getForecastPlanById(id: string): Promise<any | null> {
+    try {
+      const res = await this.request<{ status: string; plan: any }>(`/forecast.php?action=plans&id=${encodeURIComponent(id)}`);
+      return res.plan || null;
+    } catch (e) {
+      console.error('Failed to get plan by id:', e);
+      return null;
+    }
   }
 
   public static async saveForecastPlan(plan: any): Promise<any> {
