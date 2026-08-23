@@ -3971,12 +3971,19 @@ if ($action === 'plans') {
         }
 
         // List all plans for portfolio overview
-        $stmt = $pdo->prepare("
-            SELECT * FROM forecast_plans 
-            WHERE workspace_id = ? OR workspace_id IS NULL 
-            ORDER BY id DESC
-        ");
-        $stmt->execute([$workspaceId]);
+        if (!empty($workspaceId)) {
+            $stmt = $pdo->prepare("
+                SELECT * FROM forecast_plans 
+                WHERE workspace_id = ? OR workspace_id IS NULL OR workspace_id = ''
+                ORDER BY id DESC
+            ");
+            $stmt->execute([$workspaceId]);
+        } else {
+            $stmt = $pdo->query("
+                SELECT * FROM forecast_plans 
+                ORDER BY id DESC
+            ");
+        }
         $rows = $stmt->fetchAll();
 
         $plans = [];
@@ -4004,7 +4011,7 @@ if ($action === 'plans') {
                     'discoveredKeywords' => $sc['discoveredKeywords'] ?? [],
                     'parameters' => $sc['parameters'] ?? null
                 ];
-            }, $rawSubs);
+            }, is_array($rawSubs) ? $rawSubs : []);
 
             $plans[] = [
                 'id' => $r['id'],
