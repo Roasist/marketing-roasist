@@ -3973,14 +3973,17 @@ if ($action === 'plans') {
         // List all plans for portfolio overview
         if (!empty($workspaceId)) {
             $stmt = $pdo->prepare("
-                SELECT * FROM forecast_plans 
-                WHERE workspace_id = ? OR workspace_id IS NULL OR workspace_id = '' OR workspace_id = 'default'
+                SELECT id, workspace_id, name, client_name, start_date, end_date, period, tags, target_url, seed_keywords, monthly_budget, plan_data, created_at
+                FROM forecast_plans 
+                WHERE workspace_id = ?
                 ORDER BY id DESC
             ");
             $stmt->execute([$workspaceId]);
         } else {
             $stmt = $pdo->query("
-                SELECT * FROM forecast_plans 
+                SELECT id, workspace_id, name, client_name, start_date, end_date, period, tags, target_url, seed_keywords, monthly_budget, plan_data, created_at
+                FROM forecast_plans 
+                WHERE workspace_id IS NULL OR workspace_id = '' OR workspace_id = 'default'
                 ORDER BY id DESC
             ");
         }
@@ -4025,9 +4028,9 @@ if ($action === 'plans') {
                 'targetUrl' => $r['target_url'] ?? '',
                 'seedKeywords' => $r['seed_keywords'] ?? '',
                 'monthlyBudget' => (float)($r['monthly_budget'] ?? 0),
-                'selectedKeywords' => json_decode($r['selected_keywords'] ?? '[]', true) ?: [],
-                'simulationResult' => json_decode($r['simulation_result'] ?? '{}', true) ?: new stdClass(),
-                'negativeKeywords' => json_decode($r['negative_keywords'] ?? '[]', true) ?: [],
+                'selectedKeywords' => [],
+                'simulationResult' => new stdClass(),
+                'negativeKeywords' => [],
                 'subCampaigns' => $lightweightSubs,
                 'consolidatedMix' => $planData['consolidatedMix'] ?? null,
                 'languageAllocations' => $planData['languageAllocations'] ?? null,
@@ -4104,6 +4107,20 @@ if ($action === 'plans') {
         echo json_encode(['status' => 'success', 'message' => 'Plan silindi.']);
         exit;
     }
+}
+
+// -------------------------------------------------------------
+if ($action === 'cleanup_empty_plans' && $method === 'POST') {
+    // Clean up empty dummy test plans where monthlyBudget == 0 AND name LIKE 'Forecast Planı%'
+    $stmt = $pdo->prepare("
+        DELETE FROM forecast_plans 
+        WHERE (monthly_budget = 0 OR monthly_budget IS NULL) 
+        AND (name LIKE 'Forecast Planı%' OR name LIKE 'Forecast Plan %' OR name = '')
+    ");
+    $stmt->execute();
+    $deletedCount = $stmt->rowCount();
+    echo json_encode(['status' => 'success', 'message' => "{$deletedCount} adet boş test planı temizlendi.", 'deletedCount' => $deletedCount]);
+    exit;
 }
 
 echo json_encode(['status' => 'error', 'message' => 'Geçersiz işlem.']);

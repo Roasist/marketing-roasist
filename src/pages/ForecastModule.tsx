@@ -4006,30 +4006,59 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={() => {
-                const curDates = getMonthDateRange(0);
-                setNewMasterName(`Master Kampanya ${savedPlans.length + 1}`);
-                setNewMasterClient(clientName || '');
-                setNewMasterStartDate(curDates.start);
-                setNewMasterEndDate(curDates.end);
-                setNewMasterPeriod(formatCampaignDates(curDates.start, curDates.end));
-                setIsAddMasterPlanModalOpen(true);
-              }}
-              className="btn-primary"
-              style={{
-                fontSize: '0.9rem',
-                padding: '0.65rem 1.25rem',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                boxShadow: '0 4px 14px rgba(37, 99, 235, 0.35)'
-              }}
-            >
-              <Plus size={18} />
-              <span>Yeni Çatı Kampanya Ekle</span>
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+              {savedPlans.some(p => (!p.monthlyBudget || p.monthlyBudget === 0) && (!p.subCampaigns || p.subCampaigns.length === 0)) && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!window.confirm('Boş ve alt kampanyası bulunmayan test planlarını temizlemek istediğinize emin misiniz?')) return;
+                    try {
+                      const res = await ApiService.cleanupEmptyPlans();
+                      alert(`${res.deletedCount} adet boş test planı başarıyla temizlendi.`);
+                      loadSavedPlans();
+                    } catch (e: any) {
+                      alert('Temizleme hatası: ' + e.message);
+                    }
+                  }}
+                  className="btn-secondary"
+                  style={{
+                    fontSize: '0.85rem',
+                    padding: '0.65rem 1.15rem',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.45rem',
+                    color: 'var(--text-secondary)'
+                  }}
+                >
+                  <Trash2 size={16} />
+                  <span>Boş Test Planlarını Temizle</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  const curDates = getMonthDateRange(0);
+                  setNewMasterName(`Master Kampanya ${savedPlans.length + 1}`);
+                  setNewMasterClient(clientName || '');
+                  setNewMasterStartDate(curDates.start);
+                  setNewMasterEndDate(curDates.end);
+                  setNewMasterPeriod(formatCampaignDates(curDates.start, curDates.end));
+                  setIsAddMasterPlanModalOpen(true);
+                }}
+                className="btn-primary"
+                style={{
+                  fontSize: '0.9rem',
+                  padding: '0.65rem 1.25rem',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  boxShadow: '0 4px 14px rgba(37, 99, 235, 0.35)'
+                }}
+              >
+                <Plus size={18} />
+                <span>Yeni Çatı Kampanya Ekle</span>
+              </button>
+            </div>
           </div>
 
           {/* Metrics */}

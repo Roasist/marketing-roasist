@@ -365,6 +365,13 @@ export class ApiService {
     });
   }
 
+  public static async cleanupEmptyPlans(): Promise<{ deletedCount: number }> {
+    const res = await this.request<{ status: string; deletedCount: number }>('/forecast.php?action=cleanup_empty_plans', {
+      method: 'POST',
+    });
+    return { deletedCount: res.deletedCount || 0 };
+  }
+
   public static async getLocationPresets(workspaceId?: string): Promise<any[]> {
     const res = await this.request<{ status: string; presets: any[] }>(
       `/forecast.php?action=location_presets&workspace_id=${encodeURIComponent(workspaceId || '')}`
