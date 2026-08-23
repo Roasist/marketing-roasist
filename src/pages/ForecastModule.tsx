@@ -10075,10 +10075,69 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
               <div className="card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                 <div>
                   <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                    <Sparkles size={18} color="#f59e0b" /> Google Demand Gen Parametreleri
+                    <Sparkles size={18} color="var(--brand-primary)" /> Google Demand Gen Parametreleri
                   </div>
                   <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
                     Yapay zeka hedefleme ile dikey video (Shorts), görsel beslemeler ve Gmail'de talep oluşturma simülatörü.
+                  </div>
+                </div>
+
+                {/* Aylık Demand Gen Reklam Bütçesi Input & Slider */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', backgroundColor: 'rgba(37, 99, 235, 0.05)', padding: '0.85rem', borderRadius: 'var(--radius-xs)', border: '1px solid rgba(37, 99, 235, 0.2)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <label style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--brand-primary)', display: 'block' }}>
+                        Demand Gen Aylık Bütçesi
+                      </label>
+                      <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                        Günlük ortalama: <strong>₺{Math.round((monthlyBudget || 0) / 30.4).toLocaleString('tr-TR')}/gün</strong>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                      <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--brand-primary)' }}>₺</span>
+                      <input
+                        type="number"
+                        min={500}
+                        max={1000000}
+                        step={500}
+                        value={monthlyBudget}
+                        onChange={(e) => setMonthlyBudget(Math.max(100, Number(e.target.value)))}
+                        style={{
+                          width: '96px',
+                          padding: '3px 8px',
+                          fontSize: '0.9rem',
+                          fontWeight: 700,
+                          textAlign: 'right',
+                          borderRadius: 'var(--radius-xs)',
+                          border: '1.5px solid var(--brand-primary)',
+                          backgroundColor: 'var(--bg-surface)',
+                          color: 'var(--brand-primary)'
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <input
+                    type="range"
+                    min={1000}
+                    max={250000}
+                    step={1000}
+                    value={monthlyBudget}
+                    onChange={(e) => setMonthlyBudget(Number(e.target.value))}
+                    style={{
+                      width: '100%',
+                      accentColor: '#2563eb',
+                      cursor: 'pointer',
+                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.min(100, Math.max(0, Math.round(((monthlyBudget - 1000) / 249000) * 100)))}%, var(--border-default) ${Math.min(100, Math.max(0, Math.round(((monthlyBudget - 1000) / 249000) * 100)))}%, var(--border-default) 100%)`,
+                      height: '6px',
+                      borderRadius: 'var(--radius-full)'
+                    }}
+                  />
+                  <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', marginTop: '0.2rem' }}>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Hızlı Bütçe Seçimi:</span>
+                    <button type="button" onClick={() => setMonthlyBudget(10000)} className="btn-ghost" style={{ padding: '1px 6px', fontSize: '0.7rem' }}>₺10.000</button>
+                    <button type="button" onClick={() => setMonthlyBudget(25000)} className="btn-ghost" style={{ padding: '1px 6px', fontSize: '0.7rem' }}>₺25.000</button>
+                    <button type="button" onClick={() => setMonthlyBudget(50000)} className="btn-ghost" style={{ padding: '1px 6px', fontSize: '0.7rem' }}>₺50.000</button>
+                    <button type="button" onClick={() => setMonthlyBudget(100000)} className="btn-ghost" style={{ padding: '1px 6px', fontSize: '0.7rem' }}>₺100.000</button>
                   </div>
                 </div>
 
@@ -10120,9 +10179,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     onChange={(e) => setDemandGenCpm(Number(e.target.value))}
                     style={{
                       width: '100%',
-                      accentColor: '#f59e0b',
+                      accentColor: '#2563eb',
                       cursor: 'pointer',
-                      background: `linear-gradient(90deg, #f59e0b 0%, #d97706 ${Math.min(100, Math.max(0, Math.round(((demandGenCpm - 10) / 190) * 100)))}%, var(--border-default) ${Math.min(100, Math.max(0, Math.round(((demandGenCpm - 10) / 190) * 100)))}%, var(--border-default) 100%)`,
+                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.min(100, Math.max(0, Math.round(((demandGenCpm - 10) / 190) * 100)))}%, var(--border-default) ${Math.min(100, Math.max(0, Math.round(((demandGenCpm - 10) / 190) * 100)))}%, var(--border-default) 100%)`,
                       height: '6px',
                       borderRadius: 'var(--radius-full)'
                     }}
@@ -10167,9 +10226,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     onChange={(e) => setDemandGenCtr(Number(e.target.value))}
                     style={{
                       width: '100%',
-                      accentColor: '#f59e0b',
+                      accentColor: '#2563eb',
                       cursor: 'pointer',
-                      background: `linear-gradient(90deg, #f59e0b 0%, #d97706 ${Math.min(100, Math.max(0, Math.round(((demandGenCtr - 0.5) / 7.5) * 100)))}%, var(--border-default) ${Math.min(100, Math.max(0, Math.round(((demandGenCtr - 0.5) / 7.5) * 100)))}%, var(--border-default) 100%)`,
+                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.min(100, Math.max(0, Math.round(((demandGenCtr - 0.5) / 7.5) * 100)))}%, var(--border-default) ${Math.min(100, Math.max(0, Math.round(((demandGenCtr - 0.5) / 7.5) * 100)))}%, var(--border-default) 100%)`,
                       height: '6px',
                       borderRadius: 'var(--radius-full)'
                     }}
@@ -10214,9 +10273,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     onChange={(e) => setDemandGenLeadCr(Number(e.target.value))}
                     style={{
                       width: '100%',
-                      accentColor: '#10b981',
+                      accentColor: '#2563eb',
                       cursor: 'pointer',
-                      background: `linear-gradient(90deg, #34d399 0%, #10b981 ${Math.min(100, Math.max(0, Math.round(((demandGenLeadCr - 0.5) / 14.5) * 100)))}%, var(--border-default) ${Math.min(100, Math.max(0, Math.round(((demandGenLeadCr - 0.5) / 14.5) * 100)))}%, var(--border-default) 100%)`,
+                      background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.min(100, Math.max(0, Math.round(((demandGenLeadCr - 0.5) / 14.5) * 100)))}%, var(--border-default) ${Math.min(100, Math.max(0, Math.round(((demandGenLeadCr - 0.5) / 14.5) * 100)))}%, var(--border-default) 100%)`,
                       height: '6px',
                       borderRadius: 'var(--radius-full)'
                     }}
@@ -10261,7 +10320,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     onChange={(e) => setDemandGenHealthyLeadRate(Number(e.target.value))}
                     style={{
                       width: '100%',
-                      accentColor: 'var(--brand-primary)',
+                      accentColor: '#2563eb',
                       cursor: 'pointer',
                       background: `linear-gradient(90deg, #60a5fa 0%, #2563eb ${Math.min(100, Math.max(0, Math.round(((demandGenHealthyLeadRate - 10) / 80) * 100)))}%, var(--border-default) ${Math.min(100, Math.max(0, Math.round(((demandGenHealthyLeadRate - 10) / 80) * 100)))}%, var(--border-default) 100%)`,
                       height: '6px',
@@ -10276,7 +10335,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
               <div className="card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
                   <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                    <Sparkles size={18} color="#f59e0b" /> Demand Gen Performans Çıktıları
+                    <Sparkles size={18} color="var(--brand-primary)" /> Demand Gen Performans Çıktıları
                   </div>
                   <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--brand-primary)', padding: '3px 8px', backgroundColor: 'rgba(37, 99, 235, 0.1)', borderRadius: 'var(--radius-xs)' }}>
                     Bütçe: ₺{demandGenSimulation.budget.toLocaleString('tr-TR')}
@@ -10308,7 +10367,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
                   <div style={{ padding: '1rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
                     <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Toplam Talep / Lead</div>
-                    <div style={{ fontSize: '1.45rem', fontWeight: 800, color: '#f59e0b', marginTop: '4px' }}>
+                    <div style={{ fontSize: '1.45rem', fontWeight: 800, color: 'var(--brand-primary)', marginTop: '4px' }}>
                       {demandGenSimulation.grossLeads.toLocaleString('tr-TR')}
                     </div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
