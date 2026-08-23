@@ -268,6 +268,7 @@ export interface ForecastPlan {
   negativeKeywords: NegativeCategory[];
   countryBreakdown?: CountryMetric[];
   subCampaigns?: SubCampaignItem[];
+  languageAllocations?: Record<string, { percentage: number; budget: number }>;
   createdAt?: string;
 }
 

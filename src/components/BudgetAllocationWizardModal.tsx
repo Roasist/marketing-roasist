@@ -18,8 +18,9 @@ interface BudgetAllocationWizardModalProps {
   isOpen: boolean;
   onClose: () => void;
   masterMonthlyBudget: number;
-  onApplyAllocation: (newMasterBudget: number, updatedSubCampaigns: SubCampaignItem[]) => void;
+  onApplyAllocation: (newMasterBudget: number, updatedSubCampaigns: SubCampaignItem[], languageAllocations?: Record<string, { percentage: number; budget: number }>) => void;
   subCampaigns: SubCampaignItem[];
+  savedLanguageAllocations?: Record<string, { percentage: number; budget: number }>;
   onOpenLanguageModal?: () => void;
   onOpenAddSubCampaignModal?: (langCode?: string) => void;
 }
@@ -49,6 +50,7 @@ export const BudgetAllocationWizardModal: React.FC<BudgetAllocationWizardModalPr
   masterMonthlyBudget: initialMasterBudget,
   onApplyAllocation,
   subCampaigns,
+  savedLanguageAllocations,
   onOpenLanguageModal,
   onOpenAddSubCampaignModal
 }) => {
@@ -101,7 +103,7 @@ export const BudgetAllocationWizardModal: React.FC<BudgetAllocationWizardModalPr
   // Language Tier Allocations State: { [langCode]: { percentage: number, budget: number } }
   const [langAllocations, setLangAllocations] = useState<Record<string, { percentage: number; budget: number }>>({});
 
-  // Initialize & Preserve Language Allocations state from real sub-campaign budgets
+  // Initialize & Preserve Language Allocations state from saved state or real active sub-campaign budgets
   useEffect(() => {
     if (languageGroups.length === 0) {
       setLangAllocations({});
@@ -116,19 +118,21 @@ export const BudgetAllocationWizardModal: React.FC<BudgetAllocationWizardModalPr
       const equalPct = Number((100 / languageGroups.length).toFixed(1));
       const equalBgt = Math.round(masterBudget / languageGroups.length);
 
-      // Check if sub-campaigns under language groups have real budgets configured
-      const totalConfiguredBudget = languageGroups.reduce((total, grp) => {
-        return total + grp.items.reduce((s, i) => s + (Number(i.monthlyBudget) || 0), 0);
-      }, 0);
-
       languageGroups.forEach((grp, idx) => {
         if (!isFresh && prev[grp.code]) {
-          // Keep existing custom allocation completely intact!
+          // Keep existing custom allocation completely intact during current modal interaction
           nextAlloc[grp.code] = prev[grp.code];
+        } else if (savedLanguageAllocations && savedLanguageAllocations[grp.code]) {
+          // Prioritize explicitly saved user language allocations!
+          const saved = savedLanguageAllocations[grp.code];
+          const pct = Number(saved.percentage) || equalPct;
+          const bgt = Number(saved.budget) || Math.round((masterBudget * pct) / 100);
+          nextAlloc[grp.code] = { percentage: pct, budget: bgt };
         } else {
-          // Calculate from real sub-campaigns if they have budgets configured
-          const realLangBudget = grp.items.reduce((sum, item) => sum + (Number(item.monthlyBudget) || 0), 0);
-          if (totalConfiguredBudget > 0 && realLangBudget > 0) {
+          // Calculate from real ACTIVE sub-campaigns if they have budgets configured
+          const activeItems = grp.items.filter(i => i.status !== 'PAUSED');
+          const realLangBudget = activeItems.reduce((sum, item) => sum + (Number(item.monthlyBudget) || 0), 0);
+          if (realLangBudget > 0) {
             const realPct = masterBudget > 0 ? Number(((realLangBudget / masterBudget) * 100).toFixed(1)) : equalPct;
             nextAlloc[grp.code] = { percentage: realPct, budget: realLangBudget };
           } else {
@@ -147,7 +151,7 @@ export const BudgetAllocationWizardModal: React.FC<BudgetAllocationWizardModalPr
 
       return nextAlloc;
     });
-  }, [languageGroups, masterBudget]);
+  }, [languageGroups, masterBudget, savedLanguageAllocations]);
 
   // Total allocated percentage across languages
   const totalLangPercentage = useMemo(() => {
@@ -476,7 +480,15 @@ export const BudgetAllocationWizardModal: React.FC<BudgetAllocationWizardModalPr
 
   // Apply Changes and Save
   const handleApply = () => {
-    onApplyAllocation(masterBudget, draftSubCampaigns);
+    // Ensure paused sub-campaigns have 0 budget so they do not inflate the total language sums
+    const finalizedSubs = draftSubCampaigns.map(sc => {
+      if (sc.status === 'PAUSED') {
+        return { ...sc, monthlyBudget: 0 };
+      }
+      return sc;
+    });
+
+    onApplyAllocation(masterBudget, finalizedSubs, langAllocations);
     onClose();
   };
 

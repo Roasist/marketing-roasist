@@ -957,6 +957,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
   // Multi-Campaign Sub-Campaigns State
   const [subCampaigns, setSubCampaigns] = useState<SubCampaignItem[]>([]);
+  const [languageAllocations, setLanguageAllocations] = useState<Record<string, { percentage: number; budget: number }> | undefined>(undefined);
   const [activeSubCampaignId, setActiveSubCampaignId] = useState<string | null>(null);
   const activeSubCampaign = useMemo(() => {
     return subCampaigns.find(c => c.id === activeSubCampaignId);
@@ -1132,7 +1133,8 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     const selectedKws = Array.from(selectedKeywordIds).map(id => availablePool.find(k => k.id === id)).filter(Boolean) as KeywordMetric[];
     const effectiveSelectedKws = selectedKws.length > 0 ? selectedKws : (availablePool.length > 0 ? availablePool : []);
     const effectiveDiscoveredKws = availablePool.length > 0 ? availablePool : (keywords.length > 0 ? keywords : []);
-    const subBudget = (monthlyBudget !== undefined && monthlyBudget !== null && monthlyBudget > 0) ? monthlyBudget : 35000;
+    const currentActiveSub = subCampaigns.find(c => c.id === targetId);
+    const subBudget = (monthlyBudget !== undefined && monthlyBudget !== null) ? Number(monthlyBudget) : (currentActiveSub?.monthlyBudget || 0);
 
     const rawTargetLang = targetLanguage || detectedLanguage || 'tr';
     const isAutoLang = rawTargetLang === 'auto' || !rawTargetLang;
@@ -1667,8 +1669,12 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     if (plan.clientName) setClientName(plan.clientName);
     if (plan.startDate) setPlanStartDate(plan.startDate);
     if (plan.endDate) setPlanEndDate(plan.endDate);
-    setPlanPeriod(plan.period || formatCampaignDates(plan.startDate, plan.endDate, plan.period));
     if (plan.tags) setPlanTags(plan.tags);
+    if (plan.languageAllocations) {
+      setLanguageAllocations(plan.languageAllocations);
+    } else {
+      setLanguageAllocations(undefined);
+    }
 
     if (Array.isArray(plan.subCampaigns)) {
       const sanitizedSubs = sortSubCampaignsByLanguage(plan.subCampaigns.map(c => ({
@@ -3775,7 +3781,8 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         negativeKeywords: negativeCategories,
         targetCountries: activeCountries.map(c => c.name),
         countryBreakdown,
-        subCampaigns: updatedSubCampaigns
+        subCampaigns: updatedSubCampaigns,
+        languageAllocations
       });
       if (res && res.planId && !currentPlanId) {
         setCurrentPlanId(res.planId);
@@ -11167,6 +11174,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         onClose={() => setIsBudgetAllocationModalOpen(false)}
         masterMonthlyBudget={totalMasterMonthlyBudget || monthlyBudget}
         subCampaigns={subCampaigns}
+        savedLanguageAllocations={languageAllocations}
         onOpenLanguageModal={() => setIsLanguageModalOpen(true)}
         onOpenAddSubCampaignModal={(langCode) => {
           if (langCode) {
@@ -11174,8 +11182,11 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           }
           setIsAddCampaignModalOpen(true);
         }}
-        onApplyAllocation={(newMasterBudget, updatedSubCampaigns) => {
+        onApplyAllocation={(newMasterBudget, updatedSubCampaigns, newLangAllocations) => {
           isApplyingSubCampaignRef.current = true;
+          if (newLangAllocations) {
+            setLanguageAllocations(newLangAllocations);
+          }
           const sortedSubs = sortSubCampaignsByLanguage(updatedSubCampaigns);
           setSubCampaigns(sortedSubs);
 
@@ -11188,7 +11199,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
             setMonthlyBudget(newMasterBudget);
           }
 
-          // Instantly persist updated sub-campaigns and master budget to Database
+          // Instantly persist updated sub-campaigns, language allocations, and master budget to Database
           if (currentPlanId) {
             ApiService.saveForecastPlan({
               id: currentPlanId,
@@ -11209,7 +11220,8 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
               negativeKeywords: negativeCategories,
               targetCountries: activeCountries.map(c => c.name),
               countryBreakdown,
-              subCampaigns: sortedSubs
+              subCampaigns: sortedSubs,
+              languageAllocations: newLangAllocations || languageAllocations
             }).then(() => {
               loadSavedPlans();
             }).catch(() => {});
