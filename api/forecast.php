@@ -3973,16 +3973,14 @@ if ($action === 'plans') {
         // List all plans for portfolio overview
         if (!empty($workspaceId)) {
             $stmt = $pdo->prepare("
-                SELECT id, workspace_id, name, client_name, start_date, end_date, period, tags, target_url, seed_keywords, monthly_budget, plan_data, created_at 
-                FROM forecast_plans 
-                WHERE workspace_id = ? OR workspace_id IS NULL OR workspace_id = ''
+                SELECT * FROM forecast_plans 
+                WHERE workspace_id = ? OR workspace_id IS NULL OR workspace_id = '' OR workspace_id = 'default'
                 ORDER BY id DESC
             ");
             $stmt->execute([$workspaceId]);
         } else {
             $stmt = $pdo->query("
-                SELECT id, workspace_id, name, client_name, start_date, end_date, period, tags, target_url, seed_keywords, monthly_budget, plan_data, created_at 
-                FROM forecast_plans 
+                SELECT * FROM forecast_plans 
                 ORDER BY id DESC
             ");
         }
@@ -4024,16 +4022,16 @@ if ($action === 'plans') {
                 'endDate' => $r['end_date'] ?? ($planData['endDate'] ?? ''),
                 'period' => $r['period'] ?? ($planData['period'] ?? ''),
                 'tags' => json_decode($r['tags'] ?? '[]', true) ?: ($planData['tags'] ?? []),
-                'targetUrl' => $r['target_url'],
-                'seedKeywords' => $r['seed_keywords'],
-                'monthlyBudget' => (float)$r['monthly_budget'],
-                'selectedKeywords' => json_decode($r['selected_keywords'] ?? '[]', true),
-                'simulationResult' => json_decode($r['simulation_result'] ?? '{}', true),
-                'negativeKeywords' => json_decode($r['negative_keywords'] ?? '[]', true),
+                'targetUrl' => $r['target_url'] ?? '',
+                'seedKeywords' => $r['seed_keywords'] ?? '',
+                'monthlyBudget' => (float)($r['monthly_budget'] ?? 0),
+                'selectedKeywords' => json_decode($r['selected_keywords'] ?? '[]', true) ?: [],
+                'simulationResult' => json_decode($r['simulation_result'] ?? '{}', true) ?: new stdClass(),
+                'negativeKeywords' => json_decode($r['negative_keywords'] ?? '[]', true) ?: [],
                 'subCampaigns' => $lightweightSubs,
                 'consolidatedMix' => $planData['consolidatedMix'] ?? null,
                 'languageAllocations' => $planData['languageAllocations'] ?? null,
-                'createdAt' => $r['created_at'],
+                'createdAt' => $r['created_at'] ?? '',
             ];
         }
 
