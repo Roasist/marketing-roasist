@@ -3994,7 +3994,7 @@ if ($action === 'plans') {
             $planData = json_decode($r['plan_data'] ?? '{}', true) ?: [];
             $rawSubs = $planData['subCampaigns'] ?? [];
             
-            // Generate clean lightweight subCampaigns for portfolio display
+            // Generate clean lightweight subCampaigns for portfolio display (Zero Payload Bloat)
             $lightweightSubs = array_map(function($sc) {
                 return [
                     'id' => $sc['id'] ?? '',
@@ -4010,8 +4010,8 @@ if ($action === 'plans') {
                     'isStep1Completed' => $sc['isStep1Completed'] ?? true,
                     'isStep2Completed' => $sc['isStep2Completed'] ?? true,
                     'isStep3Completed' => $sc['isStep3Completed'] ?? true,
-                    'selectedKeywords' => $sc['selectedKeywords'] ?? [],
-                    'discoveredKeywords' => $sc['discoveredKeywords'] ?? [],
+                    'selectedKeywords' => [],
+                    'discoveredKeywords' => [],
                     'parameters' => $sc['parameters'] ?? null
                 ];
             }, is_array($rawSubs) ? $rawSubs : []);

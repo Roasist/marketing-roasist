@@ -1737,6 +1737,25 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     }
 
     setViewMode('STUDIO');
+
+    // Asynchronously fetch full plan details if needed (lazy load keywords & simulations)
+    if (plan.id) {
+      ApiService.getForecastPlanById(plan.id).then(fullPlan => {
+        if (fullPlan && Array.isArray(fullPlan.subCampaigns) && fullPlan.subCampaigns.length > 0) {
+          const sanitizedFull = sortSubCampaignsByLanguage(fullPlan.subCampaigns.map((c: any) => ({
+            ...c,
+            monthlyBudget: (c.monthlyBudget !== undefined && c.monthlyBudget !== null) ? Number(c.monthlyBudget) : (fullPlan.monthlyBudget || 0)
+          })));
+          setSubCampaigns(sanitizedFull);
+          if (targetSubId) {
+            const chosenSub = sanitizedFull.find((c: any) => c.id === targetSubId);
+            if (chosenSub) {
+              applySubCampaignToState(chosenSub);
+            }
+          }
+        }
+      }).catch(() => {});
+    }
   };
 
   // Back to Portfolio
