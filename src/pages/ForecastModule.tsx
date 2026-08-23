@@ -735,7 +735,6 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
   // Growth Scenario Projection (Muhafazakar / Beklenen / Agresif)
   const [growthScenario, setGrowthScenario] = useState<GrowthScenario>('REALISTIC');
-  const [showScenarioTooltip, setShowScenarioTooltip] = useState<boolean>(false);
   const [isStep1Completed, setIsStep1Completed] = useState<boolean>(() => {
     try {
       const saved = localStorage.getItem('roasist_step_completion_last');
@@ -7454,13 +7453,13 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           {subCampaigns.length > 0 && activeSubCampaignId !== null && (currentStep === 3 || !isGoogleSearchActive) && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
               
-              {/* Step 2 Quick Context & Strategic Growth Scenario Selector Bar */}
+              {/* Step 2 Quick Context & Action Bar */}
               <div className="card" style={{ padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', backgroundColor: 'var(--bg-surface)' }}>
                 
                 {/* Left: Summary Meta */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', flex: 1, minWidth: '280px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    <span style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                       {activeChannelTab === 'OMNICHANNEL' && '360° Medya Karması & Konsolide Büyüme Simülatörü'}
                       {activeChannelTab === 'GOOGLE_SEARCH' && 'Google Search (Arama Ağı) Performans Projeksiyonu'}
                       {activeChannelTab === 'META_ADS' && 'Meta Ads (Facebook & Instagram) Performans Projeksiyonu'}
@@ -7479,205 +7478,107 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       {activeChannelTab === 'NEGATIVES' && '🛡️ Negatif Koruma'}
                     </span>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '0.78rem', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.78rem', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
                     <button
                       type="button"
                       onClick={() => setIsLanguageModalOpen(true)}
                       className="btn-ghost"
-                      style={{ padding: '1px 6px', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-primary)', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
+                      style={{ padding: '2px 8px', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-primary)', display: 'inline-flex', alignItems: 'center', gap: '4px', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-default)' }}
                       title="Hedef Reklam Dili Seçin / Değiştirin"
                     >
                       <Languages size={13} color="var(--brand-primary)" />
                       <span>Dil: <strong style={{ color: 'var(--brand-primary)' }}>{effectiveLanguage.flag} {effectiveLanguage.name}</strong></span>
                     </button>
-                    <span>•</span>
+
                     <button
                       type="button"
                       onClick={() => setIsBudgetAllocationModalOpen(true)}
                       className="btn-ghost"
-                      style={{ padding: '1px 6px', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-primary)', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
+                      style={{ padding: '2px 8px', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-primary)', display: 'inline-flex', alignItems: 'center', gap: '4px', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-default)' }}
                       title="Hiyerarşik Çatı Bütçe Dağılımını Stüdyoda Yönet"
                     >
                       <PieChart size={13} color="var(--brand-primary)" />
                       <span>Aylık Bütçe: <strong style={{ color: 'var(--brand-primary)' }}>₺{((activeSubCampaign?.monthlyBudget !== undefined && activeSubCampaign.monthlyBudget !== null) ? activeSubCampaign.monthlyBudget : (totalMasterMonthlyBudget || monthlyBudget)).toLocaleString('tr-TR')}</strong> <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>(₺{Math.round(((activeSubCampaign?.monthlyBudget !== undefined && activeSubCampaign.monthlyBudget !== null) ? activeSubCampaign.monthlyBudget : (totalMasterMonthlyBudget || monthlyBudget)) / 30.4).toLocaleString('tr-TR')}/gün)</span></span>
                     </button>
-                    <span>•</span>
+
                     <button
                       type="button"
                       onClick={() => setIsLocationModalOpen(true)}
                       className="btn-ghost"
-                      style={{ padding: '1px 6px', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-primary)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                      title="Hedef Coğrafi Lokasyonları Yönet & Değiştir"
+                      style={{ padding: '2px 8px', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-primary)', display: 'inline-flex', alignItems: 'center', gap: '4px', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-default)', maxWidth: '100%' }}
+                      title={selectedLocationsGrouped.map(l => (l.flag || '📍') + ' ' + (l.canonicalName || l.name)).join(', ')}
                     >
                       <Globe size={13} color="var(--brand-primary)" />
-                      <span>Hedef Bölgeler: <strong style={{ color: 'var(--brand-primary)' }}>{selectedLocationsGrouped.map(l => (l.flag || '📍') + ' ' + (l.canonicalName || l.name)).join(', ')}</strong></span>
+                      <span>Hedef Bölgeler: <strong style={{ color: 'var(--brand-primary)' }}>{selectedLocationsGrouped.length > 3 ? `${selectedLocationsGrouped.slice(0, 3).map(l => (l.flag || '📍') + ' ' + (l.canonicalName || l.name)).join(', ')} +${selectedLocationsGrouped.length - 3} bölge` : selectedLocationsGrouped.map(l => (l.flag || '📍') + ' ' + (l.canonicalName || l.name)).join(', ')}</strong></span>
                     </button>
                   </div>
                 </div>
 
-                {/* Right: Strategic Growth Scenario 3-Toggle Buttons */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                  <div 
-                    style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}
-                    onMouseEnter={() => setShowScenarioTooltip(true)}
-                    onMouseLeave={() => setShowScenarioTooltip(false)}
+                {/* Right: Actions (PDF, CSV, Save) */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={() => handleExportSubCampaignPdf()}
+                    className="btn-ghost"
+                    style={{ 
+                      fontSize: '0.78rem', 
+                      padding: '0.4rem 0.65rem', 
+                      display: 'inline-flex', 
+                      alignItems: 'center', 
+                      gap: '0.35rem', 
+                      fontWeight: 600,
+                      color: 'var(--brand-primary)',
+                      border: '1px solid var(--border-default)',
+                      borderRadius: 'var(--radius-xs)',
+                      backgroundColor: 'var(--bg-surface-elevated)'
+                    }}
+                    title="PDF Raporu İndir"
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer' }}>
-                      <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-                        🎯 Büyüme Senaryosu:
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => setShowScenarioTooltip(prev => !prev)}
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          width: '18px',
-                          height: '18px',
-                          borderRadius: '50%',
-                          border: 'none',
-                          backgroundColor: 'rgba(37, 99, 235, 0.12)',
-                          color: 'var(--brand-primary)',
-                          cursor: 'pointer',
-                          padding: 0
-                        }}
-                        title="Büyüme Senaryosu Bilgi"
-                      >
-                        <Info size={11} />
-                      </button>
-                    </div>
+                    <FileText size={13} />
+                    <span>PDF</span>
+                  </button>
 
-                    {showScenarioTooltip && (
-                      <div style={{
-                        position: 'absolute',
-                        top: 'calc(100% + 8px)',
-                        right: '-20px',
-                        width: '340px',
-                        padding: '0.9rem 1rem',
-                        backgroundColor: 'var(--bg-surface)',
-                        border: '1px solid var(--border-default)',
-                        borderRadius: 'var(--radius-sm)',
-                        boxShadow: '0 12px 28px -4px rgba(0, 0, 0, 0.25), 0 8px 12px -6px rgba(0, 0, 0, 0.15)',
-                        zIndex: 200,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '0.55rem',
-                        fontSize: '0.75rem',
-                        lineHeight: 1.45,
-                        color: 'var(--text-secondary)'
-                      }}>
-                        <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span>🎯</span> Büyüme Senaryosu Projeksiyon Modeli
-                        </div>
-                        <div style={{ fontSize: '0.74rem' }}>
-                          Pazar rekabeti, risk toleransı ve açılış sayfası performansına göre tüm kanallardaki <strong>TBM maliyetlerini</strong> ve <strong>dönüşüm oranlarını</strong> dinamik olarak çarpar:
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                          <div style={{ padding: '0.4rem 0.55rem', backgroundColor: 'rgba(100, 116, 139, 0.08)', borderRadius: 'var(--radius-xs)', borderLeft: '3px solid #64748b' }}>
-                            <strong style={{ color: 'var(--text-primary)' }}>🛡️ Muhafazakar:</strong> Maliyetler +%15 artırılır, dönüşüm oranları -%15 temkinli tutulur. <em>(Taban / En Kötü Durum Projeksiyonu)</em>
-                          </div>
-                          <div style={{ padding: '0.4rem 0.55rem', backgroundColor: 'rgba(37, 99, 235, 0.08)', borderRadius: 'var(--radius-xs)', borderLeft: '3px solid var(--brand-primary)' }}>
-                            <strong style={{ color: 'var(--text-primary)' }}>⚖️ Beklenen:</strong> Google Ads pazar medyanı ve sektörün baz metrikleri (1.0x) kullanılır. <em>(Standart Pazar Projeksiyonu)</em>
-                          </div>
-                          <div style={{ padding: '0.4rem 0.55rem', backgroundColor: 'rgba(16, 185, 129, 0.08)', borderRadius: 'var(--radius-xs)', borderLeft: '3px solid #10b981' }}>
-                            <strong style={{ color: 'var(--text-primary)' }}>🚀 Agresif:</strong> Yüksek reklam alaka düzeyi & optimize açılış sayfası varsayılır; dönüşüm +%20, nitelikli lead +%15 artırılır. <em>(Büyüme & Ölçeklenme Projeksiyonu)</em>
-                          </div>
-                        </div>
-                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', borderTop: '1px solid var(--border-default)', paddingTop: '0.45rem' }}>
-                          💡 <em>Google Ads'in TBM verisi veremediği niş kelimeler de dahil olmak üzere seçili pazar rayici bu senaryo çarpanıyla modellenir.</em>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  
-                  {[
-                    { id: 'CONSERVATIVE', label: '🛡️ Muhafazakar', desc: 'Temkinli Projeksiyon (-15% CR, +15% Maliyet)', color: '#64748b' },
-                    { id: 'REALISTIC', label: '⚖️ Beklenen', desc: 'Sektör & Pazar Medyanı (1.0x)', color: 'var(--brand-primary)' },
-                    { id: 'AGGRESSIVE', label: '🚀 Agresif', desc: 'Optimizasyon & Ölçeklenme (+20% CR, +15% Nitelikli Lead)', color: '#10b981' }
-                  ].map(sc => (
-                    <button
-                      key={sc.id}
-                      type="button"
-                      onClick={() => setGrowthScenario(sc.id as GrowthScenario)}
-                      title={sc.desc}
-                      style={{
-                        padding: '0.45rem 0.85rem',
-                        fontSize: '0.8rem',
-                        borderRadius: 'var(--radius-xs)',
-                        border: growthScenario === sc.id ? `1.5px solid ${sc.color}` : '1px solid var(--border-default)',
-                        backgroundColor: growthScenario === sc.id ? (sc.id === 'CONSERVATIVE' ? 'rgba(100, 116, 139, 0.15)' : (sc.id === 'AGGRESSIVE' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(37, 99, 235, 0.15)')) : 'var(--bg-surface-elevated)',
-                        color: growthScenario === sc.id ? (sc.id === 'CONSERVATIVE' ? '#475569' : (sc.id === 'AGGRESSIVE' ? '#10b981' : 'var(--brand-primary)')) : 'var(--text-secondary)',
-                        fontWeight: growthScenario === sc.id ? 700 : 500,
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease',
-                        boxShadow: growthScenario === sc.id ? `0 0 0 1px ${sc.color}` : 'none'
-                      }}
-                    >
-                      {sc.label}
-                    </button>
-                  ))}
+                  <button
+                    type="button"
+                    onClick={() => handleExportSubCampaignCsv()}
+                    className="btn-ghost"
+                    style={{ 
+                      fontSize: '0.78rem', 
+                      padding: '0.4rem 0.65rem', 
+                      display: 'inline-flex', 
+                      alignItems: 'center', 
+                      gap: '0.35rem', 
+                      fontWeight: 600,
+                      color: 'var(--text-secondary)',
+                      border: '1px solid var(--border-default)',
+                      borderRadius: 'var(--radius-xs)',
+                      backgroundColor: 'var(--bg-surface-elevated)'
+                    }}
+                    title="CSV Raporu İndir"
+                  >
+                    <Download size={13} />
+                    <span>CSV</span>
+                  </button>
 
-                  <div style={{ display: 'flex', gap: '0.45rem', marginLeft: '0.5rem', alignItems: 'center' }}>
-
-
-                    <button
-                      type="button"
-                      onClick={() => handleExportSubCampaignPdf()}
-                      className="btn-ghost"
-                      style={{ 
-                        fontSize: '0.75rem', 
-                        padding: '0.35rem 0.55rem', 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        gap: '0.3rem', 
-                        fontWeight: 600,
-                        color: 'var(--brand-primary)'
-                      }}
-                      title="PDF Raporu Özelleştir & Aç"
-                    >
-                      <FileText size={13} />
-                      <span>PDF</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => handleExportSubCampaignCsv()}
-                      className="btn-ghost"
-                      style={{ 
-                        fontSize: '0.75rem', 
-                        padding: '0.35rem 0.55rem', 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        gap: '0.3rem', 
-                        fontWeight: 600,
-                        color: 'var(--text-secondary)'
-                      }}
-                      title="CSV Raporu Özelleştir & İndir"
-                    >
-                      <Download size={13} />
-                      <span>CSV</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={handleSavePlan}
-                      disabled={isSavingPlan}
-                      className="btn-primary"
-                      style={{ 
-                        fontSize: '0.75rem', 
-                        padding: '0.35rem 0.75rem', 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        gap: '0.35rem', 
-                        fontWeight: 600,
-                        backgroundColor: isSavingPlan ? '#f59e0b' : ((planSaveSuccess || isStep3Completed) ? '#10b981' : undefined)
-                      }}
-                    >
-                      {isSavingPlan ? <Loader2 size={13} className="animate-spin" /> : ((planSaveSuccess || isStep3Completed) ? <Check size={13} /> : <Save size={13} />)}
-                      <span>{isSavingPlan ? 'Kaydediliyor...' : (planSaveSuccess ? 'Alt Kampanya Kaydedildi!' : (isStep3Completed ? 'Alt Kampanya Kayıtlı' : 'Alt Kampanyayı Kaydet'))}</span>
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={handleSavePlan}
+                    disabled={isSavingPlan}
+                    className="btn-primary"
+                    style={{ 
+                      fontSize: '0.78rem', 
+                      padding: '0.4rem 0.75rem', 
+                      display: 'inline-flex', 
+                      alignItems: 'center', 
+                      gap: '0.35rem', 
+                      fontWeight: 600,
+                      backgroundColor: isSavingPlan ? '#f59e0b' : ((planSaveSuccess || isStep3Completed) ? '#10b981' : undefined)
+                    }}
+                  >
+                    {isSavingPlan ? <Loader2 size={13} className="animate-spin" /> : ((planSaveSuccess || isStep3Completed) ? <Check size={13} /> : <Save size={13} />)}
+                    <span>{isSavingPlan ? 'Kaydediliyor...' : (planSaveSuccess ? 'Alt Kampanya Kaydedildi!' : (isStep3Completed ? 'Alt Kampanya Kayıtlı' : 'Alt Kampanyayı Kaydet'))}</span>
+                  </button>
                 </div>
 
               </div>
