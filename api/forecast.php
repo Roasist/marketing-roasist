@@ -3973,14 +3973,16 @@ if ($action === 'plans') {
         // List all plans for portfolio overview
         if (!empty($workspaceId)) {
             $stmt = $pdo->prepare("
-                SELECT * FROM forecast_plans 
+                SELECT id, workspace_id, name, client_name, start_date, end_date, period, tags, target_url, seed_keywords, monthly_budget, plan_data, created_at 
+                FROM forecast_plans 
                 WHERE workspace_id = ? OR workspace_id IS NULL OR workspace_id = ''
                 ORDER BY id DESC
             ");
             $stmt->execute([$workspaceId]);
         } else {
             $stmt = $pdo->query("
-                SELECT * FROM forecast_plans 
+                SELECT id, workspace_id, name, client_name, start_date, end_date, period, tags, target_url, seed_keywords, monthly_budget, plan_data, created_at 
+                FROM forecast_plans 
                 ORDER BY id DESC
             ");
         }

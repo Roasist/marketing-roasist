@@ -1096,7 +1096,16 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     } catch (e) {}
     return [];
   });
-  const [isLoadingSavedPlans, setIsLoadingSavedPlans] = useState<boolean>(true);
+  const [isLoadingSavedPlans, setIsLoadingSavedPlans] = useState<boolean>(() => {
+    try {
+      const cached = localStorage.getItem('roasist_saved_plans_cache');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return false;
+      }
+    } catch (e) {}
+    return true;
+  });
   const [isSavingPlan, setIsSavingPlan] = useState<boolean>(false);
   const [planSaveSuccess, setPlanSaveSuccess] = useState(false);
 
@@ -1767,7 +1776,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
   // Load Saved Plans on Workspace change
   const loadSavedPlans = async () => {
-    setIsLoadingSavedPlans(true);
+    if (savedPlans.length === 0) {
+      setIsLoadingSavedPlans(true);
+    }
     try {
       const plans = await ApiService.getForecastPlans(workspaceId);
       const finalPlans = plans || [];
