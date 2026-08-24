@@ -116,19 +116,16 @@ export const groupKeywordsSemantically = (
       }
 
       if (hasRealGoogleCpc) {
-        // REAL GOOGLE ADS DATA: Scale base bids by currency multiplier and intent multiplier
-        const scaledLow = Math.round(rawLow * currMult * intentMultiplier * 100) / 100;
-        const scaledHigh = Math.round(rawHigh * currMult * intentMultiplier * 100) / 100;
-
+        // REAL GOOGLE ADS DATA: Use 100% official raw Google Ads auction bids directly without artificial markup
         return {
           ...k,
           rawLowCpc: rawLow,
           rawHighCpc: rawHigh,
-          lowCpc: scaledLow,
-          highCpc: scaledHigh,
+          lowCpc: Math.round(rawLow * 100) / 100,
+          highCpc: Math.round(rawHigh * 100) / 100,
           isCpcEstimated: false,
           cpcEstimationCluster: undefined,
-          cpcEstimationMultiplier: intentMultiplier,
+          cpcEstimationMultiplier: 1.0,
           isAiStrategistPick: Boolean(k.isAiStrategistPick)
         };
       }
