@@ -3128,7 +3128,7 @@ if ($action === 'location_breakdown' && $method === 'POST') {
     $firstKws = is_array($keywords) && !empty($keywords) ? implode('|', array_slice(array_map(function($k) {
         return is_array($k) ? ($k['keyword'] ?? '') : (string)$k;
     }, $keywords), 0, 10)) : '';
-    $cacheKey = md5("loc_breakdown_v2_{$mode}_{$query}_{$language}_" . implode('_', (array)$geoTargetConstants) . "_{$kwCount}_{$firstKws}");
+    $cacheKey = md5("loc_breakdown_v50_{$mode}_{$query}_{$language}_" . implode('_', (array)$geoTargetConstants) . "_{$kwCount}_{$firstKws}");
 
     $bypassCache = !empty($input['bypassCache']);
 
@@ -3139,13 +3139,15 @@ if ($action === 'location_breakdown' && $method === 'POST') {
 
     if (!$bypassCache && $cached && (time() - strtotime($cached['created_at']) < 86400)) { // 24-hour cache
         $cachedData = json_decode($cached['data'], true);
-        echo json_encode([
-            'status' => 'success',
-            'source' => 'cache',
-            'locationBreakdown' => $cachedData['locationBreakdown'] ?? [],
-            'keywordGeoMap' => $cachedData['keywordGeoMap'] ?? []
-        ], JSON_UNESCAPED_UNICODE);
-        exit;
+        if (!empty($cachedData['locationBreakdown']) || !empty($cachedData['keywordGeoMap'])) {
+            echo json_encode([
+                'status' => 'success',
+                'source' => 'cache',
+                'locationBreakdown' => $cachedData['locationBreakdown'] ?? [],
+                'keywordGeoMap' => $cachedData['keywordGeoMap'] ?? []
+            ], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
     }
 
     $locationsMeta = $input['locations'] ?? [];
@@ -3200,7 +3202,7 @@ if ($action === 'discover' && $method === 'POST') {
     $includeSuggestions = isset($input['includeSuggestions']) ? (bool)$input['includeSuggestions'] : true;
     $clientSeeds = !empty($input['seedKeywords']) && is_array($input['seedKeywords']) ? $input['seedKeywords'] : [];
 
-    $cacheKey = md5("forecast_v45_{$mode}_{$query}_" . ($includeSuggestions ? 'sug_1_' : 'sug_0_') . ($requestedLanguage ?: 'auto') . '_' . ($requestedCountryCode ?: 'auto') . '_' . implode('_', (array)$requestedGeoTargetConstants));
+    $cacheKey = md5("forecast_v50_{$mode}_{$query}_" . ($includeSuggestions ? 'sug_1_' : 'sug_0_') . ($requestedLanguage ?: 'auto') . '_' . ($requestedCountryCode ?: 'auto') . '_' . implode('_', (array)$requestedGeoTargetConstants));
 
     // 1. Check Server-Side Cache
     $stmtCache = $pdo->prepare("SELECT data, created_at FROM keyword_cache WHERE cache_key = ?");
@@ -3211,12 +3213,14 @@ if ($action === 'discover' && $method === 'POST') {
 
     if (!$bypassCache && $cached && (time() - strtotime($cached['created_at']) < 86400)) { // 24-hour cache
         $cachedData = json_decode($cached['data'], true);
-        echo json_encode([
-            'status' => 'success',
-            'source' => 'cache',
-            'data' => $cachedData
-        ]);
-        exit;
+        if (!empty($cachedData['keywords']) && count($cachedData['keywords']) >= 10) {
+            echo json_encode([
+                'status' => 'success',
+                'source' => 'cache',
+                'data' => $cachedData
+            ]);
+            exit;
+        }
     }
 
     $apiKeys = getApiKeys($pdo);

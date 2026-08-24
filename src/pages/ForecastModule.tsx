@@ -2013,7 +2013,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         }
 
         // Dynamic Multi-Channel CPM & CPV benchmarks based on Sector & Target Market
-        const isIntl = (res.detectedLanguage && res.detectedLanguage !== 'tr') || (res.suggestedCountries && res.suggestedCountries.some((c: any) => ['DE', 'GB', 'US', 'AE', 'SA', 'RU'].includes(c.code)));
+        const isIntl = (res.detectedLanguage && res.detectedLanguage !== 'tr') || (res.suggestedCountries && res.suggestedCountries.some((c: any) => ['DE', 'GB', 'US', 'AE', 'SA', 'RU', 'KZ', 'UZ', 'UA'].includes(c.code)));
         if (/emlak|gayrimenkul|citizenship|vatandaşlık|villa|property|real estate|klinik|health|saç ekim|hair transplant|estetik|hastane/.test(lowerContext)) {
           setMetaCpm(isIntl ? 320 : 120);
           setGdnCpm(isIntl ? 28 : 16);
@@ -2048,7 +2048,8 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
               language: locLangCode,
               geoTargetConstants: activeLocations.map((l: any) => l.id),
               keywords: res.keywords,
-              locations: activeLocations
+              locations: activeLocations,
+              bypassCache: true
             });
 
             if (breakdownRes) {
@@ -2162,9 +2163,6 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         } else {
           loadNegatives(res.sector || 'Genel', res.keywords.map((k: KeywordMetric) => k.keyword), res.detectedLanguage || 'tr', res.pageTitle, res.pageSummary);
         }
-
-        // Open the Location Audit Inspection Modal for user confirmation before entering Step 1
-        setShowLocationAuditModal(true);
       } else {
         setErrorMsg('Bu arama için anahtar kelime verisi üretilemedi.');
       }
