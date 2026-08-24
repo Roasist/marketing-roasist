@@ -1626,6 +1626,34 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
         }
     }
 
+    // Detect Cyrillic in URL or Seeds
+    $allSeedStr = implode(' ', array_map(function($k) {
+        return is_array($k) ? ($k['keyword'] ?? '') : (string)$k;
+    }, (array)$uniqueSeeds)) . ' ' . $url;
+
+    if ($normLangCode === 'auto' || empty($normLangCode) || $normLangCode === 'tr') {
+        if (preg_match('/[\x{0400}-\x{04FF}]/u', $allSeedStr) || preg_match('/(grazhdanstv|nedvizhim|kvartir|turtsiy|pasport|vnzh)/i', $allSeedStr)) {
+            $normLangCode = 'ru';
+            $langConst = 'languageConstants/1031';
+        }
+    }
+
+    if ($normLangCode === 'ru') {
+        $russianCore = [
+            'гражданство турции', 'гражданство турции за инвестиции', 'паспорт турции',
+            'внж в турции', 'купить квартиру в турции', 'недвижимость в турции',
+            'купить квартиру в аланье', 'квартира в аланье', 'турецкое гражданство',
+            'инвестиции в недвижимость турции', 'купить недвижимость в турции',
+            'внж в турции при покупке недвижимости', 'паспорт турции за инвестиции',
+            'купить квартиру в анталии', 'турецкий паспорт'
+        ];
+        foreach ($russianCore as $rc) {
+            if (!in_array($rc, $uniqueSeeds)) {
+                $uniqueSeeds[] = $rc;
+            }
+        }
+    }
+
     $effectiveLangConst = !empty($uniqueSeeds) ? detectLanguageConstantForKeywords($uniqueSeeds, $langConst) : $langConst;
 
     // Determine Country / Market Level Geo Targets for Seed Expansion
@@ -2992,24 +3020,41 @@ function generateSemanticKeywordsFallback($query, $pageDetails, $langCode) {
                 'sector' => 'Yatırımla Türk Vatandaşlığı & Gayrimenkul',
                 'pageSummary' => 'Türkiye/Alanya’da gayrimenkul yatırımı ile Türk vatandaşlığı edinme ve yüksek getirili mülk edindirme paketi.',
                 'keywords' => [
-                    ['keyword' => 'гражданство Турции за инвестиции', 'monthlyVolume' => 14800, 'lowCpc' => 8.50, 'highCpc' => 32.00, 'competition' => 'HIGH', 'competitionIndex' => 85, 'intent' => 'TRANSACTIONAL', 'trendChangePercent' => 25, 'opportunityScore' => 92],
-                    ['keyword' => 'турецкое гражданство при покупке недвижимости', 'monthlyVolume' => 12400, 'lowCpc' => 7.80, 'highCpc' => 29.50, 'competition' => 'HIGH', 'competitionIndex' => 82, 'intent' => 'TRANSACTIONAL', 'trendChangePercent' => 20, 'opportunityScore' => 89],
-                    ['keyword' => 'купить квартиру в Аланье для гражданства', 'monthlyVolume' => 9600, 'lowCpc' => 6.50, 'highCpc' => 24.00, 'competition' => 'HIGH', 'competitionIndex' => 78, 'intent' => 'TRANSACTIONAL', 'trendChangePercent' => 15, 'opportunityScore' => 88],
-                    ['keyword' => 'недвижимость в Турции паспорт', 'monthlyVolume' => 8200, 'lowCpc' => 5.90, 'highCpc' => 22.00, 'competition' => 'MEDIUM', 'competitionIndex' => 70, 'intent' => 'COMMERCIAL', 'trendChangePercent' => 18, 'opportunityScore' => 85],
-                    ['keyword' => 'получить паспорт Турции гражданину РФ', 'monthlyVolume' => 7500, 'lowCpc' => 6.20, 'highCpc' => 26.00, 'competition' => 'HIGH', 'competitionIndex' => 80, 'intent' => 'TRANSACTIONAL', 'trendChangePercent' => 30, 'opportunityScore' => 91],
-                    ['keyword' => 'пакет для гражданства 23 square', 'monthlyVolume' => 3400, 'lowCpc' => 4.50, 'highCpc' => 18.00, 'competition' => 'LOW', 'competitionIndex' => 45, 'intent' => 'TRANSACTIONAL', 'trendChangePercent' => 40, 'opportunityScore' => 95],
-                    ['keyword' => 'инвестиции в недвижимость Турции 2026', 'monthlyVolume' => 6800, 'lowCpc' => 5.40, 'highCpc' => 21.00, 'competition' => 'MEDIUM', 'competitionIndex' => 65, 'intent' => 'COMMERCIAL', 'trendChangePercent' => 12, 'opportunityScore' => 82],
-                    ['keyword' => 'квартиры от застройщика Аланья гражданство', 'monthlyVolume' => 5900, 'lowCpc' => 6.80, 'highCpc' => 25.50, 'competition' => 'HIGH', 'competitionIndex' => 76, 'intent' => 'TRANSACTIONAL', 'trendChangePercent' => 22, 'opportunityScore' => 87],
-                    ['keyword' => 'минимальная сумма для гражданства Турции', 'monthlyVolume' => 11200, 'lowCpc' => 4.20, 'highCpc' => 16.50, 'competition' => 'MEDIUM', 'competitionIndex' => 60, 'intent' => 'INFORMATIONAL', 'trendChangePercent' => 10, 'opportunityScore' => 80],
-                    ['keyword' => 'второе гражданство Турция недвижимость', 'monthlyVolume' => 5100, 'lowCpc' => 5.80, 'highCpc' => 23.00, 'competition' => 'HIGH', 'competitionIndex' => 74, 'intent' => 'TRANSACTIONAL', 'trendChangePercent' => 16, 'opportunityScore' => 84],
-                    ['keyword' => 'элитное жилье в Турции под паспорт', 'monthlyVolume' => 4200, 'lowCpc' => 7.20, 'highCpc' => 28.00, 'competition' => 'HIGH', 'competitionIndex' => 79, 'intent' => 'TRANSACTIONAL', 'trendChangePercent' => 19, 'opportunityScore' => 86],
-                    ['keyword' => 'оформление турецкого гражданства под ключ', 'monthlyVolume' => 3800, 'lowCpc' => 8.00, 'highCpc' => 31.00, 'competition' => 'HIGH', 'competitionIndex' => 83, 'intent' => 'TRANSACTIONAL', 'trendChangePercent' => 28, 'opportunityScore' => 90],
-                    ['keyword' => 'апартаменты в Аланье у моря', 'monthlyVolume' => 8900, 'lowCpc' => 5.10, 'highCpc' => 19.50, 'competition' => 'MEDIUM', 'competitionIndex' => 68, 'intent' => 'COMMERCIAL', 'trendChangePercent' => 14, 'opportunityScore' => 81],
-                    ['keyword' => 'доходная недвижимость в Турции', 'monthlyVolume' => 6400, 'lowCpc' => 5.60, 'highCpc' => 21.50, 'competition' => 'MEDIUM', 'competitionIndex' => 66, 'intent' => 'COMMERCIAL', 'trendChangePercent' => 15, 'opportunityScore' => 83],
-                    ['keyword' => 'купить виллу в Аланье гражданство', 'monthlyVolume' => 3200, 'lowCpc' => 7.90, 'highCpc' => 30.00, 'competition' => 'HIGH', 'competitionIndex' => 81, 'intent' => 'TRANSACTIONAL', 'trendChangePercent' => 21, 'opportunityScore' => 88],
-                    ['keyword' => 'программа гражданства Турции через недвижимость', 'monthlyVolume' => 7100, 'lowCpc' => 6.00, 'highCpc' => 24.50, 'competition' => 'HIGH', 'competitionIndex' => 77, 'intent' => 'TRANSACTIONAL', 'trendChangePercent' => 17, 'opportunityScore' => 86],
-                    ['keyword' => 'сроки получения турецкого паспорта при покупке жилья', 'monthlyVolume' => 4600, 'lowCpc' => 4.80, 'highCpc' => 17.50, 'competition' => 'MEDIUM', 'competitionIndex' => 58, 'intent' => 'INFORMATIONAL', 'trendChangePercent' => 11, 'opportunityScore' => 79],
-                    ['keyword' => 'надежный застройщик в Аланье Турция', 'monthlyVolume' => 3900, 'lowCpc' => 5.20, 'highCpc' => 20.00, 'competition' => 'MEDIUM', 'competitionIndex' => 62, 'intent' => 'COMMERCIAL', 'trendChangePercent' => 13, 'opportunityScore' => 82]
+                    ['keyword' => 'гражданство Турции за инвестиции', 'monthlyVolume' => 14800, 'lowCpc' => 8.50, 'highCpc' => 32.00, 'competition' => 'HIGH', 'competitionIndex' => 85, 'intent' => 'TRANSACTIONAL', 'trendChangePercent' => 25, 'opportunityScore' => 95],
+                    ['keyword' => 'турецкое гражданство при покупке недвижимости', 'monthlyVolume' => 12400, 'lowCpc' => 7.80, 'highCpc' => 29.50, 'competition' => 'HIGH', 'competitionIndex' => 82, 'intent' => 'TRANSACTIONAL', 'trendChangePercent' => 20, 'opportunityScore' => 93],
+                    ['keyword' => 'купить квартиру в Аланье для гражданства', 'monthlyVolume' => 9600, 'lowCpc' => 6.50, 'highCpc' => 24.00, 'competition' => 'HIGH', 'competitionIndex' => 78, 'intent' => 'TRANSACTIONAL', 'trendChangePercent' => 15, 'opportunityScore' => 92],
+                    ['keyword' => 'недвижимость в Турции паспорт', 'monthlyVolume' => 8200, 'lowCpc' => 5.90, 'highCpc' => 22.00, 'competition' => 'MEDIUM', 'competitionIndex' => 70, 'intent' => 'COMMERCIAL', 'trendChangePercent' => 18, 'opportunityScore' => 88],
+                    ['keyword' => 'получить паспорт Турции гражданину РФ', 'monthlyVolume' => 7500, 'lowCpc' => 6.20, 'highCpc' => 26.00, 'competition' => 'HIGH', 'competitionIndex' => 80, 'intent' => 'TRANSACTIONAL', 'trendChangePercent' => 30, 'opportunityScore' => 94],
+                    ['keyword' => 'пакет для гражданства 23 square', 'monthlyVolume' => 3400, 'lowCpc' => 4.50, 'highCpc' => 18.00, 'competition' => 'LOW', 'competitionIndex' => 45, 'intent' => 'TRANSACTIONAL', 'trendChangePercent' => 40, 'opportunityScore' => 96],
+                    ['keyword' => 'инвестиции в недвижимость Турции 2026', 'monthlyVolume' => 6800, 'lowCpc' => 5.40, 'highCpc' => 21.00, 'competition' => 'MEDIUM', 'competitionIndex' => 65, 'intent' => 'COMMERCIAL', 'trendChangePercent' => 12, 'opportunityScore' => 86],
+                    ['keyword' => 'квартиры от застройщика Аланья гражданство', 'monthlyVolume' => 5900, 'lowCpc' => 6.80, 'highCpc' => 25.50, 'competition' => 'HIGH', 'competitionIndex' => 76, 'intent' => 'TRANSACTIONAL', 'trendChangePercent' => 22, 'opportunityScore' => 91],
+                    ['keyword' => 'минимальная сумма для гражданства Турции', 'monthlyVolume' => 11200, 'lowCpc' => 4.20, 'highCpc' => 16.50, 'competition' => 'MEDIUM', 'competitionIndex' => 60, 'intent' => 'INFORMATIONAL', 'trendChangePercent' => 10, 'opportunityScore' => 84],
+                    ['keyword' => 'второе гражданство Турция недвижимость', 'monthlyVolume' => 5100, 'lowCpc' => 5.80, 'highCpc' => 23.00, 'competition' => 'HIGH', 'competitionIndex' => 74, 'intent' => 'TRANSACTIONAL', 'trendChangePercent' => 16, 'opportunityScore' => 89],
+                    ['keyword' => 'элитное жилье в Турции под паспорт', 'monthlyVolume' => 4200, 'lowCpc' => 7.20, 'highCpc' => 28.00, 'competition' => 'HIGH', 'competitionIndex' => 79, 'intent' => 'TRANSACTIONAL', 'trendChangePercent' => 19, 'opportunityScore' => 90],
+                    ['keyword' => 'оформление турецкого гражданства под ключ', 'monthlyVolume' => 3800, 'lowCpc' => 8.00, 'highCpc' => 31.00, 'competition' => 'HIGH', 'competitionIndex' => 83, 'intent' => 'TRANSACTIONAL', 'trendChangePercent' => 28, 'opportunityScore' => 92],
+                    ['keyword' => 'апартаменты в Аланье у моря', 'monthlyVolume' => 8900, 'lowCpc' => 5.10, 'highCpc' => 19.50, 'competition' => 'MEDIUM', 'competitionIndex' => 68, 'intent' => 'COMMERCIAL', 'trendChangePercent' => 14, 'opportunityScore' => 85],
+                    ['keyword' => 'доходная недвижимость в Турции', 'monthlyVolume' => 6400, 'lowCpc' => 5.60, 'highCpc' => 21.50, 'competition' => 'MEDIUM', 'competitionIndex' => 66, 'intent' => 'COMMERCIAL', 'trendChangePercent' => 15, 'opportunityScore' => 87],
+                    ['keyword' => 'купить виллу в Аланье гражданство', 'monthlyVolume' => 3200, 'lowCpc' => 7.90, 'highCpc' => 30.00, 'competition' => 'HIGH', 'competitionIndex' => 81, 'intent' => 'TRANSACTIONAL', 'trendChangePercent' => 21, 'opportunityScore' => 91],
+                    ['keyword' => 'программа гражданства Турции через недвижимость', 'monthlyVolume' => 7100, 'lowCpc' => 6.00, 'highCpc' => 24.50, 'competition' => 'HIGH', 'competitionIndex' => 77, 'intent' => 'TRANSACTIONAL', 'trendChangePercent' => 17, 'opportunityScore' => 89],
+                    ['keyword' => 'сроки получения турецкого паспорта при покупке жилья', 'monthlyVolume' => 4600, 'lowCpc' => 4.80, 'highCpc' => 17.50, 'competition' => 'MEDIUM', 'competitionIndex' => 58, 'intent' => 'INFORMATIONAL', 'trendChangePercent' => 11, 'opportunityScore' => 82],
+                    ['keyword' => 'надежный застройщик в Аланье Турция', 'monthlyVolume' => 3900, 'lowCpc' => 5.20, 'highCpc' => 20.00, 'competition' => 'MEDIUM', 'competitionIndex' => 62, 'intent' => 'COMMERCIAL', 'trendChangePercent' => 13, 'opportunityScore' => 86],
+                    ['keyword' => 'купить недвижимость в Аланье недорого', 'monthlyVolume' => 10500, 'lowCpc' => 4.80, 'highCpc' => 18.50, 'competition' => 'HIGH', 'competitionIndex' => 75, 'intent' => 'TRANSACTIONAL', 'trendChangePercent' => 16, 'opportunityScore' => 90],
+                    ['keyword' => 'турецкий паспорт за инвестиции 400000', 'monthlyVolume' => 6200, 'lowCpc' => 7.10, 'highCpc' => 27.00, 'competition' => 'HIGH', 'competitionIndex' => 84, 'intent' => 'TRANSACTIONAL', 'trendChangePercent' => 24, 'opportunityScore' => 93],
+                    ['keyword' => 'купить квартиру в Анталии у моря', 'monthlyVolume' => 11800, 'lowCpc' => 5.30, 'highCpc' => 21.00, 'competition' => 'HIGH', 'competitionIndex' => 79, 'intent' => 'TRANSACTIONAL', 'trendChangePercent' => 18, 'opportunityScore' => 91],
+                    ['keyword' => 'внж в Турции при покупке квартиры 2026', 'monthlyVolume' => 9400, 'lowCpc' => 4.60, 'highCpc' => 17.00, 'competition' => 'MEDIUM', 'competitionIndex' => 65, 'intent' => 'TRANSACTIONAL', 'trendChangePercent' => 26, 'opportunityScore' => 88],
+                    ['keyword' => 'инвестиции в апартаменты Турция доход', 'monthlyVolume' => 5400, 'lowCpc' => 6.20, 'highCpc' => 24.00, 'competition' => 'MEDIUM', 'competitionIndex' => 69, 'intent' => 'COMMERCIAL', 'trendChangePercent' => 14, 'opportunityScore' => 86],
+                    ['keyword' => 'пентхаус в Аланье с видом на море', 'monthlyVolume' => 3100, 'lowCpc' => 6.80, 'highCpc' => 26.50, 'competition' => 'HIGH', 'competitionIndex' => 76, 'intent' => 'COMMERCIAL', 'trendChangePercent' => 12, 'opportunityScore' => 85],
+                    ['keyword' => 'покупка недвижимости в Турции пошагово', 'monthlyVolume' => 4800, 'lowCpc' => 3.90, 'highCpc' => 15.00, 'competition' => 'LOW', 'competitionIndex' => 50, 'intent' => 'INFORMATIONAL', 'trendChangePercent' => 10, 'opportunityScore' => 80],
+                    ['keyword' => 'налоги при покупке недвижимости в Турции', 'monthlyVolume' => 5600, 'lowCpc' => 4.10, 'highCpc' => 16.00, 'competition' => 'LOW', 'competitionIndex' => 52, 'intent' => 'INFORMATIONAL', 'trendChangePercent' => 12, 'opportunityScore' => 81],
+                    ['keyword' => 'жилые комплексы в Аланье с инфраструктурой', 'monthlyVolume' => 4700, 'lowCpc' => 5.50, 'highCpc' => 22.00, 'competition' => 'MEDIUM', 'competitionIndex' => 67, 'intent' => 'COMMERCIAL', 'trendChangePercent' => 19, 'opportunityScore' => 87],
+                    ['keyword' => 'купить таунхаус в Турции гражданство', 'monthlyVolume' => 2800, 'lowCpc' => 7.40, 'highCpc' => 29.00, 'competition' => 'HIGH', 'competitionIndex' => 80, 'intent' => 'TRANSACTIONAL', 'trendChangePercent' => 15, 'opportunityScore' => 89],
+                    ['keyword' => 'открытие счета в Турции для покупки жилья', 'monthlyVolume' => 3600, 'lowCpc' => 4.40, 'highCpc' => 16.50, 'competition' => 'LOW', 'competitionIndex' => 48, 'intent' => 'INFORMATIONAL', 'trendChangePercent' => 18, 'opportunityScore' => 83],
+                    ['keyword' => 'недвижимость в Стамбуле под гражданство', 'monthlyVolume' => 7800, 'lowCpc' => 8.20, 'highCpc' => 33.00, 'competition' => 'HIGH', 'competitionIndex' => 87, 'intent' => 'TRANSACTIONAL', 'trendChangePercent' => 22, 'opportunityScore' => 92],
+                    ['keyword' => 'проверенное агентство недвижимости в Аланье', 'monthlyVolume' => 3300, 'lowCpc' => 6.10, 'highCpc' => 23.50, 'competition' => 'MEDIUM', 'competitionIndex' => 64, 'intent' => 'COMMERCIAL', 'trendChangePercent' => 14, 'opportunityScore' => 86],
+                    ['keyword' => 'новостройки в Аланье рассрочка 0%', 'monthlyVolume' => 6700, 'lowCpc' => 5.70, 'highCpc' => 22.50, 'competition' => 'HIGH', 'competitionIndex' => 78, 'intent' => 'TRANSACTIONAL', 'trendChangePercent' => 20, 'opportunityScore' => 90],
+                    ['keyword' => 'экспертиза недвижимости в Турции экспертиз рапор', 'monthlyVolume' => 2900, 'lowCpc' => 4.30, 'highCpc' => 16.00, 'competition' => 'LOW', 'competitionIndex' => 46, 'intent' => 'INFORMATIONAL', 'trendChangePercent' => 10, 'opportunityScore' => 81],
+                    ['keyword' => 'купить 1+1 в Аланье для сдачи в аренду', 'monthlyVolume' => 8400, 'lowCpc' => 5.00, 'highCpc' => 19.00, 'competition' => 'HIGH', 'competitionIndex' => 74, 'intent' => 'TRANSACTIONAL', 'trendChangePercent' => 17, 'opportunityScore' => 89],
+                    ['keyword' => 'гражданство Турции для всей семьи за инвестиции', 'monthlyVolume' => 4900, 'lowCpc' => 7.80, 'highCpc' => 30.50, 'competition' => 'HIGH', 'competitionIndex' => 83, 'intent' => 'TRANSACTIONAL', 'trendChangePercent' => 25, 'opportunityScore' => 93]
                 ]
             ];
         }
