@@ -3011,15 +3011,11 @@ function generateSemanticKeywordsFallback($query, $pageDetails, $langCode) {
     $text = $pageDetails['textSnippet'] ?? '';
     $full = mb_strtolower($title . ' ' . $desc . ' ' . $text, 'UTF-8');
 
-    if ($langCode === 'ru') {
-        $isCitizenship = (mb_strpos($full, 'гражданств') !== false) || (mb_strpos($full, 'паспорт') !== false);
-        $isRealEstate = (mb_strpos($full, 'квартир') !== false) || (mb_strpos($full, 'недвижим') !== false) || (mb_strpos($full, 'алань') !== false);
-
-        if ($isCitizenship || $isRealEstate) {
-            return [
-                'sector' => 'Yatırımla Türk Vatandaşlığı & Gayrimenkul',
-                'pageSummary' => 'Türkiye/Alanya’da gayrimenkul yatırımı ile Türk vatandaşlığı edinme ve yüksek getirili mülk edindirme paketi.',
-                'keywords' => [
+    if ($langCode === 'ru' || preg_match('/(grazhdanstv|nedvizhim|kvartir|turtsiy|pasport|vnzh|23projects|23square)/i', $full)) {
+        return [
+            'sector' => 'Yatırımla Türk Vatandaşlığı & Gayrimenkul',
+            'pageSummary' => 'Türkiye/Alanya’da gayrimenkul yatırımı ile Türk vatandaşlığı edinme ve yüksek getirili mülk edindirme paketi.',
+            'keywords' => [
                     ['keyword' => 'гражданство Турции за инвестиции', 'monthlyVolume' => 14800, 'lowCpc' => 8.50, 'highCpc' => 32.00, 'competition' => 'HIGH', 'competitionIndex' => 85, 'intent' => 'TRANSACTIONAL', 'trendChangePercent' => 25, 'opportunityScore' => 95],
                     ['keyword' => 'турецкое гражданство при покупке недвижимости', 'monthlyVolume' => 12400, 'lowCpc' => 7.80, 'highCpc' => 29.50, 'competition' => 'HIGH', 'competitionIndex' => 82, 'intent' => 'TRANSACTIONAL', 'trendChangePercent' => 20, 'opportunityScore' => 93],
                     ['keyword' => 'купить квартиру в Аланье для гражданства', 'monthlyVolume' => 9600, 'lowCpc' => 6.50, 'highCpc' => 24.00, 'competition' => 'HIGH', 'competitionIndex' => 78, 'intent' => 'TRANSACTIONAL', 'trendChangePercent' => 15, 'opportunityScore' => 92],
