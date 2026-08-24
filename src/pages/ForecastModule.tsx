@@ -628,7 +628,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
             hasMatchingGeo = true;
           }
         }
-        if (hasMatchingGeo) {
+        if (hasMatchingGeo && sumGeo > 0) {
           return {
             ...k,
             monthlyVolume: sumGeo
@@ -2032,22 +2032,25 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           setYoutubeCpv(0.35);
         }
 
-        // Auto-select all keywords by default
-        const allIds = new Set<string>(res.keywords.map((k: KeywordMetric) => k.id));
-        setSelectedKeywordIds(allIds);
+        // Sanitize and ensure every keyword has a valid unique ID
+        const initialCleanKws: KeywordMetric[] = (res.keywords || []).map((k: any, idx: number) => ({
+          ...k,
+          id: k.id || `kw_${idx + 1}_${Math.random().toString(36).substring(2, 8)}`,
+          monthlyVolume: Number(k.monthlyVolume) || 0
+        }));
 
         // Fetch per-location breakdown for all target locations BEFORE revealing Step 1
-        let finalKeywords: KeywordMetric[] = res.keywords;
+        let finalKeywords: KeywordMetric[] = initialCleanKws;
         if (activeLocations.length >= 2) {
           setLoadingStage(3); // Stage 4: Bölgesel Veriler (%85)
           try {
             const locLangCode = res.detectedLanguage || 'tr';
             const breakdownRes = await ApiService.getLocationBreakdown({
-              query: m === 'URL' ? q.trim() : res.keywords.map((k: any) => k.keyword).join(', '),
+              query: m === 'URL' ? q.trim() : initialCleanKws.map((k: any) => k.keyword).join(', '),
               mode: m,
               language: locLangCode,
               geoTargetConstants: activeLocations.map((l: any) => l.id),
-              keywords: res.keywords,
+              keywords: initialCleanKws,
               locations: activeLocations,
               bypassCache: true
             });
@@ -2057,7 +2060,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                 setOfficialLocationBreakdown(breakdownRes.breakdown);
               }
               if (breakdownRes.keywordGeoMap && Object.keys(breakdownRes.keywordGeoMap).length > 0) {
-                finalKeywords = res.keywords.map((k: any) => {
+                finalKeywords = initialCleanKws.map((k: any) => {
                   const kRaw = String(k.keyword || '');
                   const kNorm1 = kRaw.toLowerCase().trim();
                   const kNorm2 = kRaw.toLowerCase().replace(/\s+/g, ' ').trim();
@@ -2084,7 +2087,16 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           }
         }
 
-        setKeywords(finalKeywords);
+        const safeFinalKeywords = finalKeywords.map((k: any, idx: number) => ({
+          ...k,
+          id: k.id || `kw_${idx + 1}_${Math.random().toString(36).substring(2, 8)}`,
+          monthlyVolume: Number(k.monthlyVolume) || 0
+        }));
+
+        setKeywords(safeFinalKeywords);
+        const allIds = new Set<string>(safeFinalKeywords.map((k: KeywordMetric) => k.id));
+        setSelectedKeywordIds(allIds);
+
         setIsStep1Completed(true);
         setIsStep2Completed(false);
         setIsStep3Completed(false);

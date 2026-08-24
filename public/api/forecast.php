@@ -3468,6 +3468,18 @@ if ($action === 'discover' && $method === 'POST') {
         return $volB - $volA;
     });
 
+    // Guarantee every single keyword has a valid unique ID and numerical fields
+    foreach ($officialKeywords as $idx => &$ok) {
+        if (empty($ok['id'])) {
+            $ok['id'] = 'ads_kw_' . ($idx + 1) . '_' . substr(md5($ok['keyword'] ?? (string)$idx), 0, 8);
+        }
+        $ok['monthlyVolume'] = (int)($ok['monthlyVolume'] ?? 0);
+        $ok['lowCpc'] = (float)($ok['lowCpc'] ?? 0.0);
+        $ok['highCpc'] = (float)($ok['highCpc'] ?? 0.0);
+        $ok['cpc'] = (float)($ok['cpc'] ?? (($ok['lowCpc'] + $ok['highCpc']) / 2));
+    }
+    unset($ok);
+
     // Calculate 100% official Location Breakdown
     $requestedLocations = $input['locations'] ?? [];
     $locationBreakdown = [];
