@@ -2175,6 +2175,82 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         } else {
           loadNegatives(res.sector || 'Genel', res.keywords.map((k: KeywordMetric) => k.keyword), res.detectedLanguage || 'tr', res.pageTitle, res.pageSummary);
         }
+
+        // Guaranteed Sub-Campaign Persistence & Isolation
+        const currentSubId = activeSubCampaignId || `sub_${Date.now()}`;
+        if (!activeSubCampaignId) {
+          setActiveSubCampaignId(currentSubId);
+        }
+
+        setSubCampaigns((prevSubs) => {
+          const defaultSubName = res.pageTitle 
+            ? `${langName} - ${res.pageTitle.slice(0, 30)}` 
+            : `Search Kampanyası (${langName})`;
+
+          if (prevSubs.length > 0) {
+            return prevSubs.map((c) => {
+              if (c.id === (activeSubCampaignId || currentSubId)) {
+                return {
+                  ...c,
+                  name: c.name && !c.name.startsWith('Google Kampanya') ? c.name : defaultSubName,
+                  languageCode: langCode,
+                  languageName: langName,
+                  languageFlag: langObj?.flag || c.languageFlag || '🌐',
+                  targetLocations: activeLocations,
+                  discoveredKeywords: safeFinalKeywords,
+                  selectedKeywords: safeFinalKeywords,
+                  targetUrl: m === 'URL' ? q.trim() : '',
+                  seedKeywords: m === 'KEYWORDS' ? q.trim() : '',
+                  isStep1Completed: true
+                };
+              }
+              return c;
+            });
+          }
+
+          return [{
+            id: currentSubId,
+            name: defaultSubName,
+            platform: 'GOOGLE' as const,
+            objective: 'GOOGLE_SEARCH' as const,
+            languageCode: langCode,
+            languageName: langName,
+            languageFlag: langObj?.flag || '🌐',
+            targetLocations: activeLocations,
+            monthlyBudget: (monthlyBudget && monthlyBudget > 0) ? monthlyBudget : 35000,
+            selectedKeywords: safeFinalKeywords,
+            discoveredKeywords: safeFinalKeywords,
+            negativeCategories: res.negativeCategories || [],
+            businessModel: 'LEAD_GEN' as const,
+            isStep1Completed: true,
+            isStep2Completed: true,
+            isStep3Completed: true,
+            parameters: {
+              targetImpressionShare: 70,
+              expectedCtr: 7.5,
+              searchLeadCr: 3.5,
+              searchHealthyLeadRate: 50,
+              searchCloseRate: 10,
+              metaCpm: 75,
+              metaCtr: 1.6,
+              metaLeadCr: 4.5,
+              metaHealthyLeadRate: 50,
+              metaCloseRate: 15,
+              youtubeCpv: 0.45,
+              youtubeVtr: 32,
+              youtubeActionRate: 1.2,
+              gdnCpm: 18,
+              gdnCtr: 0.60,
+              gdnAssistedCr: 1.2,
+              demandGenCpm: 45,
+              demandGenCtr: 1.8,
+              demandGenVtr: 38,
+              demandGenLeadCr: 3.5,
+              demandGenHealthyLeadRate: 50,
+              demandGenCloseRate: 12
+            }
+          }];
+        });
       } else {
         setErrorMsg('Bu arama için anahtar kelime verisi üretilemedi.');
       }
