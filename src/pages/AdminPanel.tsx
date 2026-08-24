@@ -141,42 +141,43 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const loadSettings = async () => {
     try {
       const res = await ApiService.getSettings();
-      if (res && res.settings) {
-        if (res.settings.metaToken) {
-          setMetaToken(res.settings.metaToken);
-          localStorage.setItem('roasist_meta_token', res.settings.metaToken);
+      const s = res?.settings || res || {};
+      if (s) {
+        if (s.metaToken) {
+          setMetaToken(s.metaToken);
+          localStorage.setItem('roasist_meta_token', s.metaToken);
         }
-        if (res.settings.geminiApiKey) {
-          setGeminiApiKey(res.settings.geminiApiKey);
-          localStorage.setItem('roasist_gemini_api_key', res.settings.geminiApiKey);
+        if (s.geminiApiKey) {
+          setGeminiApiKey(s.geminiApiKey);
+          localStorage.setItem('roasist_gemini_api_key', s.geminiApiKey);
         }
-        if (res.settings.googleApiKey) {
-          setGoogleApiKey(res.settings.googleApiKey);
-          localStorage.setItem('roasist_google_api_key', res.settings.googleApiKey);
+        if (s.googleApiKey) {
+          setGoogleApiKey(s.googleApiKey);
+          localStorage.setItem('roasist_google_api_key', s.googleApiKey);
         }
-        if (res.settings.googleAdsDevToken) {
-          setGoogleAdsDevToken(res.settings.googleAdsDevToken);
-          localStorage.setItem('roasist_google_dev_token', res.settings.googleAdsDevToken);
+        if (s.googleAdsDevToken) {
+          setGoogleAdsDevToken(s.googleAdsDevToken);
+          localStorage.setItem('roasist_google_dev_token', s.googleAdsDevToken);
         }
-        if (res.settings.googleAdsCustomerId) {
-          setGoogleAdsCustomerId(res.settings.googleAdsCustomerId);
-          localStorage.setItem('roasist_google_customer_id', res.settings.googleAdsCustomerId);
+        if (s.googleAdsCustomerId) {
+          setGoogleAdsCustomerId(s.googleAdsCustomerId);
+          localStorage.setItem('roasist_google_customer_id', s.googleAdsCustomerId);
         }
-        if (res.settings.googleClientId) {
-          setGoogleClientId(res.settings.googleClientId);
-          localStorage.setItem('roasist_google_client_id', res.settings.googleClientId);
+        if (s.googleClientId) {
+          setGoogleClientId(s.googleClientId);
+          localStorage.setItem('roasist_google_client_id', s.googleClientId);
         }
-        if (res.settings.googleClientSecret) {
-          setGoogleClientSecret(res.settings.googleClientSecret);
-          localStorage.setItem('roasist_google_client_secret', res.settings.googleClientSecret);
+        if (s.googleClientSecret) {
+          setGoogleClientSecret(s.googleClientSecret);
+          localStorage.setItem('roasist_google_client_secret', s.googleClientSecret);
         }
-        if (res.settings.googleRefreshToken) {
-          setGoogleRefreshToken(res.settings.googleRefreshToken);
-          localStorage.setItem('roasist_google_refresh_token', res.settings.googleRefreshToken);
+        if (s.googleRefreshToken) {
+          setGoogleRefreshToken(s.googleRefreshToken);
+          localStorage.setItem('roasist_google_refresh_token', s.googleRefreshToken);
         }
-        if (res.settings.flags) {
+        if (s.flags) {
           try {
-            setFlags(JSON.parse(res.settings.flags));
+            setFlags(typeof s.flags === 'string' ? JSON.parse(s.flags) : s.flags);
           } catch {}
         }
       }
