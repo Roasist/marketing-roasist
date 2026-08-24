@@ -1662,14 +1662,13 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
         $expansionGeoList = array_values(array_unique(array_filter([$geoConst, 'geoTargetConstants/2792'])));
     }
 
-    // Step A: Expand Seeds & Discover Broad Keyword Ideas using Core Expansion Targets
+    // Step A: Expand Seeds & Discover Broad Keyword Ideas using Core Expansion Targets (Query each country individually in parallel)
     $discoveryRequests = [];
     if (!empty($uniqueSeeds)) {
         $seedBatches = array_chunk($uniqueSeeds, 10);
-        $expChunks = array_chunk($expansionGeoList, 10);
         foreach ($seedBatches as $seedList) {
             $batchLang = detectLanguageConstantForKeywords($seedList, $effectiveLangConst);
-            foreach ($expChunks as $eChunk) {
+            foreach ($expansionGeoList as $singleGeo) {
                 $discoveryRequests[] = [
                     'geoId' => 'ALL',
                     'endpoint' => 'generateKeywordIdeas',
@@ -1678,7 +1677,7 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
                         "keywordPlanNetwork" => "GOOGLE_SEARCH",
                         "includeAdultKeywords" => false,
                         "language" => $batchLang,
-                        "geoTargetConstants" => $eChunk,
+                        "geoTargetConstants" => [$singleGeo],
                         "keywordSeed" => ["keywords" => $seedList]
                     ]
                 ];
@@ -1687,8 +1686,7 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
     }
 
     if (!empty($cleanSiteUrl)) {
-        $expChunks = array_chunk($expansionGeoList, 10);
-        foreach ($expChunks as $eChunk) {
+        foreach ($expansionGeoList as $singleGeo) {
             $discoveryRequests[] = [
                 'geoId' => 'ALL',
                 'endpoint' => 'generateKeywordIdeas',
@@ -1697,7 +1695,7 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
                     "keywordPlanNetwork" => "GOOGLE_SEARCH",
                     "includeAdultKeywords" => false,
                     "language" => $effectiveLangConst,
-                    "geoTargetConstants" => $eChunk,
+                    "geoTargetConstants" => [$singleGeo],
                     "siteSeed" => ["siteUrl" => $cleanSiteUrl]
                 ]
             ];
