@@ -3071,7 +3071,6 @@ function generateSemanticKeywordsFallback($query, $pageDetails, $langCode) {
                 ]
             ];
         }
-    }
 
     // Check Turkish Sectors
     $isMarketing = (mb_strpos($full, 'roasist') !== false) || (mb_strpos($full, 'pazarlama') !== false) || (mb_strpos($full, 'reklam') !== false) || (mb_strpos($full, 'ajans') !== false) || (mb_strpos($full, 'roas') !== false);
