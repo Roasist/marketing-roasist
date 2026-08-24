@@ -2108,6 +2108,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           let kwWithVol = 0;
           let cpcSum = 0;
           let cpcCount = 0;
+          const kwDetailsList: any[] = [];
 
           for (const k of finalKeywords) {
             let v = 0;
@@ -2127,11 +2128,19 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                 }
               }
             }
+            const cpcObj = k.geoCpc?.[cleanId] || k.geoCpc?.[String(loc.id)];
             if (v > 0) {
               volSum += v;
               kwWithVol++;
+              kwDetailsList.push({
+                keyword: k.keyword,
+                intent: k.intent || 'TRANSACTIONAL',
+                monthlyVolume: v,
+                volume: v,
+                lowCpc: cpcObj?.lowCpc || k.lowCpc || 0,
+                highCpc: cpcObj?.highCpc || k.highCpc || 0
+              });
             }
-            const cpcObj = k.geoCpc?.[cleanId] || k.geoCpc?.[String(loc.id)];
             if (cpcObj?.highCpc && cpcObj.highCpc > 0) {
               cpcSum += cpcObj.highCpc;
               cpcCount++;
@@ -2148,8 +2157,13 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
             flag: loc.flag || '🌍',
             searchVolume: volSum,
             keywordsWithVolumeCount: kwWithVol,
+            totalQueriedKeywords: finalKeywords.length,
             avgCpc: cpcCount > 0 ? (cpcSum / cpcCount) : 0,
-            status: (volSum > 0 ? 'SUCCESS' : 'NO_VOLUME') as 'SUCCESS' | 'NO_VOLUME'
+            status: (volSum > 0 ? 'SUCCESS' : 'NO_VOLUME') as 'SUCCESS' | 'NO_VOLUME',
+            statusMessage: volSum > 0 
+              ? `Google Ads API ${finalKeywords.length} kelimeden ${kwWithVol} tanesinde pozitif hacim döndürdü (HTTP 200 OK).`
+              : `Google Ads API ${finalKeywords.length} kelimeyi taradı, bölge için hacim 0/seyrek döndü (HTTP 200 OK).`,
+            keywordDetails: kwDetailsList.sort((a, b) => b.monthlyVolume - a.monthlyVolume)
           };
         });
 
