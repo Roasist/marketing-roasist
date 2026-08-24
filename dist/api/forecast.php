@@ -14,7 +14,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
-set_time_limit(120);
+set_time_limit(300);
 ini_set('memory_limit', '512M');
 
 require_once __DIR__ . '/db.php';
@@ -967,7 +967,7 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
             $mh = curl_multi_init();
             $curlHandles = [];
             foreach ($rBatch as $req) {
-                $endpoint = $req['endpoint'] ?? 'generateKeywordIdeas';
+                $endpoint = $req['endpoint'] ?? 'generateKeywordHistoricalMetrics';
                 $chLoc = curl_init("https://googleads.googleapis.com/v22/customers/{$customerId}:{$endpoint}");
                 curl_setopt($chLoc, CURLOPT_POST, true);
                 curl_setopt($chLoc, CURLOPT_POSTFIELDS, json_encode($req['payload']));
