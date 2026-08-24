@@ -1580,11 +1580,56 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
         $siteUrl = preg_replace('/^https?:\/\//i', '', $url);
         $siteUrl = preg_replace('/[\/\?].*$/', '', $siteUrl);
         $cleanSiteUrl = 'https://' . $siteUrl;
-    }
 
-    $uniqueSeeds = [];
-    if (!empty($keywords) && is_array($keywords) && count($keywords) > 0) {
-        $uniqueSeeds = array_values(array_unique(array_filter($keywords)));
+        // Scrape HTML to detect language and extract title/headings as seeds (guarantees results even for unindexed staging URLs)
+        $scrapeCh = curl_init($url);
+        curl_setopt($scrapeCh, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($scrapeCh, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($scrapeCh, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
+        curl_setopt($scrapeCh, CURLOPT_TIMEOUT, 5);
+        curl_setopt($scrapeCh, CURLOPT_SSL_VERIFYPEER, false);
+        $scrapedHtml = curl_exec($scrapeCh);
+        curl_close($scrapeCh);
+
+        if (!empty($scrapedHtml) && strlen($scrapedHtml) > 100) {
+            // 1. Detect language from HTML content
+            if (preg_match('/[\x{0400}-\x{04FF}]/u', $scrapedHtml)) {
+                $langConst = 'languageConstants/1031'; // Russian
+            } elseif (preg_match('/[\x{0600}-\x{06FF}]/u', $scrapedHtml)) {
+                $langConst = 'languageConstants/1019'; // Arabic
+            } elseif (preg_match('/[çğıöşüÇĞİÖŞÜ]/u', $scrapedHtml)) {
+                $langConst = 'languageConstants/1037'; // Turkish
+            } elseif (preg_match('/[äöüßÄÖÜẞ]/u', $scrapedHtml)) {
+                $langConst = 'languageConstants/1001'; // German
+            }
+
+            // 2. Extract Title
+            if (preg_match('/<title[^>]*>(.*?)<\/title>/is', $scrapedHtml, $mTitle)) {
+                $rawTitle = strip_tags($mTitle[1]);
+                $titleParts = preg_split('/[\|\-\–\—\:\,\•]/u', $rawTitle);
+                foreach ($titleParts as $tp) {
+                    $tp = trim($tp);
+                    if (mb_strlen($tp, 'UTF-8') >= 4 && mb_strlen($tp, 'UTF-8') <= 60 && !in_array($tp, $uniqueSeeds)) {
+                        $uniqueSeeds[] = $tp;
+                    }
+                }
+            }
+
+            // 3. Extract Headings (H1, H2)
+            if (preg_match_all('/<h[1-2][^>]*>(.*?)<\/h[1-2]>/is', $scrapedHtml, $mH)) {
+                foreach ($mH[1] as $hText) {
+                    $hClean = trim(strip_tags($hText));
+                    $hParts = preg_split('/[\.\,\;\|\:\!]/u', $hClean);
+                    foreach ($hParts as $hp) {
+                        $hp = trim($hp);
+                        if (mb_strlen($hp, 'UTF-8') >= 4 && mb_strlen($hp, 'UTF-8') <= 50 && !in_array($hp, $uniqueSeeds)) {
+                            $uniqueSeeds[] = $hp;
+                            if (count($uniqueSeeds) >= 20) break 2;
+                        }
+                    }
+                }
+            }
+        }
     }
 
     $effectiveLangConst = !empty($uniqueSeeds) ? detectLanguageConstantForKeywords($uniqueSeeds, $langConst) : $langConst;
