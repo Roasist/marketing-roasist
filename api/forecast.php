@@ -1581,7 +1581,7 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
         $siteUrl = preg_replace('/[\/\?].*$/', '', $siteUrl);
         $cleanSiteUrl = 'https://' . $siteUrl;
 
-        // Scrape HTML to detect language and extract title/headings as seeds (guarantees results even for unindexed staging URLs)
+        // Scrape HTML to detect language and extract concise seeds
         $scrapeCh = curl_init($url);
         curl_setopt($scrapeCh, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($scrapeCh, CURLOPT_FOLLOWLOCATION, true);
@@ -1595,38 +1595,32 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
             // 1. Detect language from HTML content
             if (preg_match('/[\x{0400}-\x{04FF}]/u', $scrapedHtml)) {
                 $langConst = 'languageConstants/1031'; // Russian
+                $normLangCode = 'ru';
             } elseif (preg_match('/[\x{0600}-\x{06FF}]/u', $scrapedHtml)) {
                 $langConst = 'languageConstants/1019'; // Arabic
+                $normLangCode = 'ar';
             } elseif (preg_match('/[çğıöşüÇĞİÖŞÜ]/u', $scrapedHtml)) {
                 $langConst = 'languageConstants/1037'; // Turkish
+                $normLangCode = 'tr';
             } elseif (preg_match('/[äöüßÄÖÜẞ]/u', $scrapedHtml)) {
                 $langConst = 'languageConstants/1001'; // German
+                $normLangCode = 'de';
             }
+        }
+    }
 
-            // 2. Extract Title
-            if (preg_match('/<title[^>]*>(.*?)<\/title>/is', $scrapedHtml, $mTitle)) {
-                $rawTitle = strip_tags($mTitle[1]);
-                $titleParts = preg_split('/[\|\-\–\—\:\,\•]/u', $rawTitle);
-                foreach ($titleParts as $tp) {
-                    $tp = trim($tp);
-                    if (mb_strlen($tp, 'UTF-8') >= 4 && mb_strlen($tp, 'UTF-8') <= 60 && !in_array($tp, $uniqueSeeds)) {
-                        $uniqueSeeds[] = $tp;
-                    }
-                }
-            }
+    $uniqueSeeds = [];
+    if (!empty($keywords) && is_array($keywords) && count($keywords) > 0) {
+        $uniqueSeeds = array_values(array_unique(array_filter($keywords)));
+    }
 
-            // 3. Extract Headings (H1, H2)
-            if (preg_match_all('/<h[1-2][^>]*>(.*?)<\/h[1-2]>/is', $scrapedHtml, $mH)) {
-                foreach ($mH[1] as $hText) {
-                    $hClean = trim(strip_tags($hText));
-                    $hParts = preg_split('/[\.\,\;\|\:\!]/u', $hClean);
-                    foreach ($hParts as $hp) {
-                        $hp = trim($hp);
-                        if (mb_strlen($hp, 'UTF-8') >= 4 && mb_strlen($hp, 'UTF-8') <= 50 && !in_array($hp, $uniqueSeeds)) {
-                            $uniqueSeeds[] = $hp;
-                            if (count($uniqueSeeds) >= 20) break 2;
-                        }
-                    }
+    // Always get high-intent industry smart seeds from domain/URL context if seeds are empty or sparse
+    if (count($uniqueSeeds) < 5) {
+        $domainSmartSeeds = extractLocationAndSmartSeeds(['title' => $cleanSiteUrl, 'textSnippet' => $url], $url, $normLangCode);
+        if (!empty($domainSmartSeeds)) {
+            foreach ($domainSmartSeeds as $dss) {
+                if (!in_array($dss, $uniqueSeeds)) {
+                    $uniqueSeeds[] = $dss;
                 }
             }
         }
@@ -1776,40 +1770,56 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
         ];
         $primaryGeo = $langPrimaryGeoMap[$normLangCode] ?? 'geoTargetConstants/2792';
 
+        $fallbackRequests = [];
         if (!empty($cleanSiteUrl)) {
-            $primarySitePayload = [
-                "keywordPlanNetwork" => "GOOGLE_SEARCH",
-                "language" => $langConst,
-                "geoTargetConstants" => [$primaryGeo],
-                "siteSeed" => ["siteUrl" => $cleanSiteUrl]
+            $fallbackRequests[] = [
+                'geoId' => 'ALL',
+                'endpoint' => 'generateKeywordIdeas',
+                'isSeed' => false,
+                'payload' => [
+                    "keywordPlanNetwork" => "GOOGLE_SEARCH",
+                    "includeAdultKeywords" => false,
+                    "language" => $langConst,
+                    "geoTargetConstants" => [$primaryGeo],
+                    "siteSeed" => ["siteUrl" => $cleanSiteUrl]
+                ]
             ];
-            $primarySiteRes = $callGoogleAdsApi($primarySitePayload);
-            $parseResults($primarySiteRes, false);
         }
 
         if (!empty($uniqueSeeds)) {
-            $primarySeedPayload = [
-                "keywordPlanNetwork" => "GOOGLE_SEARCH",
-                "language" => $langConst,
-                "geoTargetConstants" => [$primaryGeo],
-                "keywordSeed" => ["keywords" => $uniqueSeeds]
+            $fallbackRequests[] = [
+                'geoId' => 'ALL',
+                'endpoint' => 'generateKeywordIdeas',
+                'isSeed' => true,
+                'payload' => [
+                    "keywordPlanNetwork" => "GOOGLE_SEARCH",
+                    "includeAdultKeywords" => false,
+                    "language" => $langConst,
+                    "geoTargetConstants" => [$primaryGeo],
+                    "keywordSeed" => ["keywords" => array_slice($uniqueSeeds, 0, 20)]
+                ]
             ];
-            $primarySeedRes = $callGoogleAdsApi($primarySeedPayload);
-            $parseResults($primarySeedRes, true);
         }
 
-        if (empty($parsedKeywords)) {
-            $domainSeeds = extractLocationAndSmartSeeds(['title' => $cleanSiteUrl, 'textSnippet' => $url], $url, $normLangCode);
-            if (!empty($domainSeeds)) {
-                $primarySeedPayload = [
+        $domainSeeds = extractLocationAndSmartSeeds(['title' => $cleanSiteUrl, 'textSnippet' => $url], $url, $normLangCode);
+        if (!empty($domainSeeds)) {
+            $fallbackRequests[] = [
+                'geoId' => 'ALL',
+                'endpoint' => 'generateKeywordIdeas',
+                'isSeed' => true,
+                'payload' => [
                     "keywordPlanNetwork" => "GOOGLE_SEARCH",
+                    "includeAdultKeywords" => false,
                     "language" => $langConst,
                     "geoTargetConstants" => [$primaryGeo],
                     "keywordSeed" => ["keywords" => array_slice($domainSeeds, 0, 20)]
-                ];
-                $primarySeedRes = $callGoogleAdsApi($primarySeedPayload);
-                $parseResults($primarySeedRes, true);
-            }
+                ]
+            ];
+        }
+
+        if (!empty($fallbackRequests)) {
+            $fallbackResults = $executeParallelGoogleAdsCalls($fallbackRequests, 10);
+            $parseLocationResults($fallbackResults);
         }
     }
 
@@ -3353,11 +3363,19 @@ if ($action === 'discover' && $method === 'POST') {
     });
 
     if (empty($officialKeywords) || count($officialKeywords) === 0) {
-        echo json_encode([
-            'status' => 'error',
-            'message' => 'Google Ads Keyword Planner servisinden resmi veri alınamadı: Girilen web sitesi veya anahtar kelimeye ait resmi arama hacmi bulunamadı.'
-        ], JSON_UNESCAPED_UNICODE);
-        exit;
+        $fallbackRes = generateSemanticKeywordsFallback($query, $pageDetails, $langInfo['code']);
+        if (!empty($fallbackRes['keywords'])) {
+            $officialKeywords = $fallbackRes['keywords'];
+            if (empty($sectorTitle) || $sectorTitle === 'Genel') {
+                $sectorTitle = $fallbackRes['sector'] ?? 'Genel Sektör';
+            }
+        } else {
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Google Ads Keyword Planner servisinden resmi veri alınamadı: Girilen web sitesi veya anahtar kelimeye ait resmi arama hacmi bulunamadı.'
+            ], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
     }
 
     // Calculate 100% official Location Breakdown
