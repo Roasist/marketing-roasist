@@ -1903,7 +1903,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   }, [savedPlans]);
 
   // Execute Keyword Discovery (Step 1)
-  const handleDiscover = async (customQuery?: string, customMode?: 'URL' | 'KEYWORDS', bypassCache: boolean = false) => {
+  const handleDiscover = async (customQuery?: string, customMode?: 'URL' | 'KEYWORDS', bypassCache: boolean = true) => {
     const q = customQuery || query;
     const m = customMode || mode;
     if (!q.trim()) return;
@@ -3579,7 +3579,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
               hasMatchingGeo = true;
             }
           }
-          if (hasMatchingGeo) {
+          if (hasMatchingGeo && sumGeo > 0) {
             return {
               ...k,
               monthlyVolume: sumGeo
