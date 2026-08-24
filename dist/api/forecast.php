@@ -1628,50 +1628,48 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
 
     $effectiveLangConst = !empty($uniqueSeeds) ? detectLanguageConstantForKeywords($uniqueSeeds, $langConst) : $langConst;
 
-    // Step A: Discover initial keyword pool via Google Ads API with chunked geo target constants (max 10 per request)
-    if (!empty($cleanSiteUrl) && count($uniqueSeeds) < 15) {
-        $siteGeoChunks = array_chunk($finalGeoList, 10);
-        foreach ($siteGeoChunks as $sgChunk) {
-            $discPayload = [
-                "keywordPlanNetwork" => "GOOGLE_SEARCH",
-                "includeAdultKeywords" => false,
-                "language" => $effectiveLangConst,
-                "geoTargetConstants" => $sgChunk,
-                "siteSeed" => ["siteUrl" => $cleanSiteUrl]
-            ];
-            $discCh = curl_init("https://googleads.googleapis.com/v22/customers/{$customerId}:generateKeywordIdeas");
-            curl_setopt($discCh, CURLOPT_POST, true);
-            curl_setopt($discCh, CURLOPT_POSTFIELDS, json_encode($discPayload));
-            curl_setopt($discCh, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($discCh, CURLOPT_HTTPHEADER, [
-                'Authorization: Bearer ' . $accessToken,
-                'developer-token: ' . $devToken,
-                'Content-Type: application/json'
-            ]);
-            curl_setopt($discCh, CURLOPT_TIMEOUT, 8);
-            $discResp = curl_exec($discCh);
-            curl_close($discCh);
-            $discJson = json_decode($discResp, true);
-            if (!empty($discJson['results'])) {
-                foreach ($discJson['results'] as $dr) {
-                    $dt = trim($dr['text'] ?? '');
-                    if (!empty($dt) && !in_array($dt, $uniqueSeeds)) {
-                        $uniqueSeeds[] = $dt;
-                        if (count($uniqueSeeds) >= 200) break 2;
-                    }
-                }
-            }
-        }
+    // Determine Country / Market Level Geo Targets for Seed Expansion
+    $expansionGeoList = [];
+    $countryMap = [
+        'TR' => 'geoTargetConstants/2792',
+        'KZ' => 'geoTargetConstants/2398',
+        'UA' => 'geoTargetConstants/2804',
+        'UZ' => 'geoTargetConstants/2860',
+        'KG' => 'geoTargetConstants/2417',
+        'RU' => 'geoTargetConstants/2643',
+        'DE' => 'geoTargetConstants/2276',
+        'AT' => 'geoTargetConstants/2040',
+        'CH' => 'geoTargetConstants/2756',
+        'AE' => 'geoTargetConstants/2784',
+        'SA' => 'geoTargetConstants/2682',
+        'QA' => 'geoTargetConstants/2634',
+        'US' => 'geoTargetConstants/2840',
+        'GB' => 'geoTargetConstants/2826',
+        'AZ' => 'geoTargetConstants/2031'
+    ];
+
+    if ($normLangCode === 'ru') {
+        $expansionGeoList = ['geoTargetConstants/2398', 'geoTargetConstants/2860', 'geoTargetConstants/2417', 'geoTargetConstants/2804', 'geoTargetConstants/2792'];
+    } elseif ($normLangCode === 'tr') {
+        $expansionGeoList = ['geoTargetConstants/2792'];
+    } elseif ($normLangCode === 'de') {
+        $expansionGeoList = ['geoTargetConstants/2276', 'geoTargetConstants/2040', 'geoTargetConstants/2756'];
+    } elseif ($normLangCode === 'ar') {
+        $expansionGeoList = ['geoTargetConstants/2784', 'geoTargetConstants/2682', 'geoTargetConstants/2634', 'geoTargetConstants/2792'];
+    } elseif ($normLangCode === 'fa') {
+        $expansionGeoList = ['geoTargetConstants/2792', 'geoTargetConstants/2784'];
+    } else {
+        $expansionGeoList = array_values(array_unique(array_filter([$geoConst, 'geoTargetConstants/2792'])));
     }
 
-    // Step B: Query seeds across all targeted locations in batches of 20 keywords & max 10 geo targets
+    // Step A: Expand Seeds & Discover Broad Keyword Ideas using Core Expansion Targets
     $discoveryRequests = [];
     if (!empty($uniqueSeeds)) {
-        $seedBatches = array_chunk($uniqueSeeds, 20);
-        $geoChunks = array_chunk($finalGeoList, 10);
+        $seedBatches = array_chunk($uniqueSeeds, 10);
+        $expChunks = array_chunk($expansionGeoList, 10);
         foreach ($seedBatches as $seedList) {
             $batchLang = detectLanguageConstantForKeywords($seedList, $effectiveLangConst);
-            foreach ($geoChunks as $gChunk) {
+            foreach ($expChunks as $eChunk) {
                 $discoveryRequests[] = [
                     'geoId' => 'ALL',
                     'endpoint' => 'generateKeywordIdeas',
@@ -1680,11 +1678,29 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
                         "keywordPlanNetwork" => "GOOGLE_SEARCH",
                         "includeAdultKeywords" => false,
                         "language" => $batchLang,
-                        "geoTargetConstants" => $gChunk,
+                        "geoTargetConstants" => $eChunk,
                         "keywordSeed" => ["keywords" => $seedList]
                     ]
                 ];
             }
+        }
+    }
+
+    if (!empty($cleanSiteUrl)) {
+        $expChunks = array_chunk($expansionGeoList, 10);
+        foreach ($expChunks as $eChunk) {
+            $discoveryRequests[] = [
+                'geoId' => 'ALL',
+                'endpoint' => 'generateKeywordIdeas',
+                'isSeed' => false,
+                'payload' => [
+                    "keywordPlanNetwork" => "GOOGLE_SEARCH",
+                    "includeAdultKeywords" => false,
+                    "language" => $effectiveLangConst,
+                    "geoTargetConstants" => $eChunk,
+                    "siteSeed" => ["siteUrl" => $cleanSiteUrl]
+                ]
+            ];
         }
     }
 
