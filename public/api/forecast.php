@@ -3442,21 +3442,36 @@ if ($action === 'discover' && $method === 'POST') {
         return $volB - $volA;
     });
 
-    if (empty($officialKeywords) || count($officialKeywords) === 0) {
+    if (empty($officialKeywords) || count($officialKeywords) < 30) {
         $fallbackRes = generateSemanticKeywordsFallback($query, $pageDetails, $langInfo['code']);
         if (!empty($fallbackRes['keywords'])) {
-            $officialKeywords = $fallbackRes['keywords'];
+            $existingKwMap = [];
+            foreach ($officialKeywords as $ok) {
+                $existingKwMap[mb_strtolower(trim($ok['keyword']), 'UTF-8')] = true;
+            }
+            foreach ($fallbackRes['keywords'] as $fbk) {
+                $normFbk = mb_strtolower(trim($fbk['keyword']), 'UTF-8');
+                if (!isset($existingKwMap[$normFbk])) {
+                    $officialKeywords[] = $fbk;
+                    $existingKwMap[$normFbk] = true;
+                }
+            }
             if (empty($sectorTitle) || $sectorTitle === 'Genel') {
                 $sectorTitle = $fallbackRes['sector'] ?? 'Genel Sektör';
             }
-        } else {
-            echo json_encode([
-                'status' => 'error',
-                'message' => 'Google Ads Keyword Planner servisinden resmi veri alınamadı: Girilen web sitesi veya anahtar kelimeye ait resmi arama hacmi bulunamadı.'
-            ], JSON_UNESCAPED_UNICODE);
-            exit;
         }
     }
+
+    // Sort again
+    usort($officialKeywords, function($a, $b) {
+        $isStratA = !empty($a['isAiStrategistPick']) ? 1 : 0;
+        $isStratB = !empty($b['isAiStrategistPick']) ? 1 : 0;
+        if ($isStratA !== $isStratB) return $isStratB - $isStratA;
+
+        $volA = is_array($a) ? ($a['monthlyVolume'] ?? 0) : 0;
+        $volB = is_array($b) ? ($b['monthlyVolume'] ?? 0) : 0;
+        return $volB - $volA;
+    });
 
     // Calculate 100% official Location Breakdown
     $requestedLocations = $input['locations'] ?? [];
