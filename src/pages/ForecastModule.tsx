@@ -3440,9 +3440,17 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       return;
     }
 
-    // If keywords already have complete geoVolumes data (from saved plan or prior discover), skip re-fetching
-    const hasCompleteGeoVolumes = keywords.some(k => k.geoVolumes && Object.keys(k.geoVolumes).length >= selectedLocations.length);
-    if (hasCompleteGeoVolumes && officialLocationBreakdown && officialLocationBreakdown.length >= selectedLocations.length) {
+    // Check if every selected location is present in officialLocationBreakdown AND in keywords geoVolumes
+    const missingInBreakdown = selectedLocations.some(loc => {
+      const cleanLocId = String(loc.id).replace(/\D/g, '');
+      return !officialLocationBreakdown?.some(b => String(b.id).replace(/\D/g, '') === cleanLocId);
+    });
+    const missingInKeywords = selectedLocations.some(loc => {
+      const cleanLocId = String(loc.id).replace(/\D/g, '');
+      return !keywords.some(k => k.geoVolumes && (k.geoVolumes[cleanLocId] !== undefined || k.geoVolumes[String(loc.id)] !== undefined));
+    });
+
+    if (!missingInBreakdown && !missingInKeywords && officialLocationBreakdown && officialLocationBreakdown.length >= selectedLocations.length) {
       return;
     }
 
@@ -3458,7 +3466,8 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           language: detectedLanguage || 'tr',
           geoTargetConstants: selectedLocations.map(l => l.id),
           keywords: targetKws,
-          locations: selectedLocations
+          locations: selectedLocations,
+          bypassCache: true
         });
         if (isMounted && res) {
           if (res.breakdown && res.breakdown.length > 0) {
