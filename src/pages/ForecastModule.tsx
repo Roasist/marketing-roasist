@@ -671,16 +671,35 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         let sumGeo = 0;
         let hasMatchingGeo = false;
         for (const loc of selectedLocations) {
-          const cleanGId = String(loc.id).replace(/\D/g, '');
-          const vol = k.geoVolumes[cleanGId] !== undefined 
-            ? k.geoVolumes[cleanGId] 
-            : (k.geoVolumes[String(loc.id)] !== undefined ? k.geoVolumes[String(loc.id)] : k.geoVolumes[`geoTargetConstants/${cleanGId}`]);
-          if (vol !== undefined) {
-            sumGeo += (Number(vol) || 0);
+          const locKey = String(loc.id);
+          const cleanGId = locKey.replace(/\D/g, '');
+          const extraAliases = GEO_ALIASES_MAP[cleanGId] || [];
+          const keysToTry = [
+            cleanGId,
+            locKey,
+            ...extraAliases,
+            ...extraAliases.map(a => `geoTargetConstants/${a}`),
+            `geoTargetConstants/${cleanGId}`,
+            loc.countryCode,
+            loc.countryCode?.toLowerCase(),
+            loc.name?.toLowerCase(),
+            loc.canonicalName?.toLowerCase()
+          ].filter(Boolean) as string[];
+
+          let locVol: number | undefined = undefined;
+          for (const key of keysToTry) {
+            if (k.geoVolumes[key] !== undefined) {
+              locVol = Number(k.geoVolumes[key]) || 0;
+              break;
+            }
+          }
+
+          if (locVol !== undefined) {
+            sumGeo += locVol;
             hasMatchingGeo = true;
           }
         }
-        if (hasMatchingGeo && sumGeo > 0) {
+        if (hasMatchingGeo) {
           return {
             ...k,
             monthlyVolume: sumGeo
@@ -3732,16 +3751,35 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           let sumGeo = 0;
           let hasMatchingGeo = false;
           for (const loc of selectedLocations) {
-            const cleanGId = String(loc.id).replace(/\D/g, '');
-            const vol = k.geoVolumes[cleanGId] !== undefined 
-              ? k.geoVolumes[cleanGId] 
-              : (k.geoVolumes[String(loc.id)] !== undefined ? k.geoVolumes[String(loc.id)] : k.geoVolumes[`geoTargetConstants/${cleanGId}`]);
-            if (vol !== undefined) {
-              sumGeo += (Number(vol) || 0);
+            const locKey = String(loc.id);
+            const cleanGId = locKey.replace(/\D/g, '');
+            const extraAliases = GEO_ALIASES_MAP[cleanGId] || [];
+            const keysToTry = [
+              cleanGId,
+              locKey,
+              ...extraAliases,
+              ...extraAliases.map(a => `geoTargetConstants/${a}`),
+              `geoTargetConstants/${cleanGId}`,
+              loc.countryCode,
+              loc.countryCode?.toLowerCase(),
+              loc.name?.toLowerCase(),
+              loc.canonicalName?.toLowerCase()
+            ].filter(Boolean) as string[];
+
+            let locVol: number | undefined = undefined;
+            for (const key of keysToTry) {
+              if (k.geoVolumes[key] !== undefined) {
+                locVol = Number(k.geoVolumes[key]) || 0;
+                break;
+              }
+            }
+
+            if (locVol !== undefined) {
+              sumGeo += locVol;
               hasMatchingGeo = true;
             }
           }
-          if (hasMatchingGeo && sumGeo > 0) {
+          if (hasMatchingGeo) {
             return {
               ...k,
               monthlyVolume: sumGeo
