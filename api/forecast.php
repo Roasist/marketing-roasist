@@ -942,11 +942,14 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
                 $kwText = $r['text'] ?? $r['keyword'] ?? $r['keywordText'] ?? '';
                 if (!empty($kwText)) {
                     $kwNorm = mb_strtolower(preg_replace('/\s+/', ' ', trim($kwText)), 'UTF-8');
-                    $keywordGeoMap[$kwNorm][$geoId] = [
+                    $kwRaw = trim($kwText);
+                    $geoEntry = [
                         'monthlyVolume' => $v,
                         'lowCpc' => $low,
                         'highCpc' => $high
                     ];
+                    $keywordGeoMap[$kwNorm][$geoId] = $geoEntry;
+                    $keywordGeoMap[$kwRaw][$geoId] = $geoEntry;
                 }
 
                 if ($high > 0) {
@@ -1016,11 +1019,14 @@ function calculateOfficialLocationBreakdown($apiKeys, $query, $mode, $officialKe
                         $kwText = $r['text'] ?? $r['keyword'] ?? $r['keywordText'] ?? '';
                         if (!empty($kwText)) {
                             $kwNorm = mb_strtolower(preg_replace('/\s+/', ' ', trim($kwText)), 'UTF-8');
-                            $keywordGeoMap[$kwNorm][$geoId] = [
+                            $kwRaw = trim($kwText);
+                            $geoEntry = [
                                 'monthlyVolume' => $v,
                                 'lowCpc' => $low,
                                 'highCpc' => $high
                             ];
+                            $keywordGeoMap[$kwNorm][$geoId] = $geoEntry;
+                            $keywordGeoMap[$kwRaw][$geoId] = $geoEntry;
                         }
                         $geoVolSum[$geoId] += $v;
                         if ($high > 0) {
@@ -3160,7 +3166,7 @@ if ($action === 'location_breakdown' && $method === 'POST') {
     $firstKws = is_array($keywords) && !empty($keywords) ? implode('|', array_slice(array_map(function($k) {
         return is_array($k) ? ($k['keyword'] ?? '') : (string)$k;
     }, $keywords), 0, 10)) : '';
-    $cacheKey = md5("loc_breakdown_v50_{$mode}_{$query}_{$language}_" . implode('_', (array)$geoTargetConstants) . "_{$kwCount}_{$firstKws}");
+    $cacheKey = md5("loc_breakdown_v55_live_guaranteed_{$mode}_{$query}_{$language}_" . implode('_', (array)$geoTargetConstants) . "_{$kwCount}_{$firstKws}");
 
     $bypassCache = !empty($input['bypassCache']);
 
@@ -3234,7 +3240,7 @@ if ($action === 'discover' && $method === 'POST') {
     $includeSuggestions = isset($input['includeSuggestions']) ? (bool)$input['includeSuggestions'] : true;
     $clientSeeds = !empty($input['seedKeywords']) && is_array($input['seedKeywords']) ? $input['seedKeywords'] : [];
 
-    $cacheKey = md5("forecast_v50_{$mode}_{$query}_" . ($includeSuggestions ? 'sug_1_' : 'sug_0_') . ($requestedLanguage ?: 'auto') . '_' . ($requestedCountryCode ?: 'auto') . '_' . implode('_', (array)$requestedGeoTargetConstants));
+    $cacheKey = md5("forecast_v55_live_guaranteed_{$mode}_{$query}_" . ($includeSuggestions ? 'sug_1_' : 'sug_0_') . ($requestedLanguage ?: 'auto') . '_' . ($requestedCountryCode ?: 'auto') . '_' . implode('_', (array)$requestedGeoTargetConstants));
 
     // 1. Check Server-Side Cache
     $stmtCache = $pdo->prepare("SELECT data, created_at FROM keyword_cache WHERE cache_key = ?");
