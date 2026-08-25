@@ -4117,7 +4117,7 @@ if ($action === 'plans') {
             $stmt = $pdo->prepare("
                 SELECT id, workspace_id, name, client_name, start_date, end_date, period, tags, target_url, seed_keywords, monthly_budget, plan_data, created_at
                 FROM forecast_plans 
-                WHERE workspace_id = ?
+                WHERE workspace_id = ? OR workspace_id IS NULL OR workspace_id = '' OR workspace_id = 'default'
                 ORDER BY id DESC
             ");
             $stmt->execute([$workspaceId]);
@@ -4125,7 +4125,6 @@ if ($action === 'plans') {
             $stmt = $pdo->query("
                 SELECT id, workspace_id, name, client_name, start_date, end_date, period, tags, target_url, seed_keywords, monthly_budget, plan_data, created_at
                 FROM forecast_plans 
-                WHERE workspace_id IS NULL OR workspace_id = '' OR workspace_id = 'default'
                 ORDER BY id DESC
             ");
         }
