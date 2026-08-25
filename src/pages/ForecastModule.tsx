@@ -1526,7 +1526,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       languageCode: 'auto',
       languageName: 'Otomatik (Sayfa Dili)',
       languageFlag: '🌐',
-      targetLocations: (selectedLocations && selectedLocations.length > 0) ? selectedLocations : DEFAULT_LOCATIONS,
+      targetLocations: (selectedLocations && selectedLocations.length > 0) ? [...selectedLocations] : DEFAULT_LOCATIONS,
       monthlyBudget: defaultBudget,
       selectedKeywords: [],
       discoveredKeywords: [],
@@ -1564,7 +1564,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     setKeywords([]);
     setSelectedKeywordIds(new Set());
     setNegativeCategories([]);
-    setSelectedLocations(DEFAULT_LOCATIONS);
+    setSelectedLocations(newCamp.targetLocations);
     setTargetLanguage('auto');
     setDetectedLanguage('auto');
     setDetectedLanguageName('Otomatik (Sayfa Dili)');
@@ -10958,7 +10958,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           bottom: 0,
           backgroundColor: 'rgba(0, 0, 0, 0.65)',
           backdropFilter: 'blur(4px)',
-          zIndex: 10050,
+          zIndex: 10060,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
