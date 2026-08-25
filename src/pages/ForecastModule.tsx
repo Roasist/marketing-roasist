@@ -5114,6 +5114,34 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                   ₺{(isActive ? (monthlyBudget ?? camp.monthlyBudget ?? 0) : (camp.monthlyBudget ?? 0)).toLocaleString('tr-TR')}
                 </span>
 
+                {/* Analysis Ready / Keyword count indicator */}
+                {(() => {
+                  const kCount = (camp.selectedKeywords && camp.selectedKeywords.length > 0) 
+                    ? camp.selectedKeywords.length 
+                    : (camp.discoveredKeywords && camp.discoveredKeywords.length > 0 ? camp.discoveredKeywords.length : 0);
+                  if (kCount > 0) {
+                    return (
+                      <span 
+                        style={{ 
+                          fontSize: '0.68rem', 
+                          padding: '1px 5px', 
+                          borderRadius: '10px', 
+                          backgroundColor: isActive ? 'rgba(16, 185, 129, 0.2)' : 'rgba(16, 185, 129, 0.12)',
+                          color: '#10b981',
+                          fontWeight: 700,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '2px'
+                        }}
+                        title={`${kCount} adet analiz edilmiş kelime mevcut`}
+                      >
+                        ✓ {kCount}
+                      </span>
+                    );
+                  }
+                  return null;
+                })()}
+
                 <button
                   type="button"
                   onClick={(e) => handleDeleteSubCampaign(camp.id, e)}
