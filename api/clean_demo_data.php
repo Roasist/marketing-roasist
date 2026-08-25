@@ -8,10 +8,9 @@ require_once __DIR__ . '/db.php';
 
 $pdo = Database::getConnection();
 
-// Delete all competitors, dummy ads, forecast plans and cache
+// Delete only demo competitors, dummy ads and temporary keyword cache (NEVER touch user forecast plans)
 $pdo->exec("DELETE FROM competitors");
 $pdo->exec("DELETE FROM saved_ads");
-$pdo->exec("DELETE FROM forecast_plans");
 $pdo->exec("DELETE FROM keyword_cache");
 
 echo json_encode([
