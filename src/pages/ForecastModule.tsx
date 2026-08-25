@@ -2273,10 +2273,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         }
 
         // Guaranteed Sub-Campaign Persistence & Isolation
-        const currentSubId = activeSubCampaignId || `sub_${Date.now()}`;
-        if (!activeSubCampaignId) {
-          setActiveSubCampaignId(currentSubId);
-        }
+        let resolvedSubId = activeSubCampaignId;
 
         setSubCampaigns((prevSubs) => {
           const defaultSubName = res.pageTitle 
@@ -2284,28 +2281,79 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
             : `Search Kampanyası (${langName})`;
 
           if (prevSubs.length > 0) {
-            return prevSubs.map((c) => {
-              if (c.id === (activeSubCampaignId || currentSubId)) {
-                return {
-                  ...c,
-                  name: c.name && !c.name.startsWith('Google Kampanya') ? c.name : defaultSubName,
-                  languageCode: langCode,
-                  languageName: langName,
-                  languageFlag: langObj?.flag || c.languageFlag || '🌐',
-                  targetLocations: activeLocations,
-                  discoveredKeywords: safeFinalKeywords,
-                  selectedKeywords: safeFinalKeywords,
-                  targetUrl: m === 'URL' ? q.trim() : '',
-                  seedKeywords: m === 'KEYWORDS' ? q.trim() : '',
-                  isStep1Completed: true
-                };
+            // 1. Try to find the currently active sub-campaign
+            let matched = resolvedSubId ? prevSubs.find(c => c.id === resolvedSubId) : null;
+            // 2. If not found or activeSubCampaignId is null, find matching language & Search platform
+            if (!matched) {
+              matched = prevSubs.find(c => c.languageCode === langCode && c.platform === 'GOOGLE' && (c.objective === 'GOOGLE_SEARCH' || !c.objective));
+            }
+            // 3. If still not found, find any Google Search sub-campaign
+            if (!matched) {
+              matched = prevSubs.find(c => c.platform === 'GOOGLE' && (c.objective === 'GOOGLE_SEARCH' || !c.objective));
+            }
+
+            if (matched) {
+              resolvedSubId = matched.id;
+              setActiveSubCampaignId(matched.id);
+              return prevSubs.map(c => {
+                if (c.id === matched!.id) {
+                  return {
+                    ...c,
+                    name: c.name && !c.name.startsWith('Google Kampanya') ? c.name : defaultSubName,
+                    languageCode: langCode,
+                    languageName: langName,
+                    languageFlag: langObj?.flag || c.languageFlag || '🌐',
+                    targetLocations: activeLocations,
+                    discoveredKeywords: safeFinalKeywords,
+                    selectedKeywords: safeFinalKeywords,
+                    targetUrl: m === 'URL' ? q.trim() : '',
+                    seedKeywords: m === 'KEYWORDS' ? q.trim() : '',
+                    isStep1Completed: true,
+                    isStep2Completed: false,
+                    isStep3Completed: false
+                  };
+                }
+                return c;
+              });
+            }
+
+            // 4. If no sub-campaign at all matches, add new sub-campaign
+            const newSubId = `sub_${Date.now()}`;
+            resolvedSubId = newSubId;
+            setActiveSubCampaignId(newSubId);
+            const newSub: SubCampaignItem = {
+              id: newSubId,
+              name: defaultSubName,
+              platform: 'GOOGLE',
+              objective: 'GOOGLE_SEARCH',
+              languageCode: langCode,
+              languageName: langName,
+              languageFlag: langObj?.flag || '🌐',
+              targetLocations: activeLocations,
+              monthlyBudget: (monthlyBudget && monthlyBudget > 0) ? monthlyBudget : 35000,
+              selectedKeywords: safeFinalKeywords,
+              discoveredKeywords: safeFinalKeywords,
+              negativeCategories: res.negativeCategories || [],
+              businessModel: 'LEAD_GEN',
+              isStep1Completed: true,
+              isStep2Completed: false,
+              isStep3Completed: false,
+              parameters: {
+                targetImpressionShare: 70,
+                expectedCtr: 7.5,
+                searchLeadCr: 3.5,
+                searchHealthyLeadRate: 50,
+                searchCloseRate: 10
               }
-              return c;
-            });
+            };
+            return [...prevSubs, newSub];
           }
 
+          const singleSubId = `sub_${Date.now()}`;
+          resolvedSubId = singleSubId;
+          setActiveSubCampaignId(singleSubId);
           return [{
-            id: currentSubId,
+            id: singleSubId,
             name: defaultSubName,
             platform: 'GOOGLE' as const,
             objective: 'GOOGLE_SEARCH' as const,
@@ -2319,31 +2367,14 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
             negativeCategories: res.negativeCategories || [],
             businessModel: 'LEAD_GEN' as const,
             isStep1Completed: true,
-            isStep2Completed: true,
-            isStep3Completed: true,
+            isStep2Completed: false,
+            isStep3Completed: false,
             parameters: {
               targetImpressionShare: 70,
               expectedCtr: 7.5,
               searchLeadCr: 3.5,
               searchHealthyLeadRate: 50,
-              searchCloseRate: 10,
-              metaCpm: 75,
-              metaCtr: 1.6,
-              metaLeadCr: 4.5,
-              metaHealthyLeadRate: 50,
-              metaCloseRate: 15,
-              youtubeCpv: 0.45,
-              youtubeVtr: 32,
-              youtubeActionRate: 1.2,
-              gdnCpm: 18,
-              gdnCtr: 0.60,
-              gdnAssistedCr: 1.2,
-              demandGenCpm: 45,
-              demandGenCtr: 1.8,
-              demandGenVtr: 38,
-              demandGenLeadCr: 3.5,
-              demandGenHealthyLeadRate: 50,
-              demandGenCloseRate: 12
+              searchCloseRate: 10
             }
           }];
         });
