@@ -1665,14 +1665,23 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     if (window.confirm('Bu alt kampanyayı silmek istediğinize emin misiniz?')) {
       const remaining = subCampaigns.filter(c => c.id !== campId);
       setSubCampaigns(remaining);
+      
       if (activeSubCampaignId === campId) {
         if (remaining.length > 0) {
-          handleSelectSubCampaign(remaining[0].id);
+          const nextTarget = remaining[0];
+          setActiveSubCampaignId(nextTarget.id);
+          applySubCampaignToState(nextTarget);
+          try {
+            localStorage.setItem('roasist_active_studio_sub_id', nextTarget.id);
+          } catch (err) {}
         } else {
           setActiveSubCampaignId(null);
           setKeywords([]);
           setSelectedKeywordIds(new Set());
           setMonthlyBudget(0);
+          try {
+            localStorage.removeItem('roasist_active_studio_sub_id');
+          } catch (err) {}
         }
       }
 
