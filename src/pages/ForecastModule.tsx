@@ -4062,7 +4062,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
   const expansionCountInView = useMemo(() => {
     const baseList = activeCluster ? activeCluster.keywords : step2WorkingKeywords;
-    return baseList.filter(k => !k.isUserSeed && k.source !== 'USER_SEED' && !k.id?.startsWith('seed_kw_') && !k.id?.startsWith('user_seed_')).length;
+    return baseList.filter(k => !!k.isAiGenerated || k.source === 'AI_EXPANSION' || k.source === 'AI_NLP_GENERATED' || k.source === 'SYNTHETIC_NLP' || k.id?.startsWith('ai_alt_') || k.id?.startsWith('ai_nlp_')).length;
   }, [activeCluster, step2WorkingKeywords]);
 
   // Filtered & Sorted Keywords for the active right-side data grid
@@ -7029,7 +7029,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                             {[
                               { key: 'ALL', label: `Tümü (${activeCluster.keywords.length})` },
                               { key: 'USER_SEED', label: `🎯 Girdiğiniz Tohumlar (${userSeedsCountInView})` },
-                              { key: 'EXPANSION', label: `✨ Bunu da Hedefleyebilirsiniz (${expansionCountInView})` }
+                              ...(expansionCountInView > 0 ? [{ key: 'EXPANSION', label: `✨ Bunu da Hedefleyebilirsiniz (${expansionCountInView})` }] : [])
                             ].map(tab => (
                               <button
                                 key={tab.key}
@@ -7059,7 +7059,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                         <div style={{ display: 'flex', gap: '0.2rem', backgroundColor: 'var(--bg-surface-elevated)', padding: '2px', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-default)' }}>
                           {[
                             { key: 'ALL', label: 'Tüm Niyetler' },
-                            { key: 'STRATEGIST', label: `🚀 SEM Uzman Seçimi (${strategistCountInView})` },
+                            { key: 'STRATEGIST', label: `⚡ SEM Uzman Seçimi (${strategistCountInView})` },
                             { key: 'TRANSACTIONAL', label: 'Satın Alma' },
                             { key: 'COMMERCIAL', label: 'Araştırma / Ticari' }
                           ].map(tab => (
@@ -7109,21 +7109,23 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                               >
                                 🎯 Yalnızca Girdiğim Tohumları Seç
                               </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const next = new Set(selectedKeywordIds);
-                                  activeKeywordsGrid.forEach(k => {
-                                    const isUser = !!k.isUserSeed || k.source === 'USER_SEED' || k.id?.startsWith('seed_kw_') || k.id?.startsWith('user_seed_');
-                                    if (!isUser) next.add(k.id);
-                                  });
-                                  setSelectedKeywordIds(next);
-                                }}
-                                className="btn-ghost"
-                                style={{ fontSize: '0.68rem', padding: '2px 8px', borderRadius: 'var(--radius-xs)', border: '1px solid rgba(16, 185, 129, 0.3)', color: '#059669', fontWeight: 600 }}
-                              >
-                                ✨ Yalnızca Ek Önerileri Seç
-                              </button>
+                              {expansionCountInView > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const next = new Set(selectedKeywordIds);
+                                    activeKeywordsGrid.forEach(k => {
+                                      const isAi = !!k.isAiGenerated || k.source === 'AI_EXPANSION' || k.source === 'AI_NLP_GENERATED' || k.source === 'SYNTHETIC_NLP' || k.id?.startsWith('ai_alt_') || k.id?.startsWith('ai_nlp_');
+                                      if (isAi) next.add(k.id);
+                                    });
+                                    setSelectedKeywordIds(next);
+                                  }}
+                                  className="btn-ghost"
+                                  style={{ fontSize: '0.68rem', padding: '2px 8px', borderRadius: 'var(--radius-xs)', border: '1px solid rgba(16, 185, 129, 0.3)', color: '#059669', fontWeight: 600 }}
+                                >
+                                  ✨ Yalnızca Yapay Zeka Önerilerini Seç
+                                </button>
+                              )}
                             </>
                           )}
                           <button
@@ -7335,47 +7337,49 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                                     <div style={{ fontWeight: isSelected ? 600 : 500, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
                                       <span>{kw.keyword}</span>
                                       
-                                      {/* Seed vs Expansion Badges (Only in KEYWORDS mode) */}
-                                      {mode === 'KEYWORDS' && (
-                                        isUserSeed ? (
-                                          <span
-                                            style={{
-                                              fontSize: '0.62rem',
-                                              padding: '1px 6px',
-                                              borderRadius: '3px',
-                                              fontWeight: 700,
-                                              backgroundColor: 'rgba(37, 99, 235, 0.12)',
-                                              color: 'var(--brand-primary)',
-                                              border: '1px solid rgba(37, 99, 235, 0.25)',
-                                              display: 'inline-flex',
-                                              alignItems: 'center',
-                                              gap: '2px'
-                                            }}
-                                            title="Sizin doğrudan girdiğiniz tohum anahtar kelime"
-                                          >
-                                            🎯 Girdiğiniz Tohum
-                                          </span>
-                                        ) : (
-                                          <span
-                                            style={{
-                                              fontSize: '0.62rem',
-                                              padding: '1px 6px',
-                                              borderRadius: '3px',
-                                              fontWeight: 600,
-                                              backgroundColor: 'rgba(16, 185, 129, 0.12)',
-                                              color: '#059669',
-                                              border: '1px solid rgba(16, 185, 129, 0.25)',
-                                              display: 'inline-flex',
-                                              alignItems: 'center',
-                                              gap: '2px'
-                                            }}
-                                            title="Google Ads API & AI tarafından arama grafiğinden keşfedilen ek öneri"
-                                          >
-                                            ✨ Bunu da Hedefleyebilirsiniz
-                                          </span>
-                                        )
+                                      {/* 1. Girdiğiniz Tohum (Only for actual seeds entered by user) */}
+                                      {mode === 'KEYWORDS' && isUserSeed && (
+                                        <span
+                                          style={{
+                                            fontSize: '0.62rem',
+                                            padding: '1px 6px',
+                                            borderRadius: '3px',
+                                            fontWeight: 700,
+                                            backgroundColor: 'rgba(37, 99, 235, 0.12)',
+                                            color: 'var(--brand-primary)',
+                                            border: '1px solid rgba(37, 99, 235, 0.25)',
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '2px'
+                                          }}
+                                          title="Sizin doğrudan girdiğiniz tohum anahtar kelime"
+                                        >
+                                          🎯 Girdiğiniz Tohum
+                                        </span>
                                       )}
 
+                                      {/* 2. Bunu da Hedefleyebilirsiniz: SADECE Google API tarafından önerilmeyen, Yapay Zeka motorunun keşfettiği ek arama önerileri */}
+                                      {(!!kw.isAiGenerated || kw.source === 'AI_EXPANSION' || kw.source === 'AI_NLP_GENERATED' || kw.source === 'SYNTHETIC_NLP' || kw.id?.startsWith('ai_alt_') || kw.id?.startsWith('ai_nlp_')) && (
+                                        <span
+                                          style={{
+                                            fontSize: '0.62rem',
+                                            padding: '1px 6px',
+                                            borderRadius: '3px',
+                                            fontWeight: 600,
+                                            backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                                            color: '#059669',
+                                            border: '1px solid rgba(16, 185, 129, 0.25)',
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '2px'
+                                          }}
+                                          title="Google API tarafından önerilmeyen, yapay zeka motorunun keşfettiği ek arama önerisi"
+                                        >
+                                          ✨ Bunu da Hedefleyebilirsiniz
+                                        </span>
+                                      )}
+
+                                      {/* 3. SEM UZMANI: Analizi başlatırken girilen sayfa ya da anahtar kelimenin niyetiyle eşleşme oranı çok yüksek olan kelimeler */}
                                       {kw.isAiStrategistPick && (
                                         <span
                                           style={{
@@ -7391,7 +7395,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                                             gap: '2px',
                                             letterSpacing: '0.02em'
                                           }}
-                                          title="Yüksek dönüşümlü satın alma terimi"
+                                          title="Girdiğiniz sayfa veya anahtar kelimenin niyetiyle eşleşme oranı çok yüksek olan stratejik kelime"
                                         >
                                           ⚡ SEM UZMANI
                                         </span>

@@ -1576,8 +1576,9 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
                     'opportunityScore' => $oppScore,
                     'isAiStrategistPick' => $isAiStrategist,
                     'isUserSeed' => $isUserSeed,
-                    'isSuggested' => !$isUserSeed,
-                    'source' => $isUserSeed ? 'USER_SEED' : 'EXPANSION',
+                    'isSuggested' => false,
+                    'isAiGenerated' => false,
+                    'source' => $isUserSeed ? 'USER_SEED' : 'GOOGLE_ADS_API',
                     'geoVolumes' => $geoVolumesInit,
                     'geoCpc' => $geoCpcInit,
                     'monthlySearchVolumes' => $monthlyVolumes
@@ -3134,11 +3135,11 @@ function generateSemanticKeywordsFallback($query, $pageDetails, $langCode) {
         'sector' => 'Dijital Pazarlama & E-Ticaret',
         'pageSummary' => 'Web sitesi içerik ve anahtar kelime analiz projeksiyonu.',
         'keywords' => [
-            ['keyword' => $cleanQ . ' online sipariş', 'monthlyVolume' => 0, 'lowCpc' => 0.0, 'highCpc' => 0.0, 'competition' => 'HIGH', 'competitionIndex' => 78, 'intent' => 'TRANSACTIONAL', 'trendChangePercent' => 15, 'opportunityScore' => 88],
-            ['keyword' => 'en iyi ' . $cleanQ . ' hizmetleri', 'monthlyVolume' => 0, 'lowCpc' => 0.0, 'highCpc' => 0.0, 'competition' => 'MEDIUM', 'competitionIndex' => 65, 'intent' => 'COMMERCIAL', 'trendChangePercent' => 20, 'opportunityScore' => 85],
-            ['keyword' => $cleanQ . ' fiyatları 2026', 'monthlyVolume' => 0, 'lowCpc' => 0.0, 'highCpc' => 0.0, 'competition' => 'HIGH', 'competitionIndex' => 82, 'intent' => 'TRANSACTIONAL', 'trendChangePercent' => 25, 'opportunityScore' => 91],
-            ['keyword' => 'profesyonel ' . $cleanQ . ' danışmanlığı', 'monthlyVolume' => 0, 'lowCpc' => 0.0, 'highCpc' => 0.0, 'competition' => 'MEDIUM', 'competitionIndex' => 72, 'intent' => 'COMMERCIAL', 'trendChangePercent' => 18, 'opportunityScore' => 86],
-            ['keyword' => $cleanQ . ' müşteri yorumları', 'monthlyVolume' => 0, 'lowCpc' => 0.0, 'highCpc' => 0.0, 'competition' => 'LOW', 'competitionIndex' => 48, 'intent' => 'INFORMATIONAL', 'trendChangePercent' => 12, 'opportunityScore' => 82]
+            ['keyword' => $cleanQ . ' online sipariş', 'monthlyVolume' => 0, 'lowCpc' => 0.0, 'highCpc' => 0.0, 'competition' => 'HIGH', 'competitionIndex' => 78, 'intent' => 'TRANSACTIONAL', 'trendChangePercent' => 15, 'opportunityScore' => 88, 'isAiGenerated' => true, 'source' => 'AI_EXPANSION', 'isSuggested' => true],
+            ['keyword' => 'en iyi ' . $cleanQ . ' hizmetleri', 'monthlyVolume' => 0, 'lowCpc' => 0.0, 'highCpc' => 0.0, 'competition' => 'MEDIUM', 'competitionIndex' => 65, 'intent' => 'COMMERCIAL', 'trendChangePercent' => 20, 'opportunityScore' => 85, 'isAiGenerated' => true, 'source' => 'AI_EXPANSION', 'isSuggested' => true],
+            ['keyword' => $cleanQ . ' fiyatları 2026', 'monthlyVolume' => 0, 'lowCpc' => 0.0, 'highCpc' => 0.0, 'competition' => 'HIGH', 'competitionIndex' => 82, 'intent' => 'TRANSACTIONAL', 'trendChangePercent' => 25, 'opportunityScore' => 91, 'isAiGenerated' => true, 'source' => 'AI_EXPANSION', 'isSuggested' => true],
+            ['keyword' => 'profesyonel ' . $cleanQ . ' danışmanlığı', 'monthlyVolume' => 0, 'lowCpc' => 0.0, 'highCpc' => 0.0, 'competition' => 'MEDIUM', 'competitionIndex' => 72, 'intent' => 'COMMERCIAL', 'trendChangePercent' => 18, 'opportunityScore' => 86, 'isAiGenerated' => true, 'source' => 'AI_EXPANSION', 'isSuggested' => true],
+            ['keyword' => $cleanQ . ' müşteri yorumları', 'monthlyVolume' => 0, 'lowCpc' => 0.0, 'highCpc' => 0.0, 'competition' => 'LOW', 'competitionIndex' => 48, 'intent' => 'INFORMATIONAL', 'trendChangePercent' => 12, 'opportunityScore' => 82, 'isAiGenerated' => true, 'source' => 'AI_EXPANSION', 'isSuggested' => true]
         ]
     ];
 }

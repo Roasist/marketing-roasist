@@ -16,7 +16,8 @@ export interface KeywordMetric {
   isAiStrategistPick?: boolean;
   isUserSeed?: boolean;
   isSuggested?: boolean;
-  source?: 'USER_SEED' | 'EXPANSION' | 'AI_STRATEGIST';
+  isAiGenerated?: boolean;
+  source?: 'USER_SEED' | 'EXPANSION' | 'AI_STRATEGIST' | 'AI_EXPANSION' | 'AI_NLP_GENERATED' | 'GOOGLE_ADS_API' | 'SYNTHETIC_NLP' | string;
   strategistStrategy?: 'TRANSACTIONAL' | 'LOCAL_GEO' | 'CONSIDERATION' | 'LEAD_MAGNET';
   geoVolumes?: Record<string, number>;
   geoCpc?: Record<string, { lowCpc: number; highCpc: number }>;
