@@ -1939,6 +1939,54 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     }
   };
 
+  // Delete Sub-Campaign directly from a saved plan in the Portfolio Hub
+  const handleDeleteSubCampaignFromPlan = async (planId: string, subCampaignId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!window.confirm('Bu alt kampanyayı silmek istediğinize emin misiniz?')) return;
+
+    const targetPlan = savedPlans.find(p => p.id === planId);
+    if (!targetPlan) return;
+
+    const remainingSubs = (targetPlan.subCampaigns || []).filter(c => c.id !== subCampaignId);
+    const newTotalBudget = remainingSubs.reduce((sum, c) => sum + (c.monthlyBudget || 0), 0);
+
+    const updatedPlan: ForecastPlan = {
+      ...targetPlan,
+      subCampaigns: remainingSubs,
+      monthlyBudget: newTotalBudget
+    };
+
+    try {
+      await ApiService.saveForecastPlan(updatedPlan);
+      setSavedPlans(prev => prev.map(p => p.id === planId ? updatedPlan : p));
+
+      // If this plan is currently opened in studio, sync studio state as well
+      if (currentPlanId === planId) {
+        setSubCampaigns(remainingSubs);
+        if (activeSubCampaignId === subCampaignId) {
+          if (remainingSubs.length > 0) {
+            const nextTarget = remainingSubs[0];
+            setActiveSubCampaignId(nextTarget.id);
+            applySubCampaignToState(nextTarget);
+            try {
+              localStorage.setItem('roasist_active_studio_sub_id', nextTarget.id);
+            } catch (err) {}
+          } else {
+            setActiveSubCampaignId(null);
+            setKeywords([]);
+            setSelectedKeywordIds(new Set());
+            setMonthlyBudget(0);
+            try {
+              localStorage.removeItem('roasist_active_studio_sub_id');
+            } catch (err) {}
+          }
+        }
+      }
+    } catch (err: any) {
+      alert('Alt kampanya silinirken hata oluştu: ' + (err.message || ''));
+    }
+  };
+
   const isInitialPlansLoadedRef = useRef<boolean>(false);
 
   // Load Saved Plans on Workspace change
@@ -4662,24 +4710,6 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                                   type="button"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    handleOpenExportModal(sc, 'PDF', { 
-                                      name: plan.name, 
-                                      clientName: plan.clientName, 
-                                      period: plan.period, 
-                                      startDate: plan.startDate, 
-                                      endDate: plan.endDate 
-                                    });
-                                  }}
-                                  className="btn-ghost"
-                                  style={{ padding: '3px 6px', fontSize: '0.7rem', color: 'var(--brand-primary)' }}
-                                  title="Alt Kampanya Raporunu Özelleştir & PDF Al"
-                                >
-                                  <FileText size={13} />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
                                     handleOpenExportModal(sc, 'CSV', { 
                                       name: plan.name, 
                                       clientName: plan.clientName, 
@@ -4693,6 +4723,15 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                                   title="Alt Kampanya CSV Raporunu Özelleştir & İndir"
                                 >
                                   <Download size={13} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleDeleteSubCampaignFromPlan(plan.id, sc.id, e)}
+                                  className="btn-ghost"
+                                  style={{ padding: '3px 6px', fontSize: '0.7rem', color: '#ef4444' }}
+                                  title="Bu alt kampanyayı sil"
+                                >
+                                  <Trash2 size={12} />
                                 </button>
                                 <span style={{ fontSize: '0.72rem', fontWeight: 700, color: sc.status === 'PAUSED' ? 'var(--text-muted)' : 'var(--brand-primary)', marginLeft: '2px' }}>
                                   {sc.status === 'PAUSED' ? '⏸️ Pasif' : `₺${(sc.monthlyBudget || 0).toLocaleString('tr-TR')}`}
