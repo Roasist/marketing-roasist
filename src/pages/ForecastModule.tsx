@@ -5087,303 +5087,297 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
           {/* 0.5 SUB-CAMPAIGNS SELECTOR STRIP */}
           <div 
-        style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '0.75rem',
-          backgroundColor: 'var(--bg-surface-elevated)',
-          padding: '0.65rem 0.85rem',
-          borderRadius: 'var(--radius-xs)',
-          border: '1px solid var(--border-default)'
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', overflowX: 'auto', flex: 1, paddingBottom: '2px' }}>
-          {/* 👑 Çatı Dashboard Tab Button */}
-          <button
-            type="button"
-            onClick={() => {
-              syncActiveSubCampaign();
-              setActiveSubCampaignId(null);
-              setActiveChannelTab('OMNICHANNEL');
-              setCurrentStep(3);
-              try {
-                localStorage.removeItem('roasist_active_studio_sub_id');
-              } catch (e) {}
-            }}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.45rem',
-              padding: '0.4rem 0.85rem',
+            style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'space-between',
+              flexWrap: 'nowrap',
+              gap: '0.75rem',
+              backgroundColor: 'var(--bg-surface-elevated)',
+              padding: '0.65rem 0.85rem',
               borderRadius: 'var(--radius-xs)',
-              border: activeSubCampaignId === null ? '1.5px solid var(--brand-primary)' : '1px solid var(--border-default)',
-              backgroundColor: activeSubCampaignId === null ? 'rgba(37, 99, 235, 0.12)' : 'var(--bg-surface)',
-              color: activeSubCampaignId === null ? 'var(--brand-primary)' : 'var(--text-primary)',
-              fontWeight: activeSubCampaignId === null ? 700 : 500,
-              fontSize: '0.8rem',
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              transition: 'all 0.15s ease'
+              border: '1px solid var(--border-default)',
+              overflow: 'hidden'
             }}
           >
-            <span>👑</span>
-            <span>Çatı Dashboard</span>
-            <span style={{ 
-              fontSize: '0.7rem', 
-              padding: '1px 6px', 
-              borderRadius: 'var(--radius-xs)', 
-              backgroundColor: activeSubCampaignId === null ? 'var(--brand-primary)' : 'var(--bg-surface-elevated)',
-              color: activeSubCampaignId === null ? '#ffffff' : 'var(--text-secondary)',
-              fontWeight: 700 
-            }}>
-              ₺{totalMasterMonthlyBudget.toLocaleString('tr-TR')}
-            </span>
-          </button>
-
-          <div style={{ width: '1px', height: '18px', backgroundColor: 'var(--border-default)', margin: '0 2px' }} />
-
-          {subCampaigns.length === 0 && (
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic', marginRight: '0.4rem' }}>
-              💡 Henüz alt kampanya oluşturulmadı.
-            </span>
-          )}
-
-          {subCampaigns.map((camp) => {
-            const isActive = camp.id === activeSubCampaignId;
-            return (
-              <div
-                key={camp.id}
-                onClick={() => handleSelectSubCampaign(camp.id)}
+            {/* Left: 👑 Çatı Dashboard Fixed Tab */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexShrink: 0 }}>
+              <button
+                type="button"
+                onClick={() => {
+                  syncActiveSubCampaign();
+                  setActiveSubCampaignId(null);
+                  setActiveChannelTab('OMNICHANNEL');
+                  setCurrentStep(3);
+                  try {
+                    localStorage.removeItem('roasist_active_studio_sub_id');
+                  } catch (e) {}
+                }}
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '0.45rem',
-                  padding: '0.4rem 0.75rem',
+                  padding: '0.4rem 0.85rem',
                   borderRadius: 'var(--radius-xs)',
-                  border: isActive ? '1.5px solid var(--brand-primary)' : '1px solid var(--border-default)',
-                  backgroundColor: isActive ? 'rgba(37, 99, 235, 0.12)' : 'var(--bg-surface)',
-                  color: isActive ? 'var(--brand-primary)' : 'var(--text-primary)',
-                  fontWeight: isActive ? 700 : 500,
+                  border: activeSubCampaignId === null ? '1.5px solid var(--brand-primary)' : '1px solid var(--border-default)',
+                  backgroundColor: activeSubCampaignId === null ? 'rgba(37, 99, 235, 0.12)' : 'var(--bg-surface)',
+                  color: activeSubCampaignId === null ? 'var(--brand-primary)' : 'var(--text-primary)',
+                  fontWeight: activeSubCampaignId === null ? 700 : 500,
                   fontSize: '0.8rem',
                   cursor: 'pointer',
                   whiteSpace: 'nowrap',
                   transition: 'all 0.15s ease'
                 }}
               >
-                <span>{camp.languageFlag || '🌐'}</span>
-                {getPlatformIcon(camp.platform, 14)}
-                
-                {editingSubCampaignId === camp.id ? (
-                  <input
-                    type="text"
-                    value={tempSubCampaignName}
-                    onChange={(e) => setTempSubCampaignName(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') handleSaveRename(camp.id);
-                      if (e.key === 'Escape') setEditingSubCampaignId(null);
-                    }}
-                    onBlur={() => handleSaveRename(camp.id)}
-                    onClick={(e) => e.stopPropagation()}
-                    autoFocus
+                <span>👑</span>
+                <span>Çatı Dashboard</span>
+                <span style={{ 
+                  fontSize: '0.7rem', 
+                  padding: '1px 6px', 
+                  borderRadius: 'var(--radius-xs)', 
+                  backgroundColor: activeSubCampaignId === null ? 'var(--brand-primary)' : 'var(--bg-surface-elevated)',
+                  color: activeSubCampaignId === null ? '#ffffff' : 'var(--text-secondary)',
+                  fontWeight: 700 
+                }}>
+                  ₺{totalMasterMonthlyBudget.toLocaleString('tr-TR')}
+                </span>
+              </button>
+
+              <div style={{ width: '1px', height: '18px', backgroundColor: 'var(--border-default)', margin: '0 2px' }} />
+            </div>
+
+            {/* Center: Scrollable Sub-Campaign Tabs */}
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '0.45rem', 
+              overflowX: 'auto', 
+              flex: 1, 
+              paddingBottom: '2px',
+              scrollbarWidth: 'thin'
+            }}>
+              {subCampaigns.length === 0 && (
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic', marginRight: '0.4rem' }}>
+                  💡 Henüz alt kampanya oluşturulmadı.
+                </span>
+              )}
+
+              {subCampaigns.map((camp) => {
+                const isActive = camp.id === activeSubCampaignId;
+                return (
+                  <div
+                    key={camp.id}
+                    onClick={() => handleSelectSubCampaign(camp.id)}
                     style={{
-                      padding: '1px 6px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.45rem',
+                      padding: '0.4rem 0.75rem',
+                      borderRadius: 'var(--radius-xs)',
+                      border: isActive ? '1.5px solid var(--brand-primary)' : '1px solid var(--border-default)',
+                      backgroundColor: isActive ? 'rgba(37, 99, 235, 0.12)' : 'var(--bg-surface)',
+                      color: isActive ? 'var(--brand-primary)' : 'var(--text-primary)',
+                      fontWeight: isActive ? 700 : 500,
                       fontSize: '0.8rem',
-                      borderRadius: '3px',
-                      border: '1px solid var(--brand-primary)',
-                      outline: 'none',
-                      backgroundColor: '#ffffff',
-                      color: 'var(--text-primary)',
-                      fontWeight: 700,
-                      width: '120px'
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                      flexShrink: 0,
+                      transition: 'all 0.15s ease'
                     }}
-                  />
-                ) : (
-                  <span 
-                    onDoubleClick={(e) => handleStartRename(camp.id, camp.name, e)}
-                    title="İsmi düzenlemek için çift tıklayın veya kaleme basın"
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}
                   >
-                    <span>{camp.name}</span>
+                    <span>{camp.languageFlag || '🌐'}</span>
+                    {getPlatformIcon(camp.platform, 14)}
+                    
+                    {editingSubCampaignId === camp.id ? (
+                      <input
+                        type="text"
+                        value={tempSubCampaignName}
+                        onChange={(e) => setTempSubCampaignName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSaveRename(camp.id);
+                          if (e.key === 'Escape') setEditingSubCampaignId(null);
+                        }}
+                        onBlur={() => handleSaveRename(camp.id)}
+                        onClick={(e) => e.stopPropagation()}
+                        autoFocus
+                        style={{
+                          padding: '1px 6px',
+                          fontSize: '0.8rem',
+                          borderRadius: '3px',
+                          border: '1px solid var(--brand-primary)',
+                          outline: 'none',
+                          backgroundColor: '#ffffff',
+                          color: 'var(--text-primary)',
+                          fontWeight: 700,
+                          width: '120px'
+                        }}
+                      />
+                    ) : (
+                      <span 
+                        onDoubleClick={(e) => handleStartRename(camp.id, camp.name, e)}
+                        title="İsmi düzenlemek için çift tıklayın veya kaleme basın"
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}
+                      >
+                        <span>{camp.name}</span>
+                        <button
+                          type="button"
+                          onClick={(e) => handleStartRename(camp.id, camp.name, e)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            padding: '1px',
+                            color: isActive ? 'var(--brand-primary)' : 'var(--text-muted)',
+                            opacity: isActive ? 0.9 : 0.45,
+                            display: 'inline-flex',
+                            alignItems: 'center'
+                          }}
+                          title="Alt Kampanya İsmini Düzenle"
+                        >
+                          <Edit2 size={11} />
+                        </button>
+                      </span>
+                    )}
+
+                    <span 
+                      style={{ 
+                        fontSize: '0.7rem', 
+                        padding: '1px 5px', 
+                        borderRadius: 'var(--radius-xs)', 
+                        backgroundColor: isActive ? 'var(--brand-primary)' : 'var(--bg-surface-elevated)',
+                        color: isActive ? '#ffffff' : 'var(--text-secondary)',
+                        fontWeight: 600 
+                      }}
+                    >
+                      ₺{(isActive ? (monthlyBudget ?? camp.monthlyBudget ?? 0) : (camp.monthlyBudget ?? 0)).toLocaleString('tr-TR')}
+                    </span>
+
+                    {/* Analysis Ready / Keyword count indicator */}
+                    {(() => {
+                      const kCount = (camp.selectedKeywords && camp.selectedKeywords.length > 0) 
+                        ? camp.selectedKeywords.length 
+                        : (camp.discoveredKeywords && camp.discoveredKeywords.length > 0 ? camp.discoveredKeywords.length : 0);
+                      if (kCount > 0) {
+                        return (
+                          <span 
+                            style={{ 
+                              fontSize: '0.68rem', 
+                              padding: '1px 5px', 
+                              borderRadius: '10px', 
+                              backgroundColor: isActive ? 'rgba(16, 185, 129, 0.2)' : 'rgba(16, 185, 129, 0.12)',
+                              color: '#10b981',
+                              fontWeight: 700,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '2px'
+                            }}
+                            title={`${kCount} adet analiz edilmiş kelime mevcut`}
+                          >
+                            ✓ {kCount}
+                          </span>
+                        );
+                      }
+                      return null;
+                    })()}
+
                     <button
                       type="button"
-                      onClick={(e) => handleStartRename(camp.id, camp.name, e)}
+                      onClick={(e) => handleDeleteSubCampaign(camp.id, e)}
                       style={{
                         background: 'none',
                         border: 'none',
                         cursor: 'pointer',
                         padding: '1px',
-                        color: isActive ? 'var(--brand-primary)' : 'var(--text-muted)',
-                        opacity: isActive ? 0.9 : 0.45,
-                        display: 'inline-flex',
-                        alignItems: 'center'
+                        marginLeft: '2px',
+                        display: 'flex',
+                        color: 'var(--text-muted)'
                       }}
-                      title="Alt Kampanya İsmini Düzenle"
+                      title="Bu alt kampanyayı sil"
                     >
-                      <Edit2 size={11} />
+                      <X size={12} />
                     </button>
-                  </span>
-                )}
+                  </div>
+                );
+              })}
+            </div>
 
-                <span 
-                  style={{ 
-                    fontSize: '0.7rem', 
-                    padding: '1px 5px', 
-                    borderRadius: 'var(--radius-xs)', 
-                    backgroundColor: isActive ? 'var(--brand-primary)' : 'var(--bg-surface-elevated)',
-                    color: isActive ? '#ffffff' : 'var(--text-secondary)',
-                    fontWeight: 600 
-                  }}
-                >
-                  ₺{(isActive ? (monthlyBudget ?? camp.monthlyBudget ?? 0) : (camp.monthlyBudget ?? 0)).toLocaleString('tr-TR')}
-                </span>
+            {/* Right: Fixed Action Group (Always Visible - never scrolls away!) */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexShrink: 0 }}>
+              {/* Add Sub-Campaign Button (Fixed on right, always visible!) */}
+              <button
+                type="button"
+                onClick={() => {
+                  setNewCampName(`Kampanya ${subCampaigns.length + 1}`);
+                  setIsAddCampaignModalOpen(true);
+                }}
+                className="btn-secondary"
+                style={{
+                  padding: '0.4rem 0.75rem',
+                  fontSize: '0.78rem',
+                  borderRadius: 'var(--radius-xs)',
+                  border: '1.5px dashed var(--brand-primary)',
+                  backgroundColor: 'rgba(37, 99, 235, 0.04)',
+                  color: 'var(--brand-primary)',
+                  fontWeight: 700,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0
+                }}
+                title="Yeni bir alt kampanya ekle"
+              >
+                <Plus size={13} />
+                <span>Yeni Alt Kampanya</span>
+              </button>
 
-                {/* Analysis Ready / Keyword count indicator */}
-                {(() => {
-                  const kCount = (camp.selectedKeywords && camp.selectedKeywords.length > 0) 
-                    ? camp.selectedKeywords.length 
-                    : (camp.discoveredKeywords && camp.discoveredKeywords.length > 0 ? camp.discoveredKeywords.length : 0);
-                  if (kCount > 0) {
-                    return (
-                      <span 
-                        style={{ 
-                          fontSize: '0.68rem', 
-                          padding: '1px 5px', 
-                          borderRadius: '10px', 
-                          backgroundColor: isActive ? 'rgba(16, 185, 129, 0.2)' : 'rgba(16, 185, 129, 0.12)',
-                          color: '#10b981',
-                          fontWeight: 700,
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '2px'
-                        }}
-                        title={`${kCount} adet analiz edilmiş kelime mevcut`}
-                      >
-                        ✓ {kCount}
-                      </span>
-                    );
-                  }
-                  return null;
-                })()}
+              {/* Sub-Campaign Fast Export Actions */}
+              {activeSubCampaign && (
+                <>
+                  <div style={{ width: '1px', height: '18px', backgroundColor: 'var(--border-default)', margin: '0 2px' }} />
+                  <button
+                    type="button"
+                    onClick={() => handleExportSubCampaignPdf()}
+                    className="btn-ghost"
+                    style={{
+                      padding: '0.4rem 0.6rem',
+                      fontSize: '0.78rem',
+                      fontWeight: 600,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.3rem',
+                      whiteSpace: 'nowrap',
+                      color: 'var(--brand-primary)'
+                    }}
+                    title="PDF Raporu Özelleştir & Aç"
+                  >
+                    <FileText size={13} />
+                    <span>PDF</span>
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={(e) => handleDeleteSubCampaign(camp.id, e)}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    padding: '1px',
-                    marginLeft: '2px',
-                    display: 'flex',
-                    color: 'var(--text-muted)'
-                  }}
-                  title="Bu alt kampanyayı sil"
-                >
-                  <X size={12} />
-                </button>
-              </div>
-            );
-          })}
-
-          {/* Add Sub-Campaign Button */}
-          <button
-            type="button"
-            onClick={() => {
-              setNewCampName(`Kampanya ${subCampaigns.length + 1}`);
-              setIsAddCampaignModalOpen(true);
-            }}
-            className="btn-secondary"
-            style={{
-              padding: '0.4rem 0.75rem',
-              fontSize: '0.78rem',
-              borderRadius: 'var(--radius-xs)',
-              border: '1px dashed var(--brand-primary)',
-              color: 'var(--brand-primary)',
-              fontWeight: 600,
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.35rem',
-              whiteSpace: 'nowrap'
-            }}
-          >
-            <Plus size={13} />
-            <span>Yeni Alt Kampanya Ekle</span>
-          </button>
-        </div>
-
-        {/* 360 Consolidated Report Button */}
-        <button
-          type="button"
-          onClick={() => {
-            syncActiveSubCampaign();
-            setCurrentStep(3);
-            setActiveChannelTab('OMNICHANNEL');
-          }}
-          className="btn-secondary"
-          style={{
-            padding: '0.4rem 0.8rem',
-            fontSize: '0.78rem',
-            fontWeight: 700,
-            color: activeChannelTab === 'OMNICHANNEL' && currentStep === 3 ? '#ffffff' : 'var(--brand-primary)',
-            backgroundColor: activeChannelTab === 'OMNICHANNEL' && currentStep === 3 ? 'var(--brand-primary)' : 'transparent',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.35rem',
-            whiteSpace: 'nowrap'
-          }}
-        >
-          <BarChart3 size={14} />
-          <span>360° Konsolide Özet</span>
-        </button>
-
-        {/* Sub-Campaign Fast Export Actions */}
-        {activeSubCampaign && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-
-            <button
-              type="button"
-              onClick={() => handleExportSubCampaignPdf()}
-              className="btn-ghost"
-              style={{
-                padding: '0.4rem 0.6rem',
-                fontSize: '0.78rem',
-                fontWeight: 600,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.3rem',
-                whiteSpace: 'nowrap',
-                color: 'var(--brand-primary)'
-              }}
-              title="PDF Raporu Özelleştir & Aç"
-            >
-              <FileText size={13} />
-              <span>PDF</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleExportSubCampaignCsv()}
-              className="btn-ghost"
-              style={{
-                padding: '0.4rem 0.6rem',
-                fontSize: '0.78rem',
-                fontWeight: 600,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.3rem',
-                whiteSpace: 'nowrap',
-                color: 'var(--text-secondary)'
-              }}
-              title="CSV Raporu Özelleştir & İndir"
-            >
-              <Download size={13} />
-              <span>CSV</span>
-            </button>
+                  <button
+                    type="button"
+                    onClick={() => handleExportSubCampaignCsv()}
+                    className="btn-ghost"
+                    style={{
+                      padding: '0.4rem 0.6rem',
+                      fontSize: '0.78rem',
+                      fontWeight: 600,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.3rem',
+                      whiteSpace: 'nowrap',
+                      color: 'var(--text-secondary)'
+                    }}
+                    title="CSV Raporu Özelleştir & İndir"
+                  >
+                    <Download size={13} />
+                    <span>CSV</span>
+                  </button>
+                </>
+              )}
+            </div>
           </div>
-        )}
-      </div>
 
       {/* NEW SUB-CAMPAIGN CREATION MODAL */}
       {isAddCampaignModalOpen && (
