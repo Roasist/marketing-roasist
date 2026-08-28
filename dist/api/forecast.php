@@ -4149,6 +4149,17 @@ if ($action === 'plans') {
             exit;
         }
 
+        // Auto-clean any empty orphan dummy plans from DB
+        try {
+            $pdo->exec("
+                DELETE FROM forecast_plans 
+                WHERE (name LIKE 'Forecast Planı %' OR name = '' OR name IS NULL) 
+                  AND (monthly_budget = 0 OR monthly_budget IS NULL) 
+                  AND (plan_data IS NULL OR plan_data = '' OR plan_data = '{}' OR plan_data LIKE '%\"subCampaigns\":[]%') 
+                  AND (selected_keywords IS NULL OR selected_keywords = '' OR selected_keywords = '[]')
+            ");
+        } catch (Throwable $e) {}
+
         // List all plans for portfolio overview
         if (!empty($workspaceId)) {
             $stmt = $pdo->prepare("
@@ -4172,6 +4183,14 @@ if ($action === 'plans') {
             $planData = json_decode($r['plan_data'] ?? '{}', true) ?: [];
             $rawSubs = $planData['subCampaigns'] ?? [];
             
+            // Skip ghost empty plans that have 0 budget, 0 subcampaigns, 0 keywords
+            $planKws = json_decode($r['selected_keywords'] ?? '[]', true) ?: [];
+            $budget = (float)($r['monthly_budget'] ?? 0);
+            $planName = $r['name'] ?? '';
+            if (empty($rawSubs) && empty($planKws) && $budget <= 0 && (empty($planName) || str_starts_with($planName, 'Forecast Planı '))) {
+                continue;
+            }
+
             // Generate clean lightweight subCampaigns for portfolio display (Zero Payload Bloat)
             $lightweightSubs = array_map(function($sc) {
                 return [
@@ -4222,8 +4241,20 @@ if ($action === 'plans') {
 
     if ($method === 'POST') {
         $input = json_decode(file_get_contents('php://input'), true) ?? [];
+        $rawSubs = $input['subCampaigns'] ?? [];
+        $rawKws = $input['selectedKeywords'] ?? [];
+        $monthlyBudget = (float)($input['monthlyBudget'] ?? 0);
+        $inputName = trim($input['name'] ?? '');
+        $hasExplicitId = !empty($input['id']);
+
+        // Guard against ghost plan creation
+        if (!$hasExplicitId && empty($rawSubs) && empty($rawKws) && $monthlyBudget <= 0 && (empty($inputName) || str_starts_with($inputName, 'Forecast Planı '))) {
+            echo json_encode(['status' => 'ignored', 'message' => 'Boş taslak kaydedilmedi.']);
+            exit;
+        }
+
         $planId = $input['id'] ?? ('plan_' . time() . '_' . rand(100, 999));
-        $name = trim($input['name'] ?? ('Forecast Planı ' . date('d.m.Y H:i')));
+        $name = $inputName ?: ('Forecast Planı ' . date('d.m.Y H:i'));
         $clientName = trim($input['clientName'] ?? '');
         $startDate = trim($input['startDate'] ?? '');
         $endDate = trim($input['endDate'] ?? '');

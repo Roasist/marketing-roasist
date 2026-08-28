@@ -1627,33 +1627,35 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       setCurrentStep(1);
     }
 
-    // Persist updated plan with new sub-campaign immediately
-    try {
-      const formattedPeriod = formatCampaignDates(planStartDate, planEndDate, planPeriod);
-      await ApiService.saveForecastPlan({
-        id: currentPlanId || undefined,
-        workspaceId,
-        name: planName.trim() || `${clientName} - ${formattedPeriod} Medya Planı`,
-        clientName: clientName.trim(),
-        startDate: planStartDate,
-        endDate: planEndDate,
-        period: formattedPeriod,
-        tags: planTags,
-        targetUrl: mode === 'URL' ? query : '',
-        seedKeywords: mode === 'KEYWORDS' ? query : '',
-        detectedLanguage: 'auto',
-        detectedLanguageName: 'Otomatik (Sayfa Dili)',
-        monthlyBudget: updatedSubs.reduce((acc, curr) => acc + (curr.monthlyBudget || 0), 0),
-        selectedKeywords: [],
-        simulationResult: simulation,
-        negativeKeywords: [],
-        targetCountries: DEFAULT_LOCATIONS.map((c: any) => c.name),
-        countryBreakdown,
-        subCampaigns: updatedSubs
-      });
-      loadSavedPlans();
-    } catch (err) {
-      console.error('Sub-campaign saving error:', err);
+    // Persist updated plan with new sub-campaign immediately ONLY if active master plan exists
+    if (currentPlanId) {
+      try {
+        const formattedPeriod = formatCampaignDates(planStartDate, planEndDate, planPeriod);
+        await ApiService.saveForecastPlan({
+          id: currentPlanId,
+          workspaceId,
+          name: planName.trim() || `${clientName} - ${formattedPeriod} Medya Planı`,
+          clientName: clientName.trim(),
+          startDate: planStartDate,
+          endDate: planEndDate,
+          period: formattedPeriod,
+          tags: planTags,
+          targetUrl: mode === 'URL' ? query : '',
+          seedKeywords: mode === 'KEYWORDS' ? query : '',
+          detectedLanguage: 'auto',
+          detectedLanguageName: 'Otomatik (Sayfa Dili)',
+          monthlyBudget: updatedSubs.reduce((acc, curr) => acc + (curr.monthlyBudget || 0), 0),
+          selectedKeywords: [],
+          simulationResult: simulation,
+          negativeKeywords: [],
+          targetCountries: DEFAULT_LOCATIONS.map((c: any) => c.name),
+          countryBreakdown,
+          subCampaigns: updatedSubs
+        });
+        loadSavedPlans();
+      } catch (err) {
+        console.error('Sub-campaign saving error:', err);
+      }
     }
   };
 
@@ -1674,33 +1676,35 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         }
       }
 
-      // Persist plan after deletion
-      try {
-        const formattedPeriod = formatCampaignDates(planStartDate, planEndDate, planPeriod);
-        await ApiService.saveForecastPlan({
-          id: currentPlanId || undefined,
-          workspaceId,
-          name: planName.trim() || `${clientName} - ${formattedPeriod} Medya Planı`,
-          clientName: clientName.trim(),
-          startDate: planStartDate,
-          endDate: planEndDate,
-          period: formattedPeriod,
-          tags: planTags,
-          targetUrl: '',
-          seedKeywords: '',
-          detectedLanguage,
-          detectedLanguageName,
-          monthlyBudget: remaining.reduce((acc, curr) => acc + (curr.monthlyBudget || 0), 0),
-          selectedKeywords: [],
-          simulationResult: simulation,
-          negativeKeywords: [],
-          targetCountries: activeCountries.map(c => c.name),
-          countryBreakdown,
-          subCampaigns: remaining
-        });
-        loadSavedPlans();
-      } catch (err) {
-        console.error('Plan update error after sub-campaign deletion:', err);
+      // Persist plan after deletion ONLY if active master plan exists
+      if (currentPlanId) {
+        try {
+          const formattedPeriod = formatCampaignDates(planStartDate, planEndDate, planPeriod);
+          await ApiService.saveForecastPlan({
+            id: currentPlanId,
+            workspaceId,
+            name: planName.trim() || `${clientName} - ${formattedPeriod} Medya Planı`,
+            clientName: clientName.trim(),
+            startDate: planStartDate,
+            endDate: planEndDate,
+            period: formattedPeriod,
+            tags: planTags,
+            targetUrl: '',
+            seedKeywords: '',
+            detectedLanguage,
+            detectedLanguageName,
+            monthlyBudget: remaining.reduce((acc, curr) => acc + (curr.monthlyBudget || 0), 0),
+            selectedKeywords: [],
+            simulationResult: simulation,
+            negativeKeywords: [],
+            targetCountries: activeCountries.map(c => c.name),
+            countryBreakdown,
+            subCampaigns: remaining
+          });
+          loadSavedPlans();
+        } catch (err) {
+          console.error('Plan update error after sub-campaign deletion:', err);
+        }
       }
     }
   };
@@ -11904,29 +11908,31 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                 cpcImputationSettings: s.cpcImputationSettings
               }));
 
-              await ApiService.saveForecastPlan({
-                id: currentPlanId,
-                workspaceId,
-                name: planName.trim() || `${clientName} - Medya Planı`,
-                clientName: clientName.trim(),
-                startDate: planStartDate,
-                endDate: planEndDate,
-                period: formatCampaignDates(planStartDate, planEndDate, planPeriod),
-                tags: planTags,
-                targetUrl: mode === 'URL' ? query : '',
-                seedKeywords: mode === 'KEYWORDS' ? query : '',
-                detectedLanguage,
-                detectedLanguageName,
-                monthlyBudget: newMasterBudget,
-                selectedKeywords: selectedKeywordsPool.map(sanitizeKeywordForSave).filter(Boolean),
-                simulationResult: simulation,
-                negativeKeywords: negativeCategories,
-                targetCountries: activeCountries.map(c => c.name),
-                countryBreakdown,
-                subCampaigns: compactSubs,
-                languageAllocations: newLangAllocations || languageAllocations
-              });
-              loadSavedPlans();
+              if (currentPlanId) {
+                await ApiService.saveForecastPlan({
+                  id: currentPlanId,
+                  workspaceId,
+                  name: planName.trim() || `${clientName} - Medya Planı`,
+                  clientName: clientName.trim(),
+                  startDate: planStartDate,
+                  endDate: planEndDate,
+                  period: formatCampaignDates(planStartDate, planEndDate, planPeriod),
+                  tags: planTags,
+                  targetUrl: mode === 'URL' ? query : '',
+                  seedKeywords: mode === 'KEYWORDS' ? query : '',
+                  detectedLanguage,
+                  detectedLanguageName,
+                  monthlyBudget: newMasterBudget,
+                  selectedKeywords: selectedKeywordsPool.map(sanitizeKeywordForSave).filter(Boolean),
+                  simulationResult: simulation,
+                  negativeKeywords: negativeCategories,
+                  targetCountries: activeCountries.map(c => c.name),
+                  countryBreakdown,
+                  subCampaigns: compactSubs,
+                  languageAllocations: newLangAllocations || languageAllocations
+                });
+                loadSavedPlans();
+              }
             } catch (err) {
               console.error('Save error during allocation apply:', err);
             }
