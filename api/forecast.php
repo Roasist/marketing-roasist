@@ -1690,7 +1690,9 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
         'AZ' => 'geoTargetConstants/2031'
     ];
 
-    if ($normLangCode === 'ru') {
+    if (!empty($requestedGeoTargetConstants) && is_array($requestedGeoTargetConstants)) {
+        $expansionGeoList = $finalGeoList;
+    } elseif ($normLangCode === 'ru') {
         $expansionGeoList = ['geoTargetConstants/2398', 'geoTargetConstants/2860', 'geoTargetConstants/2417', 'geoTargetConstants/2804', 'geoTargetConstants/2792'];
     } elseif ($normLangCode === 'tr') {
         $expansionGeoList = ['geoTargetConstants/2792'];
@@ -1701,7 +1703,7 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
     } elseif ($normLangCode === 'fa') {
         $expansionGeoList = ['geoTargetConstants/2792', 'geoTargetConstants/2784'];
     } else {
-        $expansionGeoList = array_values(array_unique(array_filter([$geoConst, 'geoTargetConstants/2792'])));
+        $expansionGeoList = $finalGeoList;
     }
 
     // Step A: Expand Seeds & Discover Broad Keyword Ideas using Core Expansion Targets (Query each country individually in parallel)
@@ -1819,7 +1821,7 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
         $langPrimaryGeoMap = [
             'ru' => 'geoTargetConstants/2792', // Turkey for Russian searches
             'tr' => 'geoTargetConstants/2792',
-            'en' => 'geoTargetConstants/2840',
+            'en' => 'geoTargetConstants/2792',
             'de' => 'geoTargetConstants/2276',
             'ar' => 'geoTargetConstants/2784',
             'kz' => 'geoTargetConstants/2398'
