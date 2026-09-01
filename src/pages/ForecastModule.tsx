@@ -1179,6 +1179,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   // Negative Keywords State
   const [negativeCategories, setNegativeCategories] = useState<NegativeCategory[]>([]);
   const [copiedCategory, setCopiedCategory] = useState<string | null>(null);
+  const [copiedKeywordsFeedback, setCopiedKeywordsFeedback] = useState<string | null>(null);
+  const [copyMatchType, setCopyMatchType] = useState<'BROAD' | 'PHRASE' | 'EXACT'>('BROAD');
+  const [isCopyMenuOpen, setIsCopyMenuOpen] = useState<boolean>(false);
 
   // Saved Plans State with Instant LocalStorage Cache
   const [savedPlans, setSavedPlans] = useState<ForecastPlan[]>(() => {
@@ -2610,6 +2613,59 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         next.delete(id);
         return next;
       });
+    }
+  };
+
+  // Copy keywords to clipboard line-by-line (Alt alta) for Google Ads
+  const handleCopyKeywords = (
+    targetKws: KeywordMetric[], 
+    matchType: 'BROAD' | 'PHRASE' | 'EXACT' = 'BROAD',
+    labelKey: string = 'STEP2'
+  ) => {
+    if (!targetKws || targetKws.length === 0) return;
+
+    const formattedLines = targetKws.map(k => {
+      const raw = String(k.keyword || '').trim();
+      if (!raw) return '';
+      if (matchType === 'EXACT') return `[${raw}]`;
+      if (matchType === 'PHRASE') return `"${raw}"`;
+      return raw;
+    }).filter(Boolean).join('\n');
+
+    const triggerSuccess = () => {
+      setCopiedKeywordsFeedback(`${labelKey}_${matchType}`);
+      setIsCopyMenuOpen(false);
+      setTimeout(() => {
+        setCopiedKeywordsFeedback(null);
+      }, 2500);
+    };
+
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(formattedLines).then(triggerSuccess).catch(() => {
+        try {
+          const textarea = document.createElement('textarea');
+          textarea.value = formattedLines;
+          textarea.style.position = 'fixed';
+          textarea.style.opacity = '0';
+          document.body.appendChild(textarea);
+          textarea.select();
+          document.execCommand('copy');
+          document.body.removeChild(textarea);
+          triggerSuccess();
+        } catch (e) {}
+      });
+    } else {
+      try {
+        const textarea = document.createElement('textarea');
+        textarea.value = formattedLines;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        triggerSuccess();
+      } catch (e) {}
     }
   };
 
@@ -7134,6 +7190,150 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                           </button>
                         )}
 
+                        {/* Copy Keywords to Clipboard (Alt Alta - Google Ads Uyumlu) */}
+                        {(() => {
+                          const kwsToCopy = currentStep === 2 
+                            ? (activeClusterId === 'ALL' ? step2WorkingKeywords : activeCluster.keywords.filter(k => selectedKeywordIds.has(k.id)))
+                            : activeCluster.keywords.filter(k => selectedKeywordIds.has(k.id));
+                          const count = kwsToCopy.length;
+                          if (count === 0) return null;
+
+                          return (
+                            <div style={{ position: 'relative', display: 'inline-flex' }}>
+                              <div style={{ 
+                                display: 'inline-flex', 
+                                alignItems: 'center', 
+                                borderRadius: 'var(--radius-xs)', 
+                                border: '1px solid rgba(37, 99, 235, 0.4)', 
+                                backgroundColor: 'rgba(37, 99, 235, 0.08)',
+                                overflow: 'hidden'
+                              }}>
+                                <button
+                                  type="button"
+                                  onClick={() => handleCopyKeywords(kwsToCopy, copyMatchType, 'STEP2_HDR')}
+                                  title="Seçili anahtar kelimeleri alt alta kopyalar (Google Ads Kampanya kurulumuna doğrudan yapıştırabilirsiniz)."
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                    fontSize: '0.74rem',
+                                    padding: '0.35rem 0.7rem',
+                                    background: 'none',
+                                    border: 'none',
+                                    color: 'var(--brand-primary)',
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    whiteSpace: 'nowrap'
+                                  }}
+                                >
+                                  {copiedKeywordsFeedback?.startsWith('STEP2_HDR') ? (
+                                    <>
+                                      <Check size={13} color="#059669" />
+                                      <span style={{ color: '#059669' }}>✓ {count} Kelime Alt Alta Kopyalandı!</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Copy size={13} />
+                                      <span>Kelimeleri Kopyala (Google Ads)</span>
+                                      <span style={{ 
+                                        fontSize: '0.62rem', 
+                                        backgroundColor: 'var(--brand-primary)', 
+                                        color: '#fff', 
+                                        borderRadius: '10px', 
+                                        padding: '1px 6px',
+                                        fontWeight: 700 
+                                      }}>
+                                        {count}
+                                      </span>
+                                    </>
+                                  )}
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setIsCopyMenuOpen(prev => !prev);
+                                  }}
+                                  title="Google Ads Eşleme Türü Seçenekleri (Geniş, Sıralı, Tam)"
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    padding: '0.35rem 0.45rem',
+                                    background: 'none',
+                                    borderLeft: '1px solid rgba(37, 99, 235, 0.25)',
+                                    borderRight: 'none',
+                                    borderTop: 'none',
+                                    borderBottom: 'none',
+                                    color: 'var(--brand-primary)',
+                                    cursor: 'pointer'
+                                  }}
+                                >
+                                  <ChevronDown size={11} />
+                                </button>
+                              </div>
+
+                              {isCopyMenuOpen && (
+                                <div 
+                                  style={{
+                                    position: 'absolute',
+                                    right: 0,
+                                    top: 'calc(100% + 4px)',
+                                    backgroundColor: 'var(--bg-surface)',
+                                    border: '1px solid var(--border-default)',
+                                    borderRadius: '8px',
+                                    boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+                                    zIndex: 1000,
+                                    minWidth: '220px',
+                                    padding: '0.4rem',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '0.2rem'
+                                  }}
+                                >
+                                  <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-muted)', padding: '0.25rem 0.5rem', textTransform: 'uppercase' }}>
+                                    Google Ads Eşleme Türü:
+                                  </div>
+                                  {[
+                                    { type: 'BROAD' as const, label: 'Düz Liste (Geniş Eşleme)', example: 'alanya daire' },
+                                    { type: 'PHRASE' as const, label: 'Sıralı Eşleme (" ")', example: '"alanya daire"' },
+                                    { type: 'EXACT' as const, label: 'Tam Eşleme ([ ])', example: '[alanya daire]' },
+                                  ].map(item => (
+                                    <button
+                                      key={item.type}
+                                      type="button"
+                                      onClick={() => {
+                                        setCopyMatchType(item.type);
+                                        handleCopyKeywords(kwsToCopy, item.type, 'STEP2_HDR');
+                                      }}
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between',
+                                        padding: '0.35rem 0.5rem',
+                                        borderRadius: '5px',
+                                        fontSize: '0.75rem',
+                                        border: 'none',
+                                        backgroundColor: copyMatchType === item.type ? 'rgba(37, 99, 235, 0.08)' : 'transparent',
+                                        color: copyMatchType === item.type ? 'var(--brand-primary)' : 'var(--text-primary)',
+                                        fontWeight: copyMatchType === item.type ? 700 : 500,
+                                        cursor: 'pointer',
+                                        textAlign: 'left'
+                                      }}
+                                    >
+                                      <div>
+                                        <div>{item.label}</div>
+                                        <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>{item.example}</div>
+                                      </div>
+                                      {copyMatchType === item.type && <Check size={13} color="var(--brand-primary)" />}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
+
                         <button
                           type="button"
                           onClick={() => toggleGroupSelection(activeCluster)}
@@ -7289,6 +7489,40 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                             style={{ fontSize: '0.68rem', padding: '2px 8px', borderRadius: 'var(--radius-xs)', color: 'var(--text-muted)' }}
                           >
                             Temizle
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const kwsToCopy = activeKeywordsGrid.filter(k => selectedKeywordIds.has(k.id));
+                              handleCopyKeywords(kwsToCopy.length > 0 ? kwsToCopy : activeKeywordsGrid, copyMatchType, 'TBL_BAR');
+                            }}
+                            className="btn-ghost"
+                            style={{ 
+                              fontSize: '0.68rem', 
+                              padding: '2px 8px', 
+                              borderRadius: 'var(--radius-xs)', 
+                              border: '1px solid rgba(37, 99, 235, 0.3)', 
+                              backgroundColor: 'rgba(37, 99, 235, 0.04)',
+                              color: 'var(--brand-primary)', 
+                              fontWeight: 600,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}
+                            title="Listelenen kelimeleri alt alta kopyalar (Google Ads uyumlu)"
+                          >
+                            {copiedKeywordsFeedback?.startsWith('TBL_BAR') ? (
+                              <>
+                                <Check size={11} color="#059669" />
+                                <span style={{ color: '#059669' }}>Kopyalandı!</span>
+                              </>
+                            ) : (
+                              <>
+                                <Copy size={11} />
+                                <span>Kelimeleri Kopyala</span>
+                              </>
+                            )}
                           </button>
                         </div>
 
