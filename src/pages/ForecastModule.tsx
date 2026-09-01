@@ -5092,11 +5092,12 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
               alignItems: 'center', 
               justifyContent: 'space-between',
               flexWrap: 'nowrap',
-              gap: '0.75rem',
-              backgroundColor: 'var(--bg-surface-elevated)',
-              padding: '0.65rem 0.85rem',
-              borderRadius: 'var(--radius-xs)',
+              gap: '0.65rem',
+              backgroundColor: 'var(--bg-surface)',
+              padding: '0.45rem 0.65rem',
+              borderRadius: '10px',
               border: '1px solid var(--border-default)',
+              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.03)',
               overflow: 'hidden'
             }}
           >
@@ -5117,15 +5118,16 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '0.45rem',
-                  padding: '0.4rem 0.85rem',
-                  borderRadius: 'var(--radius-xs)',
-                  border: activeSubCampaignId === null ? '1.5px solid var(--brand-primary)' : '1px solid var(--border-default)',
-                  backgroundColor: activeSubCampaignId === null ? 'rgba(37, 99, 235, 0.12)' : 'var(--bg-surface)',
-                  color: activeSubCampaignId === null ? 'var(--brand-primary)' : 'var(--text-primary)',
-                  fontWeight: activeSubCampaignId === null ? 700 : 500,
+                  padding: '0.42rem 0.85rem',
+                  borderRadius: '7px',
+                  border: activeSubCampaignId === null ? '1px solid rgba(255, 255, 255, 0.18)' : '1px solid var(--border-default)',
+                  background: activeSubCampaignId === null ? 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)' : 'var(--bg-surface-elevated)',
+                  color: activeSubCampaignId === null ? '#ffffff' : 'var(--text-primary)',
+                  fontWeight: activeSubCampaignId === null ? 700 : 600,
                   fontSize: '0.8rem',
                   cursor: 'pointer',
                   whiteSpace: 'nowrap',
+                  boxShadow: activeSubCampaignId === null ? '0 2px 8px rgba(37, 99, 235, 0.28)' : 'none',
                   transition: 'all 0.15s ease'
                 }}
               >
@@ -5133,29 +5135,33 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                 <span>Çatı Dashboard</span>
                 <span style={{ 
                   fontSize: '0.7rem', 
-                  padding: '1px 6px', 
-                  borderRadius: 'var(--radius-xs)', 
-                  backgroundColor: activeSubCampaignId === null ? 'var(--brand-primary)' : 'var(--bg-surface-elevated)',
-                  color: activeSubCampaignId === null ? '#ffffff' : 'var(--text-secondary)',
+                  padding: '2px 7px', 
+                  borderRadius: '5px', 
+                  backgroundColor: activeSubCampaignId === null ? 'rgba(255, 255, 255, 0.22)' : 'rgba(37, 99, 235, 0.08)',
+                  color: activeSubCampaignId === null ? '#ffffff' : 'var(--brand-primary)',
                   fontWeight: 700 
                 }}>
                   ₺{totalMasterMonthlyBudget.toLocaleString('tr-TR')}
                 </span>
               </button>
 
-              <div style={{ width: '1px', height: '18px', backgroundColor: 'var(--border-default)', margin: '0 2px' }} />
+              <div style={{ width: '1px', height: '20px', backgroundColor: 'var(--border-default)', margin: '0 1px' }} />
             </div>
 
-            {/* Center: Scrollable Sub-Campaign Tabs */}
-            <div style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '0.45rem', 
-              overflowX: 'auto', 
-              flex: 1, 
-              paddingBottom: '2px',
-              scrollbarWidth: 'thin'
-            }}>
+            {/* Center: Scrollable Sub-Campaign Tabs (Clean, zero native scrollbar) */}
+            <div 
+              className="no-scrollbar"
+              style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '0.45rem', 
+                overflowX: 'auto', 
+                flex: 1, 
+                padding: '2px 0',
+                scrollbarWidth: 'none',
+                msOverflowStyle: 'none'
+              }}
+            >
               {subCampaigns.length === 0 && (
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic', marginRight: '0.4rem' }}>
                   💡 Henüz alt kampanya oluşturulmadı.
@@ -5172,16 +5178,17 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: '0.45rem',
-                      padding: '0.4rem 0.75rem',
-                      borderRadius: 'var(--radius-xs)',
+                      padding: '0.42rem 0.75rem',
+                      borderRadius: '7px',
                       border: isActive ? '1.5px solid var(--brand-primary)' : '1px solid var(--border-default)',
-                      backgroundColor: isActive ? 'rgba(37, 99, 235, 0.12)' : 'var(--bg-surface)',
-                      color: isActive ? 'var(--brand-primary)' : 'var(--text-primary)',
-                      fontWeight: isActive ? 700 : 500,
+                      backgroundColor: isActive ? 'var(--bg-surface)' : 'var(--bg-surface-elevated)',
+                      color: isActive ? 'var(--brand-primary)' : 'var(--text-secondary)',
+                      fontWeight: isActive ? 600 : 500,
                       fontSize: '0.8rem',
                       cursor: 'pointer',
                       whiteSpace: 'nowrap',
                       flexShrink: 0,
+                      boxShadow: isActive ? '0 2px 6px rgba(37, 99, 235, 0.12)' : 'none',
                       transition: 'all 0.15s ease'
                     }}
                   >
@@ -5203,7 +5210,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                         style={{
                           padding: '1px 6px',
                           fontSize: '0.8rem',
-                          borderRadius: '3px',
+                          borderRadius: '4px',
                           border: '1px solid var(--brand-primary)',
                           outline: 'none',
                           backgroundColor: '#ffffff',
@@ -5218,7 +5225,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                         title="İsmi düzenlemek için çift tıklayın veya kaleme basın"
                         style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}
                       >
-                        <span>{camp.name}</span>
+                        <span style={{ color: isActive ? 'var(--brand-primary)' : 'var(--text-primary)' }}>{camp.name}</span>
                         <button
                           type="button"
                           onClick={(e) => handleStartRename(camp.id, camp.name, e)}
@@ -5228,7 +5235,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                             cursor: 'pointer',
                             padding: '1px',
                             color: isActive ? 'var(--brand-primary)' : 'var(--text-muted)',
-                            opacity: isActive ? 0.9 : 0.45,
+                            opacity: isActive ? 0.85 : 0.4,
                             display: 'inline-flex',
                             alignItems: 'center'
                           }}
@@ -5239,14 +5246,16 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       </span>
                     )}
 
+                    {/* Budget Badge */}
                     <span 
                       style={{ 
                         fontSize: '0.7rem', 
-                        padding: '1px 5px', 
-                        borderRadius: 'var(--radius-xs)', 
-                        backgroundColor: isActive ? 'var(--brand-primary)' : 'var(--bg-surface-elevated)',
-                        color: isActive ? '#ffffff' : 'var(--text-secondary)',
-                        fontWeight: 600 
+                        padding: '2px 6px', 
+                        borderRadius: '5px', 
+                        backgroundColor: isActive ? 'rgba(37, 99, 235, 0.08)' : 'rgba(0, 0, 0, 0.03)',
+                        border: isActive ? '1px solid rgba(37, 99, 235, 0.18)' : '1px solid var(--border-default)',
+                        color: isActive ? 'var(--brand-primary)' : 'var(--text-muted)',
+                        fontWeight: isActive ? 700 : 600 
                       }}
                     >
                       ₺{(isActive ? (monthlyBudget ?? camp.monthlyBudget ?? 0) : (camp.monthlyBudget ?? 0)).toLocaleString('tr-TR')}
@@ -5262,10 +5271,11 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                           <span 
                             style={{ 
                               fontSize: '0.68rem', 
-                              padding: '1px 5px', 
-                              borderRadius: '10px', 
-                              backgroundColor: isActive ? 'rgba(16, 185, 129, 0.2)' : 'rgba(16, 185, 129, 0.12)',
-                              color: '#10b981',
+                              padding: '2px 6px', 
+                              borderRadius: '5px', 
+                              backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                              border: '1px solid rgba(16, 185, 129, 0.25)',
+                              color: '#059669',
                               fontWeight: 700,
                               display: 'inline-flex',
                               alignItems: 'center',
@@ -5288,9 +5298,10 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                         border: 'none',
                         cursor: 'pointer',
                         padding: '1px',
-                        marginLeft: '2px',
+                        marginLeft: '1px',
                         display: 'flex',
-                        color: 'var(--text-muted)'
+                        color: 'var(--text-muted)',
+                        opacity: 0.5
                       }}
                       title="Bu alt kampanyayı sil"
                     >
@@ -5312,17 +5323,18 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                 }}
                 className="btn-secondary"
                 style={{
-                  padding: '0.4rem 0.75rem',
+                  padding: '0.42rem 0.85rem',
                   fontSize: '0.78rem',
-                  borderRadius: 'var(--radius-xs)',
-                  border: '1.5px dashed var(--brand-primary)',
-                  backgroundColor: 'rgba(37, 99, 235, 0.04)',
+                  borderRadius: '7px',
+                  border: '1px solid rgba(37, 99, 235, 0.3)',
+                  background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.08) 0%, rgba(37, 99, 235, 0.15) 100%)',
                   color: 'var(--brand-primary)',
-                  fontWeight: 700,
+                  fontWeight: 600,
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '0.35rem',
                   whiteSpace: 'nowrap',
+                  boxShadow: '0 1px 2px rgba(37, 99, 235, 0.06)',
                   flexShrink: 0
                 }}
                 title="Yeni bir alt kampanya ekle"
@@ -5334,14 +5346,15 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
               {/* Sub-Campaign Fast Export Actions */}
               {activeSubCampaign && (
                 <>
-                  <div style={{ width: '1px', height: '18px', backgroundColor: 'var(--border-default)', margin: '0 2px' }} />
+                  <div style={{ width: '1px', height: '20px', backgroundColor: 'var(--border-default)', margin: '0 1px' }} />
                   <button
                     type="button"
                     onClick={() => handleExportSubCampaignPdf()}
                     className="btn-ghost"
                     style={{
-                      padding: '0.4rem 0.6rem',
+                      padding: '0.42rem 0.65rem',
                       fontSize: '0.78rem',
+                      borderRadius: '7px',
                       fontWeight: 600,
                       display: 'inline-flex',
                       alignItems: 'center',
@@ -5360,8 +5373,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     onClick={() => handleExportSubCampaignCsv()}
                     className="btn-ghost"
                     style={{
-                      padding: '0.4rem 0.6rem',
+                      padding: '0.42rem 0.65rem',
                       fontSize: '0.78rem',
+                      borderRadius: '7px',
                       fontWeight: 600,
                       display: 'inline-flex',
                       alignItems: 'center',
