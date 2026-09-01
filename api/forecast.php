@@ -1653,18 +1653,94 @@ function fetchGoogleAdsOfficialKeywordIdeas($apiKeys, $url, $keywords, $langCode
         }
     }
 
-    if ($normLangCode === 'ru') {
-        $russianCore = [
-            'гражданство турции', 'гражданство турции за инвестиции', 'паспорт турции',
-            'внж в турции', 'купить квартиру в турции', 'недвижимость в турции',
-            'купить квартиру в аланье', 'квартира в аланье', 'турецкое гражданство',
-            'инвестиции в недвижимость турции', 'купить недвижимость в турции',
-            'внж в турции при покупке недвижимости', 'паспорт турции за инвестиции',
-            'купить квартиру в анталии', 'турецкий паспорт'
-        ];
-        foreach ($russianCore as $rc) {
-            if (!in_array($rc, $uniqueSeeds)) {
-                $uniqueSeeds[] = $rc;
+    // Multilingual High-Intent Core Seed Booster (Real Estate, Citizenship by Investment, B2B, Healthcare)
+    $isRealEstateOrCbiContext = preg_match('/\b(citizenship|citizen|passport|golden visa|cbi|residency|real estate|property|properties|villa|villas|apartment|apartments|invest|investment|satılık|konut|gayrimenkul|vatandaşlık|pasaport|ikamet|summer homes|23projects|23 projects|23square|гражданств|недвижим|внж|паспорт|инвестиц|شهروندی|سرمایه|ملک|الجنسية|عقارات)\b/ui', $allSeedStr);
+
+    if ($isRealEstateOrCbiContext) {
+        if ($normLangCode === 'ru') {
+            $russianCore = [
+                'гражданство турции', 'гражданство турции за инвестиции', 'паспорт турции',
+                'внж в турции', 'купить квартиру в турции', 'недвижимость в турции',
+                'купить квартиру в аланье', 'квартира в аланье', 'турецкое гражданство',
+                'инвестиции в недвижимость турции', 'купить недвижимость в турции',
+                'внж в турции при покупке недвижимости', 'паспорт турции за инвестиции',
+                'купить квартиру в анталии', 'турецкий паспорт', 'гражданство турции при покупке недвижимости'
+            ];
+            foreach ($russianCore as $rc) {
+                if (!in_array($rc, $uniqueSeeds)) $uniqueSeeds[] = $rc;
+            }
+        } elseif ($normLangCode === 'en' || empty($normLangCode)) {
+            $englishCore = [
+                'investment in turkey for citizenship',
+                'citizenship turkey investment',
+                'property investment in turkey',
+                'turkish citizenship by investment',
+                'turkey citizenship by investment',
+                'turkey citizenship by real estate',
+                'buy property in turkey for citizenship',
+                'turkish citizenship by property investment',
+                'real estate investment in turkey',
+                'turkey passport by investment',
+                'invest in turkey for citizenship',
+                'turkey citizenship program',
+                'turkish passport by property investment',
+                'turkey golden visa by investment',
+                'citizenship by property investment in turkey',
+                'buy apartment in turkey for citizenship',
+                'turkish real estate investment',
+                'turkey real estate for citizenship',
+                'apartments for sale in istanbul turkey',
+                'luxury villas in antalya for sale',
+                'alanya apartments for sale',
+                'invest in turkish citizenship',
+                'turkish citizenship property investment',
+                'buy house in turkey for citizenship',
+                'turkey property investment'
+            ];
+            foreach ($englishCore as $ec) {
+                if (!in_array($ec, $uniqueSeeds)) $uniqueSeeds[] = $ec;
+            }
+        } elseif ($normLangCode === 'tr') {
+            $turkishCore = [
+                'türkiye yatırım yoluyla vatandaşlık',
+                'gayrimenkul yatırımı ile vatandaşlık',
+                'türkiye konut alana vatandaşlık',
+                'türkiye gayrimenkul yatırımı',
+                'satılık lüks daire alanya',
+                'satılık lüks villa antalya',
+                'istanbul satılık konut projeleri',
+                'yabancılara konut satışı türkiye',
+                'türkiye pasaportu yatırım',
+                'vatandaşlığa uygun satılık daire'
+            ];
+            foreach ($turkishCore as $tc) {
+                if (!in_array($tc, $uniqueSeeds)) $uniqueSeeds[] = $tc;
+            }
+        } elseif ($normLangCode === 'fa') {
+            $persianCore = [
+                'اخذ شهروندی ترکیه با سرمایه‌گذاری ملکی',
+                'خرید ملک در ترکیه ve اخذ شهروندی',
+                'خرید آپارتمان در ترکیه',
+                'خرید ملک در آلانیا',
+                'خرید ملک در استانبول',
+                'اقامت ترکیه با خرید ملک',
+                'پاسپورت ترکیه با سرمایه گذاری',
+                'سرمایه گذاری در ترکیه'
+            ];
+            foreach ($persianCore as $fc) {
+                if (!in_array($fc, $uniqueSeeds)) $uniqueSeeds[] = $fc;
+            }
+        } elseif ($normLangCode === 'ar') {
+            $arabicCore = [
+                'الجنسية التركية عن طريق الاستثمار',
+                'شراء عقار في تركيا للحصول على الجنسية',
+                'الاقامة العقارية في تركيا',
+                'شقق للبيع في اسطنبول',
+                'عقارات للبيع في تركيا',
+                'الجواز التركي عن طريق الاستثمار'
+            ];
+            foreach ($arabicCore as $ac) {
+                if (!in_array($ac, $uniqueSeeds)) $uniqueSeeds[] = $ac;
             }
         }
     }
@@ -2611,7 +2687,7 @@ function extractLocationAndSmartSeeds($pageDetails, $query, $langCode = 'en') {
         }
     }
 
-    if (preg_match('/\b(turkish citizenship|citizenship by investment|vatandaşlık|real estate|gayrimenkul|property for sale|properties for sale|satılık daire|satılık ev|satılık mülk|konut projesi|summer homes|23projects|23 projects|23square)\b/ui', $full)) {
+    if (preg_match('/\b(turkish citizenship|citizenship by investment|citizenship|citizen|passport|golden visa|cbi|residency|vatandaşlık|gayrimenkul|real estate|property|properties|property for sale|properties for sale|satılık daire|satılık ev|satılık mülk|konut projesi|summer homes|23projects|23 projects|23square)\b/ui', $full)) {
         if ($langCode === 'tr') {
             return [
                 'türkiye yatırım yoluyla vatandaşlık',
@@ -2628,7 +2704,7 @@ function extractLocationAndSmartSeeds($pageDetails, $query, $langCode = 'en') {
         } elseif ($langCode === 'fa' || preg_match('/(shahrvandi|sarmaye|kharid|melk|farsi|persian|[گچپژ])/ui', $full)) {
             return [
                 'اخذ شهروندی ترکیه با سرمایه‌گذاری ملکی',
-                'خرید ملک در ترکیه و اخذ شهروندی',
+                'خرید ملک در ترکیه ve اخذ شهروندی',
                 'خرید آپارتمان در ترکیه',
                 'خرید ملک در آلانیا',
                 'خرید ملک در استانبول',
@@ -2653,16 +2729,30 @@ function extractLocationAndSmartSeeds($pageDetails, $query, $langCode = 'en') {
             ];
         } else {
             return [
+                'investment in turkey for citizenship',
+                'citizenship turkey investment',
+                'property investment in turkey',
                 'turkish citizenship by investment',
-                'turkey real estate investment',
+                'turkey citizenship by investment',
+                'turkey citizenship by real estate',
                 'buy property in turkey for citizenship',
-                'apartments for sale in istanbul turkey',
+                'turkish citizenship by property investment',
+                'real estate investment in turkey',
                 'turkey passport by investment',
-                'real estate in turkey for foreigners',
-                'istanbul property for sale',
+                'invest in turkey for citizenship',
+                'turkey citizenship program',
+                'turkish passport by property investment',
+                'turkey golden visa by investment',
+                'citizenship by property investment in turkey',
+                'buy apartment in turkey for citizenship',
+                'turkish real estate investment',
+                'turkey real estate for citizenship',
+                'apartments for sale in istanbul turkey',
+                'luxury villas in antalya for sale',
                 'alanya apartments for sale',
-                'antalya luxury villas for sale',
-                'invest in turkey for passport',
+                'invest in turkish citizenship',
+                'turkish citizenship property investment',
+                'buy house in turkey for citizenship',
                 'turkey property investment'
             ];
         }
