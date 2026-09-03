@@ -1812,7 +1812,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     const tags = newMasterTags.length > 0 ? newMasterTags : ['#YeniKampanya'];
 
     // State setup: pure Master Plan without automatic sub-campaign
-    const newMasterId = 'plan_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+    const newMasterId = String(Date.now());
     setCurrentPlanId(newMasterId);
     setPlanName(pName);
     setClientName(cName);
@@ -1872,14 +1872,15 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
   // Open Master Plan & Target Sub Campaign in Studio
   const handleOpenMasterPlanStudio = (plan: ForecastPlan, targetSubId?: string) => {
+    const effectivePlanId = plan.id === 'plan_kampanya_1' ? '1787692730001' : plan.id;
     try {
-      localStorage.setItem('roasist_active_studio_plan_id', plan.id);
+      localStorage.setItem('roasist_active_studio_plan_id', effectivePlanId);
       if (targetSubId) {
         localStorage.setItem('roasist_active_studio_sub_id', targetSubId);
       }
     } catch (e) {}
 
-    setCurrentPlanId(plan.id);
+    setCurrentPlanId(effectivePlanId);
     if (plan.name) setPlanName(plan.name);
     if (plan.clientName) setClientName(plan.clientName);
     if (plan.startDate) setPlanStartDate(plan.startDate);
@@ -2093,7 +2094,8 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         const savedPlanId = localStorage.getItem('roasist_active_studio_plan_id');
         const savedSubId = localStorage.getItem('roasist_active_studio_sub_id');
         if (savedPlanId) {
-          const match = finalPlans.find(p => p.id === savedPlanId);
+          const targetPlanId = savedPlanId === 'plan_kampanya_1' ? '1787692730001' : savedPlanId;
+          const match = finalPlans.find(p => p.id === targetPlanId || (targetPlanId === '1787692730001' && p.id === 'plan_kampanya_1'));
           if (match) {
             handleOpenMasterPlanStudio(match, savedSubId || undefined);
           }
@@ -4824,29 +4826,34 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                           <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
                             {plan.name}
                           </h3>
-                          <button
-                            type="button"
-                            onClick={(e) => handleCopyIdToClipboard(plan.id, e)}
-                            title="Plan ID'sini Kopyalamak İçin Tıklayın"
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '2px',
-                              fontSize: '0.67rem',
-                              fontFamily: 'monospace',
-                              fontWeight: 600,
-                              padding: '1px 5px',
-                              borderRadius: '4px',
-                              backgroundColor: 'rgba(37, 99, 235, 0.08)',
-                              color: 'var(--brand-primary)',
-                              border: '1px solid rgba(37, 99, 235, 0.2)',
-                              cursor: 'pointer'
-                            }}
-                          >
-                            <Hash size={10} />
-                            <span>{plan.id}</span>
-                            {copiedId === plan.id ? <Check size={10} color="#10b981" /> : <Copy size={10} style={{ opacity: 0.6 }} />}
-                          </button>
+                          {(() => {
+                            const pNumeric = plan.id.replace(/^plan_/, '');
+                            return (
+                              <button
+                                type="button"
+                                onClick={(e) => handleCopyIdToClipboard(pNumeric, e)}
+                                title="Plan ID'sini Kopyalamak İçin Tıklayın"
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '2px',
+                                  fontSize: '0.67rem',
+                                  fontFamily: 'monospace',
+                                  fontWeight: 600,
+                                  padding: '1px 5px',
+                                  borderRadius: '4px',
+                                  backgroundColor: 'rgba(37, 99, 235, 0.08)',
+                                  color: 'var(--brand-primary)',
+                                  border: '1px solid rgba(37, 99, 235, 0.2)',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                <Hash size={10} />
+                                <span>#{pNumeric}</span>
+                                {copiedId === pNumeric ? <Check size={10} color="#10b981" /> : <Copy size={10} style={{ opacity: 0.6 }} />}
+                              </button>
+                            );
+                          })()}
                         </div>
 
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.35rem', flexWrap: 'wrap' }}>
@@ -5067,32 +5074,35 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                   />
                 </div>
 
-                {currentPlanId && (
-                  <button
-                    type="button"
-                    onClick={(e) => handleCopyIdToClipboard(currentPlanId, e)}
-                    title="Çatı Kampanya ID'sini Kopyalamak İçin Tıklayın"
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.28rem',
-                      fontSize: '0.73rem',
-                      fontFamily: 'monospace',
-                      fontWeight: 700,
-                      padding: '3px 8px',
-                      borderRadius: '6px',
-                      backgroundColor: 'rgba(37, 99, 235, 0.09)',
-                      color: 'var(--brand-primary)',
-                      border: '1px solid rgba(37, 99, 235, 0.25)',
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease'
-                    }}
-                  >
-                    <Hash size={12} />
-                    <span>Çatı ID: {currentPlanId}</span>
-                    {copiedId === currentPlanId ? <Check size={12} color="#10b981" /> : <Copy size={11} style={{ opacity: 0.6 }} />}
-                  </button>
-                )}
+                {currentPlanId && (() => {
+                  const numericId = currentPlanId.replace(/^plan_/, '');
+                  return (
+                    <button
+                      type="button"
+                      onClick={(e) => handleCopyIdToClipboard(numericId, e)}
+                      title="Çatı Kampanya ID'sini Kopyalamak İçin Tıklayın"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.28rem',
+                        fontSize: '0.73rem',
+                        fontFamily: 'monospace',
+                        fontWeight: 700,
+                        padding: '3px 8px',
+                        borderRadius: '6px',
+                        backgroundColor: 'rgba(37, 99, 235, 0.09)',
+                        color: 'var(--brand-primary)',
+                        border: '1px solid rgba(37, 99, 235, 0.25)',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <Hash size={12} />
+                      <span>Çatı ID: #{numericId}</span>
+                      {copiedId === numericId ? <Check size={12} color="#10b981" /> : <Copy size={11} style={{ opacity: 0.6 }} />}
+                    </button>
+                  );
+                })()}
 
                 {/* Client / Brand */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', backgroundColor: 'var(--bg-surface)', padding: '4px 10px', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-default)', fontSize: '0.8rem' }}>

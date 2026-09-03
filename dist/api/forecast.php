@@ -4203,8 +4203,14 @@ if ($action === 'location_presets') {
 // ACTION: SAVE / LIST / DELETE FORECAST PLANS
 // -------------------------------------------------------------
 if ($action === 'plans') {
+    // Auto-migrate legacy 'plan_kampanya_1' to clean numeric ID '1787692730001'
+    try {
+        $pdo->exec("UPDATE forecast_plans SET id = '1787692730001' WHERE id = 'plan_kampanya_1'");
+    } catch (Throwable $e) {}
+
     $workspaceId = $_GET['workspace_id'] ?? '';
     $singleId = $_GET['id'] ?? '';
+    if ($singleId === 'plan_kampanya_1') $singleId = '1787692730001';
 
     if ($method === 'GET') {
         if (!empty($singleId)) {
@@ -4324,7 +4330,9 @@ if ($action === 'plans') {
             exit;
         }
 
-        $planId = $input['id'] ?? ('plan_' . time() . '_' . rand(100, 999));
+        $rawId = $input['id'] ?? '';
+        if ($rawId === 'plan_kampanya_1') $rawId = '1787692730001';
+        $planId = !empty($rawId) ? $rawId : (string)(int)(microtime(true) * 1000);
         $name = $inputName ?: ('Forecast Planı ' . date('d.m.Y H:i'));
         $clientName = trim($input['clientName'] ?? '');
         $startDate = trim($input['startDate'] ?? '');
