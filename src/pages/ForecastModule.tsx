@@ -1372,7 +1372,19 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     } else {
       setIsLoadingSubCampaign(false);
     }
-    const loadedSelIds = new Set((target.selectedKeywords || []).map(k => k.id));
+    let loadedSelIds = new Set((target.selectedKeywords || []).map(k => k.id));
+    try {
+      const localSel = localStorage.getItem(`roasist_sel_kws_${target.id}`);
+      if (localSel) {
+        const parsed = JSON.parse(localSel);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const validIds = parsed.filter(id => poolKws.some(k => k.id === id));
+          if (validIds.length > 0) {
+            loadedSelIds = new Set(validIds);
+          }
+        }
+      }
+    } catch (e) {}
     setSelectedKeywordIds(loadedSelIds);
     setStep2ApprovedKeywordIds(loadedSelIds);
     setNegativeCategories(target.negativeCategories || []);
@@ -2111,6 +2123,15 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   useEffect(() => {
     loadSavedPlans();
   }, [workspaceId]);
+
+  // Persist current sub-campaign keyword selections to localStorage (Client-side fail-safe)
+  useEffect(() => {
+    if (activeSubCampaignId && !isApplyingSubCampaignRef.current) {
+      try {
+        localStorage.setItem(`roasist_sel_kws_${activeSubCampaignId}`, JSON.stringify(Array.from(selectedKeywordIds)));
+      } catch (e) {}
+    }
+  }, [selectedKeywordIds, activeSubCampaignId]);
 
   const filteredSavedPlans = useMemo(() => {
     const q = portfolioSearchQuery.toLowerCase().trim();

@@ -25,6 +25,24 @@ class Database {
             self::$pdo->exec("PRAGMA journal_mode = WAL;");
             self::$pdo->exec("PRAGMA synchronous = NORMAL;");
 
+            // Automated SQLite Backup (every 6 hours, retaining last 10 snapshots)
+            $backupDir = $dataDir . '/backups';
+            if (!is_dir($backupDir)) @mkdir($backupDir, 0755, true);
+            $lastBackupFile = $backupDir . '/.last_backup_time';
+            $now = time();
+            $lastTime = file_exists($lastBackupFile) ? (int)@file_get_contents($lastBackupFile) : 0;
+            if (($now - $lastTime > 21600) && file_exists($dbPath) && filesize($dbPath) > 0) {
+                @copy($dbPath, $backupDir . '/roasist_backup_' . date('Ymd_His') . '.db');
+                @file_put_contents($lastBackupFile, (string)$now);
+                $allBackups = glob($backupDir . '/roasist_backup_*.db');
+                if (count($allBackups) > 10) {
+                    sort($allBackups);
+                    foreach (array_slice($allBackups, 0, count($allBackups) - 10) as $oldB) {
+                        @unlink($oldB);
+                    }
+                }
+            }
+
             // Auto-run schema migrations
             self::initSchema(self::$pdo, $isNewDb);
         }
@@ -159,6 +177,16 @@ class Database {
             CREATE TABLE IF NOT EXISTS keyword_cache (
                 cache_key TEXT PRIMARY KEY,
                 data TEXT NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        ");
+
+        // 10. Forecast Plan Versions (Automatic Snapshot History to prevent any data loss)
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS forecast_plan_versions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                plan_id TEXT NOT NULL,
+                plan_data TEXT NOT NULL,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         ");

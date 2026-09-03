@@ -4353,6 +4353,18 @@ if ($action === 'plans') {
         $existingStmt->execute([$planId]);
         $existingRow = $existingStmt->fetch();
         if ($existingRow) {
+            // 1. Save automatic version snapshot before update (Zero-Data-Loss Insurance)
+            if (!empty($existingRow['plan_data']) && $existingRow['plan_data'] !== '{}') {
+                try {
+                    $verStmt = $pdo->prepare("INSERT INTO forecast_plan_versions (plan_id, plan_data) VALUES (?, ?)");
+                    $verStmt->execute([$planId, $existingRow['plan_data']]);
+                    // Keep last 20 snapshots per plan
+                    $pdo->exec("DELETE FROM forecast_plan_versions WHERE plan_id = " . $pdo->quote($planId) . " AND id NOT IN (
+                        SELECT id FROM forecast_plan_versions WHERE plan_id = " . $pdo->quote($planId) . " ORDER BY id DESC LIMIT 20
+                    )");
+                } catch (Throwable $ve) {}
+            }
+
             $existingPlanData = json_decode($existingRow['plan_data'] ?? '{}', true) ?: [];
             $existingSubs = $existingPlanData['subCampaigns'] ?? [];
             $existingSubMap = [];
