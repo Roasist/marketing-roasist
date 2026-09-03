@@ -1337,15 +1337,16 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
     const hasSavedKeywords = poolKws.length > 0;
     const isAnalyzedSub = hasSavedKeywords || Boolean(target.isStep1Completed) || Boolean(target.isStep2Completed) || Boolean(target.isStep3Completed);
+    const needsRemoteFetch = poolKws.length === 0 && Boolean(currentPlanId) && !target.id.startsWith('sub_') && (Boolean(target.isStep1Completed) || Boolean(target.isStep2Completed) || Boolean(target.isStep3Completed));
 
-    if (isAnalyzedSub) {
+    if (isAnalyzedSub || needsRemoteFetch) {
       setIsLoadingSubCampaign(true);
     } else {
       setIsLoadingSubCampaign(false);
     }
 
     // If keywords are empty in memory and target had prior completed steps, lazy fetch the full plan from backend
-    if (poolKws.length === 0 && currentPlanId && !target.id.startsWith('sub_') && (target.isStep1Completed || target.isStep2Completed)) {
+    if (needsRemoteFetch && currentPlanId) {
       setIsLoadingSubCampaign(true);
       ApiService.getForecastPlanById(currentPlanId).then(fullPlan => {
         if (fullPlan && Array.isArray(fullPlan.subCampaigns)) {
@@ -1476,11 +1477,13 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       setCurrentStep(1);
     }
 
-    if (isAnalyzedSub) {
+    if (needsRemoteFetch) {
+      // Keep loading screen active until ApiService.getForecastPlanById completes in its .finally handler
+    } else if (isAnalyzedSub && hasSavedKeywords) {
       setTimeout(() => {
         isApplyingSubCampaignRef.current = false;
         setIsLoadingSubCampaign(false);
-      }, 500);
+      }, 600);
     } else {
       isApplyingSubCampaignRef.current = false;
       setIsLoadingSubCampaign(false);
