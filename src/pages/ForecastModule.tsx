@@ -1335,6 +1335,15 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       : (target.selectedKeywords || []);
     setKeywords(poolKws);
 
+    const hasSavedKeywords = poolKws.length > 0;
+    const isAnalyzedSub = hasSavedKeywords || Boolean(target.isStep1Completed) || Boolean(target.isStep2Completed) || Boolean(target.isStep3Completed);
+
+    if (isAnalyzedSub) {
+      setIsLoadingSubCampaign(true);
+    } else {
+      setIsLoadingSubCampaign(false);
+    }
+
     // If keywords are empty in memory and target had prior completed steps, lazy fetch the full plan from backend
     if (poolKws.length === 0 && currentPlanId && !target.id.startsWith('sub_') && (target.isStep1Completed || target.isStep2Completed)) {
       setIsLoadingSubCampaign(true);
@@ -1343,15 +1352,15 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           const matching = fullPlan.subCampaigns.find((c: any) => c.id === target.id);
           if (matching && ((matching.discoveredKeywords && matching.discoveredKeywords.length > 0) || (matching.selectedKeywords && matching.selectedKeywords.length > 0))) {
             applySubCampaignToState(matching);
+            return;
           }
         }
       }).catch(() => {}).finally(() => {
-        setIsLoadingSubCampaign(false);
+        setTimeout(() => {
+          setIsLoadingSubCampaign(false);
+          isApplyingSubCampaignRef.current = false;
+        }, 300);
       });
-    } else if (poolKws.length > 0) {
-      setIsLoadingSubCampaign(true);
-    } else {
-      setIsLoadingSubCampaign(false);
     }
     const loadedSelIds = new Set((target.selectedKeywords || []).map(k => k.id));
     setSelectedKeywordIds(loadedSelIds);
@@ -1467,10 +1476,15 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       setCurrentStep(1);
     }
 
-    setTimeout(() => {
+    if (isAnalyzedSub) {
+      setTimeout(() => {
+        isApplyingSubCampaignRef.current = false;
+        setIsLoadingSubCampaign(false);
+      }, 500);
+    } else {
       isApplyingSubCampaignRef.current = false;
       setIsLoadingSubCampaign(false);
-    }, 350);
+    }
   };
 
   // Keep active sub-campaign targetLocations synced with selectedLocations
@@ -1516,8 +1530,11 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     if (targetSub) {
       setLoadingSubCampaignName(targetSub.name || 'Alt Kampanya');
       const hasKeywords = (targetSub.discoveredKeywords && targetSub.discoveredKeywords.length > 0) || (targetSub.selectedKeywords && targetSub.selectedKeywords.length > 0);
-      if (hasKeywords) {
+      const isAnalyzed = hasKeywords || Boolean(targetSub.isStep1Completed) || Boolean(targetSub.isStep2Completed) || Boolean(targetSub.isStep3Completed);
+      if (isAnalyzed) {
         setIsLoadingSubCampaign(true);
+      } else {
+        setIsLoadingSubCampaign(false);
       }
     }
 
@@ -8066,7 +8083,48 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           {/* STEP 3 VIEW: Omnichannel & Platform Dedicated Studios                     */}
           {/* ========================================================================= */}
           {subCampaigns.length > 0 && activeSubCampaignId !== null && (currentStep === 3 || !isGoogleSearchActive) && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            isLoadingSubCampaign ? (
+              <div className="card" style={{ padding: '3.5rem 1.5rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1.25rem', minHeight: '380px', backgroundColor: 'var(--bg-surface)' }}>
+                <div style={{ position: 'relative', width: '64px', height: '64px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '3px solid rgba(37, 99, 235, 0.15)', borderTopColor: 'var(--brand-primary)', animation: 'spin 0.8s linear infinite' }} />
+                  <Sparkles size={26} color="var(--brand-primary)" />
+                </div>
+                <div>
+                  <div style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.45rem' }}>
+                    <span>{loadingSubCampaignName || 'Alt Kampanya'}</span>
+                    <span style={{ fontSize: '0.95rem', color: 'var(--brand-primary)', fontWeight: 600 }}>Verileri Yükleniyor...</span>
+                  </div>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', maxWidth: '520px', margin: '0.45rem auto 0 auto', lineHeight: 1.5 }}>
+                    Kaydedilen anahtar kelimeler, Google Ads API arama hacimleri ve açık artırma metrikleri hazırlanıyor...
+                  </p>
+                </div>
+
+                {/* Modern Skeleton Preview Bars */}
+                <div style={{ width: '100%', maxWidth: '640px', display: 'flex', flexDirection: 'column', gap: '0.65rem', marginTop: '0.5rem' }}>
+                  <div style={{ height: '38px', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)', display: 'flex', alignItems: 'center', padding: '0 1rem', gap: '0.75rem', opacity: 0.8 }}>
+                    <div style={{ width: '18px', height: '18px', borderRadius: '4px', backgroundColor: 'rgba(37, 99, 235, 0.25)' }} />
+                    <div style={{ width: '140px', height: '12px', borderRadius: '4px', backgroundColor: 'var(--border-default)' }} />
+                    <div style={{ flex: 1 }} />
+                    <div style={{ width: '90px', height: '12px', borderRadius: '4px', backgroundColor: 'var(--border-default)' }} />
+                  </div>
+                  <div style={{ height: '44px', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)', display: 'flex', alignItems: 'center', padding: '0 1rem', gap: '0.75rem', opacity: 0.6 }}>
+                    <div style={{ width: '14px', height: '14px', borderRadius: '3px', backgroundColor: 'var(--border-default)' }} />
+                    <div style={{ width: '220px', height: '12px', borderRadius: '4px', backgroundColor: 'var(--border-default)' }} />
+                    <div style={{ flex: 1 }} />
+                    <div style={{ width: '70px', height: '12px', borderRadius: '4px', backgroundColor: 'var(--border-default)' }} />
+                    <div style={{ width: '80px', height: '12px', borderRadius: '4px', backgroundColor: 'var(--border-default)' }} />
+                  </div>
+                  <div style={{ height: '44px', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)', display: 'flex', alignItems: 'center', padding: '0 1rem', gap: '0.75rem', opacity: 0.4 }}>
+                    <div style={{ width: '14px', height: '14px', borderRadius: '3px', backgroundColor: 'var(--border-default)' }} />
+                    <div style={{ width: '170px', height: '12px', borderRadius: '4px', backgroundColor: 'var(--border-default)' }} />
+                    <div style={{ flex: 1 }} />
+                    <div style={{ width: '60px', height: '12px', borderRadius: '4px', backgroundColor: 'var(--border-default)' }} />
+                    <div style={{ width: '75px', height: '12px', borderRadius: '4px', backgroundColor: 'var(--border-default)' }} />
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
               
               {/* Step 2 Quick Context & Action Bar */}
               <div className="card" style={{ padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', backgroundColor: 'var(--bg-surface)' }}>
@@ -11168,6 +11226,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           )}
 
             </div>
+            )
           )}
 
         </div>
