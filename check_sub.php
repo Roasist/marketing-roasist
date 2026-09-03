@@ -1,4 +1,6 @@
 <?php
+ini_set('display_errors', 1);
+error_reporting(E_ALL);
 header('Content-Type: application/json; charset=utf-8');
 
 $secret = $_GET['secret'] ?? '';
@@ -8,75 +10,67 @@ if ($secret !== 'roasist_marketing_deploy_secret_2026') {
     exit;
 }
 
-require_once __DIR__ . '/api/db.php';
-$pdo = Database::getConnection();
+try {
+    require_once __DIR__ . '/api/db.php';
+    $pdo = Database::getConnection();
 
-$targetSubId = $_GET['sub_id'] ?? 'sub_1787923419053';
+    $targetSubId = $_GET['sub_id'] ?? 'sub_1787923419053';
 
-$result = [
-    'targetSubId' => $targetSubId,
-    'foundInPlans' => [],
-    'rootKeywordsInPlans' => [],
-    'keywordCacheMatches' => []
-];
+    $result = [
+        'targetSubId' => $targetSubId,
+        'allPlans' => [],
+        'foundInPlans' => [],
+        'keywordCacheMatches' => []
+    ];
 
-$stmt = $pdo->query("SELECT id, name, target_url, seed_keywords, monthly_budget, selected_keywords, plan_data, created_at FROM forecast_plans");
-while ($r = $stmt->fetch(PDO::FETCH_ASSOC)) {
-    $planData = json_decode($r['plan_data'] ?? '{}', true) ?: [];
-    $subs = $planData['subCampaigns'] ?? [];
-    
-    // Check root keywords
-    $rootKws = json_decode($r['selected_keywords'] ?? '[]', true) ?: [];
-    if (!empty($rootKws)) {
-        $result['rootKeywordsInPlans'][] = [
-            'planId' => $r['id'],
-            'planName' => $r['name'],
-            'keywordCount' => count($rootKws),
-            'sample' => array_slice(array_map(fn($k) => $k['text'] ?? $k['keyword'] ?? '', $rootKws), 0, 5)
+    $stmt = $pdo->query("SELECT id, name, target_url, seed_keywords, monthly_budget, selected_keywords, plan_data, created_at FROM forecast_plans");
+    while ($r = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        $planData = json_decode($r['plan_data'] ?? '{}', true);
+        if (!is_array($planData)) $planData = [];
+        $subs = $planData['subCampaigns'] ?? [];
+        if (!is_array($subs)) $subs = [];
+
+        $subSummaries = [];
+        foreach ($subs as $s) {
+            $subSummaries[] = [
+                'id' => $s['id'] ?? '',
+                'name' => $s['name'] ?? '',
+                'discCount' => count($s['discoveredKeywords'] ?? []),
+                'selCount' => count($s['selectedKeywords'] ?? []),
+                'step1' => !empty($s['isStep1Completed']),
+                'step2' => !empty($s['isStep2Completed']),
+                'step3' => !empty($s['isStep3Completed'])
+            ];
+            if (($s['id'] ?? '') === $targetSubId) {
+                $result['foundInPlans'][] = [
+                    'planId' => $r['id'],
+                    'planName' => $r['name'],
+                    'sub' => $s
+                ];
+            }
+        }
+
+        $result['allPlans'][] = [
+            'id' => $r['id'],
+            'name' => $r['name'],
+            'subs' => $subSummaries
         ];
     }
 
-    foreach ($subs as $s) {
-        $sId = $s['id'] ?? '';
-        if ($sId === $targetSubId || (isset($_GET['all']) && !empty($sId))) {
-            $discKws = $s['discoveredKeywords'] ?? [];
-            $selKws = $s['selectedKeywords'] ?? [];
-            $result['foundInPlans'][] = [
-                'planId' => $r['id'],
-                'planName' => $r['name'],
-                'subId' => $sId,
-                'subName' => $s['name'] ?? '',
-                'platform' => $s['platform'] ?? '',
-                'objective' => $s['objective'] ?? '',
-                'targetUrl' => $s['targetUrl'] ?? '',
-                'seedKeywords' => $s['seedKeywords'] ?? '',
-                'isStep1Completed' => $s['isStep1Completed'] ?? false,
-                'isStep2Completed' => $s['isStep2Completed'] ?? false,
-                'isStep3Completed' => $s['isStep3Completed'] ?? false,
-                'discoveredKeywordsCount' => count($discKws),
-                'selectedKeywordsCount' => count($selKws),
-                'sampleDiscoveredKeywords' => array_slice(array_map(fn($k) => [
-                    'text' => $k['text'] ?? $k['keyword'] ?? '',
-                    'avgMonthlySearches' => $k['avgMonthlySearches'] ?? 0,
-                    'cpc' => $k['cpc'] ?? 0
-                ], $discKws), 0, 10),
-                'sampleSelectedKeywords' => array_slice(array_map(fn($k) => [
-                    'text' => $k['text'] ?? $k['keyword'] ?? '',
-                    'avgMonthlySearches' => $k['avgMonthlySearches'] ?? 0,
-                    'cpc' => $k['cpc'] ?? 0
-                ], $selKws), 0, 10)
-            ];
-        }
+    $cacheStmt = $pdo->query("SELECT cache_key, created_at FROM keyword_cache ORDER BY created_at DESC LIMIT 20");
+    while ($c = $cacheStmt->fetch(PDO::FETCH_ASSOC)) {
+        $result['keywordCacheMatches'][] = [
+            'key' => $c['cache_key'],
+            'created_at' => $c['created_at']
+        ];
     }
-}
 
-// Also check keyword_cache
-$cacheStmt = $pdo->query("SELECT cache_key, created_at FROM keyword_cache ORDER BY created_at DESC LIMIT 20");
-while ($c = $cacheStmt->fetch(PDO::FETCH_ASSOC)) {
-    $result['keywordCacheMatches'][] = [
-        'key' => $c['cache_key'],
-        'created_at' => $c['created_at']
-    ];
+    echo json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+} catch (Throwable $e) {
+    http_response_code(500);
+    echo json_encode([
+        'error' => $e->getMessage(),
+        'file' => $e->getFile(),
+        'line' => $e->getLine()
+    ]);
 }
-
-echo json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
