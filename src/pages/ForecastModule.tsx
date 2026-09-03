@@ -1251,7 +1251,9 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
     const availablePool = scopedKeywords.length > 0 ? scopedKeywords : imputedKeywords;
     const selectedKws = Array.from(selectedKeywordIds).map(id => availablePool.find(k => k.id === id)).filter(Boolean) as KeywordMetric[];
-    const effectiveSelectedKws = selectedKws.length > 0 ? selectedKws : (availablePool.length > 0 ? availablePool : []);
+    // Strict separation: selectedKeywords ONLY contains explicitly user-selected keywords.
+    // Never silently promote all discovered keywords to selectedKeywords.
+    const effectiveSelectedKws = selectedKws;
     const effectiveDiscoveredKws = availablePool.length > 0 ? availablePool : (keywords.length > 0 ? keywords : []);
     const currentActiveSub = subCampaigns.find(c => c.id === targetId);
     const subBudget = (monthlyBudget !== undefined && monthlyBudget !== null) ? Number(monthlyBudget) : (currentActiveSub?.monthlyBudget || 0);
@@ -3174,9 +3176,12 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
   // Selected Keyword Pool for Simulation (Pure Official Google Ads metrics)
   const selectedKeywordsPool = useMemo(() => {
-    if (selectedKeywordIds.size === 0) return imputedKeywords;
+    if (selectedKeywordIds.size === 0) {
+      if (isStep1Completed) return [];
+      return imputedKeywords;
+    }
     return imputedKeywords.filter(k => selectedKeywordIds.has(k.id));
-  }, [imputedKeywords, selectedKeywordIds]);
+  }, [imputedKeywords, selectedKeywordIds, isStep1Completed]);
 
   // Overall Aggregate KPIs (Pure Official Sum across selected locations - Zero proportional estimation)
   const baseSearchVolume = useMemo(() => {
