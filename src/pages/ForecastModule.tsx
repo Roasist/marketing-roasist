@@ -1330,16 +1330,14 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       localStorage.setItem('roasist_active_studio_sub_id', target.id);
     } catch (e) {}
 
-    // Always trigger loading state on sub-campaign switch/apply
-    setIsLoadingSubCampaign(true);
-
     const poolKws = (target.discoveredKeywords && target.discoveredKeywords.length > 0) 
       ? target.discoveredKeywords 
       : (target.selectedKeywords || []);
     setKeywords(poolKws);
 
-    // If keywords are empty in memory but a plan exists, lazy fetch the full plan from backend
-    if (poolKws.length === 0 && currentPlanId) {
+    // If keywords are empty in memory and target had prior completed steps, lazy fetch the full plan from backend
+    if (poolKws.length === 0 && currentPlanId && !target.id.startsWith('sub_') && (target.isStep1Completed || target.isStep2Completed)) {
+      setIsLoadingSubCampaign(true);
       ApiService.getForecastPlanById(currentPlanId).then(fullPlan => {
         if (fullPlan && Array.isArray(fullPlan.subCampaigns)) {
           const matching = fullPlan.subCampaigns.find((c: any) => c.id === target.id);
@@ -1348,10 +1346,12 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           }
         }
       }).catch(() => {}).finally(() => {
-        setTimeout(() => {
-          setIsLoadingSubCampaign(false);
-        }, 300);
+        setIsLoadingSubCampaign(false);
       });
+    } else if (poolKws.length > 0) {
+      setIsLoadingSubCampaign(true);
+    } else {
+      setIsLoadingSubCampaign(false);
     }
     const loadedSelIds = new Set((target.selectedKeywords || []).map(k => k.id));
     setSelectedKeywordIds(loadedSelIds);
@@ -1622,6 +1622,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     setQuery('');
     setIsAddCampaignModalOpen(false);
     setNewCampName('');
+    setIsLoadingSubCampaign(false);
     
     // Switch channel sub tab to match objective
     if (newCampPlatform === 'META') {
@@ -6649,7 +6650,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           {/* STEP 1 & STEP 2 VIEW: Keyword Discovery (Step 1) & Review Selected (Step 2) */}
           {/* ========================================================================= */}
           {(currentStep === 1 || currentStep === 2) && (
-            (isLoadingSubCampaign || (keywords.length === 0 && (activeSubCampaign?.monthlyBudget || 0) > 0 && Boolean(currentPlanId))) ? (
+            isLoadingSubCampaign ? (
               <div className="card" style={{ padding: '3.5rem 1.5rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1.25rem', minHeight: '380px', backgroundColor: 'var(--bg-surface)' }}>
                 <div style={{ position: 'relative', width: '64px', height: '64px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '3px solid rgba(37, 99, 235, 0.15)', borderTopColor: 'var(--brand-primary)', animation: 'spin 0.8s linear infinite' }} />
