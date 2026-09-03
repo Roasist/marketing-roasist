@@ -1497,13 +1497,19 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     setIsStep3Completed(Boolean(step3Done));
 
     if (target.platform === 'GOOGLE' && (target.objective === 'GOOGLE_SEARCH' || !target.objective)) {
-      setCurrentStep(1);
+      if (step3Done) {
+        setCurrentStep(3);
+      } else if (step2Done) {
+        setCurrentStep(2);
+      } else {
+        setCurrentStep(1);
+      }
     }
 
     setTimeout(() => {
       isApplyingSubCampaignRef.current = false;
       setIsLoadingSubCampaign(false);
-    }, 350);
+    }, 500);
   };
 
   // Keep active sub-campaign targetLocations synced with selectedLocations
@@ -6861,7 +6867,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           {/* STEP 1 & STEP 2 VIEW: Keyword Discovery (Step 1) & Review Selected (Step 2) */}
           {/* ========================================================================= */}
           {(currentStep === 1 || currentStep === 2) && (
-            (isLoadingSubCampaign && (keywords.length > 0 || (activeSubCampaign?.discoveredKeywords && activeSubCampaign.discoveredKeywords.length > 0) || (activeSubCampaign?.selectedKeywords && activeSubCampaign.selectedKeywords.length > 0) || activeSubCampaign?.isStep1Completed || activeSubCampaign?.isStep2Completed)) ? (
+            isLoadingSubCampaign ? (
               <div className="card" style={{ padding: '3.5rem 1.5rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1.25rem', minHeight: '380px', backgroundColor: 'var(--bg-surface)' }}>
                 <div style={{ position: 'relative', width: '64px', height: '64px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '3px solid rgba(37, 99, 235, 0.15)', borderTopColor: 'var(--brand-primary)', animation: 'spin 0.8s linear infinite' }} />
@@ -8331,7 +8337,48 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           {/* STEP 3 VIEW: Omnichannel & Platform Dedicated Studios                     */}
           {/* ========================================================================= */}
           {subCampaigns.length > 0 && activeSubCampaignId !== null && (currentStep === 3 || !isGoogleSearchActive) && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            isLoadingSubCampaign ? (
+              <div className="card" style={{ padding: '3.5rem 1.5rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1.25rem', minHeight: '380px', backgroundColor: 'var(--bg-surface)' }}>
+                <div style={{ position: 'relative', width: '64px', height: '64px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '3px solid rgba(37, 99, 235, 0.15)', borderTopColor: 'var(--brand-primary)', animation: 'spin 0.8s linear infinite' }} />
+                  <Sparkles size={26} color="var(--brand-primary)" />
+                </div>
+                <div>
+                  <div style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.45rem' }}>
+                    <span>{loadingSubCampaignName || 'Alt Kampanya'}</span>
+                    <span style={{ fontSize: '0.95rem', color: 'var(--brand-primary)', fontWeight: 600 }}>Planlama & Simülasyon Verileri Yükleniyor...</span>
+                  </div>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', maxWidth: '520px', margin: '0.45rem auto 0 auto', lineHeight: 1.5 }}>
+                    Kaydedilen Google Ads metrikleri, bütçe projeksiyonları, STAG kümelemeleri ve dönüşüm simülasyonları hazırlanıyor...
+                  </p>
+                </div>
+
+                {/* Modern Skeleton Preview Bars */}
+                <div style={{ width: '100%', maxWidth: '640px', display: 'flex', flexDirection: 'column', gap: '0.65rem', marginTop: '0.5rem' }}>
+                  <div style={{ height: '38px', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)', display: 'flex', alignItems: 'center', padding: '0 1rem', gap: '0.75rem', opacity: 0.8 }}>
+                    <div style={{ width: '18px', height: '18px', borderRadius: '4px', backgroundColor: 'rgba(37, 99, 235, 0.25)' }} />
+                    <div style={{ width: '140px', height: '12px', borderRadius: '4px', backgroundColor: 'var(--border-default)' }} />
+                    <div style={{ flex: 1 }} />
+                    <div style={{ width: '90px', height: '12px', borderRadius: '4px', backgroundColor: 'var(--border-default)' }} />
+                  </div>
+                  <div style={{ height: '44px', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)', display: 'flex', alignItems: 'center', padding: '0 1rem', gap: '0.75rem', opacity: 0.6 }}>
+                    <div style={{ width: '14px', height: '14px', borderRadius: '3px', backgroundColor: 'var(--border-default)' }} />
+                    <div style={{ width: '220px', height: '12px', borderRadius: '4px', backgroundColor: 'var(--border-default)' }} />
+                    <div style={{ flex: 1 }} />
+                    <div style={{ width: '70px', height: '12px', borderRadius: '4px', backgroundColor: 'var(--border-default)' }} />
+                    <div style={{ width: '80px', height: '12px', borderRadius: '4px', backgroundColor: 'var(--border-default)' }} />
+                  </div>
+                  <div style={{ height: '44px', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)', display: 'flex', alignItems: 'center', padding: '0 1rem', gap: '0.75rem', opacity: 0.4 }}>
+                    <div style={{ width: '14px', height: '14px', borderRadius: '3px', backgroundColor: 'var(--border-default)' }} />
+                    <div style={{ width: '170px', height: '12px', borderRadius: '4px', backgroundColor: 'var(--border-default)' }} />
+                    <div style={{ flex: 1 }} />
+                    <div style={{ width: '60px', height: '12px', borderRadius: '4px', backgroundColor: 'var(--border-default)' }} />
+                    <div style={{ width: '75px', height: '12px', borderRadius: '4px', backgroundColor: 'var(--border-default)' }} />
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
               
               {/* Step 2 Quick Context & Action Bar */}
               <div className="card" style={{ padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', backgroundColor: 'var(--bg-surface)' }}>
@@ -11433,7 +11480,8 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           )}
 
             </div>
-          )}
+          )
+        )}
 
         </div>
       )}
