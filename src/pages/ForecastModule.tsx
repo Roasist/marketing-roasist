@@ -45,7 +45,8 @@ import {
   UserCheck,
   Target,
   TrendingUp,
-  Sliders
+  Sliders,
+  Hash
 } from 'lucide-react';
 import { ExportCustomizationModal } from '../components/ExportCustomizationModal';
 import { BudgetAllocationWizardModal } from '../components/BudgetAllocationWizardModal';
@@ -1031,6 +1032,18 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   const [planTags, setPlanTags] = useState<string[]>(['#Temmuz2026', '#SağlıkTurizmi']);
   const [newTagInput, setNewTagInput] = useState<string>('');
   const [currentPlanId, setCurrentPlanId] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const handleCopyIdToClipboard = (idText: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    try {
+      navigator.clipboard.writeText(idText);
+      setCopiedId(idText);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch (err) {
+      console.warn('Could not copy ID:', err);
+    }
+  };
 
   // Master Plan Creation Modal State (Master Level only: Name, Client, Start/End Dates, Tags)
   const [isAddMasterPlanModalOpen, setIsAddMasterPlanModalOpen] = useState<boolean>(false);
@@ -4806,11 +4819,34 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     {/* Card Header */}
                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.75rem' }}>
                       <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
                           <span style={{ fontSize: '1rem' }}>👑</span>
                           <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
                             {plan.name}
                           </h3>
+                          <button
+                            type="button"
+                            onClick={(e) => handleCopyIdToClipboard(plan.id, e)}
+                            title="Plan ID'sini Kopyalamak İçin Tıklayın"
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '2px',
+                              fontSize: '0.67rem',
+                              fontFamily: 'monospace',
+                              fontWeight: 600,
+                              padding: '1px 5px',
+                              borderRadius: '4px',
+                              backgroundColor: 'rgba(37, 99, 235, 0.08)',
+                              color: 'var(--brand-primary)',
+                              border: '1px solid rgba(37, 99, 235, 0.2)',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            <Hash size={10} />
+                            <span>{plan.id}</span>
+                            {copiedId === plan.id ? <Check size={10} color="#10b981" /> : <Copy size={10} style={{ opacity: 0.6 }} />}
+                          </button>
                         </div>
 
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.35rem', flexWrap: 'wrap' }}>
@@ -5030,6 +5066,33 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     onBlur={(e) => e.target.style.border = '1px solid transparent'}
                   />
                 </div>
+
+                {currentPlanId && (
+                  <button
+                    type="button"
+                    onClick={(e) => handleCopyIdToClipboard(currentPlanId, e)}
+                    title="Çatı Kampanya ID'sini Kopyalamak İçin Tıklayın"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.28rem',
+                      fontSize: '0.73rem',
+                      fontFamily: 'monospace',
+                      fontWeight: 700,
+                      padding: '3px 8px',
+                      borderRadius: '6px',
+                      backgroundColor: 'rgba(37, 99, 235, 0.09)',
+                      color: 'var(--brand-primary)',
+                      border: '1px solid rgba(37, 99, 235, 0.25)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <Hash size={12} />
+                    <span>Çatı ID: {currentPlanId}</span>
+                    {copiedId === currentPlanId ? <Check size={12} color="#10b981" /> : <Copy size={11} style={{ opacity: 0.6 }} />}
+                  </button>
+                )}
 
                 {/* Client / Brand */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', backgroundColor: 'var(--bg-surface)', padding: '4px 10px', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-default)', fontSize: '0.8rem' }}>
@@ -5432,6 +5495,32 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       }
                       return null;
                     })()}
+
+                    {/* Sub-Campaign ID Badge */}
+                    <button
+                      type="button"
+                      onClick={(e) => handleCopyIdToClipboard(camp.id, e)}
+                      title={`Alt Kampanya ID: ${camp.id} (Kopyalamak İçin Tıklayın)`}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '2px',
+                        fontSize: '0.66rem',
+                        fontFamily: 'monospace',
+                        fontWeight: 600,
+                        padding: '1px 5px',
+                        borderRadius: '4px',
+                        backgroundColor: isActive ? 'rgba(37, 99, 235, 0.1)' : 'rgba(0, 0, 0, 0.04)',
+                        border: '1px solid ' + (isActive ? 'rgba(37, 99, 235, 0.22)' : 'rgba(0, 0, 0, 0.08)'),
+                        color: isActive ? 'var(--brand-primary)' : 'var(--text-muted)',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <Hash size={9} />
+                      <span>{camp.id.replace('sub_', '')}</span>
+                      {copiedId === camp.id ? <Check size={9} color="#10b981" /> : <Copy size={9} style={{ opacity: 0.5 }} />}
+                    </button>
 
                     <button
                       type="button"
@@ -6782,6 +6871,36 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                   <Search size={28} />
                 </div>
                 <div>
+                  {activeSubCampaign && (
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', padding: '0.3rem 0.75rem', borderRadius: '6px', backgroundColor: 'rgba(37, 99, 235, 0.08)', border: '1px solid rgba(37, 99, 235, 0.2)', marginBottom: '0.65rem' }}>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Seçili Alt Kampanya:</span>
+                      <strong style={{ fontSize: '0.8rem', color: 'var(--text-primary)' }}>{activeSubCampaign.name}</strong>
+                      <button
+                        type="button"
+                        onClick={(e) => handleCopyIdToClipboard(activeSubCampaign.id, e)}
+                        title="Alt Kampanya ID'sini Kopyalamak İçin Tıklayın"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '3px',
+                          border: 'none',
+                          background: 'none',
+                          cursor: 'pointer',
+                          fontFamily: 'monospace',
+                          fontSize: '0.74rem',
+                          color: 'var(--brand-primary)',
+                          fontWeight: 700,
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          backgroundColor: 'rgba(37, 99, 235, 0.12)'
+                        }}
+                      >
+                        <Hash size={11} />
+                        <span>ID: {activeSubCampaign.id}</span>
+                        {copiedId === activeSubCampaign.id ? <Check size={11} color="#10b981" /> : <Copy size={11} />}
+                      </button>
+                    </div>
+                  )}
                   <div style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                     Bu Alt Kampanya İçin Anahtar Kelime Analizi Başlatın
                   </div>
@@ -6836,6 +6955,30 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                       <span className="badge badge-active" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#059669', border: '1px solid rgba(16, 185, 129, 0.3)', fontSize: '0.725rem', fontWeight: 600 }}>
                         <Sparkles size={11} /> 🟢 Resmi Google Ads Keyword Planner Verisi
                       </span>
+                      {activeSubCampaign && (
+                        <button
+                          type="button"
+                          onClick={(e) => handleCopyIdToClipboard(activeSubCampaign.id, e)}
+                          title="Alt Kampanya ID'sini Kopyalamak İçin Tıklayın"
+                          className="badge badge-neutral"
+                          style={{
+                            cursor: 'pointer',
+                            fontFamily: 'monospace',
+                            fontSize: '0.72rem',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '3px',
+                            fontWeight: 700,
+                            color: 'var(--brand-primary)',
+                            backgroundColor: 'rgba(37, 99, 235, 0.08)',
+                            border: '1px solid rgba(37, 99, 235, 0.22)'
+                          }}
+                        >
+                          <Hash size={10} />
+                          <span>Alt Kampanya ID: {activeSubCampaign.id}</span>
+                          {copiedId === activeSubCampaign.id ? <Check size={10} color="#10b981" /> : <Copy size={10} style={{ opacity: 0.6 }} />}
+                        </button>
+                      )}
                     </div>
                     <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)', marginTop: '0.25rem', wordBreak: 'break-word' }}>
                       {pageTitle || query}
