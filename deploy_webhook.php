@@ -166,6 +166,25 @@ if ($filesCopied === 0) {
                     }
                 }
 
+                // Explicitly copy dist/ contents to targetDir (web root) so index.html and assets are live
+                $distSource = $sourceDir . '/dist';
+                if (is_dir($distSource)) {
+                    $distIter = new RecursiveIteratorIterator(
+                        new RecursiveDirectoryIterator($distSource, RecursiveDirectoryIterator::SKIP_DOTS),
+                        RecursiveIteratorIterator::SELF_FIRST
+                    );
+                    foreach ($distIter as $dItem) {
+                        $dSub = $distIter->getSubPathName();
+                        $dDest = $targetDir . '/' . $dSub;
+                        if ($dItem->isDir()) {
+                            if (!is_dir($dDest)) @mkdir($dDest, 0755, true);
+                        } else {
+                            @copy($dItem->getPathname(), $dDest);
+                            $filesCopied++;
+                        }
+                    }
+                }
+
                 @unlink($tempZip);
                 $cleaner = new RecursiveIteratorIterator(
                     new RecursiveDirectoryIterator($extractDir, RecursiveDirectoryIterator::SKIP_DOTS),

@@ -4284,28 +4284,6 @@ if ($action === 'plans') {
                 continue;
             }
 
-            // Generate clean lightweight subCampaigns for portfolio display (Zero Payload Bloat)
-            $lightweightSubs = array_map(function($sc) {
-                return [
-                    'id' => $sc['id'] ?? '',
-                    'name' => $sc['name'] ?? '',
-                    'platform' => $sc['platform'] ?? 'GOOGLE',
-                    'objective' => $sc['objective'] ?? 'GOOGLE_SEARCH',
-                    'languageCode' => $sc['languageCode'] ?? 'tr',
-                    'languageName' => $sc['languageName'] ?? 'Türkçe',
-                    'languageFlag' => $sc['languageFlag'] ?? '🌐',
-                    'targetLocations' => $sc['targetLocations'] ?? [],
-                    'monthlyBudget' => (float)($sc['monthlyBudget'] ?? 0),
-                    'status' => $sc['status'] ?? 'ACTIVE',
-                    'isStep1Completed' => $sc['isStep1Completed'] ?? true,
-                    'isStep2Completed' => $sc['isStep2Completed'] ?? true,
-                    'isStep3Completed' => $sc['isStep3Completed'] ?? true,
-                    'selectedKeywords' => [],
-                    'discoveredKeywords' => [],
-                    'parameters' => $sc['parameters'] ?? null
-                ];
-            }, is_array($rawSubs) ? $rawSubs : []);
-
             $plans[] = [
                 'id' => $r['id'],
                 'workspaceId' => $r['workspace_id'],
@@ -4318,10 +4296,10 @@ if ($action === 'plans') {
                 'targetUrl' => $r['target_url'] ?? '',
                 'seedKeywords' => $r['seed_keywords'] ?? '',
                 'monthlyBudget' => (float)($r['monthly_budget'] ?? 0),
-                'selectedKeywords' => [],
-                'simulationResult' => new stdClass(),
-                'negativeKeywords' => [],
-                'subCampaigns' => $lightweightSubs,
+                'selectedKeywords' => json_decode($r['selected_keywords'] ?? '[]', true) ?: ($planData['selectedKeywords'] ?? []),
+                'simulationResult' => json_decode($r['simulation_result'] ?? '{}', true) ?: ($planData['simulationResult'] ?? new stdClass()),
+                'negativeKeywords' => json_decode($r['negative_keywords'] ?? '[]', true) ?: ($planData['negativeKeywords'] ?? []),
+                'subCampaigns' => is_array($rawSubs) ? $rawSubs : [],
                 'consolidatedMix' => $planData['consolidatedMix'] ?? null,
                 'languageAllocations' => $planData['languageAllocations'] ?? null,
                 'createdAt' => $r['created_at'] ?? '',
@@ -4360,6 +4338,48 @@ if ($action === 'plans') {
         $simulationResult = json_encode($input['simulationResult'] ?? new stdClass(), JSON_UNESCAPED_UNICODE);
         $negativeKeywords = json_encode($input['negativeKeywords'] ?? [], JSON_UNESCAPED_UNICODE);
         $wsId = $input['workspaceId'] ?? $workspaceId;
+        $incomingSubs = $input['subCampaigns'] ?? [];
+
+        // Safety Merge: Never allow an empty keyword array to wipe previously analyzed keywords in database
+        $existingStmt = $pdo->prepare("SELECT plan_data, selected_keywords FROM forecast_plans WHERE id = ?");
+        $existingStmt->execute([$planId]);
+        $existingRow = $existingStmt->fetch();
+        if ($existingRow) {
+            $existingPlanData = json_decode($existingRow['plan_data'] ?? '{}', true) ?: [];
+            $existingSubs = $existingPlanData['subCampaigns'] ?? [];
+            $existingSubMap = [];
+            foreach ($existingSubs as $es) {
+                if (!empty($es['id'])) {
+                    $existingSubMap[$es['id']] = $es;
+                }
+            }
+
+            if (is_array($incomingSubs)) {
+                foreach ($incomingSubs as &$sc) {
+                    $scId = $sc['id'] ?? '';
+                    if (isset($existingSubMap[$scId])) {
+                        $prev = $existingSubMap[$scId];
+                        if (empty($sc['discoveredKeywords']) && !empty($prev['discoveredKeywords'])) {
+                            $sc['discoveredKeywords'] = $prev['discoveredKeywords'];
+                        }
+                        if (empty($sc['selectedKeywords']) && !empty($prev['selectedKeywords'])) {
+                            $sc['selectedKeywords'] = $prev['selectedKeywords'];
+                        }
+                        if (empty($sc['negativeCategories']) && !empty($prev['negativeCategories'])) {
+                            $sc['negativeCategories'] = $prev['negativeCategories'];
+                        }
+                    }
+                }
+                unset($sc);
+            }
+
+            if (empty($input['selectedKeywords']) && !empty($existingRow['selected_keywords'])) {
+                $prevSel = json_decode($existingRow['selected_keywords'], true);
+                if (!empty($prevSel)) {
+                    $selectedKeywords = $existingRow['selected_keywords'];
+                }
+            }
+        }
 
         $planData = json_encode([
             'clientName' => $clientName,
@@ -4367,7 +4387,7 @@ if ($action === 'plans') {
             'endDate' => $endDate,
             'period' => $period,
             'tags' => $input['tags'] ?? [],
-            'subCampaigns' => $input['subCampaigns'] ?? [],
+            'subCampaigns' => $incomingSubs,
             'consolidatedMix' => $input['consolidatedMix'] ?? null,
             'languageAllocations' => $input['languageAllocations'] ?? null,
         ], JSON_UNESCAPED_UNICODE);
