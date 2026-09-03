@@ -1343,6 +1343,12 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           const matching = fullPlan.subCampaigns.find((c: any) => c.id === target.id);
           if (matching && ((matching.discoveredKeywords && matching.discoveredKeywords.length > 0) || (matching.selectedKeywords && matching.selectedKeywords.length > 0))) {
             applySubCampaignToState(matching);
+          } else if (fullPlan.selectedKeywords && fullPlan.selectedKeywords.length > 0 && target.platform === 'GOOGLE') {
+            applySubCampaignToState({
+              ...target,
+              discoveredKeywords: fullPlan.selectedKeywords,
+              selectedKeywords: fullPlan.selectedKeywords
+            });
           }
         }
       }).catch(() => {}).finally(() => {
@@ -1463,16 +1469,8 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     setIsStep2Completed(Boolean(step2Done));
     setIsStep3Completed(Boolean(step3Done));
 
-    if (!hasKeywords && target.platform === 'GOOGLE' && (target.objective === 'GOOGLE_SEARCH' || !target.objective)) {
+    if (target.platform === 'GOOGLE' && (target.objective === 'GOOGLE_SEARCH' || !target.objective)) {
       setCurrentStep(1);
-    } else if (hasKeywords && target.platform === 'GOOGLE' && (target.objective === 'GOOGLE_SEARCH' || !target.objective)) {
-      if (target.isStep3Completed) {
-        setCurrentStep(3);
-      } else if (target.isStep2Completed && hasSelected) {
-        setCurrentStep(2);
-      } else {
-        setCurrentStep(1);
-      }
     }
 
     setTimeout(() => {
