@@ -1335,33 +1335,23 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       : (target.selectedKeywords || []);
     setKeywords(poolKws);
 
-    const hasSavedKeywords = poolKws.length > 0;
-    const isAnalyzedSub = hasSavedKeywords || Boolean(target.isStep1Completed) || Boolean(target.isStep2Completed) || Boolean(target.isStep3Completed);
-    const needsRemoteFetch = poolKws.length === 0 && Boolean(currentPlanId) && !target.id.startsWith('sub_') && (Boolean(target.isStep1Completed) || Boolean(target.isStep2Completed) || Boolean(target.isStep3Completed));
-
-    if (isAnalyzedSub || needsRemoteFetch) {
-      setIsLoadingSubCampaign(true);
-    } else {
-      setIsLoadingSubCampaign(false);
-    }
-
     // If keywords are empty in memory and target had prior completed steps, lazy fetch the full plan from backend
-    if (needsRemoteFetch && currentPlanId) {
+    if (poolKws.length === 0 && currentPlanId && (target.isStep1Completed || target.isStep2Completed)) {
       setIsLoadingSubCampaign(true);
       ApiService.getForecastPlanById(currentPlanId).then(fullPlan => {
         if (fullPlan && Array.isArray(fullPlan.subCampaigns)) {
           const matching = fullPlan.subCampaigns.find((c: any) => c.id === target.id);
           if (matching && ((matching.discoveredKeywords && matching.discoveredKeywords.length > 0) || (matching.selectedKeywords && matching.selectedKeywords.length > 0))) {
             applySubCampaignToState(matching);
-            return;
           }
         }
       }).catch(() => {}).finally(() => {
-        setTimeout(() => {
-          setIsLoadingSubCampaign(false);
-          isApplyingSubCampaignRef.current = false;
-        }, 300);
+        setIsLoadingSubCampaign(false);
       });
+    } else if (poolKws.length > 0) {
+      setIsLoadingSubCampaign(true);
+    } else {
+      setIsLoadingSubCampaign(false);
     }
     const loadedSelIds = new Set((target.selectedKeywords || []).map(k => k.id));
     setSelectedKeywordIds(loadedSelIds);
@@ -1475,19 +1465,20 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
 
     if (!hasKeywords && target.platform === 'GOOGLE' && (target.objective === 'GOOGLE_SEARCH' || !target.objective)) {
       setCurrentStep(1);
+    } else if (hasKeywords && target.platform === 'GOOGLE' && (target.objective === 'GOOGLE_SEARCH' || !target.objective)) {
+      if (target.isStep3Completed) {
+        setCurrentStep(3);
+      } else if (target.isStep2Completed && hasSelected) {
+        setCurrentStep(2);
+      } else {
+        setCurrentStep(1);
+      }
     }
 
-    if (needsRemoteFetch) {
-      // Keep loading screen active until ApiService.getForecastPlanById completes in its .finally handler
-    } else if (isAnalyzedSub && hasSavedKeywords) {
-      setTimeout(() => {
-        isApplyingSubCampaignRef.current = false;
-        setIsLoadingSubCampaign(false);
-      }, 600);
-    } else {
+    setTimeout(() => {
       isApplyingSubCampaignRef.current = false;
       setIsLoadingSubCampaign(false);
-    }
+    }, 350);
   };
 
   // Keep active sub-campaign targetLocations synced with selectedLocations
@@ -1533,7 +1524,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
     if (targetSub) {
       setLoadingSubCampaignName(targetSub.name || 'Alt Kampanya');
       const hasKeywords = (targetSub.discoveredKeywords && targetSub.discoveredKeywords.length > 0) || (targetSub.selectedKeywords && targetSub.selectedKeywords.length > 0);
-      const isAnalyzed = hasKeywords || Boolean(targetSub.isStep1Completed) || Boolean(targetSub.isStep2Completed) || Boolean(targetSub.isStep3Completed);
+      const isAnalyzed = hasKeywords || targetSub.isStep1Completed || targetSub.isStep2Completed;
       if (isAnalyzed) {
         setIsLoadingSubCampaign(true);
       } else {
@@ -1898,13 +1889,26 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       if (targetSubId) {
         const chosenSub = sanitizedSubs.find(c => c.id === targetSubId);
         if (chosenSub) {
+          const hasKws = (chosenSub.discoveredKeywords && chosenSub.discoveredKeywords.length > 0) || (chosenSub.selectedKeywords && chosenSub.selectedKeywords.length > 0);
+          const isAnalyzed = hasKws || chosenSub.isStep1Completed || chosenSub.isStep2Completed;
           setLoadingSubCampaignName(chosenSub.name || 'Alt Kampanya');
-          setIsLoadingSubCampaign(true);
+          if (isAnalyzed) {
+            setIsLoadingSubCampaign(true);
+          } else {
+            setIsLoadingSubCampaign(false);
+          }
           applySubCampaignToState(chosenSub);
         } else if (sanitizedSubs.length > 0) {
-          setLoadingSubCampaignName(sanitizedSubs[0].name || 'Alt Kampanya');
-          setIsLoadingSubCampaign(true);
-          applySubCampaignToState(sanitizedSubs[0]);
+          const firstSub = sanitizedSubs[0];
+          const hasKws = (firstSub.discoveredKeywords && firstSub.discoveredKeywords.length > 0) || (firstSub.selectedKeywords && firstSub.selectedKeywords.length > 0);
+          const isAnalyzed = hasKws || firstSub.isStep1Completed || firstSub.isStep2Completed;
+          setLoadingSubCampaignName(firstSub.name || 'Alt Kampanya');
+          if (isAnalyzed) {
+            setIsLoadingSubCampaign(true);
+          } else {
+            setIsLoadingSubCampaign(false);
+          }
+          applySubCampaignToState(firstSub);
         }
       } else {
         // OPEN MASTER CAMPAIGN DASHBOARD!
@@ -1940,9 +1944,14 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           searchCloseRate: 10
         }
       };
+      const legacyHasKws = (legacySub.selectedKeywords && legacySub.selectedKeywords.length > 0) || (legacySub.discoveredKeywords && legacySub.discoveredKeywords.length > 0);
       setSubCampaigns([legacySub]);
       setLoadingSubCampaignName(legacySub.name || 'Ana Kampanya');
-      setIsLoadingSubCampaign(true);
+      if (legacyHasKws) {
+        setIsLoadingSubCampaign(true);
+      } else {
+        setIsLoadingSubCampaign(false);
+      }
       applySubCampaignToState(legacySub);
     }
 
@@ -2402,6 +2411,8 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         // Guaranteed Sub-Campaign Persistence & Isolation
         let resolvedSubId = activeSubCampaignId;
 
+        let updatedSubsToPersist: SubCampaignItem[] = [];
+
         setSubCampaigns((prevSubs) => {
           const defaultSubName = res.pageTitle 
             ? `${langName} - ${res.pageTitle.slice(0, 30)}` 
@@ -2422,7 +2433,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
             if (matched) {
               resolvedSubId = matched.id;
               setActiveSubCampaignId(matched.id);
-              return prevSubs.map(c => {
+              updatedSubsToPersist = prevSubs.map(c => {
                 if (c.id === matched!.id) {
                   return {
                     ...c,
@@ -2442,6 +2453,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                 }
                 return c;
               });
+              return updatedSubsToPersist;
             }
 
             // 4. If no sub-campaign at all matches, add new sub-campaign
@@ -2473,13 +2485,14 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                 searchCloseRate: 10
               }
             };
-            return [...prevSubs, newSub];
+            updatedSubsToPersist = [...prevSubs, newSub];
+            return updatedSubsToPersist;
           }
 
           const singleSubId = `sub_${Date.now()}`;
           resolvedSubId = singleSubId;
           setActiveSubCampaignId(singleSubId);
-          return [{
+          updatedSubsToPersist = [{
             id: singleSubId,
             name: defaultSubName,
             platform: 'GOOGLE' as const,
@@ -2504,7 +2517,62 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
               searchCloseRate: 10
             }
           }];
+          return updatedSubsToPersist;
         });
+
+        // Persist newly discovered keywords to database immediately
+        if (currentPlanId && updatedSubsToPersist.length > 0) {
+          try {
+            const compactSubs = updatedSubsToPersist.map(s => ({
+              id: s.id,
+              name: s.name,
+              platform: s.platform,
+              objective: s.objective,
+              languageCode: s.languageCode,
+              languageName: s.languageName,
+              languageFlag: s.languageFlag,
+              targetLocations: s.targetLocations || [],
+              monthlyBudget: s.monthlyBudget,
+              status: s.status,
+              businessModel: s.businessModel,
+              isStep1Completed: s.isStep1Completed,
+              isStep2Completed: s.isStep2Completed,
+              isStep3Completed: s.isStep3Completed,
+              targetUrl: s.targetUrl,
+              seedKeywords: s.seedKeywords,
+              selectedKeywords: (s.selectedKeywords || []).map(sanitizeKeywordForSave).filter(Boolean),
+              discoveredKeywords: (s.discoveredKeywords || []).map(sanitizeKeywordForSave).filter(Boolean),
+              negativeCategories: s.negativeCategories || [],
+              parameters: s.parameters,
+              cpcImputationSettings: s.cpcImputationSettings
+            }));
+
+            const formattedPeriod = formatCampaignDates(planStartDate, planEndDate, planPeriod);
+            ApiService.saveForecastPlan({
+              id: currentPlanId,
+              workspaceId,
+              name: planName.trim() || `${clientName} - ${formattedPeriod} Medya Planı`,
+              clientName: clientName.trim(),
+              startDate: planStartDate,
+              endDate: planEndDate,
+              period: formattedPeriod,
+              tags: planTags,
+              targetUrl: m === 'URL' ? q.trim() : '',
+              seedKeywords: m === 'KEYWORDS' ? q.trim() : '',
+              detectedLanguage: langCode,
+              detectedLanguageName: langName,
+              monthlyBudget: totalMasterMonthlyBudget || monthlyBudget,
+              selectedKeywords: safeFinalKeywords.map(sanitizeKeywordForSave).filter(Boolean),
+              simulationResult: simulation,
+              negativeKeywords: res.negativeCategories || [],
+              targetCountries: activeLocations.map((c: any) => c.name),
+              countryBreakdown: auditItems,
+              subCampaigns: compactSubs
+            }).then(() => loadSavedPlans()).catch(err => console.error("Error auto-saving discover results:", err));
+          } catch (persistErr) {
+            console.warn("Could not auto-persist discover results:", persistErr);
+          }
+        }
       } else {
         setErrorMsg('Bu arama için anahtar kelime verisi üretilemedi.');
       }
@@ -6670,7 +6738,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           {/* STEP 1 & STEP 2 VIEW: Keyword Discovery (Step 1) & Review Selected (Step 2) */}
           {/* ========================================================================= */}
           {(currentStep === 1 || currentStep === 2) && (
-            isLoadingSubCampaign ? (
+            (isLoadingSubCampaign && (keywords.length > 0 || (activeSubCampaign?.discoveredKeywords && activeSubCampaign.discoveredKeywords.length > 0) || (activeSubCampaign?.selectedKeywords && activeSubCampaign.selectedKeywords.length > 0) || activeSubCampaign?.isStep1Completed || activeSubCampaign?.isStep2Completed)) ? (
               <div className="card" style={{ padding: '3.5rem 1.5rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1.25rem', minHeight: '380px', backgroundColor: 'var(--bg-surface)' }}>
                 <div style={{ position: 'relative', width: '64px', height: '64px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '3px solid rgba(37, 99, 235, 0.15)', borderTopColor: 'var(--brand-primary)', animation: 'spin 0.8s linear infinite' }} />
@@ -8086,48 +8154,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           {/* STEP 3 VIEW: Omnichannel & Platform Dedicated Studios                     */}
           {/* ========================================================================= */}
           {subCampaigns.length > 0 && activeSubCampaignId !== null && (currentStep === 3 || !isGoogleSearchActive) && (
-            isLoadingSubCampaign ? (
-              <div className="card" style={{ padding: '3.5rem 1.5rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1.25rem', minHeight: '380px', backgroundColor: 'var(--bg-surface)' }}>
-                <div style={{ position: 'relative', width: '64px', height: '64px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '3px solid rgba(37, 99, 235, 0.15)', borderTopColor: 'var(--brand-primary)', animation: 'spin 0.8s linear infinite' }} />
-                  <Sparkles size={26} color="var(--brand-primary)" />
-                </div>
-                <div>
-                  <div style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.45rem' }}>
-                    <span>{loadingSubCampaignName || 'Alt Kampanya'}</span>
-                    <span style={{ fontSize: '0.95rem', color: 'var(--brand-primary)', fontWeight: 600 }}>Verileri Yükleniyor...</span>
-                  </div>
-                  <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', maxWidth: '520px', margin: '0.45rem auto 0 auto', lineHeight: 1.5 }}>
-                    Kaydedilen anahtar kelimeler, Google Ads API arama hacimleri ve açık artırma metrikleri hazırlanıyor...
-                  </p>
-                </div>
-
-                {/* Modern Skeleton Preview Bars */}
-                <div style={{ width: '100%', maxWidth: '640px', display: 'flex', flexDirection: 'column', gap: '0.65rem', marginTop: '0.5rem' }}>
-                  <div style={{ height: '38px', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)', display: 'flex', alignItems: 'center', padding: '0 1rem', gap: '0.75rem', opacity: 0.8 }}>
-                    <div style={{ width: '18px', height: '18px', borderRadius: '4px', backgroundColor: 'rgba(37, 99, 235, 0.25)' }} />
-                    <div style={{ width: '140px', height: '12px', borderRadius: '4px', backgroundColor: 'var(--border-default)' }} />
-                    <div style={{ flex: 1 }} />
-                    <div style={{ width: '90px', height: '12px', borderRadius: '4px', backgroundColor: 'var(--border-default)' }} />
-                  </div>
-                  <div style={{ height: '44px', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)', display: 'flex', alignItems: 'center', padding: '0 1rem', gap: '0.75rem', opacity: 0.6 }}>
-                    <div style={{ width: '14px', height: '14px', borderRadius: '3px', backgroundColor: 'var(--border-default)' }} />
-                    <div style={{ width: '220px', height: '12px', borderRadius: '4px', backgroundColor: 'var(--border-default)' }} />
-                    <div style={{ flex: 1 }} />
-                    <div style={{ width: '70px', height: '12px', borderRadius: '4px', backgroundColor: 'var(--border-default)' }} />
-                    <div style={{ width: '80px', height: '12px', borderRadius: '4px', backgroundColor: 'var(--border-default)' }} />
-                  </div>
-                  <div style={{ height: '44px', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)', display: 'flex', alignItems: 'center', padding: '0 1rem', gap: '0.75rem', opacity: 0.4 }}>
-                    <div style={{ width: '14px', height: '14px', borderRadius: '3px', backgroundColor: 'var(--border-default)' }} />
-                    <div style={{ width: '170px', height: '12px', borderRadius: '4px', backgroundColor: 'var(--border-default)' }} />
-                    <div style={{ flex: 1 }} />
-                    <div style={{ width: '60px', height: '12px', borderRadius: '4px', backgroundColor: 'var(--border-default)' }} />
-                    <div style={{ width: '75px', height: '12px', borderRadius: '4px', backgroundColor: 'var(--border-default)' }} />
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
               
               {/* Step 2 Quick Context & Action Bar */}
               <div className="card" style={{ padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', backgroundColor: 'var(--bg-surface)' }}>
@@ -11229,7 +11256,6 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
           )}
 
             </div>
-            )
           )}
 
         </div>

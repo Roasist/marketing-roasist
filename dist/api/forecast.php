@@ -4284,28 +4284,6 @@ if ($action === 'plans') {
                 continue;
             }
 
-            // Generate clean lightweight subCampaigns for portfolio display (Zero Payload Bloat)
-            $lightweightSubs = array_map(function($sc) {
-                return [
-                    'id' => $sc['id'] ?? '',
-                    'name' => $sc['name'] ?? '',
-                    'platform' => $sc['platform'] ?? 'GOOGLE',
-                    'objective' => $sc['objective'] ?? 'GOOGLE_SEARCH',
-                    'languageCode' => $sc['languageCode'] ?? 'tr',
-                    'languageName' => $sc['languageName'] ?? 'Türkçe',
-                    'languageFlag' => $sc['languageFlag'] ?? '🌐',
-                    'targetLocations' => $sc['targetLocations'] ?? [],
-                    'monthlyBudget' => (float)($sc['monthlyBudget'] ?? 0),
-                    'status' => $sc['status'] ?? 'ACTIVE',
-                    'isStep1Completed' => $sc['isStep1Completed'] ?? true,
-                    'isStep2Completed' => $sc['isStep2Completed'] ?? true,
-                    'isStep3Completed' => $sc['isStep3Completed'] ?? true,
-                    'selectedKeywords' => [],
-                    'discoveredKeywords' => [],
-                    'parameters' => $sc['parameters'] ?? null
-                ];
-            }, is_array($rawSubs) ? $rawSubs : []);
-
             $plans[] = [
                 'id' => $r['id'],
                 'workspaceId' => $r['workspace_id'],
@@ -4318,10 +4296,10 @@ if ($action === 'plans') {
                 'targetUrl' => $r['target_url'] ?? '',
                 'seedKeywords' => $r['seed_keywords'] ?? '',
                 'monthlyBudget' => (float)($r['monthly_budget'] ?? 0),
-                'selectedKeywords' => [],
-                'simulationResult' => new stdClass(),
-                'negativeKeywords' => [],
-                'subCampaigns' => $lightweightSubs,
+                'selectedKeywords' => json_decode($r['selected_keywords'] ?? '[]', true) ?: ($planData['selectedKeywords'] ?? []),
+                'simulationResult' => json_decode($r['simulation_result'] ?? '{}', true) ?: ($planData['simulationResult'] ?? new stdClass()),
+                'negativeKeywords' => json_decode($r['negative_keywords'] ?? '[]', true) ?: ($planData['negativeKeywords'] ?? []),
+                'subCampaigns' => is_array($rawSubs) ? $rawSubs : [],
                 'consolidatedMix' => $planData['consolidatedMix'] ?? null,
                 'languageAllocations' => $planData['languageAllocations'] ?? null,
                 'createdAt' => $r['created_at'] ?? '',
