@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build && cp -rf dist/* ./",
+    "build": "tsc -b && vite build",
     "deploy": "bash scripts/deploy.sh",
     "lint": "eslint .",
     "preview": "vite preview"
