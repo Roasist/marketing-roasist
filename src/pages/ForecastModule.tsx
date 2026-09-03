@@ -4955,17 +4955,19 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                               onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border-subtle)'}
                               title={`${sc.name} alt kampanyasını stüdyoda aç`}
                             >
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                                {getPlatformIcon(sc.platform, 14)}
-                                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flex: 1, minWidth: 0, paddingRight: '0.5rem' }}>
+                                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '16px', flexShrink: 0 }}>
+                                  {getPlatformIcon(sc.platform, 14)}
+                                </span>
+                                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                   {sc.name}
                                 </span>
-                                <span style={{ fontSize: '0.7rem' }}>
+                                <span style={{ fontSize: '0.7rem', flexShrink: 0 }}>
                                   {sc.languageFlag || '🌐'}
                                 </span>
                               </div>
 
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexShrink: 0 }}>
                                 <button
                                   type="button"
                                   onClick={(e) => {
@@ -4979,7 +4981,17 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                                     });
                                   }}
                                   className="btn-ghost"
-                                  style={{ padding: '3px 6px', fontSize: '0.7rem', color: 'var(--text-secondary)' }}
+                                  style={{
+                                    width: '24px',
+                                    height: '24px',
+                                    padding: 0,
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: 'var(--text-secondary)',
+                                    borderRadius: 'var(--radius-xs)',
+                                    flexShrink: 0
+                                  }}
                                   title="Alt Kampanya CSV Raporunu Özelleştir & İndir"
                                 >
                                   <Download size={13} />
@@ -4988,15 +5000,35 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                                   type="button"
                                   onClick={(e) => handleDeleteSubCampaignFromPlan(plan.id, sc.id, e)}
                                   className="btn-ghost"
-                                  style={{ padding: '3px 6px', fontSize: '0.7rem', color: '#ef4444' }}
+                                  style={{
+                                    width: '24px',
+                                    height: '24px',
+                                    padding: 0,
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: '#ef4444',
+                                    borderRadius: 'var(--radius-xs)',
+                                    flexShrink: 0
+                                  }}
                                   title="Bu alt kampanyayı sil"
                                 >
                                   <Trash2 size={12} />
                                 </button>
-                                <span style={{ fontSize: '0.72rem', fontWeight: 700, color: sc.status === 'PAUSED' ? 'var(--text-muted)' : 'var(--brand-primary)', marginLeft: '2px' }}>
+                                <span style={{
+                                  width: '66px',
+                                  textAlign: 'right',
+                                  fontSize: '0.72rem',
+                                  fontWeight: 700,
+                                  color: sc.status === 'PAUSED' ? 'var(--text-muted)' : 'var(--brand-primary)',
+                                  fontVariantNumeric: 'tabular-nums',
+                                  flexShrink: 0
+                                }}>
                                   {sc.status === 'PAUSED' ? '⏸️ Pasif' : `₺${(sc.monthlyBudget || 0).toLocaleString('tr-TR')}`}
                                 </span>
-                                <ChevronRight size={12} color="var(--text-muted)" />
+                                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '12px', flexShrink: 0 }}>
+                                  <ChevronRight size={12} color="var(--text-muted)" />
+                                </span>
                               </div>
                             </div>
                           ))}
