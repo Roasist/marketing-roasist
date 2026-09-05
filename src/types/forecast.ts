@@ -172,6 +172,9 @@ export interface SubCampaignItem {
   isStep2Completed?: boolean;
   isStep3Completed?: boolean;
   
+  // AI Ad Creative & Copywriting Data (RSA & Meta Ads)
+  adCopyData?: any;
+  
   // Model specific parameters snapshot
   businessModel?: BusinessModel;
   parameters: {

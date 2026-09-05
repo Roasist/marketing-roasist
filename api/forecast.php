@@ -4138,6 +4138,471 @@ if ($action === 'negative_keywords' && $method === 'POST') {
     exit;
 }
 
+// -------------------------------------------------------------
+// ACTION: GENERATE AI AD CREATIVE & COPYWRITING (GOOGLE RSA & META ADS)
+// -------------------------------------------------------------
+if ($action === 'generate_ad_copy' && $method === 'POST') {
+    $input = json_decode(file_get_contents('php://input'), true) ?? [];
+    
+    $subCampaignName = trim($input['subCampaignName'] ?? 'Kampanya');
+    $clientName = trim($input['clientName'] ?? 'Marka');
+    $targetUrl = trim($input['targetUrl'] ?? '');
+    $languageCode = strtolower(trim($input['languageCode'] ?? 'tr'));
+    $languageName = trim($input['languageName'] ?? 'Türkçe');
+    $targetLocations = $input['targetLocations'] ?? [];
+    $keywords = $input['keywords'] ?? [];
+    $stagClusters = $input['stagClusters'] ?? [];
+    $tone = trim($input['tone'] ?? 'CONVERSION'); // CONVERSION, CORPORATE, URGENCY, CASUAL
+    $channel = trim($input['channel'] ?? 'ALL'); // GOOGLE_SEARCH, META_ADS, ALL
+    $regenerateItem = $input['regenerateItem'] ?? null;
+
+    $apiKeys = getApiKeys($pdo);
+    $geminiKey = $apiKeys['geminiApiKey'] ?: $apiKeys['googleApiKey'];
+
+    // Top keyword extraction (up to 20 keywords sorted by volume or relevance)
+    $cleanKeywords = [];
+    if (is_array($keywords)) {
+        foreach ($keywords as $kw) {
+            if (is_string($kw)) {
+                $cleanKeywords[] = trim($kw);
+            } elseif (is_array($kw) && !empty($kw['keyword'])) {
+                $cleanKeywords[] = trim($kw['keyword']);
+            }
+        }
+    }
+    $topKeywords = array_slice(array_unique(array_filter($cleanKeywords)), 0, 20);
+
+    // Extract domain or clean brand from URL if needed
+    $parsedHost = parse_url($targetUrl, PHP_URL_HOST);
+    $cleanBrand = $clientName;
+    if (empty($cleanBrand) && !empty($parsedHost)) {
+        $cleanBrand = preg_replace('/^www\./i', '', $parsedHost);
+    }
+
+    $locationNames = [];
+    if (is_array($targetLocations)) {
+        foreach ($targetLocations as $loc) {
+            if (is_string($loc)) {
+                $locationNames[] = $loc;
+            } elseif (is_array($loc) && !empty($loc['name'])) {
+                $locationNames[] = $loc['name'];
+            }
+        }
+    }
+    $locStr = implode(', ', array_slice($locationNames, 0, 5));
+
+    $tonePrompts = [
+        'CONVERSION' => 'Dönüşüm ve satış odaklı, fayda ve sonuç vurgulayan, harekete geçirici eylem çağrıları içeren.',
+        'CORPORATE' => 'Kurumsal, güven veren, profesyonel, otoriter ve prestijli.',
+        'URGENCY' => 'Aciliyet ve fırsat odaklı, kaçırma korkusu (FOMO) ve sınırlı süre/stok hissi veren.',
+        'CASUAL' => 'Dinamik, genç, samimi, doğrudan ve enerjik.'
+    ];
+    $selectedToneDesc = $tonePrompts[$tone] ?? $tonePrompts['CONVERSION'];
+
+    $result = null;
+
+    if (!empty($geminiKey) && strlen($geminiKey) > 15 && strpos($geminiKey, 'test_') !== 0) {
+        // Build Prompt for Google Gemini
+        if ($regenerateItem && !empty($regenerateItem['type'])) {
+            // Single Item Regeneration Prompt
+            $itemType = $regenerateItem['type']; // 'headline', 'description', 'primaryText'
+            $prompt = "Sen uzman bir dijital reklam metin yazarı ve Google Ads / Meta Ads sertifikalı profesyonelsin.\n"
+                . "HEDEF DİL: Kesinlikle ve sadece {$languageName} ({$languageCode}) dilinde yaz!\n"
+                . "Marka: {$cleanBrand}\n"
+                . "Açılış Sayfası: {$targetUrl}\n"
+                . "Hedef Lokasyon: {$locStr}\n"
+                . "Anahtar Kelimeler: " . implode(', ', array_slice($topKeywords, 0, 10)) . "\n"
+                . "İletişim Tonu: {$selectedToneDesc}\n\n";
+
+            if ($itemType === 'headline') {
+                $prompt .= "GÖREV: Google Search (RSA) için tek bir yüksek performanslı reklam başlığı üret.\n"
+                    . "KURAL: Başlık KESİNLİKLE EN FAZLA 30 KARAKTER olmalıdır (boşluklar dahil <= 30 chars). Asla 30 karakteri geçemez!\n"
+                    . "Yanıt formatı sadece şu JSON olmalıdır: {\"text\": \"Başlık Metni\"}";
+            } elseif ($itemType === 'description') {
+                $prompt .= "GÖREV: Google Search (RSA) için tek bir yüksek performanslı reklam açıklama metni üret.\n"
+                    . "KURAL: Açıklama KESİNLİKLE EN FAZLA 90 KARAKTER olmalıdır (boşluklar dahil <= 90 chars). Asla 90 karakteri geçemez!\n"
+                    . "Yanıt formatı sadece şu JSON olmalıdır: {\"text\": \"Açıklama Metni\"}";
+            } elseif ($itemType === 'primaryText') {
+                $prompt .= "GÖREV: Meta Ads (Facebook & Instagram) için tek bir yüksek dönüşümlü Birincil Metin (Primary Text) üret.\n"
+                    . "Kullanıcıyı ilk cümlede yakalayan kanca, değer vaadi ve net eylem çağrısı içersin.\n"
+                    . "Yanıt formatı sadece şu JSON olmalıdır: {\"text\": \"Birincil Metin\", \"angle\": \"Kanca Açısı\"}";
+            }
+
+            $modelsToTry = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-2.5-flash'];
+            foreach ($modelsToTry as $model) {
+                $gUrl = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key=" . urlencode($geminiKey);
+                $payload = [
+                    "contents" => [["parts" => [["text" => $prompt]]]],
+                    "generationConfig" => ["temperature" => 0.4, "responseMimeType" => "application/json"]
+                ];
+                $ch = curl_init($gUrl);
+                curl_setopt($ch, CURLOPT_POST, true);
+                curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload, JSON_INVALID_UTF8_SUBSTITUTE | JSON_UNESCAPED_UNICODE));
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+                curl_setopt($ch, CURLOPT_TIMEOUT, 8);
+                $gRes = curl_exec($ch);
+                curl_close($ch);
+
+                $gJson = json_decode($gRes, true);
+                if (isset($gJson['candidates'][0]['content']['parts'][0]['text'])) {
+                    $raw = $gJson['candidates'][0]['content']['parts'][0]['text'];
+                    $clean = preg_replace('/^```(?:json)?\s*/i', '', trim($raw));
+                    $clean = preg_replace('/\s*```$/', '', $clean);
+                    $parsed = json_decode($clean, true);
+                    if ($parsed && !empty($parsed['text'])) {
+                        $txt = trim($parsed['text']);
+                        if ($itemType === 'headline' && mb_strlen($txt, 'UTF-8') > 30) {
+                            $txt = mb_substr($txt, 0, 30, 'UTF-8');
+                        } elseif ($itemType === 'description' && mb_strlen($txt, 'UTF-8') > 90) {
+                            $txt = mb_substr($txt, 0, 90, 'UTF-8');
+                        }
+                        echo json_encode([
+                            'status' => 'success',
+                            'item' => [
+                                'text' => $txt,
+                                'angle' => $parsed['angle'] ?? 'Özel Metin'
+                            ]
+                        ], JSON_INVALID_UTF8_SUBSTITUTE | JSON_UNESCAPED_UNICODE);
+                        exit;
+                    }
+                }
+            }
+        } else {
+            // Full Campaign Ad Creative Generation Prompt
+            $kwListStr = implode(', ', $topKeywords);
+            $prompt = "Sen dünya çapında ödüllü bir Dijital Reklam Metin Yazarı ve Google Premier Partner / Meta Certified Stratejistisin.\n\n"
+                . "Aşağıdaki analiz edilmiş alt kampanya verilerine dayanarak hem Google Search (Responsive Search Ads - RSA) hem de Meta Ads (Facebook & Instagram) için yüksek dönüşümlü, kurallara birebir uyan reklam metinleri hazırla.\n\n"
+                . "KAMPANYA BİLGİLERİ:\n"
+                . "- Kampanya Adı: {$subCampaignName}\n"
+                . "- Marka / Müşteri: {$cleanBrand}\n"
+                . "- Açılış Sayfası (URL): {$targetUrl}\n"
+                . "- HEDEF DİL: Kesinlikle ve sadece {$languageName} ({$languageCode}) dilinde yazılmalıdır!\n"
+                . "- Hedef Lokasyon: {$locStr}\n"
+                . "- Seçilen Anahtar Kelimeler: {$kwListStr}\n"
+                . "- İletişim Tonu: {$selectedToneDesc}\n\n"
+                . "KATI PLATFORM KURALLARI:\n"
+                . "1. GOOGLE SEARCH (RSA) BAŞLIKLARI:\n"
+                . "   - Tam 15 adet başlık üret.\n"
+                . "   - HER BAŞLIK EN FAZLA 30 KARAKTER OLMALIDIR (boşluklar dahil <= 30 chars). ASLA 30 karakteri geçemez!\n"
+                . "   - Başlık çeşitliliği: 1-5 anahtar kelime odaklı (en az birinde {KeyWord:Örnek} sözdizimi), 6-10 USP ve fayda, 11-13 Eylem çağrısı (CTA), 14-15 indirim/fırsat/güven.\n"
+                . "2. GOOGLE SEARCH (RSA) AÇIKLAMALARI:\n"
+                . "   - Tam 4 adet açıklama üret.\n"
+                . "   - HER AÇIKLAMA EN FAZLA 90 KARAKTER OLMALIDIR (boşluklar dahil <= 90 chars). ASLA 90 karakteri geçemez!\n"
+                . "   - Değer önerisi, problem çözümü, garanti ve güçlü eylem çağrısı içermelidir.\n"
+                . "3. GOOGLE ASSETS (VARLIKLAR):\n"
+                . "   - 4 adet Sitelink (title <= 25 char, desc1 <= 35 char, desc2 <= 35 char).\n"
+                . "   - 4 adet Callout / Belirtme Metni (her biri <= 25 char).\n"
+                . "4. META ADS (FACEBOOK & INSTAGRAM):\n"
+                . "   - 4 adet Birincil Metin (Primary Text) - 4 farklı açı: Problem-Çözüm, Sosyal Kanıt, Fırsat/Kampanya, Kısa-Vurucu.\n"
+                . "   - 3 adet Başlık (Headline <= 40 char).\n"
+                . "   - 2 adet Açıklama (Description <= 30 char).\n"
+                . "   - 1 adet önerilen Call to Action (CTA).\n\n"
+                . "ÇIKTI FORMATI: Yalnızca ve kesinlikle geçerli bir JSON döndür:\n"
+                . "{\n"
+                . "  \"googleSearch\": {\n"
+                . "    \"headlines\": [\n"
+                . "      {\"text\": \"...\", \"category\": \"KEYWORD|USP|CTA|OFFER\", \"pin\": \"POSITION_1|POSITION_2|POSITION_3|null\"}\n"
+                . "    ],\n"
+                . "    \"descriptions\": [\n"
+                . "      {\"text\": \"...\", \"category\": \"VALUE|TRUST|OFFER|ACTION\"}\n"
+                . "    ],\n"
+                . "    \"sitelinks\": [\n"
+                . "      {\"title\": \"...\", \"desc1\": \"...\", \"desc2\": \"...\"}\n"
+                . "    ],\n"
+                . "    \"callouts\": [\"...\", \"...\", \"...\", \"...\"]\n"
+                . "  },\n"
+                . "  \"metaAds\": {\n"
+                . "    \"primaryTexts\": [\n"
+                . "      {\"text\": \"...\", \"angle\": \"Problem-Çözüm | Sosyal Kanıt | Fırsat | Kısa-Vurucu\"}\n"
+                . "    ],\n"
+                . "    \"headlines\": [\"...\", \"...\", \"...\"],\n"
+                . "    \"descriptions\": [\"...\", \"...\"],\n"
+                . "    \"callToAction\": \"Şimdi Satın Al | Bilgi Al | Teklif Al\"\n"
+                . "  }\n"
+                . "}";
+
+            $modelsToTry = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-2.5-flash', 'gemini-1.5-pro'];
+            foreach ($modelsToTry as $model) {
+                $gUrl = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key=" . urlencode($geminiKey);
+                $payload = [
+                    "contents" => [["parts" => [["text" => $prompt]]]],
+                    "generationConfig" => ["temperature" => 0.3, "responseMimeType" => "application/json"]
+                ];
+                $ch = curl_init($gUrl);
+                curl_setopt($ch, CURLOPT_POST, true);
+                curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload, JSON_INVALID_UTF8_SUBSTITUTE | JSON_UNESCAPED_UNICODE));
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+                curl_setopt($ch, CURLOPT_TIMEOUT, 12);
+                $gRes = curl_exec($ch);
+                curl_close($ch);
+
+                $gJson = json_decode($gRes, true);
+                if (isset($gJson['candidates'][0]['content']['parts'][0]['text'])) {
+                    $raw = $gJson['candidates'][0]['content']['parts'][0]['text'];
+                    $clean = preg_replace('/^```(?:json)?\s*/i', '', trim($raw));
+                    $clean = preg_replace('/\s*```$/', '', $clean);
+                    $parsed = json_decode($clean, true);
+                    if ($parsed && !empty($parsed['googleSearch']['headlines'])) {
+                        $result = $parsed;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    // Safety: Character Limit Enforcement & Formatting
+    if ($result && !empty($result['googleSearch'])) {
+        // Enforce <= 30 on headlines
+        if (!empty($result['googleSearch']['headlines']) && is_array($result['googleSearch']['headlines'])) {
+            $formattedHeadlines = [];
+            foreach ($result['googleSearch']['headlines'] as $i => $h) {
+                $text = is_array($h) ? ($h['text'] ?? '') : (string)$h;
+                $cat = is_array($h) ? ($h['category'] ?? 'USP') : 'USP';
+                $pin = is_array($h) ? ($h['pin'] ?? null) : null;
+                if ($pin === 'null' || empty($pin)) $pin = null;
+                
+                // Truncate if model slightly exceeded 30
+                if (mb_strlen($text, 'UTF-8') > 30) {
+                    $text = mb_substr($text, 0, 30, 'UTF-8');
+                }
+                $formattedHeadlines[] = [
+                    'id' => 'h_' . ($i + 1),
+                    'text' => $text,
+                    'category' => $cat,
+                    'pin' => $pin
+                ];
+            }
+            $result['googleSearch']['headlines'] = $formattedHeadlines;
+        }
+
+        // Enforce <= 90 on descriptions
+        if (!empty($result['googleSearch']['descriptions']) && is_array($result['googleSearch']['descriptions'])) {
+            $formattedDescs = [];
+            foreach ($result['googleSearch']['descriptions'] as $i => $d) {
+                $text = is_array($d) ? ($d['text'] ?? '') : (string)$d;
+                $cat = is_array($d) ? ($d['category'] ?? 'VALUE') : 'VALUE';
+                if (mb_strlen($text, 'UTF-8') > 90) {
+                    $text = mb_substr($text, 0, 90, 'UTF-8');
+                }
+                $formattedDescs[] = [
+                    'id' => 'd_' . ($i + 1),
+                    'text' => $text,
+                    'category' => $cat
+                ];
+            }
+            $result['googleSearch']['descriptions'] = $formattedDescs;
+        }
+
+        // Format sitelinks & callouts
+        if (!empty($result['googleSearch']['sitelinks']) && is_array($result['googleSearch']['sitelinks'])) {
+            foreach ($result['googleSearch']['sitelinks'] as &$sl) {
+                if (isset($sl['title']) && mb_strlen($sl['title'], 'UTF-8') > 25) {
+                    $sl['title'] = mb_substr($sl['title'], 0, 25, 'UTF-8');
+                }
+                if (isset($sl['desc1']) && mb_strlen($sl['desc1'], 'UTF-8') > 35) {
+                    $sl['desc1'] = mb_substr($sl['desc1'], 0, 35, 'UTF-8');
+                }
+                if (isset($sl['desc2']) && mb_strlen($sl['desc2'], 'UTF-8') > 35) {
+                    $sl['desc2'] = mb_substr($sl['desc2'], 0, 35, 'UTF-8');
+                }
+            }
+            unset($sl);
+        }
+
+        if (!empty($result['googleSearch']['callouts']) && is_array($result['googleSearch']['callouts'])) {
+            foreach ($result['googleSearch']['callouts'] as &$co) {
+                if (is_string($co) && mb_strlen($co, 'UTF-8') > 25) {
+                    $co = mb_substr($co, 0, 25, 'UTF-8');
+                }
+            }
+            unset($co);
+        }
+    }
+
+    // Format Meta Ads
+    if ($result && !empty($result['metaAds'])) {
+        if (!empty($result['metaAds']['primaryTexts']) && is_array($result['metaAds']['primaryTexts'])) {
+            $formattedPrimary = [];
+            foreach ($result['metaAds']['primaryTexts'] as $i => $pt) {
+                $text = is_array($pt) ? ($pt['text'] ?? '') : (string)$pt;
+                $angle = is_array($pt) ? ($pt['angle'] ?? 'Genel') : 'Genel';
+                $formattedPrimary[] = [
+                    'id' => 'pt_' . ($i + 1),
+                    'text' => $text,
+                    'angle' => $angle
+                ];
+            }
+            $result['metaAds']['primaryTexts'] = $formattedPrimary;
+        }
+
+        if (!empty($result['metaAds']['headlines']) && is_array($result['metaAds']['headlines'])) {
+            $formattedHeadlinesMeta = [];
+            foreach ($result['metaAds']['headlines'] as $i => $mh) {
+                $text = is_array($mh) ? ($mh['text'] ?? '') : (string)$mh;
+                if (mb_strlen($text, 'UTF-8') > 40) {
+                    $text = mb_substr($text, 0, 40, 'UTF-8');
+                }
+                $formattedHeadlinesMeta[] = [
+                    'id' => 'mh_' . ($i + 1),
+                    'text' => $text
+                ];
+            }
+            $result['metaAds']['headlines'] = $formattedHeadlinesMeta;
+        }
+
+        if (!empty($result['metaAds']['descriptions']) && is_array($result['metaAds']['descriptions'])) {
+            $formattedDescsMeta = [];
+            foreach ($result['metaAds']['descriptions'] as $i => $md) {
+                $text = is_array($md) ? ($md['text'] ?? '') : (string)$md;
+                if (mb_strlen($text, 'UTF-8') > 30) {
+                    $text = mb_substr($text, 0, 30, 'UTF-8');
+                }
+                $formattedDescsMeta[] = [
+                    'id' => 'md_' . ($i + 1),
+                    'text' => $text
+                ];
+            }
+            $result['metaAds']['descriptions'] = $formattedDescsMeta;
+        }
+    }
+
+    // High-Resilience Fallback Generator (if AI was unreachable or keys inactive)
+    if (empty($result) || empty($result['googleSearch']['headlines'])) {
+        $primaryKw = !empty($topKeywords[0]) ? mb_convert_case($topKeywords[0], MB_CASE_TITLE, "UTF-8") : $subCampaignName;
+        $secKw = !empty($topKeywords[1]) ? mb_convert_case($topKeywords[1], MB_CASE_TITLE, "UTF-8") : 'Online Keşfet';
+        $thirdKw = !empty($topKeywords[2]) ? mb_convert_case($topKeywords[2], MB_CASE_TITLE, "UTF-8") : 'En İyi Fiyatlar';
+
+        $isEnglish = ($languageCode === 'en');
+        $isRussian = ($languageCode === 'ru');
+
+        if ($isEnglish) {
+            $fallbackHeadlines = [
+                ['id' => 'h_1', 'text' => mb_substr("{KeyWord:{$primaryKw}}", 0, 30, 'UTF-8'), 'category' => 'KEYWORD', 'pin' => 'POSITION_1'],
+                ['id' => 'h_2', 'text' => mb_substr("Official {$cleanBrand} Store", 0, 30, 'UTF-8'), 'category' => 'KEYWORD', 'pin' => 'POSITION_1'],
+                ['id' => 'h_3', 'text' => mb_substr("Premium {$primaryKw}", 0, 30, 'UTF-8'), 'category' => 'KEYWORD', 'pin' => null],
+                ['id' => 'h_4', 'text' => mb_substr("Explore {$secKw}", 0, 30, 'UTF-8'), 'category' => 'KEYWORD', 'pin' => null],
+                ['id' => 'h_5', 'text' => mb_substr("Top-Rated {$primaryKw}", 0, 30, 'UTF-8'), 'category' => 'KEYWORD', 'pin' => null],
+                ['id' => 'h_6', 'text' => '100% Quality Guaranteed', 'category' => 'USP', 'pin' => 'POSITION_2'],
+                ['id' => 'h_7', 'text' => 'Fast & Reliable Shipping', 'category' => 'USP', 'pin' => 'POSITION_2'],
+                ['id' => 'h_8', 'text' => 'Trusted by 50,000+ Clients', 'category' => 'USP', 'pin' => null],
+                ['id' => 'h_9', 'text' => 'Exclusive Modern Designs', 'category' => 'USP', 'pin' => null],
+                ['id' => 'h_10', 'text' => 'Easy 30-Day Returns', 'category' => 'USP', 'pin' => null],
+                ['id' => 'h_11', 'text' => 'Order Online Today', 'category' => 'CTA', 'pin' => 'POSITION_3'],
+                ['id' => 'h_12', 'text' => 'Shop Now & Save More', 'category' => 'CTA', 'pin' => 'POSITION_3'],
+                ['id' => 'h_13', 'text' => 'Get Instant Free Quote', 'category' => 'CTA', 'pin' => null],
+                ['id' => 'h_14', 'text' => 'Limited Time Special Deal', 'category' => 'OFFER', 'pin' => null],
+                ['id' => 'h_15', 'text' => 'Up to 25% Off Today', 'category' => 'OFFER', 'pin' => null],
+            ];
+            $fallbackDescs = [
+                ['id' => 'd_1', 'text' => mb_substr("Discover high quality {$primaryKw} with {$cleanBrand}. Premium materials & fast delivery.", 0, 90, 'UTF-8'), 'category' => 'VALUE'],
+                ['id' => 'd_2', 'text' => mb_substr("Trusted by thousands of happy customers. Guaranteed quality & secure online checkout.", 0, 90, 'UTF-8'), 'category' => 'TRUST'],
+                ['id' => 'd_3', 'text' => mb_substr("Exclusive collection with unmatched prices. Enjoy swift shipping and hassle-free returns.", 0, 90, 'UTF-8'), 'category' => 'OFFER'],
+                ['id' => 'd_4', 'text' => mb_substr("Browse our best-selling {$primaryKw} now. Click to order online with special discounts!", 0, 90, 'UTF-8'), 'category' => 'ACTION'],
+            ];
+            $fallbackSitelinks = [
+                ['title' => 'Best Sellers', 'desc1' => 'Explore top products', 'desc2' => 'Handpicked for your style'],
+                ['title' => 'New Arrivals', 'desc1' => 'Check newest designs', 'desc2' => 'Fresh stock available'],
+                ['title' => 'Special Offers', 'desc1' => 'Limited discounts', 'desc2' => 'Save on your order'],
+                ['title' => 'Customer Support', 'desc1' => '24/7 dedicated help', 'desc2' => 'Always here for you']
+            ];
+            $fallbackCallouts = ['Free Shipping', 'Secure Checkout', '24/7 Support', 'Fast Dispatch'];
+            $fallbackPrimary = [
+                ['id' => 'pt_1', 'angle' => 'Problem-Solution', 'text' => "Looking for reliable {$primaryKw}? Say goodbye to poor quality. {$cleanBrand} brings you certified excellence with fast delivery straight to your door. Tap below to explore the collection!"],
+                ['id' => 'pt_2', 'angle' => 'Social Proof', 'text' => "Over 10,000 customers love {$cleanBrand}. See why our {$primaryKw} is rated 4.9/5 stars. Claim your exclusive offer before stocks run out."],
+                ['id' => 'pt_3', 'angle' => 'Urgency & Offer', 'text' => "⚡ Limited time offer! Get special discounts on our best-selling {$primaryKw}. High demand, limited stock. Order yours today."],
+                ['id' => 'pt_4', 'angle' => 'Short & Punchy', 'text' => "Upgrade your experience with {$cleanBrand}. Premium {$primaryKw} crafted for perfection. Shop now with easy returns."]
+            ];
+            $fallbackMetaHeadlines = [
+                ['id' => 'mh_1', 'text' => mb_substr("Shop {$primaryKw} Online", 0, 40, 'UTF-8')],
+                ['id' => 'mh_2', 'text' => mb_substr("Premium Quality Guaranteed", 0, 40, 'UTF-8')],
+                ['id' => 'mh_3', 'text' => mb_substr("Special Offer Today - Shop Now", 0, 40, 'UTF-8')]
+            ];
+            $fallbackMetaDescs = [
+                ['id' => 'md_1', 'text' => 'Fast Delivery & Free Returns'],
+                ['id' => 'md_2', 'text' => 'Top Rated by Customers']
+            ];
+            $fallbackCta = 'Shop Now';
+        } else {
+            // Default Turkish
+            $fallbackHeadlines = [
+                ['id' => 'h_1', 'text' => mb_substr("{KeyWord:{$primaryKw}}", 0, 30, 'UTF-8'), 'category' => 'KEYWORD', 'pin' => 'POSITION_1'],
+                ['id' => 'h_2', 'text' => mb_substr("Resmi {$cleanBrand} Sayfası", 0, 30, 'UTF-8'), 'category' => 'KEYWORD', 'pin' => 'POSITION_1'],
+                ['id' => 'h_3', 'text' => mb_substr("En Yeni {$primaryKw}", 0, 30, 'UTF-8'), 'category' => 'KEYWORD', 'pin' => null],
+                ['id' => 'h_4', 'text' => mb_substr("Geniş {$secKw} Çeşitleri", 0, 30, 'UTF-8'), 'category' => 'KEYWORD', 'pin' => null],
+                ['id' => 'h_5', 'text' => mb_substr("Avantajlı {$thirdKw}", 0, 30, 'UTF-8'), 'category' => 'KEYWORD', 'pin' => null],
+                ['id' => 'h_6', 'text' => '%100 Orijinal Ürün Garantisi', 'category' => 'USP', 'pin' => 'POSITION_2'],
+                ['id' => 'h_7', 'text' => 'Hızlı & Ücretsiz Kargo', 'category' => 'USP', 'pin' => 'POSITION_2'],
+                ['id' => 'h_8', 'text' => 'Kolay & Koşulsuz İade', 'category' => 'USP', 'pin' => null],
+                ['id' => 'h_9', 'text' => '50.000+ Mutlu Müşteri', 'category' => 'USP', 'pin' => null],
+                ['id' => 'h_10', 'text' => 'Güvenli Alışveriş Deneyimi', 'category' => 'USP', 'pin' => null],
+                ['id' => 'h_11', 'text' => 'Hemen Sipariş Ver', 'category' => 'CTA', 'pin' => 'POSITION_3'],
+                ['id' => 'h_12', 'text' => 'Şimdi Online İncele', 'category' => 'CTA', 'pin' => 'POSITION_3'],
+                ['id' => 'h_13', 'text' => 'Fırsatları Kaçırmadan Al', 'category' => 'CTA', 'pin' => null],
+                ['id' => 'h_14', 'text' => 'Bugüne Özel %20 İndirim', 'category' => 'OFFER', 'pin' => null],
+                ['id' => 'h_15', 'text' => 'Sınırlı Stok Özel Fiyat', 'category' => 'OFFER', 'pin' => null],
+            ];
+            $fallbackDescs = [
+                ['id' => 'd_1', 'text' => mb_substr("En kaliteli {$primaryKw} modellerini {$cleanBrand} güvencesiyle keşfedin. Hızlı teslimat.", 0, 90, 'UTF-8'), 'category' => 'VALUE'],
+                ['id' => 'd_2', 'text' => mb_substr("Binlerce mutlu müşterinin tercihi. Güvenli ödeme ve 14 gün koşulsuz iade imkanı burada.", 0, 90, 'UTF-8'), 'category' => 'TRUST'],
+                ['id' => 'd_3', 'text' => mb_substr("Sezonun en çok tercih edilen modelleri cazip fiyatlarla. Ücretsiz kargo fırsatını yakalayın.", 0, 90, 'UTF-8'), 'category' => 'OFFER'],
+                ['id' => 'd_4', 'text' => mb_substr("Aradığınız {$primaryKw} için hemen tıklayın, avantajlı fiyatlarla güvenle sipariş verin!", 0, 90, 'UTF-8'), 'category' => 'ACTION'],
+            ];
+            $fallbackSitelinks = [
+                ['title' => 'Çok Satanlar', 'desc1' => 'En popüler ürünleri inceleyin', 'desc2' => 'Trendleri yakalayın'],
+                ['title' => 'Yeni Sezon', 'desc1' => 'En son çıkan modeller', 'desc2' => 'Stoklar yenilendi'],
+                ['title' => 'Fırsat Ürünleri', 'desc1' => 'Sınırlı süreli indirimler', 'desc2' => 'Avantajlı fiyatlar'],
+                ['title' => 'İletişim & Destek', 'desc1' => 'Bize hemen ulaşın', 'desc2' => 'Müşteri hizmetleri']
+            ];
+            $fallbackCallouts = ['Ücretsiz Kargo', 'Güvenli Ödeme', '7/24 Destek', 'Hızlı Teslimat'];
+            $fallbackPrimary = [
+                ['id' => 'pt_1', 'angle' => 'Problem-Çözüm', 'text' => "Doğru {$primaryKw} bulmakta zorlanıyor musunuz? Kaliteden ödün vermeden, aradığınız performansı {$cleanBrand} ile yakalayın. Ücretsiz kargo ve kolay iade güvencesiyle hemen keşfedin."],
+                ['id' => 'pt_2', 'angle' => 'Sosyal Kanıt', 'text' => "Binlerce memnun kullanıcının tercihi {$cleanBrand}! ⭐⭐⭐⭐⭐ Müşterilerimizin favorisi {$primaryKw} şimdi yenilenen koleksiyonuyla yayında. Siz de ayrıcalıklı deneyime katılın."],
+                ['id' => 'pt_3', 'angle' => 'Fırsat & Kampanya', 'text' => "🔥 Bugüne özel sınırlı kampanya! En popüler {$primaryKw} ürünlerinde sepete özel avantajları kaçırmayın. Stoklar hızla tükeniyor, hemen siparişinizi oluşturun."],
+                ['id' => 'pt_4', 'angle' => 'Kısa & Vurucu', 'text' => "Tarzınızı ve konforunuzu yükseltin. {$cleanBrand} {$primaryKw} ile farkı hissedin. Detaylı bilgi ve sipariş için tıklayın."]
+            ];
+            $fallbackMetaHeadlines = [
+                ['id' => 'mh_1', 'text' => mb_substr("En İyi {$primaryKw} Modelleri", 0, 40, 'UTF-8')],
+                ['id' => 'mh_2', 'text' => mb_substr("%100 Güvenli Alışveriş & Kargo", 0, 40, 'UTF-8')],
+                ['id' => 'mh_3', 'text' => mb_substr("Hemen İncele & Fırsatı Yakala", 0, 40, 'UTF-8')]
+            ];
+            $fallbackMetaDescs = [
+                ['id' => 'md_1', 'text' => 'Hızlı Kargo & Kolay İade'],
+                ['id' => 'md_2', 'text' => 'Müşteri Memnuniyeti Garantisi']
+            ];
+            $fallbackCta = 'Şimdi Alışveriş Yap';
+        }
+
+        $result = [
+            'googleSearch' => [
+                'headlines' => $fallbackHeadlines,
+                'descriptions' => $fallbackDescs,
+                'sitelinks' => $fallbackSitelinks,
+                'callouts' => $fallbackCallouts
+            ],
+            'metaAds' => [
+                'primaryTexts' => $fallbackPrimary,
+                'headlines' => $fallbackMetaHeadlines,
+                'descriptions' => $fallbackMetaDescs,
+                'callToAction' => $fallbackCta
+            ]
+        ];
+    }
+
+    echo json_encode([
+        'status' => 'success',
+        'subCampaignName' => $subCampaignName,
+        'language' => $languageName,
+        'languageCode' => $languageCode,
+        'tone' => $tone,
+        'generatedAt' => date('Y-m-d H:i:s'),
+        'adCopyData' => $result
+    ], JSON_INVALID_UTF8_SUBSTITUTE | JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
 if ($action === 'clear_cache') {
     $pdo->exec("DELETE FROM keyword_cache");
     echo json_encode(['status' => 'success', 'message' => 'Keyword cache başarıyla temizlendi.']);
@@ -4387,6 +4852,9 @@ if ($action === 'plans') {
                         }
                         if (empty($sc['negativeCategories']) && !empty($prev['negativeCategories'])) {
                             $sc['negativeCategories'] = $prev['negativeCategories'];
+                        }
+                        if (empty($sc['adCopyData']) && !empty($prev['adCopyData'])) {
+                            $sc['adCopyData'] = $prev['adCopyData'];
                         }
                     }
                 }

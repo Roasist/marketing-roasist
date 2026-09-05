@@ -50,6 +50,7 @@ import {
 } from 'lucide-react';
 import { ExportCustomizationModal } from '../components/ExportCustomizationModal';
 import { BudgetAllocationWizardModal } from '../components/BudgetAllocationWizardModal';
+import { AiAdCreativeStudioModal, AdCopyData } from '../components/forecast/AiAdCreativeStudioModal';
 import { KeywordCluster, groupKeywordsSemantically, enrichKeywordsWithClusterCpc } from '../services/keywordClusteringService';
 import { 
   KeywordMetric, 
@@ -495,6 +496,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
   const [isLocationModalOpen, setIsLocationModalOpen] = useState<boolean>(false);
   const [isLanguageModalOpen, setIsLanguageModalOpen] = useState<boolean>(false);
   const [isBudgetAllocationModalOpen, setIsBudgetAllocationModalOpen] = useState<boolean>(false);
+  const [isAdCreativeStudioOpen, setIsAdCreativeStudioOpen] = useState<boolean>(false);
   const [languageSearchQuery, setLanguageSearchQuery] = useState<string>('');
 
   const filteredLanguages = useMemo(() => {
@@ -2585,6 +2587,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
               selectedKeywords: (s.selectedKeywords || []).map(sanitizeKeywordForSave).filter(Boolean),
               discoveredKeywords: (s.discoveredKeywords || []).map(sanitizeKeywordForSave).filter(Boolean),
               negativeCategories: s.negativeCategories || [],
+              adCopyData: s.adCopyData,
               parameters: s.parameters,
               cpcImputationSettings: s.cpcImputationSettings
             }));
@@ -4463,6 +4466,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
         selectedKeywords: (s.selectedKeywords || []).map(sanitizeKeywordForSave).filter(Boolean),
         discoveredKeywords: (s.discoveredKeywords || []).map(sanitizeKeywordForSave).filter(Boolean),
         negativeCategories: s.negativeCategories || [],
+        adCopyData: s.adCopyData,
         parameters: s.parameters,
         cpcImputationSettings: s.cpcImputationSettings
       }));
@@ -4508,6 +4512,72 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
       alert('Plan kaydedilirken hata: ' + err.message);
     } finally {
       setIsSavingPlan(false);
+    }
+  };
+
+  // Save AI Ad Creative & Copywriting Data for Sub-Campaign
+  const handleSaveAdCopy = async (subCampaignId: string, adCopyData: AdCopyData) => {
+    const updatedSubs = subCampaigns.map(sc => {
+      if (sc.id === subCampaignId) {
+        return { ...sc, adCopyData };
+      }
+      return sc;
+    });
+    setSubCampaigns(updatedSubs);
+
+    if (currentPlanId) {
+      try {
+        const compactSubs = updatedSubs.map(s => ({
+          id: s.id,
+          name: s.name,
+          platform: s.platform,
+          objective: s.objective,
+          languageCode: s.languageCode,
+          languageName: s.languageName,
+          languageFlag: s.languageFlag,
+          targetLocations: s.targetLocations || [],
+          monthlyBudget: s.monthlyBudget,
+          status: s.status,
+          businessModel: s.businessModel,
+          isStep1Completed: s.isStep1Completed,
+          isStep2Completed: s.isStep2Completed,
+          isStep3Completed: s.isStep3Completed,
+          targetUrl: s.targetUrl,
+          seedKeywords: s.seedKeywords,
+          selectedKeywords: (s.selectedKeywords || []).map(sanitizeKeywordForSave).filter(Boolean),
+          discoveredKeywords: (s.discoveredKeywords || []).map(sanitizeKeywordForSave).filter(Boolean),
+          negativeCategories: s.negativeCategories || [],
+          adCopyData: s.adCopyData,
+          parameters: s.parameters,
+          cpcImputationSettings: s.cpcImputationSettings
+        }));
+
+        const formattedPeriod = formatCampaignDates(planStartDate, planEndDate, planPeriod);
+        await ApiService.saveForecastPlan({
+          id: currentPlanId,
+          workspaceId,
+          name: planName.trim() || `${clientName} - ${formattedPeriod} Medya Planı`,
+          clientName: clientName.trim(),
+          startDate: planStartDate,
+          endDate: planEndDate,
+          period: formattedPeriod,
+          tags: planTags,
+          targetUrl: mode === 'URL' ? query : '',
+          seedKeywords: mode === 'KEYWORDS' ? query : '',
+          detectedLanguage,
+          detectedLanguageName,
+          monthlyBudget: totalMasterMonthlyBudget || monthlyBudget,
+          selectedKeywords: selectedKeywordsPool.map(sanitizeKeywordForSave).filter(Boolean),
+          simulationResult: simulation,
+          negativeKeywords: negativeCategories,
+          targetCountries: activeCountries.map(c => c.name),
+          countryBreakdown,
+          subCampaigns: compactSubs,
+          languageAllocations
+        });
+      } catch (err) {
+        console.error('Auto-saving ad copy error:', err);
+      }
     }
   };
 
@@ -8474,8 +8544,29 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                   </div>
                 </div>
 
-                {/* Right: Actions (PDF, CSV, Save) */}
+                {/* Right: Actions (AI Metinler, PDF, CSV, Save) */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={() => setIsAdCreativeStudioOpen(true)}
+                    className="btn-primary"
+                    style={{ 
+                      fontSize: '0.78rem', 
+                      padding: '0.4rem 0.85rem', 
+                      display: 'inline-flex', 
+                      alignItems: 'center', 
+                      gap: '0.45rem', 
+                      fontWeight: 600,
+                      background: 'linear-gradient(135deg, #2563eb, #7c3aed)',
+                      border: 'none',
+                      boxShadow: '0 2px 8px rgba(124, 58, 237, 0.3)'
+                    }}
+                    title="Google RSA ve Meta Ads Reklam Metinlerini Yapay Zekayla Üret ve Yönet"
+                  >
+                    <Sparkles size={13} />
+                    <span>✨ AI Reklam Metinleri</span>
+                  </button>
+
                   <button
                     type="button"
                     onClick={() => handleExportSubCampaignPdf()}
@@ -9416,6 +9507,28 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                   <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
                     1.000 Gösterim Başı Maliyet (CPM), Form Dönüşüm ve Sağlıklı Lead Oranını ayarlayın.
                   </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginTop: '0.4rem' }}>
+                    <button
+                      type="button"
+                      onClick={() => setIsAdCreativeStudioOpen(true)}
+                      className="btn-ghost"
+                      style={{
+                        padding: '3px 8px',
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        color: 'var(--brand-primary)',
+                        backgroundColor: 'rgba(37, 99, 235, 0.08)',
+                        borderRadius: 'var(--radius-xs)',
+                        border: '1px solid rgba(37, 99, 235, 0.25)',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}
+                    >
+                      <Sparkles size={12} />
+                      <span>✨ Meta Kreatif Metinlerini Aç (Kancalar & Önizleme)</span>
+                    </button>
+                  </div>
                 </div>
 
                 {/* Aylık Meta Reklam Bütçesi Input & Slider */}
@@ -9829,6 +9942,28 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                     </div>
                     <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
                       Pazar hacmine bağlı gerçekçi tıklama ve dönüşüm projeksiyonu.
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginTop: '0.4rem' }}>
+                      <button
+                        type="button"
+                        onClick={() => setIsAdCreativeStudioOpen(true)}
+                        className="btn-ghost"
+                        style={{
+                          padding: '3px 8px',
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                          color: 'var(--brand-primary)',
+                          backgroundColor: 'rgba(37, 99, 235, 0.08)',
+                          borderRadius: 'var(--radius-xs)',
+                          border: '1px solid rgba(37, 99, 235, 0.25)',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}
+                      >
+                        <Sparkles size={12} />
+                        <span>✨ RSA Reklam Metinlerini Aç (15 Başlık / 4 Açıklama)</span>
+                      </button>
                     </div>
                   </div>
 
@@ -12626,6 +12761,7 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
                 selectedKeywords: (s.selectedKeywords || []).map(sanitizeKeywordForSave).filter(Boolean),
                 discoveredKeywords: (s.discoveredKeywords || []).map(sanitizeKeywordForSave).filter(Boolean),
                 negativeCategories: s.negativeCategories || [],
+                adCopyData: s.adCopyData,
                 parameters: s.parameters,
                 cpcImputationSettings: s.cpcImputationSettings
               }));
@@ -13319,6 +13455,42 @@ export const ForecastModule: React.FC<ForecastModuleProps> = ({ workspaceId }) =
             startDate: planStartDate,
             endDate: planEndDate
           }}
+        />
+      )}
+
+      {/* AI Ad Creative Studio Modal */}
+      {isAdCreativeStudioOpen && (
+        <AiAdCreativeStudioModal
+          isOpen={isAdCreativeStudioOpen}
+          onClose={() => setIsAdCreativeStudioOpen(false)}
+          subCampaign={activeSubCampaign || {
+            id: activeSubCampaignId || 'sub_default',
+            name: planName || 'Ana Kampanya',
+            channel: isGoogleSearchActive ? 'GOOGLE_SEARCH' : 'META_ADS',
+            platform: isGoogleSearchActive ? 'GOOGLE' : 'META',
+            objective: isGoogleSearchActive ? 'GOOGLE_SEARCH' : 'LEADS',
+            languageCode: targetLanguage === 'auto' ? (detectedLanguage || 'tr') : targetLanguage,
+            languageName: detectedLanguageName || 'Türkçe',
+            languageFlag: '🌐',
+            targetLocations: selectedLocationsGrouped,
+            monthlyBudget: monthlyBudget || 0,
+            status: 'ACTIVE',
+            businessModel: 'B2B',
+            isStep1Completed: true,
+            isStep2Completed: true,
+            isStep3Completed: true,
+            targetUrl: mode === 'URL' ? query : '',
+            seedKeywords: mode === 'KEYWORDS' ? query : '',
+            selectedKeywords: keywords,
+            discoveredKeywords: [],
+            negativeCategories: negativeCategories,
+            adCopyData: undefined
+          }}
+          onSaveAdCopy={(scId, adCopyData) => {
+            handleSaveAdCopy(scId, adCopyData);
+          }}
+          clientName={clientName}
+          targetUrl={mode === 'URL' ? query : (activeSubCampaign?.targetUrl || '')}
         />
       )}
 
